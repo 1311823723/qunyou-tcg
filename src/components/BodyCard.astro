@@ -1,32 +1,87 @@
 ---
-import CardFrame from "./CardFrame.astro";
 import TagPill from "./TagPill.astro";
 import type { BodyCard as BodyType } from "../lib/cards";
+import { EXTRA_FORM_LABELS, EXTRA_FORM_CONDITION_LABELS } from "../lib/cards";
 
 export interface Props { body: BodyType; compact?: boolean; }
 const { body: b, compact } = Astro.props;
+const hasExtra = !!b.extraForm;
+const formLabel = b.extraForm ? (EXTRA_FORM_LABELS[b.extraForm.type] ?? b.extraForm.type) : "";
+const hasCondition = b.extraForm?.condition && b.extraForm.condition.trim() !== "";
 ---
-<CardFrame class={`tcg-body ${compact ? "tcg-char--compact" : ""}`} kind="body">
-  <div class="tcg-body__banner">
-    <div>
-      <div class="tcg-body__type">本体 · {b.archetype}</div>
-      <h3 class="tcg-body__name">{b.name}</h3>
+<div class={`card-frame tcg-body ${compact ? "tcg-body--compact" : ""}`} data-kind="body">
+  <div class="card-flip__inner" id={`flip-${b.id}`}>
+    <!-- 正面：本体 -->
+    <div class="card-flip__face card-flip__face--front">
+      <div class="tcg-body__banner">
+        <div>
+          <div class="tcg-body__type">本体 · {b.archetype}</div>
+          <h3 class="tcg-body__name">{b.name}</h3>
+        </div>
+        <div class="tcg-body__hp">
+          <div class="tcg-body__hp-val">{b.hp}</div>
+          <div class="tcg-body__hp-label">体力</div>
+        </div>
+      </div>
+      <div class="tcg-body__body">
+        <div class="flex flex-wrap gap-1 mb-3">
+          {b.affinityTags.map((tag) => <TagPill label={tag} variant="aggro" />)}
+        </div>
+        <div class="tcg-char__skill-name">{b.skillName}</div>
+        <p class="skill-text mt-2">{b.effectText}</p>
+      </div>
+      {hasCondition && (
+        <div class="tcg-body__mega-box">
+          <div class="tcg-body__mega-label">{EXTRA_FORM_CONDITION_LABELS[b.extraForm!.type] ?? "发动条件"}</div>
+          <p class="skill-text" style="color: var(--text-primary); font-weight: 700;">{b.extraForm!.condition}</p>
+        </div>
+      )}
+      {b.notes && <p class="tcg-char__notes">{b.notes}</p>}
+      {hasExtra && (
+        <button type="button" class="card-flip__btn" data-flip-target={`flip-${b.id}`}>
+          <span class="card-flip__btn-icon" aria-hidden="true">↻</span>
+          查看背面 · {formLabel}
+        </button>
+      )}
     </div>
-    <div class="tcg-body__hp">
-      <div class="tcg-body__hp-val">{b.hp}</div>
-      <div class="tcg-body__hp-label">体力</div>
-    </div>
+
+    <!-- 背面：额外形态 -->
+    {b.extraForm && (
+      <div class="card-flip__face card-flip__face--back">
+        <div class="tcg-body__banner tcg-body__banner--extra">
+          <div>
+            <div class="tcg-body__type tcg-body__type--extra">{formLabel}</div>
+            <h3 class="tcg-body__name tcg-body__name--extra">{b.extraForm.name}</h3>
+          </div>
+          <div class="tcg-body__hp tcg-body__hp--extra">
+            <div class="tcg-body__hp-val">{b.hp}</div>
+            <div class="tcg-body__hp-label">体力</div>
+          </div>
+        </div>
+        <div class="tcg-body__body">
+          <div class="flex flex-wrap gap-1 mb-3">
+            {b.affinityTags.map((tag) => <TagPill label={tag} variant="aggro" />)}
+          </div>
+          <div class="tcg-char__skill-name">{b.extraForm.skillName}</div>
+          <p class="skill-text mt-2">{b.extraForm.effectText}</p>
+        </div>
+        <button type="button" class="card-flip__btn" data-flip-target={`flip-${b.id}`}>>
+          <span class="card-flip__btn-icon" aria-hidden="true">↻</span>
+          查看正面 · 本体
+        </button>
+      </div>
+    )}
   </div>
-  <div class="tcg-body__body">
-    <div class="flex flex-wrap gap-1 mb-3">
-      {b.affinityTags.map((tag) => <TagPill label={tag} variant="aggro" />)}
-    </div>
-    <div class="tcg-char__skill-name">{b.skillName}</div>
-    <p class="skill-text mt-2">{b.effectText}</p>
-  </div>
-  <div class="tcg-body__mega-box">
-    <div class="tcg-body__mega-label">Mega 条件</div>
-    <p class="skill-text" style="color: var(--text-primary); font-weight: 700;">{b.megaCondition}</p>
-  </div>
-  {b.notes && <p class="tcg-char__notes" style="margin: 0 1rem 1rem;">{b.notes}</p>}
-</CardFrame>
+</div>
+
+<script>
+  document.querySelectorAll(".card-flip__btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetId = (btn as HTMLElement).dataset.flipTarget;
+      if (!targetId) return;
+      const inner = document.getElementById(targetId);
+      if (!inner) return;
+      inner.classList.toggle("is-flipped");
+    });
+  });
+</script>

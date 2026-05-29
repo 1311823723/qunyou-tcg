@@ -1,13 +1,12 @@
 import aggroDeck from "../../data/decks/aggro.deck.json";
-import { getBodyById, getMegaById, getCharactersByIds } from "./cards";
-import type { BodyCard, MegaCard, CharacterCard } from "./cards";
+import { getBodyById, getCharactersByIds } from "./cards";
+import type { BodyCard, CharacterCard } from "./cards";
 
 export interface DeckData {
   id: string;
   name: string;
   archetype: string;
   bodyId: string;
-  megaId: string;
   characterIds: string[];
   notes?: string;
 }
@@ -15,7 +14,6 @@ export interface DeckData {
 export interface ResolvedDeck {
   deck: DeckData;
   body: BodyCard | undefined;
-  mega: MegaCard | undefined;
   characters: CharacterCard[];
 }
 
@@ -25,7 +23,6 @@ export function resolveDeck(deck: DeckData): ResolvedDeck {
   return {
     deck,
     body: getBodyById(deck.bodyId),
-    mega: getMegaById(deck.megaId),
     characters: getCharactersByIds(deck.characterIds),
   };
 }

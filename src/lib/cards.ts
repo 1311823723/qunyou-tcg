@@ -1,5 +1,4 @@
 import bodies from "../../data/cards/bodies.json";
-import megas from "../../data/cards/megas.json";
 import characters from "../../data/cards/characters.json";
 import handCards from "../../data/cards/hand_cards.json";
 
@@ -7,6 +6,28 @@ export interface CardEntry {
   suit: string;
   rank: string;
 }
+
+export interface ExtraFormData {
+  type: "mega" | "z-move" | "terastal" | "dynamax";
+  name: string;
+  skillName: string;
+  effectText: string;
+  condition: string;
+}
+
+export const EXTRA_FORM_LABELS: Record<string, string> = {
+  "mega": "Mega",
+  "z-move": "Z招式",
+  "terastal": "钛晶化",
+  "dynamax": "极巨化",
+};
+
+export const EXTRA_FORM_CONDITION_LABELS: Record<string, string> = {
+  "mega": "Mega 条件",
+  "z-move": "Z招式发动条件",
+  "terastal": "钛晶化条件",
+  "dynamax": "极巨化条件",
+};
 
 export interface BodyCard {
   id: string;
@@ -17,17 +38,7 @@ export interface BodyCard {
   affinityTags: string[];
   skillName: string;
   effectText: string;
-  megaCondition: string;
-  notes?: string;
-}
-
-export interface MegaCard {
-  id: string;
-  name: string;
-  cardType: "Mega";
-  bodyId: string;
-  skillName: string;
-  effectText: string;
+  extraForm?: ExtraFormData;
   notes?: string;
 }
 
@@ -63,9 +74,16 @@ export interface HandCard {
 }
 
 export const allBodies: BodyCard[] = bodies as BodyCard[];
-export const allMegas: MegaCard[] = megas as MegaCard[];
 export const allCharacters: CharacterCard[] = characters as CharacterCard[];
 export const allHandCards: HandCard[] = handCards as HandCard[];
+
+export function getBodyCount(): number {
+  return allBodies.length;
+}
+
+export function getBodyWithExtraFormCount(): number {
+  return allBodies.filter((b) => b.extraForm).length;
+}
 
 export const MAIN_ROLES = ["强攻", "防御", "资源", "控制", "支援", "伏击"] as const;
 export const HAND_TYPES = ["基础", "锦囊"] as const;
@@ -86,20 +104,12 @@ export function getBodyById(id: string): BodyCard | undefined {
   return allBodies.find((b) => b.id === id);
 }
 
-export function getMegaById(id: string): MegaCard | undefined {
-  return allMegas.find((m) => m.id === id);
-}
-
 export function getCharacterById(id: string): CharacterCard | undefined {
   return allCharacters.find((c) => c.id === id);
 }
 
 export function getCharactersByIds(ids: string[]): CharacterCard[] {
   return ids.map((id) => allCharacters.find((c) => c.id === id)).filter(Boolean) as CharacterCard[];
-}
-
-export function getMegaByBodyId(bodyId: string): MegaCard | undefined {
-  return allMegas.find((m) => m.bodyId === bodyId);
 }
 
 export function getHandCardTotal(): number {

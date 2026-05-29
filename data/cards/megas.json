@@ -1,11 +1,11 @@
 [
   {
     "id": "mega_aggro_001",
-    "name": "Mega 上头怪",
+    "name": "Mega 微笑尅乐",
     "cardType": "Mega",
     "bodyId": "body_aggro_001",
     "skillName": "彻底上头",
-    "effectText": "你每回合可以额外使用 1 张【杀】。若你本回合没有造成伤害，结束阶段失去 1 点体力。",
-    "notes": "爆杀组 Mega，提供额外进攻能力，但有反噬。"
+    "effectText": "你每回合可以额外使用 1 张【杀】。若你本回合Mega后没有造成伤害，结束阶段失去 1 点体力。",
+    "notes": "Mega，提供额外进攻能力。"
   }
 ]

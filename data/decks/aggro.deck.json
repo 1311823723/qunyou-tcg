@@ -3,7 +3,6 @@
   "name": "上头组",
   "archetype": "爆杀流",
   "bodyId": "body_aggro_001",
-  "megaId": "mega_aggro_001",
   "characterIds": [
     "char_aggro_001",
     "char_aggro_002",

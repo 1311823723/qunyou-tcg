@@ -1,7 +1,7 @@
 ---
 import Layout from "../components/Layout.astro";
 import HeroCardShowcase from "../components/HeroCardShowcase.astro";
-import { allBodies, allMegas, allCharacters, getHandCardTotal } from "../lib/cards";
+import { allBodies, allCharacters, getHandCardTotal, getBodyWithExtraFormCount } from "../lib/cards";
 import { allDecks } from "../lib/decks";
 import { ARCHETYPE_KEYWORDS } from "../lib/ui";
 
@@ -14,23 +14,22 @@ const mechanics = [
   { icon: "02", title: "暗置上阵", desc: "角色背面布阵，保留伏击与节奏信息。", color: "var(--color-mega-purple)" },
   { icon: "03", title: "休整发动", desc: "角色回牌堆底，换取技能收益。", color: "var(--color-text-highlight)" },
   { icon: "04", title: "攻防响应", desc: "共用手牌牌堆提供杀、闪与锦囊。", color: "var(--color-role-defend)" },
-  { icon: "05", title: "Mega 爆发", desc: "达成条件后一次性强化，完成反打。", color: "var(--color-mega)" },
+  { icon: "05", title: "额外形态", desc: "翻面激活 Mega/Z招式等强势窗口。", color: "var(--color-mega)" },
 ];
 
 const collections = [
-  { href: "/cards/bodies", label: "本体牌", count: allBodies.length, desc: "决定流派与胜负核心", color: "var(--color-role-attack)" },
-  { href: "/cards/megas", label: "Mega 牌", count: allMegas.length, desc: "一次性强化与翻盘窗口", color: "var(--color-mega-purple)" },
+  { href: "/cards/bodies", label: "本体牌", count: allBodies.length, desc: "决定流派与额外形态", color: "var(--color-role-attack)" },
   { href: "/cards/characters", label: "角色牌", count: allCharacters.length, desc: "暗置、休整、退场与连招", color: "var(--color-text-highlight)" },
   { href: "/cards/hand-cards", label: "手牌牌堆", count: handTotal, desc: "双方共用的攻防资源", color: "var(--color-role-defend)" },
 ];
 ---
-<Layout title="首页" description="群友杀 TCG — 本体承伤，角色暗置上阵，休整发动技能，Mega 后爆发反打。">
+<Layout title="首页" description="群友杀 TCG — 本体承伤，角色暗置上阵，休整发动技能，额外形态翻面爆发反打。">
   <section class="hero-section page-wrap">
     <div class="hero-grid">
       <div>
         <p class="hero-eyebrow">v0.2 Demo · Tactical Card Archive</p>
         <h1 class="hero-title"><span>群友杀</span> TCG</h1>
-        <p class="hero-sub">本体承伤，角色暗置上阵，休整发动技能，Mega 后爆发反打。一个围绕群友整活与高压爆发设计的 1v1 对战卡牌游戏。</p>
+        <p class="hero-sub">本体承伤，角色暗置上阵，休整发动技能，翻面激活额外形态。一个围绕群友整活与高压爆发设计的 1v1 对战卡牌游戏。</p>
         <div class="hero-actions">
           <a href="/rules" class="btn btn--primary">查看规则</a>
           <a href="/cards" class="btn btn--secondary">浏览全卡</a>
@@ -39,7 +38,7 @@ const collections = [
         <div class="hero-chips">
           <span class="hero-chip">本体承伤</span>
           <span class="hero-chip">暗置角色</span>
-          <span class="hero-chip">Mega 爆发</span>
+          <span class="hero-chip">翻面进化</span>
         </div>
       </div>
       <HeroCardShowcase />
@@ -54,8 +53,8 @@ const collections = [
           <div class="stat-hud__label">本体牌</div>
         </div>
         <div class="stat-hud__item">
-          <div class="stat-hud__value" style="color: var(--color-mega-purple)">{allMegas.length}</div>
-          <div class="stat-hud__label">Mega 牌</div>
+          <div class="stat-hud__value" style="color: var(--color-mega-purple)">{getBodyWithExtraFormCount()}</div>
+          <div class="stat-hud__label">额外形态</div>
         </div>
         <div class="stat-hud__item">
           <div class="stat-hud__value" style="color: var(--color-text-highlight)">{allCharacters.length}</div>
@@ -85,7 +84,7 @@ const collections = [
 
   <section class="page-wrap py-4">
     <h2 class="section-heading">卡牌收藏册</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {collections.map((item) => (
         <a href={item.href} class="collection-card" style={`--collection-color: ${item.color}`}>
           <div class="collection-card__count">{item.count}</div>

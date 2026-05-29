@@ -6,7 +6,7 @@ import { ARCHETYPE_KEYWORDS } from "../../lib/ui";
 ---
 <Layout title="预组卡组">
   <div class="page-wrap">
-    <PageHeader title="预组卡组" subtitle="Preconstructed Decks · 构筑好的 16 张角色 + 本体 + Mega。" badge="DECKS" />
+    <PageHeader title="预组卡组" subtitle="Preconstructed Decks · 构筑好的 16 张角色 + 本体（含额外形态）。" badge="DECKS" />
     <div class="grid gap-4 max-w-3xl">
       {allDecks.map((deck) => {
         const resolved = resolveDeck(deck);

@@ -1,7 +1,6 @@
 ---
 import Layout from "../../components/Layout.astro";
 import BodyCard from "../../components/BodyCard.astro";
-import MegaCard from "../../components/MegaCard.astro";
 import CharacterCard from "../../components/CharacterCard.astro";
 import { getDeckById, resolveDeck, getRoleDistribution, getTagDistribution } from "../../lib/decks";
 import { ARCHETYPE_BLURB, ARCHETYPE_RISKS, ARCHETYPE_KEYWORDS } from "../../lib/ui";
@@ -48,16 +47,9 @@ const roleColorCss: Record<string, string> = {
     </header>
 
     <section class="mb-10">
-      <h2 class="section-heading" style="font-size: 1.1rem;">本体 ↔ Mega 进化链</h2>
-      <div class="grid md:grid-cols-[1fr_auto_1fr] gap-3 items-stretch">
-        <div>{resolved.body && <BodyCard body={resolved.body} />}</div>
-        <div class="mega-connector">
-          <span aria-hidden="true">⟶</span>
-          <span>Mega 条件</span>
-          <span aria-hidden="true">⟶</span>
-        </div>
-        <div>{resolved.mega && <MegaCard mega={resolved.mega} />}</div>
-      </div>
+      <h2 class="section-heading" style="font-size: 1.1rem;">本体 · 额外形态</h2>
+      <p class="skill-text mb-4" style="max-width: 36rem;">点击本体卡下方按钮翻面查看 Mega 形态。额外形态写在卡牌背面，满足条件后翻面激活。</p>
+      <div class="max-w-md">{resolved.body && <BodyCard body={resolved.body} />}</div>
     </section>
 
     <section class="hud-panel mb-10" style="padding: 1.15rem;">

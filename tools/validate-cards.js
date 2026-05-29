@@ -15,7 +15,6 @@ function readJSON(filename) {
 let errors = [];
 
 const bodies = readJSON("cards/bodies.json");
-const megas = readJSON("cards/megas.json");
 const characters = readJSON("cards/characters.json");
 const handCards = readJSON("cards/hand_cards.json");
 const aggroDeck = readJSON("decks/aggro.deck.json");
@@ -32,20 +31,15 @@ function registerIds(list, source) {
 }
 
 registerIds(bodies, "bodies.json");
-registerIds(megas, "megas.json");
 registerIds(characters, "characters.json");
 registerIds(handCards, "hand_cards.json");
 
 // Check deck references
 const bodyIds = new Set(bodies.map((b) => b.id));
-const megaIds = new Set(megas.map((m) => m.id));
 const characterIds = new Set(characters.map((c) => c.id));
 
 if (!bodyIds.has(aggroDeck.bodyId)) {
   errors.push(`Deck bodyId "${aggroDeck.bodyId}" not found in bodies.json`);
-}
-if (!megaIds.has(aggroDeck.megaId)) {
-  errors.push(`Deck megaId "${aggroDeck.megaId}" not found in megas.json`);
 }
 for (const cid of aggroDeck.characterIds) {
   if (!characterIds.has(cid)) {
@@ -76,6 +70,25 @@ for (const card of handCards) {
   }
 }
 
+// Check each body has valid extraForm if present
+for (const body of bodies) {
+  if (body.extraForm) {
+    const ef = body.extraForm;
+    if (!ef.type || !["mega", "z-move", "terastal", "dynamax"].includes(ef.type)) {
+      errors.push(`Body "${body.id}" extraForm has invalid type: ${ef.type}`);
+    }
+    if (!ef.name) {
+      errors.push(`Body "${body.id}" extraForm missing name`);
+    }
+    if (!ef.skillName) {
+      errors.push(`Body "${body.id}" extraForm missing skillName`);
+    }
+    if (!ef.effectText) {
+      errors.push(`Body "${body.id}" extraForm missing effectText`);
+    }
+  }
+}
+
 // Check each character has required fields
 const charRequiredFields = [
   "mainRole", "tags", "cost", "timing", "skillName", "effectText",
@@ -95,9 +108,9 @@ if (errors.length > 0) {
   }
   process.exit(1);
 } else {
+  const extraFormCount = bodies.filter((b) => b.extraForm).length;
   console.log("VALIDATION PASSED");
-  console.log(`  Bodies: ${bodies.length}`);
-  console.log(`  Megas: ${megas.length}`);
+  console.log(`  Bodies: ${bodies.length} (${extraFormCount} with extra form)`);
   console.log(`  Characters: ${characters.length}`);
   console.log(`  Hand cards (types): ${handCards.length}`);
   console.log(`  Hand cards (total): ${totalCount}`);

@@ -1,14 +1,20 @@
 [
   {
     "id": "body_aggro_001",
-    "name": "上头怪",
+    "name": "微笑尅乐",
     "cardType": "本体",
     "hp": 4,
     "archetype": "爆杀流",
     "affinityTags": ["强攻", "爆发", "连杀"],
     "skillName": "上头",
     "effectText": "每回合第一次你造成伤害后，你可以摸 1 张手牌。",
-    "megaCondition": "你在一个回合内造成 2 点或更多伤害后，立刻 Mega。",
+    "extraForm": {
+      "type": "mega",
+      "name": "Mega 微笑尅乐",
+      "skillName": "彻底上头",
+      "effectText": "你每回合可以额外使用 1 张【杀】。若你本回合没有造成伤害，结束阶段失去 1 点体力。",
+      "condition": "你在一个回合内造成 2 点或更多伤害后，立刻 Mega。"
+    },
     "notes": "爆杀组本体，鼓励主动造成伤害。"
   }
 ]

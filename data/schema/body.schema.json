@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "本体",
   "type": "object",
-  "required": ["id", "name", "cardType", "hp", "archetype", "affinityTags", "skillName", "effectText", "megaCondition"],
+  "required": ["id", "name", "cardType", "hp", "archetype", "affinityTags", "skillName", "effectText"],
   "properties": {
     "id": { "type": "string" },
     "name": { "type": "string" },
@@ -15,7 +15,20 @@
     },
     "skillName": { "type": "string" },
     "effectText": { "type": "string" },
-    "megaCondition": { "type": "string" },
+    "extraForm": {
+      "type": "object",
+      "required": ["type", "name", "skillName", "effectText"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["mega", "z-move", "terastal", "dynamax"]
+        },
+        "name": { "type": "string" },
+        "skillName": { "type": "string" },
+        "effectText": { "type": "string" },
+        "condition": { "type": "string" }
+      }
+    },
     "notes": { "type": "string" }
   }
 }
