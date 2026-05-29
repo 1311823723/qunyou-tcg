@@ -1,0 +1,50 @@
+---
+import Layout from "../../components/Layout.astro";
+import CharacterCard from "../../components/CharacterCard.astro";
+import FilterBar from "../../components/FilterBar.astro";
+import { allCharacters, MAIN_ROLES, ALL_TAGS } from "../../lib/cards";
+
+const url = new URL(Astro.request.url);
+const role = url.searchParams.get("role") || "";
+const tag = url.searchParams.get("tag") || "";
+const search = url.searchParams.get("search") || "";
+
+let filtered = allCharacters;
+
+if (role) {
+  filtered = filtered.filter((c) => c.mainRole === role);
+}
+if (tag) {
+  filtered = filtered.filter((c) => c.tags.includes(tag));
+}
+if (search) {
+  const q = search.toLowerCase();
+  filtered = filtered.filter(
+    (c) =>
+      c.name.toLowerCase().includes(q) ||
+      c.skillName.toLowerCase().includes(q) ||
+      c.effectText.toLowerCase().includes(q)
+  );
+}
+---
+<Layout title="角色牌">
+  <div class="page-container">
+    <h1 class="section-title text-[var(--color-accent-gold)]">角色牌 <span class="text-sm text-[var(--color-text-muted)]">({filtered.length}/{allCharacters.length})</span></h1>
+
+    <FilterBar
+      roles={[...MAIN_ROLES]}
+      tags={ALL_TAGS}
+      activeRole={role}
+      activeTag={tag}
+      search={search}
+    />
+
+    {filtered.length === 0 ? (
+      <p class="text-[var(--color-text-muted)] text-center py-12">没有匹配的角色牌</p>
+    ) : (
+      <div class="card-grid">
+        {filtered.map((c) => <CharacterCard character={c} showDeck />)}
+      </div>
+    )}
+  </div>
+</Layout>

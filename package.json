@@ -1,0 +1,23 @@
+{
+  "name": "qunyou-tcg",
+  "version": "0.2.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "validate": "node tools/validate-cards.js",
+    "print:aggro": "node tools/print-deck.js"
+  },
+  "overrides": {
+    "vite": "^7"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.7",
+    "@types/node": "^25.0.1",
+    "astro": "^5.16.5",
+    "tailwindcss": "^4.1.7",
+    "typescript": "^5.9.3"
+  }
+}

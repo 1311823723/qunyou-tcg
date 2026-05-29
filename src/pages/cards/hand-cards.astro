@@ -1,0 +1,63 @@
+---
+import Layout from "../../components/Layout.astro";
+import HandCard from "../../components/HandCard.astro";
+import { allHandCards, getHandCardTotal, getSuitDistribution, SUIT_SYMBOLS, ALL_SUITS } from "../../lib/cards";
+
+const total = getHandCardTotal();
+const suitDist = getSuitDistribution();
+const basics = allHandCards.filter(c => c.handType === "基础");
+const tricks = allHandCards.filter(c => c.handType === "锦囊");
+---
+<Layout title="手牌">
+  <div class="page-container">
+    <div class="flex items-baseline gap-3 mb-2">
+      <h1 class="section-title text-[var(--color-accent-gold)]">手牌牌堆</h1>
+      <span class="text-sm text-[var(--color-text-muted)]">{allHandCards.length} 种 · 共 {total} 张</span>
+    </div>
+
+    <!-- Suit distribution bar -->
+    <div class="card-frame mb-6">
+      <div class="text-xs text-[var(--color-text-muted)] mb-2">花色分布 · 共 {total} 张</div>
+      <div class="flex gap-4">
+        {ALL_SUITS.map(suit => {
+          const count = suitDist[suit] || 0;
+          const red = suit === "红桃" || suit === "方块";
+          return (
+            <div class="flex items-center gap-2">
+              <span class="text-lg font-mono font-bold" style={red ? "color:#e06060" : "color:var(--color-text-secondary)"}>
+                {SUIT_SYMBOLS[suit]}
+              </span>
+              <div class="w-20 h-2 bg-[var(--color-bg-surface)] rounded-full overflow-hidden">
+                <div
+                  class="h-full rounded-full"
+                  style={`width:${(count / total) * 100}%;background:${red ? "rgba(224,96,96,0.5)" : "rgba(150,150,180,0.5)"}`}
+                ></div>
+              </div>
+              <span class="text-xs font-mono text-[var(--color-text-muted)]">{count}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    <!-- Basic cards -->
+    {basics.length > 0 && (
+      <>
+        <h2 class="text-sm font-bold text-[var(--color-text-primary)] mb-3">基础牌</h2>
+        <div class="card-grid mb-8">
+          {basics.map(c => <HandCard card={c} />)}
+        </div>
+      </>
+    )}
+
+    <!-- Trick cards -->
+    {tricks.length > 0 && (
+      <>
+        <h2 class="text-sm font-bold text-[var(--color-text-primary)] mb-3">锦囊牌</h2>
+        <div class="card-grid mb-8">
+          {tricks.map(c => <HandCard card={c} />)}
+        </div>
+      </>
+    )}
+  </div>
+</Layout>

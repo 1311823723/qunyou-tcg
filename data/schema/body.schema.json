@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "本体",
+  "type": "object",
+  "required": ["id", "name", "cardType", "hp", "archetype", "affinityTags", "skillName", "effectText", "megaCondition"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "cardType": { "type": "string", "const": "本体" },
+    "hp": { "type": "number" },
+    "archetype": { "type": "string" },
+    "affinityTags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "skillName": { "type": "string" },
+    "effectText": { "type": "string" },
+    "megaCondition": { "type": "string" },
+    "notes": { "type": "string" }
+  }
+}

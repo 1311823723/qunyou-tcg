@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-deep: #0a0a0f;
+  --color-bg-card: #14141f;
+  --color-bg-card-hover: #1a1a2e;
+  --color-bg-surface: #1c1c2e;
+  --color-border-card: #2a2a3f;
+  --color-border-accent: #3a3a55;
+  --color-accent-red: #e04040;
+  --color-accent-orange: #e07830;
+  --color-accent-gold: #c8a040;
+  --color-accent-blue: #5080d0;
+  --color-accent-purple: #8050c0;
+  --color-accent-cyan: #40a0a0;
+  --color-accent-green: #50a050;
+  --color-text-primary: #e8e8f0;
+  --color-text-secondary: #9898b0;
+  --color-text-muted: #686880;
+  --color-tag-attack: #c04030;
+  --color-tag-defend: #3070b0;
+  --color-tag-resource: #409050;
+  --color-tag-control: #7050a0;
+  --color-tag-support: #4080a0;
+  --color-tag-ambush: #b05080;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+body {
+  background: var(--color-bg-deep);
+  color: var(--color-text-primary);
+  font-family: "Inter", "Noto Sans SC", system-ui, sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--color-border-accent); border-radius: 3px; }
+
+/* Card component base */
+.card-frame {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-card);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: border-color 0.2s, background 0.2s;
+}
+.card-frame:hover {
+  border-color: var(--color-border-accent);
+  background: var(--color-bg-card-hover);
+}
+
+/* Tag pill */
+.tag-pill {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+.tag-pill.role-attack { background: rgba(192,64,48,0.25); color: #e06050; }
+.tag-pill.role-defend { background: rgba(48,112,176,0.25); color: #5090d0; }
+.tag-pill.role-resource { background: rgba(64,144,80,0.25); color: #50b060; }
+.tag-pill.role-control { background: rgba(112,80,160,0.25); color: #9070d0; }
+.tag-pill.role-support { background: rgba(64,128,160,0.25); color: #50a0c0; }
+.tag-pill.role-ambush { background: rgba(176,80,128,0.25); color: #d06090; }
+.tag-pill.mechanic { background: rgba(255,255,255,0.06); color: var(--color-text-secondary); }
+
+/* Skill text area */
+.skill-text {
+  line-height: 1.7;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* Section title */
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 1rem;
+}
+
+/* Layout */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* Grid for card lists */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+/* Filter bar */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Link cards */
+.nav-card {
+  display: block;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-card);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-decoration: none;
+  color: var(--color-text-primary);
+  transition: border-color 0.2s, background 0.2s;
+}
+.nav-card:hover {
+  border-color: var(--color-border-accent);
+  background: var(--color-bg-card-hover);
+}
+
+/* Stat bar */
+.stat-bar {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.stat-item {
+  text-align: center;
+}
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}

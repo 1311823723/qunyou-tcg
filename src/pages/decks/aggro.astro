@@ -1,0 +1,112 @@
+---
+import Layout from "../../components/Layout.astro";
+import BodyCard from "../../components/BodyCard.astro";
+import MegaCard from "../../components/MegaCard.astro";
+import CharacterCard from "../../components/CharacterCard.astro";
+import TagPill from "../../components/TagPill.astro";
+import { getDeckById, resolveDeck, getRoleDistribution, getTagDistribution } from "../../lib/decks";
+
+const deck = getDeckById("deck_aggro_001");
+if (!deck) throw new Error("Deck not found");
+const resolved = resolveDeck(deck);
+const roleDist = getRoleDistribution(resolved.characters);
+const tagDist = getTagDistribution(resolved.characters);
+
+const roleOrder = ["强攻", "防御", "资源", "控制", "支援", "伏击"];
+const sortedRoleDist = Object.entries(roleDist).sort(
+  ([a], [b]) => roleOrder.indexOf(a) - roleOrder.indexOf(b)
+);
+const sortedTagDist = Object.entries(tagDist).sort(
+  ([, a], [, b]) => b - a
+);
+---
+<Layout title={deck.name}>
+  <div class="page-container">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-2xl font-extrabold text-[var(--color-accent-gold)]">{deck.name}</h1>
+      <p class="text-[var(--color-text-muted)] mt-1">{deck.archetype}</p>
+      {deck.notes && <p class="skill-text mt-3 max-w-2xl">{deck.notes}</p>}
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+      {[
+        ["本体体力", resolved.body ? String(resolved.body.hp) : "?", "var(--color-accent-red)"],
+        ["角色牌", String(resolved.characters.length), "var(--color-accent-gold)"],
+        ["退场牌", String(resolved.characters.filter(c => c.cost.type === "退场" || c.cost.type === "复合").length), "var(--color-accent-purple)"],
+        ["伏击牌", String(resolved.characters.filter(c => c.mainRole === "伏击").length), "var(--color-accent-cyan)"],
+      ].map(([label, value, color]) => (
+        <div class="card-frame text-center">
+          <div class="stat-value" style={`color:${color}`}>{value}</div>
+          <div class="stat-label">{label}</div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Body + Mega -->
+    <div class="grid md:grid-cols-2 gap-4 mb-8">
+      {resolved.body && <BodyCard body={resolved.body} />}
+      {resolved.mega && <MegaCard mega={resolved.mega} />}
+    </div>
+
+    <!-- Distributions -->
+    <div class="grid md:grid-cols-2 gap-4 mb-8">
+      <div class="card-frame">
+        <h3 class="font-bold text-sm text-[var(--color-text-primary)] mb-3">主定位分布</h3>
+        <div class="space-y-2">
+          {sortedRoleDist.map(([role, count]) => (
+            <div class="flex items-center gap-2">
+              <span class="text-xs w-12 text-[var(--color-text-muted)]">{role}</span>
+              <div class="flex-1 h-5 bg-[var(--color-bg-surface)] rounded-full overflow-hidden">
+                <div
+                  class="h-full rounded-full transition-all"
+                  style={`width:${(count / 16) * 100}%; background: var(--color-tag-attack)`}
+                ></div>
+              </div>
+              <span class="text-xs font-bold text-[var(--color-text-primary)] w-4">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div class="card-frame">
+        <h3 class="font-bold text-sm text-[var(--color-text-primary)] mb-3">标签分布</h3>
+        <div class="flex flex-wrap gap-1">
+          {sortedTagDist.map(([tag, count]) => (
+            <span class="tag-pill mechanic text-xs">
+              {tag} ×{count}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <!-- Combo showcase -->
+    <div class="card-frame mb-8 border-l-2 border-l-[var(--color-accent-gold)]">
+      <h3 class="font-bold text-sm text-[var(--color-accent-gold)] mb-2">核心连招示例</h3>
+      <div class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+        <span class="text-[var(--color-accent-gold)] font-medium">找刀哥</span>
+        <span class="text-[var(--color-text-muted)]">→</span>
+        <span class="text-[var(--color-accent-gold)] font-medium">加伤哥</span>
+        <span class="text-[var(--color-text-muted)]">→</span>
+        <span class="text-[var(--color-accent-gold)] font-medium">忍者</span>
+        <span class="text-[var(--color-text-muted)]">→</span>
+        <span class="text-[var(--color-accent-red)] font-bold">【杀】</span>
+        <span class="text-[var(--color-text-muted)]">→</span>
+        <span class="text-[var(--color-text-primary)] font-medium">触发上头</span>
+        <span class="text-[var(--color-text-muted)]">→</span>
+        <span class="text-[var(--color-accent-purple)] font-bold">达成 Mega</span>
+      </div>
+      <p class="skill-text mt-2">
+        先用找刀哥检索【杀】，加伤哥增幅伤害，忍者影步确保【杀】不可被闪且杀完回手，造成伤害后触发本体技能「上头」摸牌，若本回合累计 2 伤则立刻 Mega。
+      </p>
+    </div>
+
+    <!-- Character list -->
+    <h2 class="section-title text-[var(--color-accent-gold)]">角色牌 ({resolved.characters.length})</h2>
+    <div class="card-grid">
+      {resolved.characters.map((c) => <CharacterCard character={c} />)}
+    </div>
+  </div>
+</Layout>

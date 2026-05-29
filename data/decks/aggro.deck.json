@@ -1,0 +1,26 @@
+{
+  "id": "deck_aggro_001",
+  "name": "上头组",
+  "archetype": "爆杀流",
+  "bodyId": "body_aggro_001",
+  "megaId": "mega_aggro_001",
+  "characterIds": [
+    "char_aggro_001",
+    "char_aggro_002",
+    "char_aggro_003",
+    "char_aggro_004",
+    "char_aggro_005",
+    "char_aggro_006",
+    "char_aggro_007",
+    "char_aggro_008",
+    "char_aggro_009",
+    "char_aggro_010",
+    "char_aggro_011",
+    "char_aggro_012",
+    "char_aggro_013",
+    "char_aggro_014",
+    "char_aggro_015",
+    "char_aggro_016"
+  ],
+  "notes": "第一套 Demo 预组。融合鹅鸭杀有刀职业特色，命名体系为 [职业]-[群友]。主打伏击暗置、高风险博弈、连锁伤害。"
+}

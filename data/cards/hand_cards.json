@@ -1,0 +1,175 @@
+[
+  {
+    "id": "hand_basic_001",
+    "name": "杀",
+    "cardType": "手牌",
+    "handType": "基础",
+    "tags": ["攻击"],
+    "timing": "出牌阶段",
+    "effectText": "出牌阶段使用。指定对方本体为目标。对方可以打出【闪】响应。若对方没有打出【闪】，其本体受到 1 点伤害。",
+    "cards": [
+      { "suit": "黑桃", "rank": "A" },
+      { "suit": "黑桃", "rank": "3" },
+      { "suit": "黑桃", "rank": "5" },
+      { "suit": "黑桃", "rank": "7" },
+      { "suit": "梅花", "rank": "2" },
+      { "suit": "梅花", "rank": "4" },
+      { "suit": "梅花", "rank": "6" },
+      { "suit": "梅花", "rank": "8" },
+      { "suit": "梅花", "rank": "9" },
+      { "suit": "红桃", "rank": "10" },
+      { "suit": "红桃", "rank": "K" },
+      { "suit": "方块", "rank": "Q" }
+    ]
+  },
+  {
+    "id": "hand_basic_002",
+    "name": "闪",
+    "cardType": "手牌",
+    "handType": "基础",
+    "tags": ["防御", "响应"],
+    "timing": "当你的本体成为【杀】的目标时",
+    "effectText": "抵消此次【杀】。",
+    "cards": [
+      { "suit": "红桃", "rank": "2" },
+      { "suit": "红桃", "rank": "4" },
+      { "suit": "红桃", "rank": "6" },
+      { "suit": "红桃", "rank": "8" },
+      { "suit": "红桃", "rank": "10" },
+      { "suit": "方块", "rank": "A" },
+      { "suit": "方块", "rank": "3" },
+      { "suit": "方块", "rank": "5" },
+      { "suit": "方块", "rank": "7" },
+      { "suit": "方块", "rank": "9" },
+      { "suit": "黑桃", "rank": "J" },
+      { "suit": "梅花", "rank": "Q" }
+    ]
+  },
+  {
+    "id": "hand_basic_003",
+    "name": "桃",
+    "cardType": "手牌",
+    "handType": "基础",
+    "tags": ["回复"],
+    "timing": "出牌阶段",
+    "effectText": "回复自己本体 1 点体力，不能超过体力上限。",
+    "cards": [
+      { "suit": "红桃", "rank": "A" },
+      { "suit": "红桃", "rank": "3" },
+      { "suit": "方块", "rank": "2" },
+      { "suit": "方块", "rank": "4" }
+    ]
+  },
+  {
+    "id": "hand_trick_001",
+    "name": "摸鱼",
+    "cardType": "手牌",
+    "handType": "锦囊",
+    "tags": ["资源"],
+    "timing": "出牌阶段",
+    "effectText": "摸 2 张手牌。",
+    "cards": [
+      { "suit": "黑桃", "rank": "K" },
+      { "suit": "红桃", "rank": "9" },
+      { "suit": "红桃", "rank": "J" },
+      { "suit": "梅花", "rank": "10" },
+      { "suit": "方块", "rank": "6" }
+    ]
+  },
+  {
+    "id": "hand_trick_002",
+    "name": "搞破坏",
+    "cardType": "手牌",
+    "handType": "锦囊",
+    "tags": ["控制"],
+    "timing": "出牌阶段",
+    "effectText": "令对手弃置 1 张手牌。",
+    "cards": [
+      { "suit": "黑桃", "rank": "4" },
+      { "suit": "黑桃", "rank": "8" },
+      { "suit": "红桃", "rank": "J" },
+      { "suit": "梅花", "rank": "5" },
+      { "suit": "梅花", "rank": "10" }
+    ]
+  },
+  {
+    "id": "hand_trick_003",
+    "name": "顺手牵鹅",
+    "cardType": "手牌",
+    "handType": "锦囊",
+    "tags": ["控制", "资源"],
+    "timing": "出牌阶段",
+    "effectText": "随机获得对手 1 张手牌。",
+    "cards": [
+      { "suit": "黑桃", "rank": "6" },
+      { "suit": "红桃", "rank": "5" },
+      { "suit": "梅花", "rank": "8" },
+      { "suit": "方块", "rank": "7" }
+    ]
+  },
+  {
+    "id": "hand_trick_004",
+    "name": "决战时刻",
+    "cardType": "手牌",
+    "handType": "锦囊",
+    "tags": ["爆发"],
+    "timing": "出牌阶段",
+    "effectText": "你与对手轮流展示或打出 1 张【杀】，由对手开始。首先无法展示或打出【杀】的一方受到 1 点伤害。",
+    "cards": [
+      { "suit": "黑桃", "rank": "10" },
+      { "suit": "红桃", "rank": "Q" },
+      { "suit": "梅花", "rank": "J" }
+    ]
+  },
+  {
+    "id": "hand_trick_005",
+    "name": "鼓舞",
+    "cardType": "手牌",
+    "handType": "锦囊",
+    "tags": ["角色联动", "强攻"],
+    "timing": "出牌阶段",
+    "effectText": "本回合你下一次发动角色技能时，若该技能费用为休整 1，结算后摸 1 张手牌。",
+    "cards": [
+      { "suit": "红桃", "rank": "7" },
+      { "suit": "梅花", "rank": "2" },
+      { "suit": "方块", "rank": "8" }
+    ]
+  },
+  {
+    "id": "hand_trick_006",
+    "name": "临时布阵",
+    "cardType": "手牌",
+    "handType": "锦囊",
+    "tags": ["角色联动", "布阵"],
+    "timing": "出牌阶段",
+    "effectText": "从你的角色手牌中暗置上阵 1 张角色。此上阵不计入本回合布阵阶段的上阵数量。",
+    "cards": [
+      { "suit": "黑桃", "rank": "A" },
+      { "suit": "梅花", "rank": "A" }
+    ]
+  },
+  {
+    "id": "hand_trick_007",
+    "name": "看破",
+    "cardType": "手牌",
+    "handType": "锦囊",
+    "tags": ["特殊", "控制"],
+    "timing": "出牌阶段",
+    "effectText": "查看对手 1 张暗置角色。你可以选择令其明置。",
+    "cards": [
+      { "suit": "黑桃", "rank": "2" }
+    ]
+  },
+  {
+    "id": "hand_trick_008",
+    "name": "撤回",
+    "cardType": "手牌",
+    "handType": "锦囊",
+    "tags": ["特殊", "防御"],
+    "timing": "当你使用的手牌被响应后",
+    "effectText": "摸 1 张手牌。",
+    "cards": [
+      { "suit": "红桃", "rank": "9" }
+    ]
+  }
+]

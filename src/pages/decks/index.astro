@@ -1,0 +1,34 @@
+---
+import Layout from "../../components/Layout.astro";
+import { allDecks, resolveDeck } from "../../lib/decks";
+---
+<Layout title="预组卡组">
+  <div class="page-container">
+    <h1 class="section-title text-[var(--color-accent-gold)]">预组卡组</h1>
+
+    <div class="grid gap-4 max-w-2xl mx-auto">
+      {allDecks.map((deck) => {
+        const resolved = resolveDeck(deck);
+        return (
+          <a href={`/decks/${deck.id === "deck_aggro_001" ? "aggro" : deck.id}`} class="nav-card">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h2 class="font-bold text-lg text-[var(--color-text-primary)]">{deck.name}</h2>
+                <span class="text-sm text-[var(--color-text-muted)]">{deck.archetype}</span>
+              </div>
+              <span class="text-2xl text-[var(--color-text-muted)]">&#8594;</span>
+            </div>
+            {resolved.body && (
+              <div class="text-sm text-[var(--color-text-secondary)]">
+                本体：<span class="text-[var(--color-accent-gold)]">{resolved.body.name}</span> · HP {resolved.body.hp}
+              </div>
+            )}
+            <div class="text-sm text-[var(--color-text-muted)] mt-1">
+              {deck.characterIds.length} 张角色牌
+            </div>
+          </a>
+        );
+      })}
+    </div>
+  </div>
+</Layout>

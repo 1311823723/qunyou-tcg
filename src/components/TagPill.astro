@@ -1,0 +1,22 @@
+---
+export interface Props {
+  label: string;
+  variant?: "role" | "mechanic";
+  role?: string;
+}
+const { label, variant = "mechanic", role } = Astro.props;
+
+const roleColors: Record<string, string> = {
+  "强攻": "role-attack",
+  "防御": "role-defend",
+  "资源": "role-resource",
+  "控制": "role-control",
+  "支援": "role-support",
+  "伏击": "role-ambush",
+};
+
+const cls = variant === "role" && role
+  ? `tag-pill ${roleColors[role] || ""}`
+  : "tag-pill mechanic";
+---
+<span class={cls}>{label}</span>

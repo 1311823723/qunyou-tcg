@@ -1,0 +1,4 @@
+# Cloudflare Pages（静态 Astro 站点）
+name = "qunyou-tcg"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-05-29"

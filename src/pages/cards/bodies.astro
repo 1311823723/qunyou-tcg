@@ -1,0 +1,13 @@
+---
+import Layout from "../../components/Layout.astro";
+import BodyCard from "../../components/BodyCard.astro";
+import { allBodies } from "../../lib/cards";
+---
+<Layout title="本体牌">
+  <div class="page-container">
+    <h1 class="section-title text-[var(--color-accent-gold)]">本体牌</h1>
+    <div class="card-grid">
+      {allBodies.map((b) => <BodyCard body={b} />)}
+    </div>
+  </div>
+</Layout>

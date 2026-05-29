@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "角色牌",
+  "type": "object",
+  "required": ["id", "name", "cardType", "deck", "mainRole", "tags", "cost", "timing", "skillName", "effectText"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "cardType": { "type": "string", "const": "角色" },
+    "deck": { "type": "string" },
+    "mainRole": {
+      "type": "string",
+      "enum": ["强攻", "防御", "资源", "控制", "支援", "伏击"]
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "cost": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["休整", "退场", "无", "复合"] },
+        "amount": { "type": "number" },
+        "text": { "type": "string" }
+      }
+    },
+    "timing": { "type": "string" },
+    "skillName": { "type": "string" },
+    "effectText": { "type": "string" },
+    "notes": { "type": "string" }
+  }
+}

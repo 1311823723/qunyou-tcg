@@ -1,0 +1,36 @@
+---
+export interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title} — 群友杀 TCG</title>
+    <meta name="description" content={description || "群友杀 TCG — 1v1 对战卡牌游戏"} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body class="min-h-screen">
+    <nav class="border-b border-[var(--color-border-card)] bg-[var(--color-bg-card)]/80 backdrop-blur sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6 flex-wrap">
+        <a href="/" class="font-bold text-lg text-[var(--color-accent-gold)] no-underline hover:opacity-80">
+          群友杀 TCG
+        </a>
+        <div class="flex gap-4 text-sm flex-wrap">
+          <a href="/rules" class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] no-underline transition">规则</a>
+          <a href="/cards" class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] no-underline transition">卡牌</a>
+          <a href="/decks" class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] no-underline transition">预组</a>
+        </div>
+      </div>
+    </nav>
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>
