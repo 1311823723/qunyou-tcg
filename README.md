@@ -33,17 +33,30 @@ npm run print:aggro    # 打印爆杀组预组详情
 - **UI:** Astro + Tailwind CSS v4 + TypeScript
 - **部署:** Cloudflare Pages
 
-## Cloudflare Pages 部署
+## 仓库与部署
 
-1. 将代码推送到 GitHub 仓库。
-2. 在 Cloudflare Pages 中连接该仓库。
-3. 配置：
+- **GitHub:** https://github.com/1311823723/qunyou-tcg
 
-   - **Framework preset:** Astro
-   - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
+### Cloudflare Pages（推荐：连接 GitHub）
 
-4. 部署完成后 Cloudflare Pages 自动构建并分发。
+1. 打开 [Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git](https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages/connect).
+2. 授权并选择仓库 `1311823723/qunyou-tcg`，分支 `main`。
+3. 构建设置：
+
+   | 项 | 值 |
+   |---|---|
+   | Framework preset | Astro |
+   | Build command | `npm run build` |
+   | Build output directory | `dist` |
+   | Node.js version | `22`（或读取 `.node-version`） |
+
+4. 保存并部署。之后每次推送到 `main` 会自动重新构建。
+
+### 本地预览构建产物
+
+```bash
+npm run build && npm run preview
+```
 
 ## 项目结构
 
