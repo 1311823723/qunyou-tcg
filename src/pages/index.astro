@@ -1,92 +1,90 @@
 ---
 import Layout from "../components/Layout.astro";
-import { allBodies, allCharacters } from "../lib/cards";
+import HeroCardShowcase from "../components/HeroCardShowcase.astro";
+import { allBodies, allMegas, allCharacters, getHandCardTotal } from "../lib/cards";
 import { allDecks } from "../lib/decks";
+import { ARCHETYPE_KEYWORDS } from "../lib/ui";
+
+const handTotal = getHandCardTotal();
+const deck = allDecks[0];
+const keywords = deck ? ARCHETYPE_KEYWORDS[deck.archetype] ?? [] : [];
+
+const mechanics = [
+  { icon: "♛", title: "本体", desc: "核心角色，承受伤害。体力归零即败。", color: "var(--color-role-attack)" },
+  { icon: "?", title: "暗置上阵", desc: "背面朝上布阵，对手不知你的角色。", color: "var(--color-mega-purple)" },
+  { icon: "↻", title: "休整", desc: "角色回牌堆底，常规技能成本，可循环。", color: "var(--color-text-highlight)" },
+  { icon: "✕", title: "退场", desc: "送入退场区，强力技能的沉重代价。", color: "var(--color-role-attack)" },
+  { icon: "★", title: "Mega", desc: "满足条件后一次性强化，翻盘爽感。", color: "var(--color-mega)" },
+];
 ---
-<Layout title="首页" description="群友杀 TCG — 1v1 对战卡牌游戏，本体承伤，角色暗置上阵，休整发动技能，Mega 后爆发反打。">
-  <!-- Hero -->
-  <section class="relative py-20 px-4 text-center overflow-hidden">
-    <!-- Background decoration -->
-    <div class="absolute inset-0 bg-gradient-to-b from-[var(--color-accent-red)]/8 via-[var(--color-accent-purple)]/5 to-transparent pointer-events-none"></div>
-    <div class="absolute top-10 left-1/2 -translate-x-1/2 w-96 h-96 bg-[var(--color-accent-red)]/5 rounded-full blur-3xl pointer-events-none"></div>
-
-    <div class="relative z-10">
-      <div class="text-xs tracking-[0.3em] uppercase text-[var(--color-text-muted)] mb-4">v0.2 Demo · 1v1 对战卡牌</div>
-      <h1 class="text-5xl md:text-6xl font-extrabold mb-6 tracking-tight leading-tight">
-        <span class="text-[var(--color-accent-gold)]">群友杀</span>
-        <br class="md:hidden" />
-        <span class="text-[var(--color-text-primary)]"> TCG</span>
-      </h1>
-      <p class="text-lg text-[var(--color-text-secondary)] max-w-lg mx-auto leading-relaxed">
-        本体承伤，角色暗置上阵，休整发动技能，Mega 后爆发反打。
-      </p>
-
-      <div class="flex gap-3 justify-center mt-10 flex-wrap">
-        <a href="/rules" class="px-6 py-3 rounded-lg bg-white/8 text-[var(--color-text-primary)] no-underline font-medium hover:bg-white/12 transition text-sm border border-white/5">游戏规则</a>
-        <a href="/cards/characters" class="px-6 py-3 rounded-lg bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] no-underline font-semibold hover:bg-[var(--color-accent-red)]/25 transition text-sm border border-[var(--color-accent-red)]/20">角色牌列表</a>
-        <a href="/decks/aggro" class="px-6 py-3 rounded-lg bg-[var(--color-accent-gold)]/15 text-[var(--color-accent-gold)] no-underline font-semibold hover:bg-[var(--color-accent-gold)]/25 transition text-sm border border-[var(--color-accent-gold)]/20">爆杀组预组</a>
+<Layout title="首页" description="群友杀 TCG — 本体承伤，角色暗置上阵，休整发动技能，Mega 后爆发反打。">
+  <section class="hero-section page-wrap">
+    <div class="hero-grid">
+      <div>
+        <p class="hero-eyebrow">v0.2 Demo · 1v1 对战卡牌</p>
+        <h1 class="hero-title"><span>群友杀</span> TCG</h1>
+        <p class="hero-sub">本体承伤，角色暗置上阵，休整发动技能，Mega 后爆发反打。</p>
+        <div class="hero-actions">
+          <a href="/rules" class="btn btn--primary">查看规则</a>
+          <a href="/cards" class="btn btn--secondary">浏览全卡</a>
+          <a href="/decks/aggro" class="btn btn--ghost">查看上头组</a>
+        </div>
       </div>
+      <HeroCardShowcase />
     </div>
   </section>
 
-  <!-- Quick stats -->
-  <div class="max-w-3xl mx-auto px-4 -mt-4 relative z-20">
-    <div class="stat-bar justify-center bg-[var(--color-bg-card)] border border-[var(--color-border-card)] rounded-2xl py-4 px-6">
-      <div class="stat-item">
-        <div class="stat-value text-[var(--color-accent-red)]">{allBodies.length}</div>
-        <div class="stat-label">本体牌</div>
+  <section class="page-wrap" style="margin-top: -0.5rem;">
+    <div class="hud-panel">
+      <div class="stat-hud">
+        <div class="stat-hud__item">
+          <div class="stat-hud__value" style="color: var(--color-role-attack)">{allBodies.length}</div>
+          <div class="stat-hud__label">本体牌</div>
+        </div>
+        <div class="stat-hud__item">
+          <div class="stat-hud__value" style="color: var(--color-mega-purple)">{allMegas.length}</div>
+          <div class="stat-hud__label">Mega 牌</div>
+        </div>
+        <div class="stat-hud__item">
+          <div class="stat-hud__value" style="color: var(--color-text-highlight)">{allCharacters.length}</div>
+          <div class="stat-hud__label">角色牌</div>
+        </div>
+        <div class="stat-hud__item">
+          <div class="stat-hud__value" style="color: var(--color-role-defend)">{allDecks.length}</div>
+          <div class="stat-hud__label">预组</div>
+        </div>
       </div>
-      <div class="stat-item">
-        <div class="stat-value text-[var(--color-accent-purple)]">1</div>
-        <div class="stat-label">Mega 牌</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value text-[var(--color-accent-gold)]">{allCharacters.length}</div>
-        <div class="stat-label">角色牌</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value text-[var(--color-accent-blue)]">{allDecks.length}</div>
-        <div class="stat-label">预组卡组</div>
-      </div>
+      <p class="text-center text-xs mt-3" style="color: var(--color-text-muted);">共用手牌牌堆 {handTotal} 张 · 数据来自 JSON</p>
     </div>
-  </div>
+  </section>
 
-  <!-- Mechanism intro -->
-  <section class="max-w-5xl mx-auto px-4 py-16">
-    <h2 class="section-title text-center mb-8">核心机制</h2>
+  <section class="page-wrap py-4">
+    <h2 class="section-heading">核心机制</h2>
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-      {[
-        ["本体", "玩家核心角色，承受所有普通伤害。体力归零则失败。", "var(--color-accent-red)"],
-        ["暗置上阵", "角色背面朝上放置。对手不知道你的阵容，制造心理博弈。", "var(--color-accent-purple)"],
-        ["休整", "将上阵角色放回牌堆底，常规技能成本。角色可循环使用。", "var(--color-accent-gold)"],
-        ["退场", "将角色放入退场区，强力技能的代价。通常无法回收。", "var(--color-accent-red)"],
-        ["Mega", "本体满足条件后翻开强化。每局仅一次，提供翻盘可能。", "var(--color-accent-purple)"],
-      ].map(([title, desc, color]) => (
-        <div class="card-frame text-center flex flex-col gap-2" style={`border-top: 2px solid ${color}`}>
-          <div class="font-bold text-sm" style={`color:${color}`}>{title}</div>
-          <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{desc}</p>
+      {mechanics.map((m) => (
+        <div class="mechanic-tile" style={`border-top-color: ${m.color}`}>
+          <div class="mechanic-tile__icon">{m.icon}</div>
+          <div class="mechanic-tile__title" style={`color: ${m.color}`}>{m.title}</div>
+          <p class="mechanic-tile__desc">{m.desc}</p>
         </div>
       ))}
     </div>
   </section>
 
-  <!-- Current decks -->
-  <section class="max-w-3xl mx-auto px-4 pb-20">
-    <h2 class="section-title text-center mb-6">当前预组</h2>
-    {allDecks.map(deck => (
-      <a href={`/decks/aggro`} class="nav-card flex items-center justify-between group border-l-2 border-l-[var(--color-accent-gold)]">
+  {deck && (
+    <section class="page-wrap pb-12">
+      <h2 class="section-heading">当前预组</h2>
+      <div class="deck-spotlight">
         <div>
-          <div class="flex items-center gap-3 mb-1">
-            <span class="font-bold text-lg text-[var(--color-text-primary)] group-hover:text-[var(--color-accent-gold)] transition">{deck.name}</span>
-            <span class="tag-pill role-attack">{deck.archetype}</span>
+          <div class="deck-hero__title" style="font-size: 1.5rem; margin-bottom: 0.25rem;">{deck.name}</div>
+          <div class="deck-hero__archetype">{deck.archetype}</div>
+          <div class="flex flex-wrap gap-1 mt-3">
+            {keywords.map((k) => <span class="tag-pill tag-pill--aggro">{k}</span>)}
           </div>
-          <div class="text-sm text-[var(--color-text-secondary)]">{deck.characterIds.length} 张角色牌 · 鹅鸭杀职业体系</div>
-          {deck.notes && (
-            <div class="text-xs text-[var(--color-text-muted)] mt-2 line-clamp-2">{deck.notes}</div>
-          )}
+          {deck.notes && <p class="deck-hero__blurb" style="margin-top: 0.75rem; font-size: 0.85rem;">{deck.notes}</p>}
         </div>
-        <div class="text-2xl text-[var(--color-text-muted)] group-hover:text-[var(--color-accent-gold)] transition">→</div>
-      </a>
-    ))}
-  </section>
+        <a href="/decks/aggro" class="btn btn--primary">查看预组 →</a>
+      </div>
+    </section>
+  )}
 </Layout>

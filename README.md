@@ -7,6 +7,7 @@
 - **版本:** v0.2 Demo
 - **模式:** 1v1 对战
 - **预组:** 上头组 / 爆杀流
+- **站点:** https://qunyou-tcg.pages.dev
 
 ## 设计方向
 
@@ -31,32 +32,6 @@ npm run print:aggro    # 打印爆杀组预组详情
 
 - **数据层:** JSON Schema + 校验脚本 (Node.js)
 - **UI:** Astro + Tailwind CSS v4 + TypeScript
-- **部署:** Cloudflare Pages
-
-## 仓库与部署
-
-- **GitHub:** https://github.com/1311823723/qunyou-tcg
-
-### Cloudflare Pages（推荐：连接 GitHub）
-
-1. 打开 [Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git](https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages/connect).
-2. 授权并选择仓库 `1311823723/qunyou-tcg`，分支 `main`。
-3. 构建设置：
-
-   | 项 | 值 |
-   |---|---|
-   | Framework preset | Astro |
-   | Build command | `npm run build` |
-   | Build output directory | `dist` |
-   | Node.js version | `22`（或读取 `.node-version`） |
-
-4. 保存并部署。之后每次推送到 `main` 会自动重新构建。
-
-### 本地预览构建产物
-
-```bash
-npm run build && npm run preview
-```
 
 ## 项目结构
 

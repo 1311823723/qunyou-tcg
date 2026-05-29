@@ -4,39 +4,26 @@ import TagPill from "./TagPill.astro";
 import type { HandCard as HandType } from "../lib/cards";
 import { SUIT_SYMBOLS, isRedSuit } from "../lib/cards";
 
-export interface Props {
-  card: HandType;
-}
+export interface Props { card: HandType; }
 const { card: h } = Astro.props;
-
-const typeColor = h.handType === "基础" ? "var(--color-accent-cyan)" : "var(--color-accent-purple)";
+const isTrick = h.handType === "锦囊";
 ---
-<CardFrame class="flex flex-col gap-3" style={`border-left: 3px solid ${typeColor}`}>
-  <div class="flex items-start justify-between gap-2">
-    <h3 class="font-bold text-lg text-[var(--color-text-primary)]">{h.name}</h3>
-    <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide" style={`background:${typeColor}15;color:${typeColor}`}>{h.handType}</span>
+<CardFrame class={`tcg-hand ${isTrick ? "tcg-hand--trick" : ""}`}>
+  <div class="tcg-hand__row">
+    <h3 class="tcg-hand__name">{h.name}</h3>
+    <span class="tcg-hand__count">×{h.cards.length}</span>
   </div>
-
-  <div class="flex flex-wrap gap-1">
-    {h.tags.map(tag => <TagPill label={tag} />)}
+  <span class="tag-pill tag-pill--mech" style="margin-bottom: 0.35rem;">{h.handType}</span>
+  <div class="flex flex-wrap gap-1 mb-2">
+    {h.tags.map((tag) => <TagPill label={tag} />)}
   </div>
-
-  <!-- Suit/rank display -->
-  <div class="flex flex-wrap gap-1.5">
-    {h.cards.map(c => (
-      <span
-        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-mono font-bold border"
-        style={isRedSuit(c.suit)
-          ? "color:#e06060;background:rgba(224,96,96,0.08);border-color:rgba(224,96,96,0.2)"
-          : "color:var(--color-text-secondary);background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08)"
-        }
-      ><span>{SUIT_SYMBOLS[c.suit]}</span>{c.rank}</span>
+  <div class="tcg-hand__suits">
+    {h.cards.map((c) => (
+      <span class={`suit-chip ${isRedSuit(c.suit) ? "suit-chip--red" : ""}`}>
+        {SUIT_SYMBOLS[c.suit]}{c.rank}
+      </span>
     ))}
   </div>
-
-  <div class="text-xs text-[var(--color-text-muted)]">
-    <span class="opacity-50">⏱</span> {h.timing}
-  </div>
-
-  <p class="skill-text text-sm leading-relaxed">{h.effectText}</p>
+  <div class="text-xs mb-2" style="color: var(--color-text-muted);">⏱ {h.timing}</div>
+  <p class="skill-text">{h.effectText}</p>
 </CardFrame>

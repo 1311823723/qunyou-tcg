@@ -1,0 +1,13 @@
+---
+export interface Props {
+  title: string;
+  subtitle?: string;
+  badge?: string;
+}
+const { title, subtitle, badge } = Astro.props;
+---
+<header class="page-header">
+  {badge && <span class="tag-pill tag-pill--aggro mb-2">{badge}</span>}
+  <h1 class="page-header__title">{title}</h1>
+  {subtitle && <p class="page-header__sub">{subtitle}</p>}
+</header>

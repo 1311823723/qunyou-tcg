@@ -3,39 +3,30 @@ import CardFrame from "./CardFrame.astro";
 import TagPill from "./TagPill.astro";
 import type { BodyCard as BodyType } from "../lib/cards";
 
-export interface Props {
-  body: BodyType;
-}
-const { body: b } = Astro.props;
+export interface Props { body: BodyType; compact?: boolean; }
+const { body: b, compact } = Astro.props;
 ---
-<CardFrame class="flex flex-col gap-4 relative overflow-hidden" style="border:1px solid var(--color-accent-gold);background:linear-gradient(135deg, var(--color-bg-card) 0%, rgba(200,160,64,0.06) 100%)">
-  <!-- Corner accent -->
-  <div class="absolute -top-4 -right-4 w-20 h-20 bg-[var(--color-accent-gold)]/10 rounded-full blur-xl pointer-events-none"></div>
-
-  <div class="flex items-start justify-between relative z-10">
+<CardFrame class={`tcg-body ${compact ? "tcg-char--compact" : ""}`}>
+  <div class="tcg-body__banner">
     <div>
-      <div class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] opacity-60 mb-1">本体 · {b.archetype}</div>
-      <h3 class="font-bold text-xl text-[var(--color-accent-gold)]">{b.name}</h3>
+      <div class="tcg-body__type">本体 · {b.archetype}</div>
+      <h3 class="tcg-body__name">{b.name}</h3>
     </div>
-    <div class="text-center bg-[var(--color-accent-gold)]/10 rounded-xl px-4 py-2 border border-[var(--color-accent-gold)]/20">
-      <div class="text-3xl font-extrabold text-[var(--color-accent-gold)]">{b.hp}</div>
-      <div class="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">体力</div>
+    <div class="tcg-body__hp">
+      <div class="tcg-body__hp-val">{b.hp}</div>
+      <div class="tcg-body__hp-label">体力</div>
     </div>
   </div>
-
-  <div class="flex flex-wrap gap-1 relative z-10">
-    {b.affinityTags.map(tag => <TagPill label={tag} variant="role" />)}
-  </div>
-
-  <div class="border-t border-[var(--color-border-card)] pt-3 relative z-10">
-    <span class="text-sm font-semibold text-[var(--color-text-primary)]">{b.skillName}</span>
-    <p class="skill-text text-sm mt-1.5">{b.effectText}</p>
-  </div>
-
-  <div class="bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-border-card)] relative z-10">
-    <div class="flex items-center gap-2 mb-1.5">
-      <span class="text-[10px] uppercase tracking-widest text-[var(--color-accent-purple)] font-bold">Mega 条件</span>
+  <div class="tcg-body__body">
+    <div class="flex flex-wrap gap-1 mb-3">
+      {b.affinityTags.map((tag) => <TagPill label={tag} variant="aggro" />)}
     </div>
-    <p class="text-sm text-[var(--color-text-primary)] font-medium leading-relaxed">{b.megaCondition}</p>
+    <div class="tcg-char__skill-name">{b.skillName}</div>
+    <p class="skill-text mt-2">{b.effectText}</p>
   </div>
+  <div class="tcg-body__mega-box">
+    <div class="tcg-body__mega-label">Mega 条件</div>
+    <p class="skill-text" style="color: var(--color-text-primary); font-weight: 500;">{b.megaCondition}</p>
+  </div>
+  {b.notes && <p class="tcg-char__notes" style="margin: 0 1rem 1rem;">{b.notes}</p>}
 </CardFrame>

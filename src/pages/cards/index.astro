@@ -1,54 +1,24 @@
 ---
 import Layout from "../../components/Layout.astro";
-import { allBodies, allMegas, allCharacters, allHandCards } from "../../lib/cards";
+import PageHeader from "../../components/PageHeader.astro";
+import { allBodies, allMegas, allCharacters, allHandCards, getHandCardTotal } from "../../lib/cards";
 ---
 <Layout title="全卡列表">
-  <div class="page-container">
-    <h1 class="section-title text-[var(--color-accent-gold)]">全卡列表</h1>
-
+  <div class="page-wrap">
+    <PageHeader title="卡牌图鉴" subtitle="收藏册 · 全部卡牌数据来自 JSON" badge="全卡" />
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
       {[
-        ["/cards/bodies", "本体", String(allBodies.length), "var(--color-accent-red)"],
-        ["/cards/megas", "Mega", String(allMegas.length), "var(--color-accent-purple)"],
-        ["/cards/characters", "角色牌", String(allCharacters.length), "var(--color-accent-gold)"],
-        ["/cards/hand-cards", "手牌", `${allHandCards.length} 种 / 52 张`, "var(--color-accent-blue)"],
+        ["/cards/bodies", "本体", String(allBodies.length), "var(--color-role-attack)"],
+        ["/cards/megas", "Mega", String(allMegas.length), "var(--color-mega-purple)"],
+        ["/cards/characters", "角色", String(allCharacters.length), "var(--color-text-highlight)"],
+        ["/cards/hand-cards", "手牌", `${allHandCards.length}种`, "var(--color-role-defend)"],
       ].map(([href, label, count, color]) => (
-        <a href={href} class="nav-card text-center">
-          <div class="text-2xl font-bold" style={`color:${color}`}>{count}</div>
-          <div class="text-sm text-[var(--color-text-secondary)] mt-1">{label}</div>
+        <a href={href} class="collection-card text-center">
+          <div class="collection-card__count" style={`color: ${color}`}>{count}</div>
+          <div class="collection-card__label">{label}</div>
         </a>
       ))}
     </div>
-
-    <div class="grid gap-3 max-w-lg mx-auto">
-      <a href="/cards/bodies" class="nav-card flex items-center justify-between">
-        <div>
-          <span class="font-semibold text-[var(--color-text-primary)]">本体牌</span>
-          <span class="text-xs text-[var(--color-text-muted)] ml-2">{allBodies.length} 张</span>
-        </div>
-        <span class="text-[var(--color-text-muted)]">&#8594;</span>
-      </a>
-      <a href="/cards/megas" class="nav-card flex items-center justify-between">
-        <div>
-          <span class="font-semibold text-[var(--color-text-primary)]">Mega 牌</span>
-          <span class="text-xs text-[var(--color-text-muted)] ml-2">{allMegas.length} 张</span>
-        </div>
-        <span class="text-[var(--color-text-muted)]">&#8594;</span>
-      </a>
-      <a href="/cards/characters" class="nav-card flex items-center justify-between">
-        <div>
-          <span class="font-semibold text-[var(--color-text-primary)]">角色牌</span>
-          <span class="text-xs text-[var(--color-text-muted)] ml-2">{allCharacters.length} 张</span>
-        </div>
-        <span class="text-[var(--color-text-muted)]">&#8594;</span>
-      </a>
-      <a href="/cards/hand-cards" class="nav-card flex items-center justify-between">
-        <div>
-          <span class="font-semibold text-[var(--color-text-primary)]">手牌</span>
-          <span class="text-xs text-[var(--color-text-muted)] ml-2">{allHandCards.length} 种共 52 张</span>
-        </div>
-        <span class="text-[var(--color-text-muted)]">&#8594;</span>
-      </a>
-    </div>
+    <p class="text-center text-sm" style="color: var(--color-text-muted);">共用手牌牌堆合计 {getHandCardTotal()} 张</p>
   </div>
 </Layout>

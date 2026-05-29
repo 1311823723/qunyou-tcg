@@ -1,12 +1,13 @@
 ---
 import Layout from "../../components/Layout.astro";
+import PageHeader from "../../components/PageHeader.astro";
 import MegaCard from "../../components/MegaCard.astro";
 import { allMegas } from "../../lib/cards";
 ---
 <Layout title="Mega 牌">
-  <div class="page-container">
-    <h1 class="section-title text-[var(--color-accent-gold)]">Mega 牌</h1>
-    <div class="card-grid">
+  <div class="page-wrap max-w-2xl">
+    <PageHeader title="Mega 牌" subtitle="一次性强化形态" badge="MEGA" />
+    <div class="grid gap-6">
       {allMegas.map((m) => <MegaCard mega={m} />)}
     </div>
   </div>

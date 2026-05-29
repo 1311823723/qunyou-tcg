@@ -1,0 +1,8 @@
+---
+export interface Props { message?: string; }
+const { message = "没有匹配的卡牌" } = Astro.props;
+---
+<div class="empty-state">
+  <div class="empty-state__icon">🃏</div>
+  <p>{message}</p>
+</div>

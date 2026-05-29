@@ -17,61 +17,61 @@ const {
   roleLabel = "定位",
   allLabel = "全部",
 } = Astro.props;
-
 const currentPath = Astro.url.pathname;
+
+function hrefFor(params: Record<string, string | undefined>) {
+  const u = new URL(currentPath, "http://x");
+  if (params.role !== undefined) {
+    if (params.role) u.searchParams.set("role", params.role);
+    else u.searchParams.delete("role");
+  }
+  if (params.tag !== undefined) {
+    if (params.tag) u.searchParams.set("tag", params.tag);
+    else u.searchParams.delete("tag");
+  }
+  if (params.search !== undefined) {
+    if (params.search) u.searchParams.set("search", params.search);
+    else u.searchParams.delete("search");
+  }
+  return u.pathname + u.search;
+}
 ---
-<div class="filter-bar">
-  <!-- Search -->
+<div class="filter-panel">
   <input
-    type="text"
-    placeholder="搜索名称、技能..."
+    type="search"
+    placeholder="搜索名称、技能…"
     value={search}
     id="filter-search"
-    class="px-3 py-1.5 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-card)] text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-accent)] w-48"
+    class="filter-search"
+    autocomplete="off"
   />
-
-  <!-- Role filter -->
   {roles.length > 0 && (
-    <div class="flex flex-wrap gap-1 items-center">
-      <span class="text-xs text-[var(--color-text-muted)] mr-1">{roleLabel}:</span>
-      <a
-        href={`${currentPath}${search ? `?search=${search}` : ""}`}
-        class={`tag-pill no-underline ${!activeRole ? "bg-white/10 text-[var(--color-text-primary)]" : "mechanic"}`}
-      >{allLabel}</a>
-      {roles.map(r => (
-        <a
-          href={`${currentPath}?role=${r}${search ? `&search=${search}` : ""}`}
-          class={`tag-pill no-underline ${activeRole === r ? "bg-white/15 text-[var(--color-text-primary)]" : "mechanic"}`}
-        >{r}</a>
+    <div class="filter-group">
+      <span class="filter-group__label">{roleLabel}</span>
+      <a href={hrefFor({ role: "", tag: activeTag || undefined, search: search || undefined })} class={`filter-chip ${!activeRole ? "is-active" : ""}`}>{allLabel}</a>
+      {roles.map((r) => (
+        <a href={hrefFor({ role: r, tag: activeTag || undefined, search: search || undefined })} class={`filter-chip ${activeRole === r ? "is-active" : ""}`}>{r}</a>
       ))}
     </div>
   )}
-
-  <!-- Tag filter -->
   {tags.length > 0 && (
-    <div class="flex flex-wrap gap-1 items-center">
-      <span class="text-xs text-[var(--color-text-muted)] mr-1">标签:</span>
-      <a
-        href={`${currentPath}${activeRole ? `?role=${activeRole}` : ""}`}
-        class={`tag-pill no-underline text-[10px] ${!activeTag ? "bg-white/10 text-[var(--color-text-primary)]" : "mechanic"}`}
-      >{allLabel}</a>
-      {tags.map(t => (
-        <a
-          href={`${currentPath}?tag=${t}${activeRole ? `&role=${activeRole}` : ""}`}
-          class={`tag-pill no-underline text-[10px] ${activeTag === t ? "bg-white/15 text-[var(--color-text-primary)]" : "mechanic"}`}
-        >{t}</a>
+    <div class="filter-group">
+      <span class="filter-group__label">标签</span>
+      <a href={hrefFor({ role: activeRole || undefined, tag: "", search: search || undefined })} class={`filter-chip ${!activeTag ? "is-active" : ""}`}>{allLabel}</a>
+      {tags.map((t) => (
+        <a href={hrefFor({ role: activeRole || undefined, tag: t, search: search || undefined })} class={`filter-chip ${activeTag === t ? "is-active" : ""}`}>{t}</a>
       ))}
     </div>
   )}
 </div>
-
 <script>
-  const input = document.getElementById("filter-search") as HTMLInputElement;
+  const input = document.getElementById("filter-search");
   if (input) {
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         const url = new URL(window.location.href);
-        if (input.value) url.searchParams.set("search", input.value);
+        const v = (input as HTMLInputElement).value.trim();
+        if (v) url.searchParams.set("search", v);
         else url.searchParams.delete("search");
         window.location.href = url.toString();
       }

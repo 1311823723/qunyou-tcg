@@ -2,27 +2,17 @@
 import CardFrame from "./CardFrame.astro";
 import type { MegaCard as MegaType } from "../lib/cards";
 
-export interface Props {
-  mega: MegaType;
-}
-const { mega: m } = Astro.props;
+export interface Props { mega: MegaType; compact?: boolean; }
+const { mega: m, compact } = Astro.props;
 ---
-<CardFrame class="flex flex-col gap-4 relative overflow-hidden" style="border:1px solid var(--color-accent-purple);background:linear-gradient(135deg, var(--color-bg-card) 0%, rgba(128,80,192,0.06) 100%)">
-  <div class="absolute -top-6 -left-6 w-24 h-24 bg-[var(--color-accent-purple)]/10 rounded-full blur-xl pointer-events-none"></div>
-
-  <div class="relative z-10">
-    <div class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] opacity-60 mb-1">Mega 进化</div>
-    <h3 class="font-bold text-xl text-[var(--color-accent-purple)]">{m.name}</h3>
+<CardFrame class={`tcg-mega ${compact ? "tcg-char--compact" : ""}`}>
+  <div class="tcg-mega__head">
+    <span class="tcg-mega__badge">MEGA</span>
+    <h3 class="tcg-mega__name">{m.name}</h3>
   </div>
-
-  <div class="border-t border-[var(--color-border-card)] pt-3 relative z-10">
-    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[var(--color-accent-purple)]/10 border border-[var(--color-accent-purple)]/20 mb-3">
-      <span class="text-xs font-bold text-[var(--color-accent-purple)]">{m.skillName}</span>
-    </div>
-    <p class="skill-text text-sm leading-relaxed">{m.effectText}</p>
+  <div class="tcg-mega__skill">
+    <div class="tcg-mega__skill-name">{m.skillName}</div>
+    <p class="skill-text">{m.effectText}</p>
   </div>
-
-  {m.notes && (
-    <p class="text-xs text-[var(--color-text-muted)] italic border-t border-[var(--color-border-card)] pt-2 relative z-10">{m.notes}</p>
-  )}
+  {m.notes && <p class="tcg-char__notes" style="margin: 0 1rem 1rem;">{m.notes}</p>}
 </CardFrame>

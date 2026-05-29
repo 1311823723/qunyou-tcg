@@ -1,0 +1,15 @@
+---
+import BodyCard from "./BodyCard.astro";
+import MegaCard from "./MegaCard.astro";
+import CharacterCard from "./CharacterCard.astro";
+import { getBodyById, getMegaById, getCharacterById } from "../lib/cards";
+
+const body = getBodyById("body_aggro_001");
+const mega = getMegaById("mega_aggro_001");
+const sampleChar = getCharacterById("char_aggro_015");
+---
+<div class="hero-showcase" aria-label="卡牌预览">
+  {body && <div class="hero-showcase__card"><BodyCard body={body} compact /></div>}
+  {mega && <div class="hero-showcase__card"><MegaCard mega={mega} compact /></div>}
+  {sampleChar && <div class="hero-showcase__card"><CharacterCard character={sampleChar} compact /></div>}
+</div>

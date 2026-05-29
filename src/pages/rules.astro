@@ -1,104 +1,86 @@
 ---
 import Layout from "../components/Layout.astro";
+import PageHeader from "../components/PageHeader.astro";
+
+const phases = ["准备阶段", "摸牌阶段", "出牌阶段", "布阵阶段", "弃牌阶段", "结束阶段"];
+const keywords = ["本体", "Mega", "暗置", "明置", "休整", "退场", "伏击", "共用手牌牌堆"];
 ---
 <Layout title="规则">
-  <div class="page-container max-w-3xl">
-    <h1 class="section-title text-[var(--color-accent-gold)]">游戏规则</h1>
+  <div class="page-wrap max-w-3xl">
+    <PageHeader title="游戏规则" subtitle="1v1 对战 · 读法优化版" badge="玩家必读" />
 
-    <section class="mb-10">
-      <h2 class="text-lg font-bold text-[var(--color-text-primary)] mb-3">游戏简介</h2>
+    <section class="hud-panel mb-8">
+      <h2 class="text-sm font-bold mb-2" style="color: var(--color-text-highlight);">游戏简介</h2>
       <p class="skill-text">
-        《群友杀 TCG》是一款 1v1 对战卡牌游戏。每名玩家选择一张<strong class="text-[var(--color-accent-gold)]">本体牌</strong>作为核心角色，搭配 16 张<strong class="text-[var(--color-accent-gold)]">角色牌</strong>。双方共用一副 52 张<strong class="text-[var(--color-accent-gold)]">手牌牌堆</strong>进行攻防。
+        每名玩家选择一张<strong style="color: var(--color-text-highlight);">本体牌</strong>，搭配 16 张<strong style="color: var(--color-text-highlight);">角色牌</strong>。双方共用 52 张<strong style="color: var(--color-text-highlight);">手牌牌堆</strong>攻防。
       </p>
-      <p class="skill-text mt-2">
-        <strong>胜利目标：</strong>将对方本体体力降至 0。
-      </p>
+      <p class="skill-text mt-3"><strong>胜利目标：</strong>将对方本体体力降至 0。</p>
+      <div class="flex flex-wrap gap-1 mt-4">
+        {keywords.map((k) => <span class="tag-pill tag-pill--mech">{k}</span>)}
+      </div>
     </section>
 
-    <section class="mb-10">
-      <h2 class="text-lg font-bold text-[var(--color-text-primary)] mb-3">回合流程</h2>
-      <div class="grid grid-cols-3 md:grid-cols-6 gap-2">
-        {["准备阶段", "摸牌阶段", "出牌阶段", "布阵阶段", "弃牌阶段", "结束阶段"].map((phase, i) => (
-          <div class="card-frame text-center py-3">
-            <div class="text-xs text-[var(--color-text-muted)]">{i + 1}</div>
-            <div class="text-sm font-semibold text-[var(--color-text-primary)] mt-1">{phase}</div>
+    <section class="mb-8">
+      <h2 class="section-heading" style="font-size: 1.15rem;">回合流程</h2>
+      <div class="rules-phase-grid mb-4">
+        {phases.map((phase, i) => (
+          <div class="rules-phase">
+            <div class="rules-phase__num">STEP {i + 1}</div>
+            <div class="rules-phase__name">{phase}</div>
           </div>
         ))}
       </div>
-      <div class="mt-4 space-y-2">
-        <div class="card-frame">
-          <span class="font-semibold text-sm text-[var(--color-accent-blue)]">摸牌阶段</span>
-          <p class="skill-text mt-1">从共用手牌牌堆摸 2 张手牌。从自己的角色牌堆摸 1 张角色牌。</p>
+      <div class="grid gap-3">
+        <div class="hud-panel">
+          <span class="text-sm font-bold" style="color: var(--color-role-defend);">摸牌阶段</span>
+          <p class="skill-text mt-2">从共用手牌牌堆摸 2 张手牌；从角色牌堆摸 1 张角色牌。</p>
         </div>
-        <div class="card-frame">
-          <span class="font-semibold text-sm text-[var(--color-accent-orange)]">出牌阶段</span>
-          <p class="skill-text mt-1">可使用手牌（通常每回合限用 1 张【杀】）、锦囊牌、发动本体技能、明置并发动角色技能。</p>
+        <div class="hud-panel">
+          <span class="text-sm font-bold" style="color: var(--color-aggro);">出牌阶段</span>
+          <p class="skill-text mt-2">使用手牌、锦囊、本体技能；明置并发动角色技能。通常每回合限 1 张【杀】。</p>
         </div>
-        <div class="card-frame">
-          <span class="font-semibold text-sm text-[var(--color-accent-green)]">布阵阶段</span>
-          <p class="skill-text mt-1">从角色手牌中至多暗置上阵 2 张角色。角色区最多 4 张。</p>
-        </div>
-        <div class="card-frame">
-          <span class="font-semibold text-sm text-[var(--color-text-muted)]">弃牌阶段</span>
-          <p class="skill-text mt-1">手牌上限 = 本体体力 + 己方明置角色数。角色手牌不计入手牌上限。</p>
+        <div class="hud-panel">
+          <span class="text-sm font-bold" style="color: var(--color-role-resource);">布阵阶段</span>
+          <p class="skill-text mt-2">从角色手牌至多暗置上阵 2 张；角色区最多 4 张。</p>
         </div>
       </div>
     </section>
 
-    <section class="mb-10">
-      <h2 class="text-lg font-bold text-[var(--color-text-primary)] mb-3">核心机制</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="card-frame border-l-2 border-l-[var(--color-accent-gold)]">
-          <h3 class="font-bold text-[var(--color-accent-gold)]">休整</h3>
-          <p class="skill-text mt-1">休整 X = 将 X 张己方上阵角色放回自己的角色牌堆底。是普通角色技能的常规成本，角色可循环使用。</p>
+    <section class="mb-8">
+      <h2 class="section-heading" style="font-size: 1.15rem;">休整 vs 退场</h2>
+      <div class="rules-compare">
+        <div class="hud-panel" style="border-top: 2px solid var(--color-text-highlight);">
+          <h3 class="font-bold" style="color: var(--color-text-highlight);">休整</h3>
+          <p class="skill-text mt-2">将上阵角色放回角色牌堆底。常规技能成本，角色可循环使用，需投入节奏。</p>
         </div>
-        <div class="card-frame border-l-2 border-l-[var(--color-accent-red)]">
-          <h3 class="font-bold text-[var(--color-accent-red)]">退场</h3>
-          <p class="skill-text mt-1">退场 = 将角色放入自己的退场区。退场角色通常不能正常再使用，是强力技能或破坏效果的代价。</p>
-        </div>
-        <div class="card-frame border-l-2 border-l-[var(--color-accent-purple)]">
-          <h3 class="font-bold text-[var(--color-accent-purple)]">Mega</h3>
-          <p class="skill-text mt-1">本体满足 Mega 条件后，立刻翻开 Mega 牌，获得 Mega 技能。Mega 只会发生一次。</p>
-        </div>
-        <div class="card-frame border-l-2 border-l-[var(--color-accent-blue)]">
-          <h3 class="font-bold text-[var(--color-accent-blue)]">暗置上阵</h3>
-          <p class="skill-text mt-1">角色以背面朝上的方式放在角色区。对手不知道暗置角色的身份。明置后可发动技能。【伏击】定位角色可在暗置状态下响应发动。</p>
+        <div class="hud-panel" style="border-top: 2px solid var(--color-role-attack);">
+          <h3 class="font-bold" style="color: var(--color-role-attack);">退场</h3>
+          <p class="skill-text mt-2">将角色放入退场区。强力技能代价，通常无法回收，设计需格外谨慎。</p>
         </div>
       </div>
     </section>
 
-    <section class="mb-10">
-      <h2 class="text-lg font-bold text-[var(--color-text-primary)] mb-3">开局流程</h2>
-      <ol class="space-y-1 text-sm text-[var(--color-text-secondary)] list-decimal pl-5">
-        <li>双方公开本体牌。</li>
-        <li>Mega 牌放在旁边，暂不启用。</li>
-        <li>本体体力设为 4。</li>
-        <li>双方洗混自己的 16 张角色牌组。</li>
-        <li>洗混共用 52 张手牌牌堆。</li>
-        <li>双方各摸 5 张手牌。</li>
-        <li>双方各摸 4 张角色牌。</li>
-        <li>决定先后手。</li>
-        <li>先手最多暗置上阵 1 张角色。</li>
-        <li>后手最多暗置上阵 2 张角色。</li>
-        <li>先手开始第一个回合。</li>
+    <section class="rules-mega-highlight mb-8">
+      <h2 class="section-heading" style="font-size: 1.15rem; margin-bottom: 0.75rem;">Mega</h2>
+      <p class="skill-text">本体满足 Mega 条件后，立刻翻开 Mega 牌获得强化技能。<strong>每局仅一次</strong>，提供翻盘爽感但不应成为唯一赢法。</p>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="section-heading" style="font-size: 1.15rem;">开局流程</h2>
+      <ol class="space-y-2 pl-5 skill-text" style="list-style: decimal;">
+        <li>双方公开本体牌；Mega 放旁暂不启用；本体体力 4。</li>
+        <li>洗混各自 16 张角色牌组与共用 52 张手牌牌堆。</li>
+        <li>各摸 5 张手牌、4 张角色牌；决定先后手。</li>
+        <li>先手暗置至多 1 张角色，后手至多 2 张；先手开始第一回合。</li>
       </ol>
     </section>
 
-    <section class="mb-10">
-      <h2 class="text-lg font-bold text-[var(--color-text-primary)] mb-3">特殊机制</h2>
-      <div class="space-y-3">
-        <div class="card-frame">
-          <h3 class="font-semibold text-sm text-[var(--color-accent-orange)]">炸弹标记</h3>
-          <p class="skill-text mt-1">炸弹标记不视为角色牌，但占用角色位。对手可通过休整 1 将其移除。</p>
-        </div>
-        <div class="card-frame">
-          <h3 class="font-semibold text-sm text-[var(--color-accent-cyan)]">移出游戏</h3>
-          <p class="skill-text mt-1">角色暂时移出所有区域，不受任何效果影响。指定时机到达后移回原位。</p>
-        </div>
-        <div class="card-frame">
-          <h3 class="font-semibold text-sm text-[var(--color-accent-purple)]">技能复制</h3>
-          <p class="skill-text mt-1">获得对手已明置角色的技能文本。需自行满足费用和时机条件，效果仅持续到当前回合结束。</p>
-        </div>
+    <section>
+      <h2 class="section-heading" style="font-size: 1.15rem;">特殊机制</h2>
+      <div class="grid gap-3">
+        <div class="hud-panel"><h3 class="text-sm font-bold" style="color: var(--color-aggro);">炸弹标记</h3><p class="skill-text mt-2">不占角色牌身份但占角色位；对手可休整 1 移除。</p></div>
+        <div class="hud-panel"><h3 class="text-sm font-bold" style="color: var(--color-role-defend);">移出游戏</h3><p class="skill-text mt-2">暂时移出所有区域，指定时机后归位。</p></div>
+        <div class="hud-panel"><h3 class="text-sm font-bold" style="color: var(--color-mega-purple);">技能复制</h3><p class="skill-text mt-2">复制已明置对手角色技能至回合结束，费用时机自行满足。</p></div>
       </div>
     </section>
   </div>

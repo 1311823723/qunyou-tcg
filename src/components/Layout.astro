@@ -1,9 +1,22 @@
 ---
+import "../styles/global.css";
+
 export interface Props {
   title: string;
   description?: string;
 }
 const { title, description } = Astro.props;
+const currentPath = Astro.url.pathname;
+const links = [
+  { href: "/rules", label: "规则" },
+  { href: "/cards", label: "卡牌" },
+  { href: "/decks", label: "预组" },
+];
+function isActive(href: string) {
+  if (href === "/cards") return currentPath.startsWith("/cards");
+  if (href === "/decks") return currentPath.startsWith("/decks");
+  return currentPath === href;
+}
 ---
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -14,23 +27,42 @@ const { title, description } = Astro.props;
     <meta name="description" content={description || "群友杀 TCG — 1v1 对战卡牌游戏"} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+SC:wght@400;500;600;700;800&family=Orbitron:wght@600;700;800;900&display=swap" rel="stylesheet" />
   </head>
-  <body class="min-h-screen">
-    <nav class="border-b border-[var(--color-border-card)] bg-[var(--color-bg-card)]/80 backdrop-blur sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6 flex-wrap">
-        <a href="/" class="font-bold text-lg text-[var(--color-accent-gold)] no-underline hover:opacity-80">
-          群友杀 TCG
-        </a>
-        <div class="flex gap-4 text-sm flex-wrap">
-          <a href="/rules" class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] no-underline transition">规则</a>
-          <a href="/cards" class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] no-underline transition">卡牌</a>
-          <a href="/decks" class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] no-underline transition">预组</a>
-        </div>
+  <body>
+    <div class="site-bg" aria-hidden="true"></div>
+    <header class="glass-nav">
+      <div class="glass-nav__inner">
+        <a href="/" class="nav-logo">群友杀 TCG</a>
+        <nav class="nav-links" aria-label="主导航">
+          {links.map((l) => (
+            <a href={l.href} class="nav-link" aria-current={isActive(l.href) ? "page" : undefined}>{l.label}</a>
+          ))}
+        </nav>
+        <button type="button" class="nav-toggle" id="nav-toggle" aria-label="打开菜单" aria-expanded="false">☰</button>
       </div>
-    </nav>
-    <main>
-      <slot />
-    </main>
+      <nav class="nav-drawer" id="nav-drawer" aria-label="移动端导航">
+        {links.map((l) => (
+          <a href={l.href} class="nav-link" aria-current={isActive(l.href) ? "page" : undefined}>{l.label}</a>
+        ))}
+      </nav>
+    </header>
+    <main><slot /></main>
+    <script>
+      const toggle = document.getElementById("nav-toggle");
+      const drawer = document.getElementById("nav-drawer");
+      if (toggle && drawer) {
+        toggle.addEventListener("click", () => {
+          const open = drawer.classList.toggle("is-open");
+          toggle.setAttribute("aria-expanded", String(open));
+        });
+        drawer.querySelectorAll("a").forEach((a) => {
+          a.addEventListener("click", () => {
+            drawer.classList.remove("is-open");
+            toggle.setAttribute("aria-expanded", "false");
+          });
+        });
+      }
+    </script>
   </body>
 </html>

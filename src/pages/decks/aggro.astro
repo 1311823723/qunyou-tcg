@@ -3,109 +3,130 @@ import Layout from "../../components/Layout.astro";
 import BodyCard from "../../components/BodyCard.astro";
 import MegaCard from "../../components/MegaCard.astro";
 import CharacterCard from "../../components/CharacterCard.astro";
-import TagPill from "../../components/TagPill.astro";
 import { getDeckById, resolveDeck, getRoleDistribution, getTagDistribution } from "../../lib/decks";
+import { ARCHETYPE_BLURB, ARCHETYPE_RISKS, ARCHETYPE_KEYWORDS } from "../../lib/ui";
 
 const deck = getDeckById("deck_aggro_001");
 if (!deck) throw new Error("Deck not found");
 const resolved = resolveDeck(deck);
 const roleDist = getRoleDistribution(resolved.characters);
 const tagDist = getTagDistribution(resolved.characters);
+const keywords = ARCHETYPE_KEYWORDS[deck.archetype] ?? [];
+const blurb = ARCHETYPE_BLURB[deck.archetype] ?? "";
+const risk = ARCHETYPE_RISKS[deck.archetype] ?? "";
 
 const roleOrder = ["强攻", "防御", "资源", "控制", "支援", "伏击"];
-const sortedRoleDist = Object.entries(roleDist).sort(
-  ([a], [b]) => roleOrder.indexOf(a) - roleOrder.indexOf(b)
-);
-const sortedTagDist = Object.entries(tagDist).sort(
-  ([, a], [, b]) => b - a
-);
+const sortedRoleDist = Object.entries(roleDist).sort(([a], [b]) => roleOrder.indexOf(a) - roleOrder.indexOf(b));
+const sortedTagDist = Object.entries(tagDist).sort(([, a], [, b]) => b - a);
+
+const exitCount = resolved.characters.filter((c) => c.cost.type === "退场" || c.cost.type === "复合").length;
+const restCosts = resolved.characters.filter((c) => c.cost.type === "休整").map((c) => c.cost.amount ?? 1);
+const restDist: Record<string, number> = {};
+for (const n of restCosts) restDist[String(n)] = (restDist[String(n)] || 0) + 1;
+
+const roleColorCss: Record<string, string> = {
+  强攻: "var(--color-role-attack)",
+  防御: "var(--color-role-defend)",
+  资源: "var(--color-role-resource)",
+  控制: "var(--color-role-control)",
+  支援: "var(--color-role-support)",
+  伏击: "var(--color-role-ambush)",
+};
 ---
 <Layout title={deck.name}>
-  <div class="page-container">
-    <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-2xl font-extrabold text-[var(--color-accent-gold)]">{deck.name}</h1>
-      <p class="text-[var(--color-text-muted)] mt-1">{deck.archetype}</p>
-      {deck.notes && <p class="skill-text mt-3 max-w-2xl">{deck.notes}</p>}
-    </div>
+  <div class="page-wrap">
+    <header class="deck-hero">
+      <h1 class="deck-hero__title">{deck.name}</h1>
+      <div class="deck-hero__archetype">{deck.archetype}</div>
+      {blurb && <p class="deck-hero__blurb">{blurb}</p>}
+      {risk && <p class="deck-hero__risk">⚠ 风险：{risk}</p>}
+      <div class="flex flex-wrap gap-1 mt-4">
+        {keywords.map((k) => <span class="tag-pill tag-pill--aggro">{k}</span>)}
+      </div>
+      {deck.notes && <p class="deck-hero__blurb" style="font-size: 0.85rem; margin-top: 1rem; opacity: 0.9;">{deck.notes}</p>}
+    </header>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-      {[
-        ["本体体力", resolved.body ? String(resolved.body.hp) : "?", "var(--color-accent-red)"],
-        ["角色牌", String(resolved.characters.length), "var(--color-accent-gold)"],
-        ["退场牌", String(resolved.characters.filter(c => c.cost.type === "退场" || c.cost.type === "复合").length), "var(--color-accent-purple)"],
-        ["伏击牌", String(resolved.characters.filter(c => c.mainRole === "伏击").length), "var(--color-accent-cyan)"],
-      ].map(([label, value, color]) => (
-        <div class="card-frame text-center">
-          <div class="stat-value" style={`color:${color}`}>{value}</div>
-          <div class="stat-label">{label}</div>
+    <section class="mb-10">
+      <h2 class="section-heading" style="font-size: 1.1rem;">本体 ↔ Mega</h2>
+      <div class="grid md:grid-cols-[1fr_auto_1fr] gap-2 items-stretch">
+        <div>{resolved.body && <BodyCard body={resolved.body} />}</div>
+        <div class="mega-connector">
+          <span aria-hidden="true">⟶</span>
+          <span>Mega 条件</span>
+          <span aria-hidden="true">⟶</span>
         </div>
-      ))}
-    </div>
+        <div>{resolved.mega && <MegaCard mega={resolved.mega} />}</div>
+      </div>
+    </section>
 
-    <!-- Body + Mega -->
-    <div class="grid md:grid-cols-2 gap-4 mb-8">
-      {resolved.body && <BodyCard body={resolved.body} />}
-      {resolved.mega && <MegaCard mega={resolved.mega} />}
-    </div>
+    <section class="hud-panel mb-10">
+      <h2 class="section-heading" style="font-size: 1rem; margin-bottom: 0.75rem;">核心连招示例</h2>
+      <div class="combo-flow mb-3">
+        <span class="combo-flow__step">加伤哥-微笑尅乐</span>
+        <span class="combo-flow__arrow">→</span>
+        <span class="combo-flow__step">忍者-微笑尅乐</span>
+        <span class="combo-flow__arrow">→</span>
+        <span class="combo-flow__kill">【杀】</span>
+        <span class="combo-flow__arrow">→</span>
+        <span class="combo-flow__step">触发「上头」</span>
+        <span class="combo-flow__arrow">→</span>
+        <span class="combo-flow__mega">达成 Mega</span>
+      </div>
+      <p class="skill-text">加伤增幅【杀】，忍者影步令【杀】不可被【闪】响应且可回手；造成伤害后触发本体「上头」摸牌，单回合 2 伤即 Mega。</p>
+    </section>
 
-    <!-- Distributions -->
-    <div class="grid md:grid-cols-2 gap-4 mb-8">
-      <div class="card-frame">
-        <h3 class="font-bold text-sm text-[var(--color-text-primary)] mb-3">主定位分布</h3>
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+      <div class="stat-hud__item" style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1rem;">
+        <div class="stat-hud__value" style="color: var(--color-role-attack)">{resolved.body?.hp ?? "?"}</div>
+        <div class="stat-hud__label">本体体力</div>
+      </div>
+      <div class="stat-hud__item" style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1rem;">
+        <div class="stat-hud__value" style="color: var(--color-text-highlight)">{resolved.characters.length}</div>
+        <div class="stat-hud__label">角色牌</div>
+      </div>
+      <div class="stat-hud__item" style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1rem;">
+        <div class="stat-hud__value" style="color: var(--color-mega-purple)">{exitCount}</div>
+        <div class="stat-hud__label">退场牌</div>
+      </div>
+      <div class="stat-hud__item" style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1rem;">
+        <div class="stat-hud__value" style="color: var(--color-role-ambush)">{resolved.characters.filter((c) => c.mainRole === "伏击").length}</div>
+        <div class="stat-hud__label">伏击定位</div>
+      </div>
+    </section>
+
+    <section class="grid md:grid-cols-2 gap-4 mb-10">
+      <div class="hud-panel">
+        <h3 class="font-bold text-sm mb-3" style="color: var(--color-text-highlight);">主定位分布</h3>
         <div class="space-y-2">
           {sortedRoleDist.map(([role, count]) => (
             <div class="flex items-center gap-2">
-              <span class="text-xs w-12 text-[var(--color-text-muted)]">{role}</span>
-              <div class="flex-1 h-5 bg-[var(--color-bg-surface)] rounded-full overflow-hidden">
-                <div
-                  class="h-full rounded-full transition-all"
-                  style={`width:${(count / 16) * 100}%; background: var(--color-tag-attack)`}
-                ></div>
+              <span class="text-xs w-12" style="color: var(--color-text-muted);">{role}</span>
+              <div class="dist-bar flex-1">
+                <div class="dist-bar__fill" style={`width: ${(count / 16) * 100}%; background: ${roleColorCss[role] || "#888"}`}></div>
               </div>
-              <span class="text-xs font-bold text-[var(--color-text-primary)] w-4">{count}</span>
+              <span class="text-xs font-bold w-4">{count}</span>
             </div>
           ))}
         </div>
       </div>
-
-      <div class="card-frame">
-        <h3 class="font-bold text-sm text-[var(--color-text-primary)] mb-3">标签分布</h3>
+      <div class="hud-panel">
+        <h3 class="font-bold text-sm mb-3" style="color: var(--color-text-highlight);">标签分布</h3>
         <div class="flex flex-wrap gap-1">
           {sortedTagDist.map(([tag, count]) => (
-            <span class="tag-pill mechanic text-xs">
-              {tag} ×{count}
-            </span>
+            <span class="tag-pill tag-pill--mech">{tag} ×{count}</span>
+          ))}
+        </div>
+        <h3 class="font-bold text-sm mt-5 mb-2" style="color: var(--color-text-highlight);">休整费用分布</h3>
+        <div class="flex flex-wrap gap-2">
+          {Object.entries(restDist).sort(([a],[b]) => Number(a)-Number(b)).map(([amt, count]) => (
+            <span class="tag-pill tag-pill--aggro">休整 {amt} ×{count}</span>
           ))}
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Combo showcase -->
-    <div class="card-frame mb-8 border-l-2 border-l-[var(--color-accent-gold)]">
-      <h3 class="font-bold text-sm text-[var(--color-accent-gold)] mb-2">核心连招示例</h3>
-      <div class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-        <span class="text-[var(--color-accent-gold)] font-medium">找刀哥</span>
-        <span class="text-[var(--color-text-muted)]">→</span>
-        <span class="text-[var(--color-accent-gold)] font-medium">加伤哥</span>
-        <span class="text-[var(--color-text-muted)]">→</span>
-        <span class="text-[var(--color-accent-gold)] font-medium">忍者</span>
-        <span class="text-[var(--color-text-muted)]">→</span>
-        <span class="text-[var(--color-accent-red)] font-bold">【杀】</span>
-        <span class="text-[var(--color-text-muted)]">→</span>
-        <span class="text-[var(--color-text-primary)] font-medium">触发上头</span>
-        <span class="text-[var(--color-text-muted)]">→</span>
-        <span class="text-[var(--color-accent-purple)] font-bold">达成 Mega</span>
-      </div>
-      <p class="skill-text mt-2">
-        先用找刀哥检索【杀】，加伤哥增幅伤害，忍者影步确保【杀】不可被闪且杀完回手，造成伤害后触发本体技能「上头」摸牌，若本回合累计 2 伤则立刻 Mega。
-      </p>
-    </div>
-
-    <!-- Character list -->
-    <h2 class="section-title text-[var(--color-accent-gold)]">角色牌 ({resolved.characters.length})</h2>
-    <div class="card-grid">
+    <h2 class="section-heading">角色牌 · {resolved.characters.length}</h2>
+    <div class="card-gallery card-gallery--chars">
       {resolved.characters.map((c) => <CharacterCard character={c} />)}
     </div>
   </div>
