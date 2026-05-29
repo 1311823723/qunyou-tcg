@@ -6,24 +6,24 @@ import { ARCHETYPE_KEYWORDS } from "../../lib/ui";
 ---
 <Layout title="预组卡组">
   <div class="page-wrap">
-    <PageHeader title="预组卡组" subtitle="构筑好的 16 张角色 + 本体 + Mega" />
-    <div class="grid gap-4 max-w-2xl">
+    <PageHeader title="预组卡组" subtitle="Preconstructed Decks · 构筑好的 16 张角色 + 本体 + Mega。" badge="DECKS" />
+    <div class="grid gap-4 max-w-3xl">
       {allDecks.map((deck) => {
         const resolved = resolveDeck(deck);
         const kw = ARCHETYPE_KEYWORDS[deck.archetype] ?? [];
         return (
           <a href={`/decks/${deck.id === "deck_aggro_001" ? "aggro" : deck.id}`} class="deck-spotlight" style="text-decoration: none; color: inherit;">
             <div>
-              <h2 class="deck-hero__title" style="font-size: 1.35rem;">{deck.name}</h2>
+              <h2 class="deck-hero__title" style="font-size: clamp(1.55rem, 4vw, 2.4rem);">{deck.name}</h2>
               <div class="deck-hero__archetype">{deck.archetype}</div>
               {resolved.body && (
-                <p class="skill-text mt-2">本体 <strong style="color: var(--color-text-highlight);">{resolved.body.name}</strong> · HP {resolved.body.hp}</p>
+                <p class="skill-text mt-2">本体 <strong>{resolved.body.name}</strong> · HP {resolved.body.hp} · 角色 {resolved.characters.length}</p>
               )}
-              <div class="flex flex-wrap gap-1 mt-2">
+              <div class="flex flex-wrap gap-1 mt-3">
                 {kw.map((k) => <span class="tag-pill tag-pill--aggro">{k}</span>)}
               </div>
             </div>
-            <span class="btn btn--ghost">进入 →</span>
+            <span class="btn btn--ghost">进入攻略 →</span>
           </a>
         );
       })}

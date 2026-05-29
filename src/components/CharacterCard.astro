@@ -15,7 +15,7 @@ const costText = formatCharacterCost(c.cost);
 const ck = costKind(c.cost);
 const rv = roleVar(c.mainRole);
 ---
-<CardFrame class={`tcg-char ${compact ? "tcg-char--compact" : ""}`} role={rv}>
+<CardFrame class={`tcg-char ${compact ? "tcg-char--compact" : ""}`} role={rv} kind="character">
   <header class="tcg-char__head">
     <div>
       {prefix && <div class="tcg-char__profession">{prefix}</div>}
@@ -28,13 +28,19 @@ const rv = roleVar(c.mainRole);
     {c.tags.map((tag) => <TagPill label={tag} />)}
   </div>
   <div class="tcg-char__meta">
-    <span class={`tcg-char__cost tcg-char__cost--${ck}`}>{costText}</span>
-    <span class="tcg-char__timing">⏱ {c.timing}</span>
+    <div class={`tcg-char__cost tcg-char__cost--${ck}`}>
+      <span class="tcg-char__meta-label">COST</span>
+      {costText}
+    </div>
+    <div class="tcg-char__timing">
+      <span class="tcg-char__meta-label">TIMING</span>
+      {c.timing}
+    </div>
   </div>
   <div class="tcg-char__skill">
     <div class="tcg-char__skill-name">{c.skillName}</div>
     <p class="tcg-char__skill-text">{c.effectText}</p>
   </div>
-  {showDeck && <div class="tcg-char__deck">{c.deck}</div>}
+  {showDeck && <div class="tcg-char__deck">DECK · {c.deck}</div>}
   {c.notes && <p class="tcg-char__notes">{c.notes}</p>}
 </CardFrame>

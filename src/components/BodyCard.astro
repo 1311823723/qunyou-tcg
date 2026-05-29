@@ -6,7 +6,7 @@ import type { BodyCard as BodyType } from "../lib/cards";
 export interface Props { body: BodyType; compact?: boolean; }
 const { body: b, compact } = Astro.props;
 ---
-<CardFrame class={`tcg-body ${compact ? "tcg-char--compact" : ""}`}>
+<CardFrame class={`tcg-body ${compact ? "tcg-char--compact" : ""}`} kind="body">
   <div class="tcg-body__banner">
     <div>
       <div class="tcg-body__type">本体 · {b.archetype}</div>
@@ -26,7 +26,7 @@ const { body: b, compact } = Astro.props;
   </div>
   <div class="tcg-body__mega-box">
     <div class="tcg-body__mega-label">Mega 条件</div>
-    <p class="skill-text" style="color: var(--color-text-primary); font-weight: 500;">{b.megaCondition}</p>
+    <p class="skill-text" style="color: var(--text-primary); font-weight: 700;">{b.megaCondition}</p>
   </div>
   {b.notes && <p class="tcg-char__notes" style="margin: 0 1rem 1rem;">{b.notes}</p>}
 </CardFrame>

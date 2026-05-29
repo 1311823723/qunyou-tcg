@@ -5,7 +5,7 @@ import type { MegaCard as MegaType } from "../lib/cards";
 export interface Props { mega: MegaType; compact?: boolean; }
 const { mega: m, compact } = Astro.props;
 ---
-<CardFrame class={`tcg-mega ${compact ? "tcg-char--compact" : ""}`}>
+<CardFrame class={`tcg-mega ${compact ? "tcg-char--compact" : ""}`} kind="mega">
   <div class="tcg-mega__head">
     <span class="tcg-mega__badge">MEGA</span>
     <h3 class="tcg-mega__name">{m.name}</h3>

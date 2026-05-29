@@ -2,23 +2,29 @@
 import Layout from "../../components/Layout.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import { allBodies, allMegas, allCharacters, allHandCards, getHandCardTotal } from "../../lib/cards";
+
+const collections = [
+  ["/cards/bodies", "本体牌", String(allBodies.length), "决定玩家核心、体力与流派方向", "var(--color-role-attack)"],
+  ["/cards/megas", "Mega 牌", String(allMegas.length), "满足条件后展开的一次性强化形态", "var(--color-mega-purple)"],
+  ["/cards/characters", "角色牌", String(allCharacters.length), "暗置上阵、休整发动、退场爆发的战术单位", "var(--color-text-highlight)"],
+  ["/cards/hand-cards", "手牌牌堆", `${allHandCards.length} 种`, `双方共用，共 ${getHandCardTotal()} 张`, "var(--color-role-defend)"],
+];
 ---
 <Layout title="全卡列表">
   <div class="page-wrap">
-    <PageHeader title="卡牌图鉴" subtitle="收藏册 · 全部卡牌数据来自 JSON" badge="全卡" />
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-      {[
-        ["/cards/bodies", "本体", String(allBodies.length), "var(--color-role-attack)"],
-        ["/cards/megas", "Mega", String(allMegas.length), "var(--color-mega-purple)"],
-        ["/cards/characters", "角色", String(allCharacters.length), "var(--color-text-highlight)"],
-        ["/cards/hand-cards", "手牌", `${allHandCards.length}种`, "var(--color-role-defend)"],
-      ].map(([href, label, count, color]) => (
-        <a href={href} class="collection-card text-center">
-          <div class="collection-card__count" style={`color: ${color}`}>{count}</div>
+    <PageHeader title="卡牌图鉴" subtitle="Collection Archive · 全部展示数据来自 JSON，按本体、Mega、角色与共用手牌归档。" badge="全卡" />
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      {collections.map(([href, label, count, desc, color]) => (
+        <a href={href} class="collection-card" style={`--collection-color: ${color}`}>
+          <div class="collection-card__count">{count}</div>
           <div class="collection-card__label">{label}</div>
+          <p class="collection-card__desc">{desc}</p>
+          <span class="collection-card__arrow">打开 →</span>
         </a>
       ))}
     </div>
-    <p class="text-center text-sm" style="color: var(--color-text-muted);">共用手牌牌堆合计 {getHandCardTotal()} 张</p>
+    <div class="hud-panel" style="padding: 1rem 1.25rem;">
+      <p class="skill-text" style="text-align: center;">共用手牌牌堆合计 <strong>{getHandCardTotal()}</strong> 张。卡牌效果以 JSON 数据为准，页面仅负责图鉴展示。</p>
+    </div>
   </div>
 </Layout>

@@ -11,19 +11,19 @@ const tricks = allHandCards.filter((c) => c.handType === "锦囊");
 ---
 <Layout title="手牌">
   <div class="page-wrap">
-    <PageHeader title="手牌牌堆" subtitle={`${allHandCards.length} 种 · 共 ${total} 张 · 双方共用`} />
+    <PageHeader title="手牌牌堆" subtitle={`${allHandCards.length} 种 · 共 ${total} 张 · 双方共用的攻防资源池。`} badge="SHARED DECK" />
 
-    <div class="hud-panel mb-8">
-      <div class="text-xs mb-3" style="color: var(--color-text-muted);">花色分布</div>
+    <div class="hud-panel mb-8" style="padding: 1rem 1.2rem;">
+      <div class="text-xs mb-3" style="color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 0.12em;">SUIT DISTRIBUTION</div>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {ALL_SUITS.map((suit) => {
           const count = suitDist[suit] || 0;
           const red = suit === "红桃" || suit === "方块";
           return (
-            <div class="text-center p-2 rounded-lg" style="background: rgba(0,0,0,0.25);">
-              <span class="text-xl font-mono font-bold" style={red ? "color:#ff8888" : "color: var(--color-text-secondary)"}>{SUIT_SYMBOLS[suit]}</span>
+            <div class="text-center p-3 rounded-xl" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-soft);">
+              <span class="text-2xl font-mono font-bold" style={red ? "color:#ff8888" : "color: var(--text-secondary)"}>{SUIT_SYMBOLS[suit]}</span>
               <div class="dist-bar mt-2"><div class="dist-bar__fill" style={`width:${(count/total)*100}%;background:${red?"#e06060":"#7080a0"}`}></div></div>
-              <span class="text-xs font-mono" style="color: var(--color-text-muted);">{count}</span>
+              <span class="text-xs font-mono mt-2 inline-block" style="color: var(--text-muted);">{suit} · {count}</span>
             </div>
           );
         })}

@@ -10,32 +10,44 @@ const deck = allDecks[0];
 const keywords = deck ? ARCHETYPE_KEYWORDS[deck.archetype] ?? [] : [];
 
 const mechanics = [
-  { icon: "♛", title: "本体", desc: "核心角色，承受伤害。体力归零即败。", color: "var(--color-role-attack)" },
-  { icon: "?", title: "暗置上阵", desc: "背面朝上布阵，对手不知你的角色。", color: "var(--color-mega-purple)" },
-  { icon: "↻", title: "休整", desc: "角色回牌堆底，常规技能成本，可循环。", color: "var(--color-text-highlight)" },
-  { icon: "✕", title: "退场", desc: "送入退场区，强力技能的沉重代价。", color: "var(--color-role-attack)" },
-  { icon: "★", title: "Mega", desc: "满足条件后一次性强化，翻盘爽感。", color: "var(--color-mega)" },
+  { icon: "01", title: "选择本体", desc: "本体承受伤害，体力归零即败。", color: "var(--color-role-attack)" },
+  { icon: "02", title: "暗置上阵", desc: "角色背面布阵，保留伏击与节奏信息。", color: "var(--color-mega-purple)" },
+  { icon: "03", title: "休整发动", desc: "角色回牌堆底，换取技能收益。", color: "var(--color-text-highlight)" },
+  { icon: "04", title: "攻防响应", desc: "共用手牌牌堆提供杀、闪与锦囊。", color: "var(--color-role-defend)" },
+  { icon: "05", title: "Mega 爆发", desc: "达成条件后一次性强化，完成反打。", color: "var(--color-mega)" },
+];
+
+const collections = [
+  { href: "/cards/bodies", label: "本体牌", count: allBodies.length, desc: "决定流派与胜负核心", color: "var(--color-role-attack)" },
+  { href: "/cards/megas", label: "Mega 牌", count: allMegas.length, desc: "一次性强化与翻盘窗口", color: "var(--color-mega-purple)" },
+  { href: "/cards/characters", label: "角色牌", count: allCharacters.length, desc: "暗置、休整、退场与连招", color: "var(--color-text-highlight)" },
+  { href: "/cards/hand-cards", label: "手牌牌堆", count: handTotal, desc: "双方共用的攻防资源", color: "var(--color-role-defend)" },
 ];
 ---
 <Layout title="首页" description="群友杀 TCG — 本体承伤，角色暗置上阵，休整发动技能，Mega 后爆发反打。">
   <section class="hero-section page-wrap">
     <div class="hero-grid">
       <div>
-        <p class="hero-eyebrow">v0.2 Demo · 1v1 对战卡牌</p>
+        <p class="hero-eyebrow">v0.2 Demo · Tactical Card Archive</p>
         <h1 class="hero-title"><span>群友杀</span> TCG</h1>
-        <p class="hero-sub">本体承伤，角色暗置上阵，休整发动技能，Mega 后爆发反打。</p>
+        <p class="hero-sub">本体承伤，角色暗置上阵，休整发动技能，Mega 后爆发反打。一个围绕群友整活与高压爆发设计的 1v1 对战卡牌游戏。</p>
         <div class="hero-actions">
           <a href="/rules" class="btn btn--primary">查看规则</a>
           <a href="/cards" class="btn btn--secondary">浏览全卡</a>
           <a href="/decks/aggro" class="btn btn--ghost">查看上头组</a>
+        </div>
+        <div class="hero-chips">
+          <span class="hero-chip">本体承伤</span>
+          <span class="hero-chip">暗置角色</span>
+          <span class="hero-chip">Mega 爆发</span>
         </div>
       </div>
       <HeroCardShowcase />
     </div>
   </section>
 
-  <section class="page-wrap" style="margin-top: -0.5rem;">
-    <div class="hud-panel">
+  <section class="page-wrap" style="padding-top: 0;">
+    <div class="hud-panel" style="padding: 1rem;">
       <div class="stat-hud">
         <div class="stat-hud__item">
           <div class="stat-hud__value" style="color: var(--color-role-attack)">{allBodies.length}</div>
@@ -50,23 +62,37 @@ const mechanics = [
           <div class="stat-hud__label">角色牌</div>
         </div>
         <div class="stat-hud__item">
-          <div class="stat-hud__value" style="color: var(--color-role-defend)">{allDecks.length}</div>
-          <div class="stat-hud__label">预组</div>
+          <div class="stat-hud__value" style="color: var(--color-role-defend)">{handTotal}</div>
+          <div class="stat-hud__label">共用手牌</div>
         </div>
       </div>
-      <p class="text-center text-xs mt-3" style="color: var(--color-text-muted);">共用手牌牌堆 {handTotal} 张 · 数据来自 JSON</p>
+      <p class="text-center text-xs mt-3" style="color: var(--text-muted);">Data source · JSON card database · {allDecks.length} 套预组</p>
     </div>
   </section>
 
   <section class="page-wrap py-4">
-    <h2 class="section-heading">核心机制</h2>
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+    <h2 class="section-heading">核心机制链路</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
       {mechanics.map((m) => (
-        <div class="mechanic-tile" style={`border-top-color: ${m.color}`}>
+        <div class="mechanic-tile" style={`--tile-color: ${m.color}; border-top-color: ${m.color}`}>
           <div class="mechanic-tile__icon">{m.icon}</div>
-          <div class="mechanic-tile__title" style={`color: ${m.color}`}>{m.title}</div>
+          <div class="mechanic-tile__title">{m.title}</div>
           <p class="mechanic-tile__desc">{m.desc}</p>
         </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="page-wrap py-4">
+    <h2 class="section-heading">卡牌收藏册</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {collections.map((item) => (
+        <a href={item.href} class="collection-card" style={`--collection-color: ${item.color}`}>
+          <div class="collection-card__count">{item.count}</div>
+          <div class="collection-card__label">{item.label}</div>
+          <p class="collection-card__desc">{item.desc}</p>
+          <span class="collection-card__arrow">进入 →</span>
+        </a>
       ))}
     </div>
   </section>
@@ -76,14 +102,14 @@ const mechanics = [
       <h2 class="section-heading">当前预组</h2>
       <div class="deck-spotlight">
         <div>
-          <div class="deck-hero__title" style="font-size: 1.5rem; margin-bottom: 0.25rem;">{deck.name}</div>
+          <div class="deck-hero__title" style="font-size: clamp(1.6rem, 4vw, 2.4rem);">{deck.name}</div>
           <div class="deck-hero__archetype">{deck.archetype}</div>
           <div class="flex flex-wrap gap-1 mt-3">
             {keywords.map((k) => <span class="tag-pill tag-pill--aggro">{k}</span>)}
           </div>
-          {deck.notes && <p class="deck-hero__blurb" style="margin-top: 0.75rem; font-size: 0.85rem;">{deck.notes}</p>}
+          {deck.notes && <p class="deck-hero__blurb" style="margin-top: 0.75rem; font-size: 0.9rem;">{deck.notes}</p>}
         </div>
-        <a href="/decks/aggro" class="btn btn--primary">查看预组 →</a>
+        <a href="/decks/aggro" class="btn btn--primary">查看预组攻略 →</a>
       </div>
     </section>
   )}

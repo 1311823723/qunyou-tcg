@@ -8,12 +8,14 @@ export interface Props { card: HandType; }
 const { card: h } = Astro.props;
 const isTrick = h.handType === "锦囊";
 ---
-<CardFrame class={`tcg-hand ${isTrick ? "tcg-hand--trick" : ""}`}>
+<CardFrame class={`tcg-hand ${isTrick ? "tcg-hand--trick" : ""}`} kind={isTrick ? "trick" : "hand"}>
   <div class="tcg-hand__row">
-    <h3 class="tcg-hand__name">{h.name}</h3>
+    <div>
+      <div class="card-timing">{h.handType}</div>
+      <h3 class="tcg-hand__name">{h.name}</h3>
+    </div>
     <span class="tcg-hand__count">×{h.cards.length}</span>
   </div>
-  <span class="tag-pill tag-pill--mech" style="margin-bottom: 0.35rem;">{h.handType}</span>
   <div class="flex flex-wrap gap-1 mb-2">
     {h.tags.map((tag) => <TagPill label={tag} />)}
   </div>
@@ -24,6 +26,6 @@ const isTrick = h.handType === "锦囊";
       </span>
     ))}
   </div>
-  <div class="text-xs mb-2" style="color: var(--color-text-muted);">⏱ {h.timing}</div>
+  <div class="card-timing">TIMING · {h.timing}</div>
   <p class="skill-text">{h.effectText}</p>
 </CardFrame>

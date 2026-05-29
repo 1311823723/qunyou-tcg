@@ -1,7 +1,11 @@
 ---
-export interface Props { class?: string; role?: string; }
-const { class: extraClass = "", role } = Astro.props;
+export interface Props {
+  class?: string;
+  role?: string;
+  kind?: "character" | "body" | "mega" | "hand" | "trick";
+}
+const { class: extraClass = "", role, kind = "character" } = Astro.props;
 ---
-<div class={`card-frame ${extraClass}`} {...(role ? { "data-role": role } : {})}>
+<div class={`card-frame ${extraClass}`} data-kind={kind} {...(role ? { "data-role": role } : {})}>
   <slot />
 </div>

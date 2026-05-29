@@ -5,8 +5,11 @@ import BodyCard from "../../components/BodyCard.astro";
 import { allBodies } from "../../lib/cards";
 ---
 <Layout title="本体牌">
-  <div class="page-wrap max-w-2xl">
-    <PageHeader title="本体牌" subtitle="玩家核心 · 承受伤害 · 决定流派" />
+  <div class="page-wrap max-w-3xl">
+    <PageHeader title="本体牌" subtitle="玩家核心 · 承受伤害 · 决定流派与 Mega 条件。" badge="BODY" />
+    <div class="hud-panel mb-6" style="padding: 1rem 1.2rem;">
+      <p class="skill-text">本体牌是每局公开的核心身份。它承受伤害，定义打法方向，并决定何时进入 Mega 强化窗口。</p>
+    </div>
     <div class="grid gap-6">
       {allBodies.map((b) => <BodyCard body={b} />)}
     </div>

@@ -36,19 +36,20 @@ const roleColorCss: Record<string, string> = {
 <Layout title={deck.name}>
   <div class="page-wrap">
     <header class="deck-hero">
+      <div class="tag-pill tag-pill--aggro mb-3">PRECONSTRUCTED DECK</div>
       <h1 class="deck-hero__title">{deck.name}</h1>
       <div class="deck-hero__archetype">{deck.archetype}</div>
       {blurb && <p class="deck-hero__blurb">{blurb}</p>}
-      {risk && <p class="deck-hero__risk">⚠ 风险：{risk}</p>}
+      {risk && <p class="deck-hero__risk">风险：{risk}</p>}
       <div class="flex flex-wrap gap-1 mt-4">
         {keywords.map((k) => <span class="tag-pill tag-pill--aggro">{k}</span>)}
       </div>
-      {deck.notes && <p class="deck-hero__blurb" style="font-size: 0.85rem; margin-top: 1rem; opacity: 0.9;">{deck.notes}</p>}
+      {deck.notes && <p class="deck-hero__blurb" style="font-size: 0.88rem; margin-top: 1rem; opacity: 0.9;">{deck.notes}</p>}
     </header>
 
     <section class="mb-10">
-      <h2 class="section-heading" style="font-size: 1.1rem;">本体 ↔ Mega</h2>
-      <div class="grid md:grid-cols-[1fr_auto_1fr] gap-2 items-stretch">
+      <h2 class="section-heading" style="font-size: 1.1rem;">本体 ↔ Mega 进化链</h2>
+      <div class="grid md:grid-cols-[1fr_auto_1fr] gap-3 items-stretch">
         <div>{resolved.body && <BodyCard body={resolved.body} />}</div>
         <div class="mega-connector">
           <span aria-hidden="true">⟶</span>
@@ -59,8 +60,8 @@ const roleColorCss: Record<string, string> = {
       </div>
     </section>
 
-    <section class="hud-panel mb-10">
-      <h2 class="section-heading" style="font-size: 1rem; margin-bottom: 0.75rem;">核心连招示例</h2>
+    <section class="hud-panel mb-10" style="padding: 1.15rem;">
+      <h2 class="section-heading" style="font-size: 1rem; margin-bottom: 0.75rem;">核心连招路线</h2>
       <div class="combo-flow mb-3">
         <span class="combo-flow__step">加伤哥-微笑尅乐</span>
         <span class="combo-flow__arrow">→</span>
@@ -76,31 +77,31 @@ const roleColorCss: Record<string, string> = {
     </section>
 
     <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
-      <div class="stat-hud__item" style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1rem;">
+      <div class="stat-hud__item">
         <div class="stat-hud__value" style="color: var(--color-role-attack)">{resolved.body?.hp ?? "?"}</div>
         <div class="stat-hud__label">本体体力</div>
       </div>
-      <div class="stat-hud__item" style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1rem;">
+      <div class="stat-hud__item">
         <div class="stat-hud__value" style="color: var(--color-text-highlight)">{resolved.characters.length}</div>
         <div class="stat-hud__label">角色牌</div>
       </div>
-      <div class="stat-hud__item" style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1rem;">
+      <div class="stat-hud__item">
         <div class="stat-hud__value" style="color: var(--color-mega-purple)">{exitCount}</div>
         <div class="stat-hud__label">退场牌</div>
       </div>
-      <div class="stat-hud__item" style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1rem;">
+      <div class="stat-hud__item">
         <div class="stat-hud__value" style="color: var(--color-role-ambush)">{resolved.characters.filter((c) => c.mainRole === "伏击").length}</div>
         <div class="stat-hud__label">伏击定位</div>
       </div>
     </section>
 
     <section class="grid md:grid-cols-2 gap-4 mb-10">
-      <div class="hud-panel">
+      <div class="hud-panel" style="padding: 1.1rem;">
         <h3 class="font-bold text-sm mb-3" style="color: var(--color-text-highlight);">主定位分布</h3>
         <div class="space-y-2">
           {sortedRoleDist.map(([role, count]) => (
             <div class="flex items-center gap-2">
-              <span class="text-xs w-12" style="color: var(--color-text-muted);">{role}</span>
+              <span class="text-xs w-12" style="color: var(--text-muted);">{role}</span>
               <div class="dist-bar flex-1">
                 <div class="dist-bar__fill" style={`width: ${(count / 16) * 100}%; background: ${roleColorCss[role] || "#888"}`}></div>
               </div>
@@ -109,7 +110,7 @@ const roleColorCss: Record<string, string> = {
           ))}
         </div>
       </div>
-      <div class="hud-panel">
+      <div class="hud-panel" style="padding: 1.1rem;">
         <h3 class="font-bold text-sm mb-3" style="color: var(--color-text-highlight);">标签分布</h3>
         <div class="flex flex-wrap gap-1">
           {sortedTagDist.map(([tag, count]) => (
@@ -125,7 +126,7 @@ const roleColorCss: Record<string, string> = {
       </div>
     </section>
 
-    <h2 class="section-heading">角色牌 · {resolved.characters.length}</h2>
+    <h2 class="section-heading">完整角色牌 · {resolved.characters.length}</h2>
     <div class="card-gallery card-gallery--chars">
       {resolved.characters.map((c) => <CharacterCard character={c} />)}
     </div>

@@ -4,19 +4,37 @@ import PageHeader from "../components/PageHeader.astro";
 
 const phases = ["准备阶段", "摸牌阶段", "出牌阶段", "布阵阶段", "弃牌阶段", "结束阶段"];
 const keywords = ["本体", "Mega", "暗置", "明置", "休整", "退场", "伏击", "共用手牌牌堆"];
+const setupStats = [
+  ["1", "本体", "公开核心角色"],
+  ["16", "角色牌", "暗置与技能来源"],
+  ["52", "共用手牌", "杀、闪与锦囊"],
+  ["5+4", "起手", "手牌 + 角色牌"],
+];
 ---
 <Layout title="规则">
-  <div class="page-wrap max-w-3xl">
-    <PageHeader title="游戏规则" subtitle="1v1 对战 · 读法优化版" badge="玩家必读" />
+  <div class="page-wrap max-w-4xl">
+    <PageHeader title="游戏规则" subtitle="玩家上手指南 · 本体承伤、角色暗置、休整发动、Mega 反打。" badge="玩家必读" />
 
-    <section class="hud-panel mb-8">
-      <h2 class="text-sm font-bold mb-2" style="color: var(--color-text-highlight);">游戏简介</h2>
-      <p class="skill-text">
-        每名玩家选择一张<strong style="color: var(--color-text-highlight);">本体牌</strong>，搭配 16 张<strong style="color: var(--color-text-highlight);">角色牌</strong>。双方共用 52 张<strong style="color: var(--color-text-highlight);">手牌牌堆</strong>攻防。
-      </p>
-      <p class="skill-text mt-3"><strong>胜利目标：</strong>将对方本体体力降至 0。</p>
-      <div class="flex flex-wrap gap-1 mt-4">
-        {keywords.map((k) => <span class="tag-pill tag-pill--mech">{k}</span>)}
+    <section class="hud-panel mb-8" style="padding: 1.25rem;">
+      <div class="grid md:grid-cols-[1.2fr_1fr] gap-5 items-center">
+        <div>
+          <h2 class="section-heading" style="font-size: 1.1rem; margin-bottom: 0.75rem;">胜利目标</h2>
+          <p class="skill-text">
+            每名玩家选择一张<strong>本体牌</strong>，搭配 16 张<strong>角色牌</strong>。双方共用 52 张<strong>手牌牌堆</strong>攻防；将对方本体体力降至 0 即获胜。
+          </p>
+          <div class="flex flex-wrap gap-1 mt-4">
+            {keywords.map((k) => <span class="tag-pill tag-pill--mech">{k}</span>)}
+          </div>
+        </div>
+        <div class="stat-hud" style="grid-template-columns: repeat(2, 1fr);">
+          {setupStats.map(([value, label, desc]) => (
+            <div class="stat-hud__item" style="min-height: 5.8rem;">
+              <div class="stat-hud__value" style="font-size: 1.65rem; color: var(--color-text-highlight);">{value}</div>
+              <div class="stat-hud__label">{label}</div>
+              <p class="text-xs mt-1" style="color: var(--text-faint);">{desc}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
 
@@ -30,16 +48,16 @@ const keywords = ["本体", "Mega", "暗置", "明置", "休整", "退场", "伏
           </div>
         ))}
       </div>
-      <div class="grid gap-3">
-        <div class="hud-panel">
+      <div class="grid md:grid-cols-3 gap-3">
+        <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-role-defend);">
           <span class="text-sm font-bold" style="color: var(--color-role-defend);">摸牌阶段</span>
           <p class="skill-text mt-2">从共用手牌牌堆摸 2 张手牌；从角色牌堆摸 1 张角色牌。</p>
         </div>
-        <div class="hud-panel">
+        <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-aggro);">
           <span class="text-sm font-bold" style="color: var(--color-aggro);">出牌阶段</span>
           <p class="skill-text mt-2">使用手牌、锦囊、本体技能；明置并发动角色技能。通常每回合限 1 张【杀】。</p>
         </div>
-        <div class="hud-panel">
+        <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-role-resource);">
           <span class="text-sm font-bold" style="color: var(--color-role-resource);">布阵阶段</span>
           <p class="skill-text mt-2">从角色手牌至多暗置上阵 2 张；角色区最多 4 张。</p>
         </div>
@@ -49,11 +67,11 @@ const keywords = ["本体", "Mega", "暗置", "明置", "休整", "退场", "伏
     <section class="mb-8">
       <h2 class="section-heading" style="font-size: 1.15rem;">休整 vs 退场</h2>
       <div class="rules-compare">
-        <div class="hud-panel" style="border-top: 2px solid var(--color-text-highlight);">
+        <div class="hud-panel" style="padding: 1.1rem; border-top: 2px solid var(--color-text-highlight);">
           <h3 class="font-bold" style="color: var(--color-text-highlight);">休整</h3>
           <p class="skill-text mt-2">将上阵角色放回角色牌堆底。常规技能成本，角色可循环使用，需投入节奏。</p>
         </div>
-        <div class="hud-panel" style="border-top: 2px solid var(--color-role-attack);">
+        <div class="hud-panel" style="padding: 1.1rem; border-top: 2px solid var(--color-role-attack);">
           <h3 class="font-bold" style="color: var(--color-role-attack);">退场</h3>
           <p class="skill-text mt-2">将角色放入退场区。强力技能代价，通常无法回收，设计需格外谨慎。</p>
         </div>
@@ -77,10 +95,10 @@ const keywords = ["本体", "Mega", "暗置", "明置", "休整", "退场", "伏
 
     <section>
       <h2 class="section-heading" style="font-size: 1.15rem;">特殊机制</h2>
-      <div class="grid gap-3">
-        <div class="hud-panel"><h3 class="text-sm font-bold" style="color: var(--color-aggro);">炸弹标记</h3><p class="skill-text mt-2">不占角色牌身份但占角色位；对手可休整 1 移除。</p></div>
-        <div class="hud-panel"><h3 class="text-sm font-bold" style="color: var(--color-role-defend);">移出游戏</h3><p class="skill-text mt-2">暂时移出所有区域，指定时机后归位。</p></div>
-        <div class="hud-panel"><h3 class="text-sm font-bold" style="color: var(--color-mega-purple);">技能复制</h3><p class="skill-text mt-2">复制已明置对手角色技能至回合结束，费用时机自行满足。</p></div>
+      <div class="grid md:grid-cols-3 gap-3">
+        <div class="mechanic-tile" style="--tile-color: var(--color-aggro);"><div class="mechanic-tile__icon">BOMB</div><h3 class="mechanic-tile__title">炸弹标记</h3><p class="mechanic-tile__desc">不占角色牌身份但占角色位；对手可休整 1 移除。</p></div>
+        <div class="mechanic-tile" style="--tile-color: var(--color-role-defend);"><div class="mechanic-tile__icon">OUT</div><h3 class="mechanic-tile__title">移出游戏</h3><p class="mechanic-tile__desc">暂时移出所有区域，指定时机后归位。</p></div>
+        <div class="mechanic-tile" style="--tile-color: var(--color-mega-purple);"><div class="mechanic-tile__icon">COPY</div><h3 class="mechanic-tile__title">技能复制</h3><p class="mechanic-tile__desc">复制已明置对手角色技能至回合结束，费用时机自行满足。</p></div>
       </div>
     </section>
   </div>
