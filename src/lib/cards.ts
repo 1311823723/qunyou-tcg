@@ -129,12 +129,3 @@ export function getSuitDistribution(): Record<string, number> {
 export const ALL_TAGS = Array.from(
   new Set(allCharacters.flatMap((c) => c.tags))
 ).sort();
-
-export const ROLE_COLORS: Record<string, string> = {
-  "强攻": "role-attack",
-  "防御": "role-defend",
-  "资源": "role-resource",
-  "控制": "role-control",
-  "支援": "role-support",
-  "伏击": "role-ambush",
-};

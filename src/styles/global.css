@@ -580,13 +580,6 @@ strong { color: var(--text-gold); font-weight: 800; }
   transform: rotate(-180deg);
 }
 
-.tcg-mega { border-color: rgba(216,183,92,0.5); box-shadow: var(--shadow-card), 0 0 30px rgba(216, 183, 92, 0.18); background: linear-gradient(160deg, rgba(44, 34, 67, 0.98), rgba(19, 18, 32, 0.98) 52%, rgba(8, 8, 14, 0.98)); }
-.tcg-mega__head { padding: 1.05rem 1.18rem; border-bottom: 1px solid rgba(216,183,92,0.24); background: radial-gradient(circle at 20% 0%, rgba(216,183,92,0.2), transparent 42%), linear-gradient(135deg, rgba(216,183,92,0.13), rgba(157,108,255,0.14)); }
-.tcg-mega__badge { display: inline-flex; margin-bottom: 0.5rem; padding: 0.24rem 0.56rem; border-radius: 7px; color: #1e1206; background: linear-gradient(90deg, #ffe7a0, #d8b75c); font-family: var(--font-display); font-size: 0.63rem; font-weight: 900; letter-spacing: 0.18em; box-shadow: 0 0 20px rgba(216,183,92,0.22); }
-.tcg-mega__name { margin: 0; color: #ffe9aa; font-family: var(--font-display); font-size: clamp(1.22rem, 4vw, 1.55rem); font-weight: 900; line-height: 1.18; }
-.tcg-mega__skill { margin: 1rem; padding: 1rem; border: 1px solid rgba(216,183,92,0.38); border-radius: 15px; background: rgba(0,0,0,0.32); box-shadow: inset 0 0 30px rgba(216,183,92,0.06); }
-.tcg-mega__skill-name { margin-bottom: 0.5rem; color: var(--accent-mega); font-size: 0.95rem; font-weight: 900; }
-
 .tcg-hand { padding: 1rem 1.1rem; border-left: 3px solid var(--role-defend); }
 .tcg-hand--trick { border-left-color: var(--accent-mega-purple); }
 .tcg-hand__row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.55rem; }
@@ -676,11 +669,6 @@ strong { color: var(--text-gold); font-weight: 800; }
 .collection-card__label { position: relative; margin-top: 0.55rem; color: var(--text-primary); font-size: 1rem; font-weight: 900; }
 .collection-card__desc { position: relative; margin-top: 0.55rem; color: var(--text-muted); font-size: 0.78rem; line-height: 1.6; }
 .collection-card__arrow { position: absolute; right: 1rem; bottom: 1rem; color: var(--collection-color, var(--text-gold)); font-weight: 900; }
-
-.page-container { max-width: 80rem; margin: 0 auto; padding: 1.5rem 1rem; }
-.card-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
-@media (min-width: 520px) { .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 900px) { .card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 @media (max-width: 639px) {
   .hero-actions .btn { width: 100%; }

@@ -3,7 +3,7 @@ import Layout from "../../components/Layout.astro";
 import BodyCard from "../../components/BodyCard.astro";
 import CharacterCard from "../../components/CharacterCard.astro";
 import { getDeckById, resolveDeck, getRoleDistribution, getTagDistribution } from "../../lib/decks";
-import { ARCHETYPE_BLURB, ARCHETYPE_RISKS, ARCHETYPE_KEYWORDS } from "../../lib/ui";
+import { ARCHETYPE_BLURB, ARCHETYPE_RISKS, ARCHETYPE_KEYWORDS, ROLE_COLORS_CSS } from "../../lib/ui";
 
 const deck = getDeckById("deck_aggro_001");
 if (!deck) throw new Error("Deck not found");
@@ -23,14 +23,7 @@ const restCosts = resolved.characters.filter((c) => c.cost.type === "休整").ma
 const restDist: Record<string, number> = {};
 for (const n of restCosts) restDist[String(n)] = (restDist[String(n)] || 0) + 1;
 
-const roleColorCss: Record<string, string> = {
-  强攻: "var(--color-role-attack)",
-  防御: "var(--color-role-defend)",
-  资源: "var(--color-role-resource)",
-  控制: "var(--color-role-control)",
-  支援: "var(--color-role-support)",
-  伏击: "var(--color-role-ambush)",
-};
+
 ---
 <Layout title={deck.name}>
   <div class="page-wrap">
@@ -95,7 +88,7 @@ const roleColorCss: Record<string, string> = {
             <div class="flex items-center gap-2">
               <span class="text-xs w-12" style="color: var(--text-muted);">{role}</span>
               <div class="dist-bar flex-1">
-                <div class="dist-bar__fill" style={`width: ${(count / 16) * 100}%; background: ${roleColorCss[role] || "#888"}`}></div>
+                <div class="dist-bar__fill" style={`width: ${(count / 16) * 100}%; background: ${ROLE_COLORS_CSS[role] || "#888"}`}></div>
               </div>
               <span class="text-xs font-bold w-4">{count}</span>
             </div>
