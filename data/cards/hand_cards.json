@@ -8,18 +8,18 @@
     "timing": "出牌阶段",
     "effectText": "出牌阶段使用。指定对方本体为目标。对方可以打出【闪】响应。若对方没有打出【闪】，其本体受到 1 点伤害。",
     "cards": [
-      { "suit": "黑桃", "rank": "A" },
       { "suit": "黑桃", "rank": "3" },
+      { "suit": "黑桃", "rank": "4" },
       { "suit": "黑桃", "rank": "5" },
+      { "suit": "黑桃", "rank": "6" },
       { "suit": "黑桃", "rank": "7" },
-      { "suit": "梅花", "rank": "2" },
-      { "suit": "梅花", "rank": "4" },
-      { "suit": "梅花", "rank": "6" },
-      { "suit": "梅花", "rank": "8" },
-      { "suit": "梅花", "rank": "9" },
-      { "suit": "红桃", "rank": "10" },
-      { "suit": "红桃", "rank": "K" },
-      { "suit": "方块", "rank": "Q" }
+      { "suit": "黑桃", "rank": "8" },
+      { "suit": "黑桃", "rank": "9" },
+      { "suit": "黑桃", "rank": "10" },
+      { "suit": "黑桃", "rank": "J" },
+      { "suit": "黑桃", "rank": "K" },
+      { "suit": "方块", "rank": "A" },
+      { "suit": "红桃", "rank": "5" }
     ]
   },
   {
@@ -36,13 +36,13 @@
       { "suit": "红桃", "rank": "6" },
       { "suit": "红桃", "rank": "8" },
       { "suit": "红桃", "rank": "10" },
-      { "suit": "方块", "rank": "A" },
-      { "suit": "方块", "rank": "3" },
+      { "suit": "红桃", "rank": "J" },
+      { "suit": "黑桃", "rank": "A" },
+      { "suit": "梅花", "rank": "2" },
       { "suit": "方块", "rank": "5" },
       { "suit": "方块", "rank": "7" },
       { "suit": "方块", "rank": "9" },
-      { "suit": "黑桃", "rank": "J" },
-      { "suit": "梅花", "rank": "Q" }
+      { "suit": "方块", "rank": "J" }
     ]
   },
   {
@@ -69,11 +69,11 @@
     "timing": "出牌阶段",
     "effectText": "摸 2 张手牌。",
     "cards": [
-      { "suit": "黑桃", "rank": "K" },
+      { "suit": "黑桃", "rank": "Q" },
+      { "suit": "梅花", "rank": "A" },
+      { "suit": "红桃", "rank": "7" },
       { "suit": "红桃", "rank": "9" },
-      { "suit": "红桃", "rank": "J" },
-      { "suit": "梅花", "rank": "10" },
-      { "suit": "方块", "rank": "6" }
+      { "suit": "方块", "rank": "3" }
     ]
   },
   {
@@ -85,11 +85,11 @@
     "timing": "出牌阶段",
     "effectText": "令对手弃置 1 张手牌。",
     "cards": [
-      { "suit": "黑桃", "rank": "4" },
-      { "suit": "黑桃", "rank": "8" },
-      { "suit": "红桃", "rank": "J" },
+      { "suit": "黑桃", "rank": "2" },
+      { "suit": "梅花", "rank": "3" },
+      { "suit": "梅花", "rank": "4" },
       { "suit": "梅花", "rank": "5" },
-      { "suit": "梅花", "rank": "10" }
+      { "suit": "方块", "rank": "6" }
     ]
   },
   {
@@ -101,10 +101,10 @@
     "timing": "出牌阶段",
     "effectText": "随机获得对手 1 张手牌。",
     "cards": [
-      { "suit": "黑桃", "rank": "6" },
-      { "suit": "红桃", "rank": "5" },
-      { "suit": "梅花", "rank": "8" },
-      { "suit": "方块", "rank": "7" }
+      { "suit": "梅花", "rank": "6" },
+      { "suit": "梅花", "rank": "7" },
+      { "suit": "方块", "rank": "8" },
+      { "suit": "方块", "rank": "10" }
     ]
   },
   {
@@ -116,9 +116,9 @@
     "timing": "出牌阶段",
     "effectText": "你与对手轮流展示或打出 1 张【杀】，由对手开始。首先无法展示或打出【杀】的一方受到 1 点伤害。",
     "cards": [
-      { "suit": "黑桃", "rank": "10" },
+      { "suit": "梅花", "rank": "8" },
       { "suit": "红桃", "rank": "Q" },
-      { "suit": "梅花", "rank": "J" }
+      { "suit": "红桃", "rank": "K" }
     ]
   },
   {
@@ -130,9 +130,9 @@
     "timing": "出牌阶段",
     "effectText": "本回合你下一次发动角色技能时，若该技能费用为休整 1，结算后摸 1 张手牌。",
     "cards": [
-      { "suit": "红桃", "rank": "7" },
-      { "suit": "梅花", "rank": "2" },
-      { "suit": "方块", "rank": "8" }
+      { "suit": "梅花", "rank": "9" },
+      { "suit": "梅花", "rank": "10" },
+      { "suit": "方块", "rank": "Q" }
     ]
   },
   {
@@ -144,8 +144,8 @@
     "timing": "出牌阶段",
     "effectText": "从你的角色手牌中暗置上阵 1 张角色。此上阵不计入本回合布阵阶段的上阵数量。",
     "cards": [
-      { "suit": "黑桃", "rank": "A" },
-      { "suit": "梅花", "rank": "A" }
+      { "suit": "梅花", "rank": "J" },
+      { "suit": "梅花", "rank": "Q" }
     ]
   },
   {
@@ -157,7 +157,7 @@
     "timing": "出牌阶段",
     "effectText": "查看对手 1 张暗置角色。你可以选择令其明置。",
     "cards": [
-      { "suit": "黑桃", "rank": "2" }
+      { "suit": "梅花", "rank": "K" }
     ]
   },
   {
@@ -169,7 +169,7 @@
     "timing": "当你使用的手牌被响应后",
     "effectText": "摸 1 张手牌。",
     "cards": [
-      { "suit": "红桃", "rank": "9" }
+      { "suit": "方块", "rank": "K" }
     ]
   }
 ]
