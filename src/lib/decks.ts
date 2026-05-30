@@ -1,5 +1,6 @@
 import aggroDeck from "../../data/decks/aggro.deck.json";
 import mizaiDeck from "../../data/decks/mizai.deck.json";
+import comboDeck from "../../data/decks/combo.deck.json";
 import { getBodyById, getCharactersByIds } from "./cards";
 import type { BodyCard, CharacterCard } from "./cards";
 
@@ -18,7 +19,7 @@ export interface ResolvedDeck {
   characters: CharacterCard[];
 }
 
-export const allDecks: DeckData[] = [aggroDeck as DeckData, mizaiDeck as DeckData];
+export const allDecks: DeckData[] = [aggroDeck as DeckData, mizaiDeck as DeckData, comboDeck as DeckData];
 
 export function resolveDeck(deck: DeckData): ResolvedDeck {
   return {

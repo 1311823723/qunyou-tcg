@@ -20,7 +20,7 @@
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "type": "string", "enum": ["休整", "退场", "无", "复合"] },
+        "type": { "type": "string", "enum": ["休整", "退场", "无", "复合", "休整自身"] },
         "amount": { "type": "number" },
         "text": { "type": "string" }
       }

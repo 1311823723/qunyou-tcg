@@ -1,0 +1,25 @@
+{
+  "id": "deck_combo_001",
+  "name": "操作组",
+  "archetype": "锦囊流",
+  "bodyId": "body_combo_001",
+  "characterIds": [
+    "char_combo_001",
+    "char_combo_002",
+    "char_combo_003",
+    "char_combo_004",
+    "char_combo_005",
+    "char_combo_006",
+    "char_combo_007",
+    "char_combo_008",
+    "char_combo_009",
+    "char_combo_010",
+    "char_combo_011",
+    "char_combo_012",
+    "char_combo_013",
+    "char_combo_014",
+    "char_combo_015",
+    "char_combo_016"
+  ],
+  "notes": "第三套 Demo 预组。锦囊流以使用锦囊触发本体被动脉冲：找锦囊→使用→摸牌→控牌堆→回收→继续操作。不强攻不控制，靠锦囊利用率与牌差碾压。"
+}

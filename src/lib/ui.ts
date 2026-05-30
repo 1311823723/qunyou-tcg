@@ -25,6 +25,7 @@ export function roleVar(mainRole: string): string {
 
 export function formatCharacterCost(cost: CharacterCost): string {
   if (cost.type === "休整") return `休整 ${cost.amount ?? 1}`;
+  if (cost.type === "休整自身") return cost.text ?? "休整自身";
   if (cost.type === "退场") return cost.text ?? "退场自身";
   if (cost.type === "复合") return cost.text ?? "复合";
   return cost.type;
@@ -32,6 +33,7 @@ export function formatCharacterCost(cost: CharacterCost): string {
 
 export function costKind(cost: CharacterCost): "rest" | "exit" | "compound" | "other" {
   if (cost.type === "休整") return "rest";
+  if (cost.type === "休整自身") return "rest";
   if (cost.type === "退场") return "exit";
   if (cost.type === "复合") return "compound";
   return "other";
