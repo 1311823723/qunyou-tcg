@@ -10,12 +10,10 @@ function readJSON(filename) {
 }
 
 const bodies = readJSON("cards/bodies.json");
-const megas = readJSON("cards/megas.json");
 const characters = readJSON("cards/characters.json");
 const deck = readJSON("decks/aggro.deck.json");
 
 const body = bodies.find((b) => b.id === deck.bodyId);
-const mega = megas.find((m) => m.id === deck.megaId);
 
 console.log("=" .repeat(60));
 console.log(`  预组: ${deck.name}`);
@@ -27,14 +25,17 @@ if (body) {
   console.log(`  ${body.name}  HP:${body.hp}`);
   console.log(`  技能: ${body.skillName}`);
   console.log(`  效果: ${body.effectText}`);
-  console.log(`  Mega条件: ${body.megaCondition}`);
+  if (body.extraForm) {
+    console.log(`  额外形态条件: ${body.extraForm.condition || "无"}`);
+  }
 }
 
-console.log("\n--- Mega ---");
-if (mega) {
-  console.log(`  ${mega.name}`);
-  console.log(`  技能: ${mega.skillName}`);
-  console.log(`  效果: ${mega.effectText}`);
+console.log("\n--- 额外形态 ---");
+if (body && body.extraForm) {
+  const ef = body.extraForm;
+  console.log(`  ${ef.name}`);
+  console.log(`  技能: ${ef.skillName}`);
+  console.log(`  效果: ${ef.effectText}`);
 }
 
 console.log("\n--- 角色牌 (16张) ---");
