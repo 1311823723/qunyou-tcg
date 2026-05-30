@@ -44,15 +44,3 @@ export function splitCharacterName(name: string): { prefix: string; suffix: stri
   }
   return { prefix: "", suffix: name };
 }
-
-export const ARCHETYPE_KEYWORDS: Record<string, string[]> = {
-  爆杀流: ["强攻", "连杀", "爆发", "卖血", "退场"],
-};
-
-export const ARCHETYPE_RISKS: Record<string, string> = {
-  爆杀流: "怕断【杀】、怕被【闪】、资源消耗大",
-};
-
-export const ARCHETYPE_BLURB: Record<string, string> = {
-  爆杀流: "找【杀】、强化【杀】、造成伤害、触发 Mega、继续压血",
-};

@@ -3,11 +3,11 @@ import Layout from "../components/Layout.astro";
 import HeroCardShowcase from "../components/HeroCardShowcase.astro";
 import { allBodies, allCharacters, getHandCardTotal, getBodyWithExtraFormCount } from "../lib/cards";
 import { allDecks } from "../lib/decks";
-import { ARCHETYPE_KEYWORDS } from "../lib/ui";
+import { getArchetypeKeywords } from "../lib/archetypes";
 
 const handTotal = getHandCardTotal();
 const deck = allDecks[0];
-const keywords = deck ? ARCHETYPE_KEYWORDS[deck.archetype] ?? [] : [];
+const keywords = deck ? getArchetypeKeywords(deck.archetype) : [];
 
 const mechanics = [
   { icon: "01", title: "选择本体", desc: "本体承受伤害，体力归零即败。", color: "var(--color-role-attack)" },

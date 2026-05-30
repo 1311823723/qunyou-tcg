@@ -3,16 +3,17 @@ import Layout from "../../components/Layout.astro";
 import BodyCard from "../../components/BodyCard.astro";
 import CharacterCard from "../../components/CharacterCard.astro";
 import { getDeckById, resolveDeck, getRoleDistribution, getTagDistribution } from "../../lib/decks";
-import { ARCHETYPE_BLURB, ARCHETYPE_RISKS, ARCHETYPE_KEYWORDS, ROLE_COLORS_CSS } from "../../lib/ui";
+import { getArchetypeKeywords, getArchetypeBlurb, getArchetypeRisks } from "../../lib/archetypes";
+import { ROLE_COLORS_CSS } from "../../lib/ui";
 
 const deck = getDeckById("deck_aggro_001");
 if (!deck) throw new Error("Deck not found");
 const resolved = resolveDeck(deck);
 const roleDist = getRoleDistribution(resolved.characters);
 const tagDist = getTagDistribution(resolved.characters);
-const keywords = ARCHETYPE_KEYWORDS[deck.archetype] ?? [];
-const blurb = ARCHETYPE_BLURB[deck.archetype] ?? "";
-const risk = ARCHETYPE_RISKS[deck.archetype] ?? "";
+const keywords = getArchetypeKeywords(deck.archetype);
+const blurb = getArchetypeBlurb(deck.archetype);
+const risk = getArchetypeRisks(deck.archetype);
 
 const roleOrder = ["强攻", "防御", "资源", "控制", "支援", "伏击"];
 const sortedRoleDist = Object.entries(roleDist).sort(([a], [b]) => roleOrder.indexOf(a) - roleOrder.indexOf(b));

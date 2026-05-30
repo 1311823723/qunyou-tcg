@@ -2,7 +2,7 @@
 import Layout from "../../components/Layout.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import { allDecks, resolveDeck } from "../../lib/decks";
-import { ARCHETYPE_KEYWORDS } from "../../lib/ui";
+import { getArchetypeKeywords } from "../../lib/archetypes";
 ---
 <Layout title="预组卡组">
   <div class="page-wrap">
@@ -10,7 +10,7 @@ import { ARCHETYPE_KEYWORDS } from "../../lib/ui";
     <div class="grid gap-4 max-w-3xl">
       {allDecks.map((deck) => {
         const resolved = resolveDeck(deck);
-        const kw = ARCHETYPE_KEYWORDS[deck.archetype] ?? [];
+        const kw = getArchetypeKeywords(deck.archetype);
         return (
           <a href={`/decks/${deck.id === "deck_aggro_001" ? "aggro" : deck.id}`} class="deck-spotlight" style="text-decoration: none; color: inherit;">
             <div>
