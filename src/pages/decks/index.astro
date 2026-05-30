@@ -1,7 +1,7 @@
 ---
 import Layout from "../../components/Layout.astro";
 import PageHeader from "../../components/PageHeader.astro";
-import { allDecks, resolveDeck } from "../../lib/decks";
+import { allDecks, resolveDeck, getDeckSlug } from "../../lib/decks";
 import { getArchetypeKeywords } from "../../lib/archetypes";
 ---
 <Layout title="预组卡组">
@@ -12,7 +12,7 @@ import { getArchetypeKeywords } from "../../lib/archetypes";
         const resolved = resolveDeck(deck);
         const kw = getArchetypeKeywords(deck.archetype);
         return (
-          <a href={`/decks/${deck.id === "deck_aggro_001" ? "aggro" : deck.id}`} class="deck-spotlight" style="text-decoration: none; color: inherit;">
+          <a href={`/decks/${getDeckSlug(deck)}`} class="deck-spotlight" style="text-decoration: none; color: inherit;">
             <div>
               <h2 class="deck-hero__title" style="font-size: clamp(1.55rem, 4vw, 2.4rem);">{deck.name}</h2>
               <div class="deck-hero__archetype">{deck.archetype}</div>

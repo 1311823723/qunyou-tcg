@@ -1,0 +1,25 @@
+{
+  "id": "deck_mizai_001",
+  "name": "密裁组",
+  "archetype": "密裁",
+  "bodyId": "body_mizai_001",
+  "characterIds": [
+    "char_mizai_001",
+    "char_mizai_002",
+    "char_mizai_003",
+    "char_mizai_004",
+    "char_mizai_005",
+    "char_mizai_006",
+    "char_mizai_007",
+    "char_mizai_008",
+    "char_mizai_009",
+    "char_mizai_010",
+    "char_mizai_011",
+    "char_mizai_012",
+    "char_mizai_013",
+    "char_mizai_014",
+    "char_mizai_015",
+    "char_mizai_016"
+  ],
+  "notes": "第二套 Demo 预组。密裁柯柯以情报为核心驱动：看穿手牌、操控牌顶、逼对手弃牌或二选一，在信息碾压后打出致命清算。"
+}

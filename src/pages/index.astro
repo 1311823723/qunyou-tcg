@@ -6,8 +6,6 @@ import { allDecks } from "../lib/decks";
 import { getArchetypeKeywords } from "../lib/archetypes";
 
 const handTotal = getHandCardTotal();
-const deck = allDecks[0];
-const keywords = deck ? getArchetypeKeywords(deck.archetype) : [];
 
 const mechanics = [
   { icon: "01", title: "选择本体", desc: "本体承受伤害，体力归零即败。", color: "var(--color-role-attack)" },
@@ -33,7 +31,7 @@ const collections = [
         <div class="hero-actions">
           <a href="/rules" class="btn btn--primary">查看规则</a>
           <a href="/cards" class="btn btn--secondary">浏览全卡</a>
-          <a href="/decks/aggro" class="btn btn--ghost">查看上头组</a>
+          <a href="/decks" class="btn btn--ghost">查看预组</a>
         </div>
         <div class="hero-chips">
           <span class="hero-chip">本体承伤</span>
@@ -96,19 +94,27 @@ const collections = [
     </div>
   </section>
 
-  {deck && (
+  {allDecks.length > 0 && (
     <section class="page-wrap pb-12">
-      <h2 class="section-heading">当前预组</h2>
-      <div class="deck-spotlight">
-        <div>
-          <div class="deck-hero__title" style="font-size: clamp(1.6rem, 4vw, 2.4rem);">{deck.name}</div>
-          <div class="deck-hero__archetype">{deck.archetype}</div>
-          <div class="flex flex-wrap gap-1 mt-3">
-            {keywords.map((k) => <span class="tag-pill tag-pill--aggro">{k}</span>)}
-          </div>
-          {deck.notes && <p class="deck-hero__blurb" style="margin-top: 0.75rem; font-size: 0.9rem;">{deck.notes}</p>}
-        </div>
-        <a href="/decks/aggro" class="btn btn--primary">查看预组攻略 →</a>
+      <h2 class="section-heading">预组卡组 ({allDecks.length} 套)</h2>
+      <div class="grid gap-4">
+        {allDecks.map((d) => {
+          const dkKeywords = getArchetypeKeywords(d.archetype);
+          const dkSlug = d.id.replace(/^deck_/, "").replace(/_\d+$/, "");
+          return (
+            <a href={`/decks/${dkSlug}`} class="deck-spotlight" style="text-decoration: none; color: inherit;">
+              <div>
+                <div class="deck-hero__title" style="font-size: clamp(1.6rem, 4vw, 2.4rem);">{d.name}</div>
+                <div class="deck-hero__archetype">{d.archetype}</div>
+                <div class="flex flex-wrap gap-1 mt-3">
+                  {dkKeywords.map((k) => <span class="tag-pill tag-pill--aggro">{k}</span>)}
+                </div>
+                {d.notes && <p class="deck-hero__blurb" style="margin-top: 0.75rem; font-size: 0.9rem;">{d.notes}</p>}
+              </div>
+              <span class="btn btn--primary">查看攻略 →</span>
+            </a>
+          );
+        })}
       </div>
     </section>
   )}

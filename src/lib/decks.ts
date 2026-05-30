@@ -1,4 +1,5 @@
 import aggroDeck from "../../data/decks/aggro.deck.json";
+import mizaiDeck from "../../data/decks/mizai.deck.json";
 import { getBodyById, getCharactersByIds } from "./cards";
 import type { BodyCard, CharacterCard } from "./cards";
 
@@ -17,7 +18,7 @@ export interface ResolvedDeck {
   characters: CharacterCard[];
 }
 
-export const allDecks: DeckData[] = [aggroDeck as DeckData];
+export const allDecks: DeckData[] = [aggroDeck as DeckData, mizaiDeck as DeckData];
 
 export function resolveDeck(deck: DeckData): ResolvedDeck {
   return {
@@ -29,6 +30,11 @@ export function resolveDeck(deck: DeckData): ResolvedDeck {
 
 export function getDeckById(id: string): DeckData | undefined {
   return allDecks.find((d) => d.id === id);
+}
+
+/** Get the route slug for a deck (e.g. "aggro" for "deck_aggro_001") */
+export function getDeckSlug(deck: DeckData): string {
+  return deck.id.replace(/^deck_/, "").replace(/_\d+$/, "");
 }
 
 /** Compute role distribution for a deck */
