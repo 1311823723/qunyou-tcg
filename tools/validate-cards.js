@@ -18,6 +18,10 @@ const bodies = readJSON("cards/bodies.json");
 const characters = readJSON("cards/characters.json");
 const handCards = readJSON("cards/hand_cards.json");
 const aggroDeck = readJSON("decks/aggro.deck.json");
+const mizaiDeck = readJSON("decks/mizai.deck.json");
+const comboDeck = readJSON("decks/combo.deck.json");
+const transDeck = readJSON("decks/trans.deck.json");
+const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck];
 
 // Collect all card IDs
 const allIds = new Set();
@@ -34,20 +38,22 @@ registerIds(bodies, "bodies.json");
 registerIds(characters, "characters.json");
 registerIds(handCards, "hand_cards.json");
 
-// Check deck references
 const bodyIds = new Set(bodies.map((b) => b.id));
 const characterIds = new Set(characters.map((c) => c.id));
 
-if (!bodyIds.has(aggroDeck.bodyId)) {
-  errors.push(`Deck bodyId "${aggroDeck.bodyId}" not found in bodies.json`);
-}
-for (const cid of aggroDeck.characterIds) {
-  if (!characterIds.has(cid)) {
-    errors.push(`Deck character "${cid}" not found in characters.json`);
+// Check each deck references valid IDs
+for (const deck of allDecks) {
+  if (!bodyIds.has(deck.bodyId)) {
+    errors.push(`Deck ${deck.id} bodyId "${deck.bodyId}" not found in bodies.json`);
   }
-}
-if (aggroDeck.characterIds.length !== 16) {
-  errors.push(`Deck has ${aggroDeck.characterIds.length} characters, expected 16`);
+  for (const cid of deck.characterIds) {
+    if (!characterIds.has(cid)) {
+      errors.push(`Deck ${deck.id} character "${cid}" not found in characters.json`);
+    }
+  }
+  if (deck.characterIds.length !== 16) {
+    errors.push(`Deck ${deck.id} has ${deck.characterIds.length} characters, expected 16`);
+  }
 }
 
 // Check hand card total by counting cards array
@@ -114,6 +120,6 @@ if (errors.length > 0) {
   console.log(`  Characters: ${characters.length}`);
   console.log(`  Hand cards (types): ${handCards.length}`);
   console.log(`  Hand cards (total): ${totalCount}`);
-  console.log(`  Deck characters: ${aggroDeck.characterIds.length}`);
+  console.log(`  Decks: ${allDecks.length} (${allDecks.map(d => d.characterIds.length + " chars").join(", ")})`);
   console.log("  All IDs unique: yes");
 }

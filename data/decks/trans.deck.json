@@ -1,0 +1,25 @@
+{
+  "id": "deck_trans_001",
+  "name": "变通组",
+  "archetype": "拟态流",
+  "bodyId": "body_trans_001",
+  "characterIds": [
+    "char_trans_001",
+    "char_general_014",
+    "char_general_007",
+    "char_general_013",
+    "char_general_008",
+    "char_general_001",
+    "char_general_012",
+    "char_general_004",
+    "char_mizai_002",
+    "char_aggro_016",
+    "char_aggro_013",
+    "char_aggro_014",
+    "char_mizai_016",
+    "char_aggro_012",
+    "char_combo_003",
+    "char_combo_012"
+  ],
+  "notes": "第四套 Demo 预组。拟态流以将牌当作其他牌使用为核心：宣言转化、视为打出、复制技能、回收资源，在一回合内打出多次转化操作触发本体摸牌，最终达成 Mega 从弃牌区任意使用。"
+}

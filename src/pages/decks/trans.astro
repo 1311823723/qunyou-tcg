@@ -1,0 +1,123 @@
+---
+import Layout from "../../components/Layout.astro";
+import BodyCard from "../../components/BodyCard.astro";
+import CharacterCard from "../../components/CharacterCard.astro";
+import { getDeckById, resolveDeck, getRoleDistribution, getTagDistribution } from "../../lib/decks";
+import { getArchetypeKeywords, getArchetypeBlurb, getArchetypeRisks } from "../../lib/archetypes";
+import { ROLE_COLORS_CSS } from "../../lib/ui";
+
+const deck = getDeckById("deck_trans_001");
+if (!deck) throw new Error("Deck not found");
+const resolved = resolveDeck(deck);
+const roleDist = getRoleDistribution(resolved.characters);
+const tagDist = getTagDistribution(resolved.characters);
+const keywords = getArchetypeKeywords(deck.archetype);
+const blurb = getArchetypeBlurb(deck.archetype);
+const risk = getArchetypeRisks(deck.archetype);
+
+const roleOrder = ["强攻", "防御", "资源", "控制", "支援", "伏击"];
+const sortedRoleDist = Object.entries(roleDist).sort(([a], [b]) => roleOrder.indexOf(a) - roleOrder.indexOf(b));
+const sortedTagDist = Object.entries(tagDist).sort(([, a], [, b]) => b - a);
+
+const exitCount = resolved.characters.filter((c) => c.cost.type === "退场" || c.cost.type === "复合").length;
+const restCosts = resolved.characters.filter((c) => c.cost.type === "休整").map((c) => c.cost.amount ?? 1);
+const restDist: Record<string, number> = {};
+for (const n of restCosts) restDist[String(n)] = (restDist[String(n)] || 0) + 1;
+
+const selfRestCount = resolved.characters.filter((c) => c.cost.type === "休整自身").length;
+---
+<Layout title={deck.name}>
+  <div class="page-wrap">
+    <header class="deck-hero">
+      <div class="tag-pill tag-pill--mizai mb-3">PRECONSTRUCTED DECK</div>
+      <h1 class="deck-hero__title">{deck.name}</h1>
+      <div class="deck-hero__archetype">{deck.archetype}</div>
+      {blurb && <p class="deck-hero__blurb">{blurb}</p>}
+      {risk && <p class="deck-hero__risk">风险：{risk}</p>}
+      <div class="flex flex-wrap gap-1 mt-4">
+        {keywords.map((k) => <span class="tag-pill tag-pill--mizai">{k}</span>)}
+      </div>
+      {deck.notes && <p class="deck-hero__blurb" style="font-size: 0.88rem; margin-top: 1rem; opacity: 0.9;">{deck.notes}</p>}
+    </header>
+
+    <section class="mb-10">
+      <h2 class="section-heading" style="font-size: 1.1rem;">本体 · 额外形态</h2>
+      <p class="skill-text mb-4" style="max-width: 36rem;">点击本体卡下方按钮翻面查看 Mega 形态。额外形态写在卡牌背面，满足条件后翻面激活。</p>
+      <div class="max-w-md">{resolved.body && <BodyCard body={resolved.body} />}</div>
+    </section>
+
+    <section class="hud-panel mb-10" style="padding: 1.15rem;">
+      <h2 class="section-heading" style="font-size: 1rem; margin-bottom: 0.75rem;">核心连招路线</h2>
+      <div class="combo-flow mb-3">
+        <span class="combo-flow__step">审判官宣言</span>
+        <span class="combo-flow__arrow">→</span>
+        <span class="combo-flow__step">触发「拟态核心」</span>
+        <span class="combo-flow__arrow">→</span>
+        <span class="combo-flow__step">先知视为打杀</span>
+        <span class="combo-flow__arrow">→</span>
+        <span class="combo-flow__step">再次触发摸牌</span>
+        <span class="combo-flow__arrow">→</span>
+        <span class="combo-flow__step">达到 Mega 条件</span>
+        <span class="combo-flow__arrow">→</span>
+        <span class="combo-flow__mega">弃牌区任意使用</span>
+      </div>
+      <p class="skill-text">审判官宣言基本牌→触发本体摸牌→先知/肉汁/变形鸭继续转化→多次「当作其他牌使用/打出」堆叠→达成Mega→每回合从弃牌区每种牌名各取一张使用，灵活压场。</p>
+    </section>
+
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+      <div class="stat-hud__item">
+        <div class="stat-hud__value" style="color: var(--color-role-attack)">{resolved.body?.hp ?? "?"}</div>
+        <div class="stat-hud__label">本体体力</div>
+      </div>
+      <div class="stat-hud__item">
+        <div class="stat-hud__value" style="color: var(--color-text-highlight)">{resolved.characters.length}</div>
+        <div class="stat-hud__label">角色牌</div>
+      </div>
+      <div class="stat-hud__item">
+        <div class="stat-hud__value" style="color: var(--color-mega-purple)">{exitCount}</div>
+        <div class="stat-hud__label">退场牌</div>
+      </div>
+      <div class="stat-hud__item">
+        <div class="stat-hud__value" style="color: var(--color-role-ambush)">{resolved.characters.filter((c) => c.mainRole === "伏击").length}</div>
+        <div class="stat-hud__label">伏击定位</div>
+      </div>
+    </section>
+
+    <section class="grid md:grid-cols-2 gap-4 mb-10">
+      <div class="hud-panel" style="padding: 1.1rem;">
+        <h3 class="font-bold text-sm mb-3" style="color: var(--color-text-highlight);">主定位分布</h3>
+        <div class="space-y-2">
+          {sortedRoleDist.map(([role, count]) => (
+            <div class="flex items-center gap-2">
+              <span class="text-xs w-12" style="color: var(--text-muted);">{role}</span>
+              <div class="dist-bar flex-1">
+                <div class="dist-bar__fill" style={`width: ${(count / 16) * 100}%; background: ${ROLE_COLORS_CSS[role] || "#888"}`}></div>
+              </div>
+              <span class="text-xs font-bold w-4">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div class="hud-panel" style="padding: 1.1rem;">
+        <h3 class="font-bold text-sm mb-3" style="color: var(--color-text-highlight);">标签分布</h3>
+        <div class="flex flex-wrap gap-1">
+          {sortedTagDist.map(([tag, count]) => (
+            <span class="tag-pill tag-pill--mech">{tag} ×{count}</span>
+          ))}
+        </div>
+        <h3 class="font-bold text-sm mt-5 mb-2" style="color: var(--color-text-highlight);">休整费用分布</h3>
+        <div class="flex flex-wrap gap-2">
+          {Object.entries(restDist).sort(([a],[b]) => Number(a)-Number(b)).map(([amt, count]) => (
+            <span class="tag-pill tag-pill--mizai">休整 {amt} ×{count}</span>
+          ))}
+          {selfRestCount > 0 && <span class="tag-pill tag-pill--mizai">休整自身 ×{selfRestCount}</span>}
+        </div>
+      </div>
+    </section>
+
+    <h2 class="section-heading">完整角色牌 · {resolved.characters.length}</h2>
+    <div class="card-gallery card-gallery--chars">
+      {resolved.characters.map((c) => <CharacterCard character={c} />)}
+    </div>
+  </div>
+</Layout>
