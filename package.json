@@ -8,7 +8,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "validate": "node tools/validate-cards.js",
-    "print:aggro": "node tools/print-deck.js"
+    "print:aggro": "node tools/print-deck.js",
+    "export:tts": "node tools/tts/export-tts.js"
   },
   "overrides": {
     "vite": "^7"
@@ -18,6 +19,7 @@
     "@types/node": "^25.0.1",
     "astro": "^5.16.5",
     "tailwindcss": "^4.1.7",
+    "sharp": "^0.34.5",
     "typescript": "^5.9.3"
   }
 }

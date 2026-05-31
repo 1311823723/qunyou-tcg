@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="634" height="300" viewBox="0 0 634 300">
+  <rect width="634" height="300" rx="28" fill="#0a0d18"/>
+  <rect x="28" y="28" width="578" height="244" rx="20" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-dasharray="18 14"/>
+  <text x="317" y="142" text-anchor="middle" font-family="Noto Sans SC, PingFang SC, Arial" font-size="30" font-weight="800" fill="#58c7e8">原画区域预留</text>
+  <text x="317" y="182" text-anchor="middle" font-family="Arial" font-size="20" font-weight="600" fill="#c4bbd4" fill-opacity="0.66">ART PLACEHOLDER</text>
+</svg>

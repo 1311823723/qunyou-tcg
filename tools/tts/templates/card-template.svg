@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="1050" viewBox="0 0 750 1050">
+  <rect width="750" height="1050" fill="#070711"/>
+  <rect x="18" y="18" width="714" height="1014" rx="38" fill="#151827" stroke="#ff5a35" stroke-width="5"/>
+  <rect x="58" y="208" width="634" height="300" rx="28" fill="#0a0d18" stroke="#58c7e8" stroke-opacity="0.38" stroke-width="3"/>
+  <text x="375" y="370" text-anchor="middle" font-family="Noto Sans SC, PingFang SC, Arial" font-size="30" font-weight="800" fill="#58c7e8">原画区域预留</text>
+  <rect x="58" y="604" width="634" height="332" rx="24" fill="rgba(0,0,0,0.34)" stroke="#ffffff" stroke-opacity="0.11"/>
+</svg>
