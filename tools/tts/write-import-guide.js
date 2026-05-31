@@ -40,6 +40,16 @@ function writeImportGuide(outPath, manifest) {
     "",
     ...handSheets.map((sheet) => `- Face: \`${sheet.file}\`; Back: \`${sheet.back}\`; Number: ${sheet.count}`),
     "",
+    "## 1v1 桌布",
+    "",
+    manifest.table?.tablemat
+      ? `- File: \`${manifest.table.tablemat.file}\``
+      : "- File: `table/tablemat_1v1.png`",
+    manifest.table?.tablemat
+      ? `- Size: ${manifest.table.tablemat.width} x ${manifest.table.tablemat.height} px`
+      : "- Size: 4096 x 2048 px",
+    "- 用途：TTS 自定义桌板 / 自定义贴图。",
+    "",
     "## 在 TTS 中操作",
     "",
     "1. 打开 Tabletop Simulator，进入房间。",
@@ -48,6 +58,13 @@ function writeImportGuide(outPath, manifest) {
     "4. 设置 Width = 10，Height = 7，Number = 对应 sheet 的 count。",
     "5. 本体 / Mega sheet 需要开启 Unique Back；角色和手牌不需要。",
     "6. 导入后可保存对象或保存房间。",
+    "",
+    "## 导入桌布",
+    "",
+    "1. 选择 Objects -> Components -> Custom -> Board，或使用支持 Custom 的桌板对象。",
+    "2. Image 选择 `table/tablemat_1v1.png`。",
+    "3. 联机时选择 Steam Cloud 上传；本地测试可以选择 Local。",
+    "4. 放大桌板到合适尺寸，锁定对象，或保存为房间存档。",
     "",
     "## 联机分享",
     "",

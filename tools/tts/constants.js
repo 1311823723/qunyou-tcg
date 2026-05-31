@@ -26,6 +26,24 @@ const ROLE_COLORS = {
   "伏击": "#ff7ab8",
 };
 
+const ROLE_DARK_COLORS = {
+  "强攻": "#8f241b",
+  "防御": "#174263",
+  "资源": "#1f5a37",
+  "控制": "#42215f",
+  "支援": "#6f5420",
+  "伏击": "#7a1f48",
+};
+
+const ROLE_TRIM_COLORS = {
+  "强攻": "#ffb15a",
+  "防御": "#9edcff",
+  "资源": "#9af2b4",
+  "控制": "#d5adff",
+  "支援": "#ffe08a",
+  "伏击": "#ff9bc7",
+};
+
 module.exports = {
   ROOT_DIR,
   DATA_DIR,
@@ -37,4 +55,6 @@ module.exports = {
   SHEET_MAX_CARDS,
   SUIT_META,
   ROLE_COLORS,
+  ROLE_DARK_COLORS,
+  ROLE_TRIM_COLORS,
 };

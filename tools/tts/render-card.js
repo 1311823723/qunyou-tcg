@@ -5,6 +5,8 @@ const {
   CARD_WIDTH,
   CARD_HEIGHT,
   ROLE_COLORS,
+  ROLE_DARK_COLORS,
+  ROLE_TRIM_COLORS,
   SUIT_META,
 } = require("./constants");
 
@@ -248,22 +250,24 @@ function renderBodyMega(card) {
 
 function renderCharacter(card) {
   const roleColor = ROLE_COLORS[card.mainRole] ?? "#ffd98a";
+  const roleDarkColor = ROLE_DARK_COLORS[card.mainRole] ?? "#4b2d1c";
+  const roleTrimColor = ROLE_TRIM_COLORS[card.mainRole] ?? "#ffe08a";
   const { prefix, suffix } = splitCharacterName(card.name);
   const inner = `
-    <rect x="26" y="26" width="100" height="998" fill="#9b2d23" stroke="#e8c37a" stroke-opacity="0.58" stroke-width="3"/>
+    <rect x="26" y="26" width="100" height="998" fill="${roleDarkColor}" stroke="${roleTrimColor}" stroke-opacity="0.70" stroke-width="3"/>
     <g opacity="0.17">
-      <path d="M42 80 C96 116, 42 158, 102 206" fill="none" stroke="#ffd98a" stroke-width="3"/>
-      <path d="M42 306 C96 342, 42 384, 102 432" fill="none" stroke="#ffd98a" stroke-width="3"/>
-      <path d="M42 532 C96 568, 42 610, 102 658" fill="none" stroke="#ffd98a" stroke-width="3"/>
+      <path d="M42 80 C96 116, 42 158, 102 206" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
+      <path d="M42 306 C96 342, 42 384, 102 432" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
+      <path d="M42 532 C96 568, 42 610, 102 658" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
     </g>
     ${artStage("角色原画预留", "character", { x: 126, y: 26, width: 598, height: 746, accent: roleColor, imageDataUri: card.__ttsArt })}
-    <circle cx="76" cy="92" r="42" fill="url(#sealGlow)" stroke="#ead28a" stroke-width="4"/>
+    <circle cx="76" cy="92" r="42" fill="url(#sealGlow)" stroke="${roleTrimColor}" stroke-width="4"/>
     <text x="76" y="104" text-anchor="middle" font-size="29" font-weight="900" fill="#fff0a6">${escapeXml(card.mainRole.slice(0, 1))}</text>
-    ${prefix ? verticalText(prefix, 76, 206, 25, { fill: "#ffe59a", stroke: "#38120d", strokeWidth: 4, gap: 36 }) : ""}
-    ${verticalText(suffix, 76, prefix ? 396 : 248, suffix.length > 4 ? 36 : 42, { fill: "#ffffff", stroke: "#2a0d08", strokeWidth: 5, gap: suffix.length > 4 ? 46 : 58 })}
-    <rect x="48" y="846" width="56" height="86" fill="rgba(255,255,255,0.08)" stroke="#ead28a" stroke-opacity="0.62"/>
-    ${verticalText(card.deck || "通用", 77, 876, 17, { fill: "#f8d990", gap: 21 })}
-    <text x="676" y="104" text-anchor="middle" writing-mode="tb" font-size="24" font-weight="900" fill="#f7e9cf" stroke="#0b0b12" stroke-width="4" paint-order="stroke">${escapeXml(card.mainRole)}</text>
+    ${prefix ? verticalText(prefix, 76, 206, 25, { fill: roleTrimColor, stroke: "#160b09", strokeWidth: 4, gap: 36 }) : ""}
+    ${verticalText(suffix, 76, prefix ? 396 : 248, suffix.length > 4 ? 36 : 42, { fill: "#ffffff", stroke: roleDarkColor, strokeWidth: 5, gap: suffix.length > 4 ? 46 : 58 })}
+    <rect x="48" y="846" width="56" height="86" fill="rgba(255,255,255,0.08)" stroke="${roleTrimColor}" stroke-opacity="0.68"/>
+    ${verticalText(card.deck || "通用", 77, 876, 17, { fill: roleTrimColor, gap: 21 })}
+    <text x="676" y="104" text-anchor="middle" writing-mode="tb" font-size="24" font-weight="900" fill="${roleTrimColor}" stroke="#0b0b12" stroke-width="4" paint-order="stroke">${escapeXml(card.mainRole)}</text>
     <g transform="translate(150 678)">${tagsSvg(card.tags, 0, 0, { fill: "rgba(0,0,0,0.45)", stroke: "rgba(255,255,255,0.32)", max: 4 })}</g>
     <g filter="url(#shadow)">
       <path d="M126 746 H724 V986 H126 Z" fill="url(#textParchment)" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/>

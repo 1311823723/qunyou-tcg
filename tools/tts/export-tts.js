@@ -20,6 +20,7 @@ const {
 } = require("./render-card");
 const { makeSheets } = require("./make-sheets");
 const { writeImportGuide } = require("./write-import-guide");
+const { MAT_WIDTH, MAT_HEIGHT, writeTablemat } = require("./render-tablemat");
 
 const ART_DIR = path.join(__dirname, "assets", "art");
 const CARD_ART = {
@@ -159,11 +160,24 @@ async function renderBacks() {
   };
 }
 
+async function renderTableAssets() {
+  const tablemat = path.join(EXPORT_DIR, "table", "tablemat_1v1.png");
+  await writeTablemat(tablemat);
+  return {
+    tablemat: {
+      file: relFromExport(tablemat),
+      width: MAT_WIDTH,
+      height: MAT_HEIGHT,
+    },
+  };
+}
+
 async function main() {
   cleanExportDir();
 
   const cards = await renderCards();
   const backs = await renderBacks();
+  const table = await renderTableAssets();
   const sheetsDir = path.join(EXPORT_DIR, "sheets");
   const sheets = [];
 
@@ -209,6 +223,7 @@ async function main() {
       maxCards: SHEET_MAX_CARDS,
     },
     backs,
+    table,
     counts: {
       bodies: cards.bodyFronts.length,
       bodyMegaBacks: cards.bodyBacks.length,
@@ -228,6 +243,7 @@ async function main() {
   console.log(`  Characters: ${cards.characters.length}`);
   console.log(`  Hand cards: ${cards.hands.length}`);
   console.log(`  Sheets: ${sheets.length}`);
+  console.log(`  Tablemat: ${table.tablemat.file}`);
 }
 
 main().catch((error) => {
