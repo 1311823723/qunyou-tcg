@@ -21,7 +21,10 @@ const rv = roleVar(c.mainRole);
       {prefix && <div class="tcg-char__profession">{prefix}</div>}
       <h3 class="tcg-char__name">{suffix}</h3>
     </div>
-    <TagPill label={c.mainRole} variant="role" role={c.mainRole} />
+    <div class="tcg-char__badges">
+      {c.source && <span class="tcg-char__source tcg-char__source--{c.source}">{c.source}</span>}
+      <TagPill label={c.mainRole} variant="role" role={c.mainRole} />
+    </div>
   </header>
   <div class="tcg-char__art" aria-hidden="true"></div>
   <div class="tcg-char__tags">
