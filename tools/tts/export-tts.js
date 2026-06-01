@@ -48,6 +48,17 @@ function cleanExportDir() {
   fs.mkdirSync(EXPORT_DIR, { recursive: true });
 }
 
+function readDecks() {
+  const decksDir = path.join(DATA_DIR, "decks");
+  return fs.readdirSync(decksDir)
+    .filter((filename) => filename.endsWith(".deck.json"))
+    .sort()
+    .map((filename) => ({
+      ...JSON.parse(fs.readFileSync(path.join(decksDir, filename), "utf8")),
+      sourceFile: `data/decks/${filename}`,
+    }));
+}
+
 function handPhysicalId(card, entry) {
   const suit = SUIT_META[entry.suit]?.slug ?? entry.suit;
   return `${card.id}_${suit}_${String(entry.rank).toLowerCase()}`;
@@ -172,12 +183,50 @@ async function renderTableAssets() {
   };
 }
 
+function copyPresetDecks(decks, characterCards) {
+  const characterById = new Map(characterCards.map((card) => [card.id, card]));
+  const presetRoot = path.join(EXPORT_DIR, "preset_decks");
+
+  return decks.map((deck) => {
+    const outDir = path.join(presetRoot, deck.id);
+    fs.mkdirSync(outDir, { recursive: true });
+
+    const cards = deck.characterIds.map((characterId, index) => {
+      const card = characterById.get(characterId);
+      if (!card) {
+        throw new Error(`Preset deck ${deck.id} references missing character ${characterId}`);
+      }
+
+      const filePath = path.join(outDir, `${String(index + 1).padStart(2, "0")}_${card.id}.png`);
+      fs.copyFileSync(card.filePath, filePath);
+      return {
+        id: card.id,
+        name: card.name,
+        file: relFromExport(filePath),
+      };
+    });
+
+    return {
+      id: deck.id,
+      name: deck.name,
+      archetype: deck.archetype,
+      bodyId: deck.bodyId,
+      folder: relFromExport(outDir),
+      count: cards.length,
+      cards,
+      sourceFile: deck.sourceFile,
+    };
+  });
+}
+
 async function main() {
   cleanExportDir();
 
+  const decks = readDecks();
   const cards = await renderCards();
   const backs = await renderBacks();
   const table = await renderTableAssets();
+  const presetDecks = copyPresetDecks(decks, cards.characters);
   const sheetsDir = path.join(EXPORT_DIR, "sheets");
   const sheets = [];
 
@@ -212,6 +261,7 @@ async function main() {
       bodies: "data/cards/bodies.json",
       characters: "data/cards/characters.json",
       handCards: "data/cards/hand_cards.json",
+      decks: decks.map((deck) => deck.sourceFile),
     },
     cardSize: {
       width: CARD_WIDTH,
@@ -224,11 +274,13 @@ async function main() {
     },
     backs,
     table,
+    presetDecks,
     counts: {
       bodies: cards.bodyFronts.length,
       bodyMegaBacks: cards.bodyBacks.length,
       characters: cards.characters.length,
       handCards: cards.hands.length,
+      presetDecks: presetDecks.length,
       totalFrontCards: cards.bodyFronts.length + cards.characters.length + cards.hands.length,
     },
     sheets,
@@ -244,6 +296,7 @@ async function main() {
   console.log(`  Hand cards: ${cards.hands.length}`);
   console.log(`  Sheets: ${sheets.length}`);
   console.log(`  Tablemat: ${table.tablemat.file}`);
+  console.log(`  Preset decks: ${presetDecks.length}`);
 }
 
 main().catch((error) => {

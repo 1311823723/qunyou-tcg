@@ -6,6 +6,7 @@ function writeImportGuide(outPath, manifest) {
   const bodySheet = manifest.sheets.find((sheet) => sheet.id.startsWith("bodies_megas_"));
   const characterSheets = manifest.sheets.filter((sheet) => sheet.id.startsWith("characters_"));
   const handSheets = manifest.sheets.filter((sheet) => sheet.id.startsWith("hand_cards_"));
+  const presetDecks = manifest.presetDecks ?? [];
 
   const lines = [
     "# 群友杀 TCG - Tabletop Simulator 导入说明",
@@ -49,6 +50,12 @@ function writeImportGuide(outPath, manifest) {
       ? `- Size: ${manifest.table.tablemat.width} x ${manifest.table.tablemat.height} px`
       : "- Size: 4096 x 2048 px",
     "- 用途：TTS 自定义桌板 / 自定义贴图。",
+    "",
+    "## 预设卡组角色牌",
+    "",
+    "每个预设卡组文件夹只包含该预组的 16 张角色牌 PNG。",
+    "",
+    ...presetDecks.map((deck) => `- ${deck.name}（${deck.archetype}）：\`${deck.folder}\`，${deck.count} 张`),
     "",
     "## 在 TTS 中操作",
     "",
