@@ -2,13 +2,16 @@
 import Layout from "../../components/Layout.astro";
 import BodyCard from "../../components/BodyCard.astro";
 import CharacterCard from "../../components/CharacterCard.astro";
+import DeckPlayGuide from "../../components/DeckPlayGuide.astro";
 import { getDeckById, resolveDeck, getRoleDistribution, getTagDistribution } from "../../lib/decks";
+import { getDeckGuide } from "../../lib/deck-guides";
 import { getArchetypeKeywords, getArchetypeBlurb, getArchetypeRisks } from "../../lib/archetypes";
 import { ROLE_COLORS_CSS } from "../../lib/ui";
 
 const deck = getDeckById("deck_aggro_001");
 if (!deck) throw new Error("Deck not found");
 const resolved = resolveDeck(deck);
+const guide = getDeckGuide(deck.id);
 const roleDist = getRoleDistribution(resolved.characters);
 const tagDist = getTagDistribution(resolved.characters);
 const keywords = getArchetypeKeywords(deck.archetype);
@@ -46,21 +49,7 @@ for (const n of restCosts) restDist[String(n)] = (restDist[String(n)] || 0) + 1;
       <div class="max-w-md">{resolved.body && <BodyCard body={resolved.body} />}</div>
     </section>
 
-    <section class="hud-panel mb-10" style="padding: 1.15rem;">
-      <h2 class="section-heading" style="font-size: 1rem; margin-bottom: 0.75rem;">核心连招路线</h2>
-      <div class="combo-flow mb-3">
-        <span class="combo-flow__step">加伤/强命</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__kill">【杀】</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__step">触发「上头」摸牌+额外1杀</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__kill">再【杀】</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__mega">达成 Mega</span>
-      </div>
-      <p class="skill-text">加伤/必中角色强化【杀】→造成伤害触发「上头」摸牌，且本回合可额外使用1张【杀】→再杀一次→累计4伤即永久Mega。Mega后每回合2次额外【杀】+前2次伤害都摸牌，结束阶段还能补一刀，只要命中就不掉血。</p>
-    </section>
+    {guide && <DeckPlayGuide guide={guide} />}
 
     <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
       <div class="stat-hud__item">

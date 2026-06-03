@@ -1,25 +1,25 @@
 [
   {
-    "id": "char_aggro_001",
+    "id": "char_001_keke_assassin",
     "name": "刺客-柯柯",
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "伏击",
     "tags": [
       "博弈",
-      "卖血"
+      "反制"
     ],
     "cost": {
       "type": "休整",
       "amount": 1
     },
-    "timing": "对手出牌阶段开始时",
+    "timing": "当你的本体受到伤害后",
     "skillName": "暗杀",
-    "effectText": "你可以宣言一种牌型，然后令对手随机展示一张手牌。若展示的牌与你宣言的牌名相同，你对其本体造成1点伤害；若不同，你失去1点体力。",
+    "effectText": "你可以宣言一种花色，然后令对手随机展示一张手牌。若展示的牌与你宣言的花色相同，你对其本体造成1点伤害。",
     "source": "鹅"
   },
   {
-    "id": "char_aggro_002",
+    "id": "char_002_weixiaokele_assassin",
     "name": "刺客-微笑尅乐",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -38,7 +38,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_003",
+    "id": "char_003_qindi_sheriff",
     "name": "警长-秦帝",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -59,7 +59,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_004",
+    "id": "char_004_horus-lupercal_pelican",
     "name": "鹈鹕-荷鲁斯-卢佩卡尔",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -78,7 +78,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_005",
+    "id": "char_005_aichitun_jester",
     "name": "小丑-爱吃豚",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -97,7 +97,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_006",
+    "id": "char_006_weixiaokele_ninja",
     "name": "忍者-微笑尅乐",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -116,7 +116,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_007",
+    "id": "char_007_baizi_ninja",
     "name": "忍者-摆子",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -135,7 +135,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_008",
+    "id": "char_008_baizi_hitman",
     "name": "专业杀手-摆子",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -154,7 +154,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_009",
+    "id": "char_009_weixiaokele_hitman",
     "name": "专业杀手-微笑尅乐",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -174,7 +174,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_010",
+    "id": "char_010_weixiaokele_bomber",
     "name": "炸弹狼-微笑尅乐",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -193,7 +193,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_011",
+    "id": "char_011_baizi_bomber",
     "name": "炸弹狼-摆子",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -213,7 +213,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_012",
+    "id": "char_012_baizi_bird-eater",
     "name": "食鸟鸭-摆子",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -232,7 +232,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_013",
+    "id": "char_013_weixiaokele_morphling",
     "name": "变形鸭-微笑尅乐",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -251,7 +251,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_014",
+    "id": "char_014_baizi_party-duck",
     "name": "派对鸭-摆子",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -270,7 +270,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_015",
+    "id": "char_015_weixiaokele_lobbyist",
     "name": "说客-微笑尅乐",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -288,7 +288,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_aggro_016",
+    "id": "char_016_baizi_gravy",
     "name": "肉汁-摆子",
     "cardType": "角色",
     "deck": "爆杀流",
@@ -307,7 +307,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_defect_001",
+    "id": "char_017_huihuan_defect-robot",
     "name": "故障机器人-灰焕",
     "cardType": "角色",
     "deck": "",
@@ -325,7 +325,7 @@
     "source": "塔"
   },
   {
-    "id": "char_defect_002",
+    "id": "char_018_baizi_defect-robot",
     "name": "故障机器人-摆子",
     "cardType": "角色",
     "deck": "",
@@ -343,7 +343,7 @@
     "source": "塔"
   },
   {
-    "id": "char_defect_003",
+    "id": "char_019_dong_defect-robot",
     "name": "故障机器人-dong",
     "cardType": "角色",
     "deck": "",
@@ -361,7 +361,7 @@
     "source": "塔"
   },
   {
-    "id": "char_general_001",
+    "id": "char_020_baizi_ironclad",
     "name": "铁甲战士-摆子",
     "cardType": "角色",
     "deck": "",
@@ -380,7 +380,7 @@
     "source": "塔"
   },
   {
-    "id": "char_general_002",
+    "id": "char_021_xiaoapan_warlock",
     "name": "术士-小阿潘",
     "cardType": "角色",
     "deck": "",
@@ -399,7 +399,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_general_003",
+    "id": "char_022_weixiaokele_goblin",
     "name": "地精-微笑尅乐",
     "cardType": "角色",
     "deck": "",
@@ -418,7 +418,7 @@
     "source": "塔"
   },
   {
-    "id": "char_general_004",
+    "id": "char_023_arthur_falcon",
     "name": "猎鹰-Arthur",
     "cardType": "角色",
     "deck": "",
@@ -437,7 +437,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_general_005",
+    "id": "char_024_weixiaokele_ironclad",
     "name": "铁甲战士-微笑尅乐",
     "cardType": "角色",
     "deck": "",
@@ -455,7 +455,7 @@
     "source": "塔"
   },
   {
-    "id": "char_general_006",
+    "id": "char_025_baizi_high-priest",
     "name": "大祭司-摆子",
     "cardType": "角色",
     "deck": "",
@@ -474,7 +474,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_general_007",
+    "id": "char_026_miaosila_neo",
     "name": "涅奥-喵斯拉",
     "cardType": "角色",
     "deck": "",
@@ -493,7 +493,7 @@
     "source": "塔"
   },
   {
-    "id": "char_general_008",
+    "id": "char_027_weixiaokele_medium",
     "name": "通灵者-微笑尅乐",
     "cardType": "角色",
     "deck": "",
@@ -512,7 +512,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_general_009",
+    "id": "char_028_arthur_undertaker",
     "name": "殡葬者-Arthur",
     "cardType": "角色",
     "deck": "",
@@ -531,7 +531,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_general_010",
+    "id": "char_029_baizi_silent-hunter",
     "name": "静默猎人-摆子",
     "cardType": "角色",
     "deck": "",
@@ -550,7 +550,7 @@
     "source": "塔"
   },
   {
-    "id": "char_general_011",
+    "id": "char_030_miaosila_detective",
     "name": "侦探-喵斯拉",
     "cardType": "角色",
     "deck": "",
@@ -569,7 +569,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_general_012",
+    "id": "char_031_arthur_watcher",
     "name": "观者-Arthur",
     "cardType": "角色",
     "deck": "",
@@ -588,7 +588,7 @@
     "source": "塔"
   },
   {
-    "id": "char_general_013",
+    "id": "char_032_weixiaokele_silent-hunter",
     "name": "静默猎人-微笑尅乐",
     "cardType": "角色",
     "deck": "",
@@ -607,7 +607,7 @@
     "source": "塔"
   },
   {
-    "id": "char_general_014",
+    "id": "char_033_weixiaokele_watcher",
     "name": "观者-微笑尅乐",
     "cardType": "角色",
     "deck": "",
@@ -626,7 +626,7 @@
     "source": "塔"
   },
   {
-    "id": "char_general_015",
+    "id": "char_034_xiaoapan_avenger",
     "name": "复仇者-小阿潘",
     "cardType": "角色",
     "deck": "",
@@ -645,7 +645,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_general_016",
+    "id": "char_035_xiaoapan_silent-hunter",
     "name": "静默猎人-小阿潘",
     "cardType": "角色",
     "deck": "",
@@ -664,7 +664,7 @@
     "source": "塔"
   },
   {
-    "id": "char_mizai_001",
+    "id": "char_036_keke_spy",
     "name": "间谍-柯柯",
     "cardType": "角色",
     "deck": "密裁",
@@ -683,7 +683,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_mizai_002",
+    "id": "char_037_keke_seer",
     "name": "先知-柯柯",
     "cardType": "角色",
     "deck": "密裁",
@@ -702,7 +702,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_mizai_003",
+    "id": "char_038_keke_avenger",
     "name": "复仇者-柯柯",
     "cardType": "角色",
     "deck": "密裁",
@@ -721,7 +721,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_mizai_004",
+    "id": "char_039_keke_judge",
     "name": "审判官-柯柯",
     "cardType": "角色",
     "deck": "密裁",
@@ -740,7 +740,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_mizai_005",
+    "id": "char_040_xiaoapan_detective",
     "name": "侦探-小阿潘",
     "cardType": "角色",
     "deck": "密裁",
@@ -759,7 +759,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_mizai_006",
+    "id": "char_041_baizi_watcher",
     "name": "观者-摆子",
     "cardType": "角色",
     "deck": "密裁",
@@ -778,7 +778,7 @@
     "source": "塔"
   },
   {
-    "id": "char_mizai_007",
+    "id": "char_042_xiaoapan_neo",
     "name": "涅奥-小阿潘",
     "cardType": "角色",
     "deck": "密裁",
@@ -797,7 +797,7 @@
     "source": "塔"
   },
   {
-    "id": "char_mizai_008",
+    "id": "char_043_baizi_falcon",
     "name": "猎鹰-摆子",
     "cardType": "角色",
     "deck": "密裁",
@@ -816,7 +816,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_mizai_009",
+    "id": "char_044_arthur_sheriff",
     "name": "警长-Arthur",
     "cardType": "角色",
     "deck": "密裁",
@@ -835,7 +835,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_mizai_010",
+    "id": "char_045_guamao_assassin",
     "name": "刺客-瓜猫",
     "cardType": "角色",
     "deck": "密裁",
@@ -854,7 +854,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_mizai_011",
+    "id": "char_046_fengyaojing_watcher",
     "name": "观者-风妖精",
     "cardType": "角色",
     "deck": "密裁",
@@ -873,7 +873,7 @@
     "source": "塔"
   },
   {
-    "id": "char_mizai_012",
+    "id": "char_047_miaosila_ironclad",
     "name": "铁甲战士-喵斯拉",
     "cardType": "角色",
     "deck": "密裁",
@@ -892,7 +892,7 @@
     "source": "塔"
   },
   {
-    "id": "char_mizai_013",
+    "id": "char_048_xiaoka_high-priest",
     "name": "大祭司-小卡",
     "cardType": "角色",
     "deck": "密裁",
@@ -911,7 +911,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_mizai_014",
+    "id": "char_049_xiaoapan_undertaker",
     "name": "殡葬者-小阿潘",
     "cardType": "角色",
     "deck": "密裁",
@@ -930,7 +930,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_mizai_015",
+    "id": "char_050_dong_bomber",
     "name": "炸弹狼-dong",
     "cardType": "角色",
     "deck": "密裁",
@@ -949,7 +949,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_mizai_016",
+    "id": "char_051_baizi_lobbyist",
     "name": "说客-摆子",
     "cardType": "角色",
     "deck": "密裁",
@@ -968,7 +968,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_general_017",
+    "id": "char_052_fengyaojing_desert-butcher",
     "name": "荒漠屠夫-风妖精",
     "cardType": "角色",
     "deck": "",
@@ -987,7 +987,7 @@
     "source": "盟"
   },
   {
-    "id": "char_general_018",
+    "id": "char_053_xiaoka_zaun-beast",
     "name": "祖安怒兽-小卡",
     "cardType": "角色",
     "deck": "",
@@ -1006,7 +1006,7 @@
     "source": "盟"
   },
   {
-    "id": "char_combo_001",
+    "id": "char_054_xiangcai_prophet",
     "name": "预言家-香菜",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1026,7 +1026,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_trans_001",
+    "id": "char_055_xiaoapan_judge",
     "name": "审判官-小阿潘",
     "cardType": "角色",
     "deck": "拟态流",
@@ -1045,7 +1045,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_combo_002",
+    "id": "char_056_huihuan_watcher",
     "name": "观者-灰焕",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1064,7 +1064,7 @@
     "source": "塔"
   },
   {
-    "id": "char_combo_003",
+    "id": "char_057_guamao_silent-hunter",
     "name": "静默猎手-瓜猫",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1083,7 +1083,7 @@
     "source": "塔"
   },
   {
-    "id": "char_combo_004",
+    "id": "char_058_xiangcai_politician",
     "name": "政治家-香菜",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1102,7 +1102,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_combo_005",
+    "id": "char_059_dong_justice",
     "name": "正义使者-dong",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1121,7 +1121,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_combo_006",
+    "id": "char_060_linglong_defect-robot",
     "name": "故障机器人-绫珑",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1140,7 +1140,7 @@
     "source": "塔"
   },
   {
-    "id": "char_combo_007",
+    "id": "char_061_xiangcai_watcher",
     "name": "观者-香菜",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1159,7 +1159,7 @@
     "source": "塔"
   },
   {
-    "id": "char_combo_008",
+    "id": "char_062_guamao_morphling",
     "name": "变形鸭-瓜猫",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1178,7 +1178,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_combo_009",
+    "id": "char_063_dong_assassin",
     "name": "刺客-dong",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1197,7 +1197,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_combo_010",
+    "id": "char_064_huihuan_pelican",
     "name": "鹈鹕-灰焕",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1216,7 +1216,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_combo_011",
+    "id": "char_065_dong_high-priest",
     "name": "大祭司-dong",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1235,7 +1235,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_combo_012",
+    "id": "char_066_linglong_ninja",
     "name": "忍者-绫珑",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1254,7 +1254,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_combo_013",
+    "id": "char_067_xiangcai_neo",
     "name": "涅奥-香菜",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1273,7 +1273,7 @@
     "source": "塔"
   },
   {
-    "id": "char_combo_014",
+    "id": "char_068_huihuan_bird-eater",
     "name": "食鸟鸭-灰焕",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1292,7 +1292,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_combo_015",
+    "id": "char_069_dong_sheriff",
     "name": "警长-dong",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1311,7 +1311,7 @@
     "source": "鹅"
   },
   {
-    "id": "char_combo_016",
+    "id": "char_070_huihuan_silent-hunter",
     "name": "静默猎手-灰焕",
     "cardType": "角色",
     "deck": "锦囊流",
@@ -1330,7 +1330,7 @@
     "source": "塔"
   },
   {
-    "id": "char_delta_001",
+    "id": "char_071_baizi_red-wolf",
     "name": "红狼-摆子",
     "cardType": "角色",
     "deck": "",
@@ -1349,7 +1349,7 @@
     "source": "洲"
   },
   {
-    "id": "char_delta_002",
+    "id": "char_072_daidaishou_luna",
     "name": "露娜-呆呆兽",
     "cardType": "角色",
     "deck": "",
@@ -1368,7 +1368,7 @@
     "source": "洲"
   },
   {
-    "id": "char_delta_003",
+    "id": "char_073_xiaoapan_bee-medic",
     "name": "蜂医-小阿潘",
     "cardType": "角色",
     "deck": "",
@@ -1387,7 +1387,7 @@
     "source": "洲"
   },
   {
-    "id": "char_delta_004",
+    "id": "char_074_huihuan_nameless",
     "name": "无名-灰焕",
     "cardType": "角色",
     "deck": "",
@@ -1406,7 +1406,7 @@
     "source": "洲"
   },
   {
-    "id": "char_delta_005",
+    "id": "char_075_baizi_weilong",
     "name": "威龙-摆子",
     "cardType": "角色",
     "deck": "",
@@ -1425,7 +1425,7 @@
     "source": "洲"
   },
   {
-    "id": "char_delta_006",
+    "id": "char_076_daidaishou_hackclaw",
     "name": "骇爪-呆呆兽",
     "cardType": "角色",
     "deck": "",
@@ -1444,7 +1444,7 @@
     "source": "洲"
   },
   {
-    "id": "char_delta_007",
+    "id": "char_077_xiaoapan_shepherd",
     "name": "牧羊人-小阿潘",
     "cardType": "角色",
     "deck": "",
@@ -1463,7 +1463,7 @@
     "source": "洲"
   },
   {
-    "id": "char_delta_008",
+    "id": "char_078_huihuan_deep-blue",
     "name": "深蓝-灰焕",
     "cardType": "角色",
     "deck": "",

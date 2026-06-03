@@ -1,0 +1,24 @@
+{
+  "bodies": {
+    "body_mizai_001": {
+      "front": "keke-assassin",
+      "extra": "keke-assassin-mega"
+    },
+    "body_trans_001": {
+      "front": "baizi-body",
+      "extra": "baizi-body-mega-v2"
+    },
+    "body_combo_001": {
+      "front": "guamao-body",
+      "extra": "guamao-body-mega"
+    }
+  },
+  "characters": {
+    "char_001_keke_assassin": "keke-assassin",
+    "char_054_xiangcai_prophet": "xiangcai-prophet-final-v2",
+    "char_058_xiangcai_politician": "xiangcai-politician-final",
+    "char_061_xiangcai_watcher": "xiangcai-watcher-final-v2",
+    "char_067_xiangcai_neo": "xiangcai-neo-final-v2",
+    "char_052_fengyaojing_desert-butcher": "fengyaojing-desert-butcher-v2"
+  }
+}

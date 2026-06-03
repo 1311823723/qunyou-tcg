@@ -2,13 +2,16 @@
 import Layout from "../../components/Layout.astro";
 import BodyCard from "../../components/BodyCard.astro";
 import CharacterCard from "../../components/CharacterCard.astro";
+import DeckPlayGuide from "../../components/DeckPlayGuide.astro";
 import { getDeckById, resolveDeck, getRoleDistribution, getTagDistribution } from "../../lib/decks";
+import { getDeckGuide } from "../../lib/deck-guides";
 import { getArchetypeKeywords, getArchetypeBlurb, getArchetypeRisks } from "../../lib/archetypes";
 import { ROLE_COLORS_CSS } from "../../lib/ui";
 
 const deck = getDeckById("deck_mizai_001");
 if (!deck) throw new Error("Deck not found");
 const resolved = resolveDeck(deck);
+const guide = getDeckGuide(deck.id);
 const roleDist = getRoleDistribution(resolved.characters);
 const tagDist = getTagDistribution(resolved.characters);
 const keywords = getArchetypeKeywords(deck.archetype);
@@ -46,23 +49,7 @@ for (const n of restCosts) restDist[String(n)] = (restDist[String(n)] || 0) + 1;
       <div class="max-w-md">{resolved.body && <BodyCard body={resolved.body} />}</div>
     </section>
 
-    <section class="hud-panel mb-10" style="padding: 1.15rem;">
-      <h2 class="section-heading" style="font-size: 1rem; margin-bottom: 0.75rem;">核心连招路线</h2>
-      <div class="combo-flow mb-3">
-        <span class="combo-flow__step">先知-柯柯</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__step">观看牌顶</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__kill">找【杀】</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__step">间谍-柯柯看手牌</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__step">触发窥心弃牌</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__mega">六次观看达成 Mega</span>
-      </div>
-      <p class="skill-text">先通过先知/观者看牌顶规划资源，再用间谍/警长看对手手牌逼弃，触发本体「窥心」压榨资源。累计6次观看后永久Mega，柯柯即掌控全局，指定弃牌或持续过牌。铁甲战士/复仇者提供斩杀窗口。</p>
-    </section>
+    {guide && <DeckPlayGuide guide={guide} />}
 
     <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
       <div class="stat-hud__item">

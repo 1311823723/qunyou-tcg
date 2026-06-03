@@ -2,13 +2,16 @@
 import Layout from "../../components/Layout.astro";
 import BodyCard from "../../components/BodyCard.astro";
 import CharacterCard from "../../components/CharacterCard.astro";
+import DeckPlayGuide from "../../components/DeckPlayGuide.astro";
 import { getDeckById, resolveDeck, getRoleDistribution, getTagDistribution } from "../../lib/decks";
+import { getDeckGuide } from "../../lib/deck-guides";
 import { getArchetypeKeywords, getArchetypeBlurb, getArchetypeRisks } from "../../lib/archetypes";
 import { ROLE_COLORS_CSS } from "../../lib/ui";
 
 const deck = getDeckById("deck_combo_001");
 if (!deck) throw new Error("Deck not found");
 const resolved = resolveDeck(deck);
+const guide = getDeckGuide(deck.id);
 const roleDist = getRoleDistribution(resolved.characters);
 const tagDist = getTagDistribution(resolved.characters);
 const keywords = getArchetypeKeywords(deck.archetype);
@@ -47,25 +50,7 @@ const selfRestCount = resolved.characters.filter((c) => c.cost.type === "休整�
       <div class="max-w-md">{resolved.body && <BodyCard body={resolved.body} />}</div>
     </section>
 
-    <section class="hud-panel mb-10" style="padding: 1.15rem;">
-      <h2 class="section-heading" style="font-size: 1rem; margin-bottom: 0.75rem;">核心连招路线</h2>
-      <div class="combo-flow mb-3">
-        <span class="combo-flow__step">观者·灰焕</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__step">找锦囊</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__step">使用锦囊</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__step">触发「从容不迫」</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__step">预言家控牌堆</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__step">静默猎手回收</span>
-        <span class="combo-flow__arrow">→</span>
-        <span class="combo-flow__mega">达成 Mega</span>
-      </div>
-      <p class="skill-text">观者找锦囊→使用锦囊触发本体摸牌→预言家安排牌堆顶确保后续锦囊不断→静默猎手回收弃牌区锦囊→循环使用→累计6张锦囊即永久Mega，Mega后每回合前2张非伤害锦囊额外滤2张牌堆顶。</p>
-    </section>
+    {guide && <DeckPlayGuide guide={guide} />}
 
     <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
       <div class="stat-hud__item">

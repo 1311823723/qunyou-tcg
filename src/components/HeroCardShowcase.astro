@@ -4,8 +4,8 @@ import CharacterCard from "./CharacterCard.astro";
 import { getBodyById, getCharacterById } from "../lib/cards";
 
 const body = getBodyById("body_aggro_001");
-const sampleChar1 = getCharacterById("char_aggro_015");
-const sampleChar2 = getCharacterById("char_aggro_001");
+const sampleChar1 = getCharacterById("char_015_weixiaokele_lobbyist");
+const sampleChar2 = getCharacterById("char_001_keke_assassin");
 ---
 <div class="hero-showcase" aria-label="卡牌预览">
   {body && <div class="hero-showcase__card"><BodyCard body={body} compact /></div>}

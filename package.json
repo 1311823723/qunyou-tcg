@@ -9,6 +9,7 @@
     "preview": "astro preview",
     "validate": "node tools/validate-cards.js",
     "print:aggro": "node tools/print-deck.js",
+    "art:use": "node tools/use-card-art.js",
     "export:tts": "node tools/tts/export-tts.js"
   },
   "overrides": {

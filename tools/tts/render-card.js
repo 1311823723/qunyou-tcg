@@ -115,6 +115,15 @@ function verticalText(text, x, y, fontSize, options = {}) {
   )).join("");
 }
 
+function splitTitledName(name, fallbackName = "") {
+  const clean = String(name ?? "").replace(/^Mega\s+/i, "");
+  const idx = clean.indexOf("-");
+  if (idx > 0) {
+    return { title: clean.slice(0, idx), name: clean.slice(idx + 1) };
+  }
+  return { title: "Mega", name: clean || fallbackName };
+}
+
 function artStage(label, variant, options = {}) {
   const accent = options.accent ?? (variant === "mega" ? "#d8b75c" : variant === "body" ? "#58c7e8" : "#9d6cff");
   const x = options.x ?? 122;
@@ -229,7 +238,7 @@ function renderBodyFront(card) {
 function renderBodyMega(card) {
   const extra = card.extraForm;
   const tags = card.affinityTags ?? [];
-  const megaDisplayName = extra.name.replace(/^Mega\s+/i, "");
+  const megaDisplayName = splitTitledName(extra.name, card.name);
   const inner = `
     ${artStage("Mega 原画预留", "mega", { x: 28, y: 28, width: 694, height: 964, accent: "#d8b75c", imageDataUri: card.__ttsMegaArt })}
     <path d="M42 56 C120 20, 190 32, 246 78 L206 126 C154 88, 98 98, 48 132 Z" fill="rgba(216,183,92,0.24)" stroke="#d8b75c" stroke-width="4"/>
@@ -237,8 +246,9 @@ function renderBodyMega(card) {
     <circle cx="103" cy="162" r="48" fill="#1c1308" stroke="#d8b75c" stroke-width="5"/>
     <text x="103" y="174" text-anchor="middle" font-size="42" font-weight="900" fill="#fff0a6">${escapeXml(card.hp)}</text>
     <text x="103" y="210" text-anchor="middle" font-size="17" font-weight="900" fill="#f4f0e8">体力</text>
-    <text x="658" y="260" text-anchor="middle" writing-mode="tb" font-size="${megaDisplayName.length > 5 ? 37 : 44}" font-weight="900" fill="#fff8cf" stroke="#1b1005" stroke-width="5" paint-order="stroke">${escapeXml(megaDisplayName)}</text>
-    <text x="618" y="120" text-anchor="middle" writing-mode="tb" font-size="22" font-weight="900" fill="#d8b75c">${escapeXml(card.archetype)}</text>
+    <text x="670" y="230" text-anchor="middle" writing-mode="tb" font-size="${megaDisplayName.name.length > 4 ? 35 : 42}" font-weight="900" fill="#fff8cf" stroke="#1b1005" stroke-width="5" paint-order="stroke">${escapeXml(megaDisplayName.name)}</text>
+    <text x="626" y="210" text-anchor="middle" writing-mode="tb" font-size="${megaDisplayName.title.length > 4 ? 24 : 28}" font-weight="900" fill="#d8b75c" stroke="#1b1005" stroke-width="3" paint-order="stroke">${escapeXml(megaDisplayName.title)}</text>
+    <text x="586" y="120" text-anchor="middle" writing-mode="tb" font-size="20" font-weight="900" fill="#d8b75c">${escapeXml(card.archetype)}</text>
     <g transform="translate(54 642)">${tagsSvg(tags, 0, 0, { fill: "rgba(31,18,3,0.54)", stroke: "rgba(216,183,92,0.50)", color: "#fff3c4", max: 5 })}</g>
     <g filter="url(#shadow)">
       <path d="M46 704 H704 L676 992 H74 Z" fill="rgba(23,14,8,0.72)" stroke="#d8b75c" stroke-opacity="0.68" stroke-width="3"/>

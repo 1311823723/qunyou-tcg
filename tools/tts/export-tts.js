@@ -23,30 +23,7 @@ const { writeImportGuide } = require("./write-import-guide");
 const { MAT_WIDTH, MAT_HEIGHT, writeTablemat } = require("./render-tablemat");
 
 const ART_DIR = path.join(__dirname, "assets", "art");
-const CARD_ART = {
-  bodies: {
-    body_mizai_001: {
-      front: "keke-assassin.png",
-      mega: "keke-assassin-mega.png",
-    },
-    body_trans_001: {
-      front: "baizi-body.png",
-      mega: "baizi-body-mega-v2.png",
-    },
-    body_combo_001: {
-      front: "guamao-body.png",
-      mega: "guamao-body-mega.png",
-    },
-  },
-  characters: {
-    char_aggro_001: "keke-assassin.png",
-    char_combo_001: "xiangcai-prophet-final-v2.png",
-    char_combo_004: "xiangcai-politician-final.png",
-    char_combo_007: "xiangcai-watcher-final-v2.png",
-    char_combo_013: "xiangcai-neo-final-v2.png",
-    char_general_017: "fengyaojing-desert-butcher-v2.png",
-  },
-};
+const CARD_ART = readJson("card-art.json");
 
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(DATA_DIR, relativePath), "utf8"));
@@ -79,9 +56,10 @@ function handPhysicalId(card, entry) {
 
 function artDataUri(filename) {
   if (!filename) return undefined;
-  const filePath = path.join(ART_DIR, filename);
+  const artFilename = path.extname(filename) ? filename : `${filename}.png`;
+  const filePath = path.join(ART_DIR, artFilename);
   if (!fs.existsSync(filePath)) return undefined;
-  const ext = path.extname(filename).slice(1).toLowerCase();
+  const ext = path.extname(artFilename).slice(1).toLowerCase();
   const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "image/png";
   return `data:${mime};base64,${fs.readFileSync(filePath).toString("base64")}`;
 }
@@ -103,7 +81,7 @@ async function renderCards() {
     const bodyForRender = {
       ...body,
       __ttsArt: artDataUri(art?.front),
-      __ttsMegaArt: artDataUri(art?.mega),
+      __ttsMegaArt: artDataUri(art?.extra),
     };
     const frontPath = path.join(EXPORT_DIR, "cards", "bodies", `${body.id}_front.png`);
     const backPath = path.join(EXPORT_DIR, "cards", "bodies", `${body.id}_mega_back.png`);

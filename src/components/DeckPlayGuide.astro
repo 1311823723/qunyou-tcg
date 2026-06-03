@@ -1,0 +1,37 @@
+---
+import type { DeckGuide } from "../lib/deck-guides";
+
+export interface Props {
+  guide: DeckGuide;
+}
+
+const { guide } = Astro.props;
+---
+<section class="deck-guide hud-panel mb-10">
+  <div class="deck-guide__head">
+    <h2 class="section-heading deck-guide__title">{guide.title}</h2>
+    <div class="deck-guide__flow">
+      {guide.flow.map((step, index) => (
+        <>
+          <span class={index === guide.flow.length - 1 ? "combo-flow__mega" : "combo-flow__step"}>{step}</span>
+          {index < guide.flow.length - 1 && <span class="combo-flow__arrow">→</span>}
+        </>
+      ))}
+    </div>
+  </div>
+
+  <div class="deck-guide__grid">
+    <div class="deck-guide__panel">
+      <h3>打法优先级</h3>
+      <ol class="deck-guide__list">
+        {guide.priorities.map((item) => <li>{item}</li>)}
+      </ol>
+    </div>
+    <div class="deck-guide__panel deck-guide__panel--accent">
+      <h3>Mega 节点</h3>
+      <p>{guide.mega}</p>
+      <h3>风险处理</h3>
+      <p>{guide.risk}</p>
+    </div>
+  </div>
+</section>
