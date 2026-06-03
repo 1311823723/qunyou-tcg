@@ -466,6 +466,28 @@ strong { color: var(--text-gold); font-weight: 800; }
   opacity: 0.22;
   text-shadow: 0 0 24px var(--card-accent);
 }
+.tcg-char__art--image {
+  height: 150px;
+  background: #080a12;
+}
+.tcg-char__art--image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 22%;
+  opacity: 0.92;
+}
+.tcg-char__art--image::before {
+  background: linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.42));
+}
+.tcg-char__art--image::after {
+  content: "";
+  inset: auto 0 0;
+  height: 42%;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.48));
+  opacity: 1;
+}
 .tcg-char__tags { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0 1rem 0.62rem; }
 .tcg-char__meta {
   display: grid;
@@ -530,6 +552,36 @@ strong { color: var(--text-gold); font-weight: 800; }
 .tcg-body__hp--extra { border-color: rgba(157,108,255,0.42); background: rgba(157,108,255,0.13); box-shadow: inset 0 0 22px rgba(157,108,255,0.08), 0 0 18px rgba(157,108,255,0.14); }
 .tcg-body__hp-val { color: #ff7669; font-family: var(--font-display); font-size: 2.15rem; font-weight: 900; line-height: 1; }
 .tcg-body__hp-label { margin-top: 0.22rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.58rem; font-weight: 900; letter-spacing: 0.18em; }
+.tcg-body__art {
+  position: relative;
+  height: 230px;
+  margin: 0.9rem 1rem 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 217, 138, 0.22);
+  border-radius: 16px;
+  background: #090b13;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+.tcg-body__art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.02), transparent 48%, rgba(0,0,0,0.46));
+  pointer-events: none;
+}
+.tcg-body__art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  opacity: 0.94;
+}
+.tcg-body__art--extra {
+  border-color: rgba(216, 183, 92, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 0 26px rgba(216,183,92,0.12);
+}
+.tcg-body--compact .tcg-body__art { height: 120px; }
 .tcg-body__body { padding: 1rem 1.18rem; }
 .tcg-body__mega-box { margin: 0 1rem 1rem; padding: 0.92rem 1rem; border: 1px solid rgba(157,108,255,0.36); border-radius: 14px; background: linear-gradient(135deg, rgba(157,108,255,0.12), rgba(216,183,92,0.06)); }
 .tcg-body__mega-label { margin-bottom: 0.42rem; color: var(--accent-mega-purple); font-family: var(--font-mono); font-size: 0.62rem; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; }

@@ -29,9 +29,17 @@ const CARD_ART = {
       front: "keke-assassin.png",
       mega: "keke-assassin-mega.png",
     },
+    body_trans_001: {
+      front: "baizi-body.png",
+      mega: "baizi-body-mega-v2.png",
+    },
   },
   characters: {
     char_aggro_001: "keke-assassin.png",
+    char_combo_001: "xiangcai-prophet-final-v2.png",
+    char_combo_004: "xiangcai-politician-final.png",
+    char_combo_007: "xiangcai-watcher-final-v2.png",
+    char_combo_013: "xiangcai-neo-final-v2.png",
   },
 };
 

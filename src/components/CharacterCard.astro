@@ -3,6 +3,7 @@ import CardFrame from "./CardFrame.astro";
 import TagPill from "./TagPill.astro";
 import type { CharacterCard as CharType } from "../lib/cards";
 import { splitCharacterName, formatCharacterCost, costKind, roleVar } from "../lib/ui";
+import { getCharacterArt } from "../lib/card-art";
 
 export interface Props {
   character: CharType;
@@ -14,6 +15,7 @@ const { prefix, suffix } = splitCharacterName(c.name);
 const costText = formatCharacterCost(c.cost);
 const ck = costKind(c.cost);
 const rv = roleVar(c.mainRole);
+const art = getCharacterArt(c.id);
 ---
 <CardFrame class={`tcg-char ${compact ? "tcg-char--compact" : ""}`} role={rv} kind="character">
   <header class="tcg-char__head">
@@ -22,11 +24,13 @@ const rv = roleVar(c.mainRole);
       <h3 class="tcg-char__name">{suffix}</h3>
     </div>
     <div class="tcg-char__badges">
-      {c.source && <span class="tcg-char__source tcg-char__source--{c.source}">{c.source}</span>}
+      {c.source && <span class={`tcg-char__source tcg-char__source--${c.source}`}>{c.source}</span>}
       <TagPill label={c.mainRole} variant="role" role={c.mainRole} />
     </div>
   </header>
-  <div class="tcg-char__art" aria-hidden="true"></div>
+  <div class={`tcg-char__art ${art ? "tcg-char__art--image" : ""}`} aria-hidden={!art}>
+    {art && <img src={art.src} width={art.width} height={art.height} alt={`${c.name} 原画`} loading="lazy" />}
+  </div>
   <div class="tcg-char__tags">
     {c.tags.map((tag) => <TagPill label={tag} />)}
   </div>
@@ -44,6 +48,6 @@ const rv = roleVar(c.mainRole);
     <div class="tcg-char__skill-name">{c.skillName}</div>
     <p class="tcg-char__skill-text">{c.effectText}</p>
   </div>
-  {showDeck && <div class="tcg-char__deck">DECK · {c.deck}</div>}
+  {showDeck && <div class="tcg-char__deck">DECK · {c.deck || "通用"}</div>}
   {c.notes && <p class="tcg-char__notes">{c.notes}</p>}
 </CardFrame>

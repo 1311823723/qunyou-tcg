@@ -6,7 +6,7 @@
 
 - **版本:** v0.2 Demo
 - **模式:** 1v1 对战
-- **预组:** 上头组 / 爆杀流
+- **预组:** 上头组 / 密裁组 / 操作组 / 变通组
 - **站点:** https://qunyou-tcg.pages.dev
 
 ## 设计方向
@@ -26,6 +26,7 @@ npm run build          # 构建静态站点
 npm run preview        # 预览构建产物
 npm run validate       # 校验所有卡牌和预组数据
 npm run print:aggro    # 打印爆杀组预组详情
+npm run export:tts     # 导出 Tabletop Simulator 本地资源
 ```
 
 ## 技术栈

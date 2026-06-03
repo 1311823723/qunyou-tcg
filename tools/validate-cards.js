@@ -40,6 +40,7 @@ registerIds(handCards, "hand_cards.json");
 
 const bodyIds = new Set(bodies.map((b) => b.id));
 const characterIds = new Set(characters.map((c) => c.id));
+const validCostTypes = new Set(["休整", "退场", "无", "复合", "休整自身"]);
 
 // Check each deck references valid IDs
 for (const deck of allDecks) {
@@ -104,6 +105,9 @@ for (const char of characters) {
     if (char[field] === undefined || char[field] === null) {
       errors.push(`Character "${char.id}" missing required field: ${field}`);
     }
+  }
+  if (char.cost?.type && !validCostTypes.has(char.cost.type)) {
+    errors.push(`Character "${char.id}" has invalid cost.type: ${char.cost.type}`);
   }
 }
 

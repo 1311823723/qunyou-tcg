@@ -53,6 +53,12 @@ function wrapText(text, maxUnits) {
   return lines;
 }
 
+function wrapTextPreserveBreaks(text, maxUnits) {
+  return String(text ?? "")
+    .split(/\n+/)
+    .flatMap((paragraph) => wrapText(paragraph, maxUnits));
+}
+
 function textBlock(text, x, y, maxUnits, fontSize, lineHeight, options = {}) {
   const lines = wrapText(text, maxUnits).slice(0, options.maxLines ?? 12);
   const weight = options.weight ?? 500;
@@ -65,19 +71,15 @@ function textBlock(text, x, y, maxUnits, fontSize, lineHeight, options = {}) {
 function fitTextBlock(text, x, y, width, height, startFontSize, minFontSize, options = {}) {
   const fill = options.fill ?? "#f4f0e8";
   const weight = options.weight ?? 500;
+  const lineRatio = options.lineRatio ?? 1.38;
 
   for (let fontSize = startFontSize; fontSize >= minFontSize; fontSize--) {
-    const lineHeight = Math.round(fontSize * 1.38);
+    const lineHeight = Math.round(fontSize * lineRatio);
     const maxUnits = Math.max(8, Math.floor(width / (fontSize * 0.96)));
-    const lines = wrapText(text, maxUnits);
+    const lines = wrapTextPreserveBreaks(text, maxUnits);
     const maxLines = Math.max(1, Math.floor(height / lineHeight));
     if (lines.length <= maxLines || fontSize === minFontSize) {
-      const visible = lines.slice(0, maxLines);
-      if (lines.length > maxLines && visible.length > 0) {
-        const last = visible[visible.length - 1];
-        visible[visible.length - 1] = `${last.slice(0, Math.max(0, last.length - 1))}…`;
-      }
-      return visible.map((line, index) => (
+      return lines.map((line, index) => (
         `<text x="${x}" y="${y + index * lineHeight}" font-size="${fontSize}" font-weight="${weight}" fill="${fill}">${escapeXml(line)}</text>`
       )).join("");
     }
@@ -120,8 +122,9 @@ function artStage(label, variant, options = {}) {
   const width = options.width ?? 588;
   const height = options.height ?? 666;
   const opacity = variant === "mega" ? 0.32 : 0.22;
+  const imageAlign = options.imageAlign ?? "xMidYMid";
   const image = options.imageDataUri
-    ? `<image href="${options.imageDataUri}" x="${x}" y="${y}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/>`
+    ? `<image href="${options.imageDataUri}" x="${x}" y="${y}" width="${width}" height="${height}" preserveAspectRatio="${imageAlign} slice"/>`
     : "";
   const placeholder = options.imageDataUri
     ? ""
@@ -198,7 +201,7 @@ function renderBodyFront(card) {
   const tags = card.affinityTags ?? [];
   const accent = "#43b9d6";
   const inner = `
-    ${artStage("本体原画预留", "body", { x: 34, y: 34, width: 682, height: 716, accent, imageDataUri: card.__ttsArt })}
+    ${artStage("本体原画预留", "body", { x: 34, y: 34, width: 682, height: 958, accent, imageDataUri: card.__ttsArt })}
     <g filter="url(#inkShadow)">
       <path d="M594 70 C632 48, 686 58, 706 94 C682 120, 642 116, 608 102 Z" fill="rgba(12,20,28,0.72)" stroke="${accent}" stroke-width="3"/>
       <text x="650" y="103" text-anchor="middle" font-size="23" font-weight="900" fill="#f4f0e8">本体</text>
@@ -209,14 +212,14 @@ function renderBodyFront(card) {
     <text x="103" y="154" text-anchor="middle" font-size="18" font-weight="900" fill="#f4f0e8">体力</text>
     <text x="658" y="270" text-anchor="middle" writing-mode="tb" font-size="${card.name.length > 4 ? 41 : 48}" font-weight="900" fill="#ffffff" stroke="#17100a" stroke-width="5" paint-order="stroke">${escapeXml(card.name)}</text>
     <text x="618" y="138" text-anchor="middle" writing-mode="tb" font-size="22" font-weight="900" fill="#ffe59a">${escapeXml(card.archetype)}</text>
-    <g transform="translate(54 665)">${tagsSvg(tags, 0, 0, { fill: "rgba(0,0,0,0.38)", stroke: "rgba(255,255,255,0.34)", max: 5 })}</g>
+    <g transform="translate(54 644)">${tagsSvg(tags, 0, 0, { fill: "rgba(0,0,0,0.38)", stroke: "rgba(255,255,255,0.34)", max: 5 })}</g>
     <g filter="url(#shadow)">
-      <path d="M52 738 H698 L674 980 H76 Z" fill="url(#textParchment)" stroke="#ffffff" stroke-opacity="0.62" stroke-width="2"/>
-      <path d="M68 760 H682" stroke="${accent}" stroke-opacity="0.42" stroke-width="4"/>
-      <rect x="76" y="770" width="188" height="44" rx="7" fill="${accent}"/>
-      <text x="170" y="801" text-anchor="middle" font-size="23" font-weight="900" fill="#ffffff">${escapeXml(card.skillName)}</text>
-      ${fitTextBlock(card.effectText, 84, 852, 574, 86, 28, 21, { fill: "#25201b", weight: 700 })}
-      ${card.extraForm?.condition ? `<text x="84" y="953" font-size="20" font-weight="900" fill="#7b5318">Mega 条件：${escapeXml(card.extraForm.condition)}</text>` : ""}
+      <path d="M52 706 H698 L674 992 H76 Z" fill="url(#textParchment)" stroke="#ffffff" stroke-opacity="0.62" stroke-width="2"/>
+      <path d="M68 728 H682" stroke="${accent}" stroke-opacity="0.42" stroke-width="4"/>
+      <rect x="76" y="738" width="188" height="44" rx="7" fill="${accent}"/>
+      <text x="170" y="769" text-anchor="middle" font-size="23" font-weight="900" fill="#ffffff">${escapeXml(card.skillName)}</text>
+      ${fitTextBlock(card.effectText, 84, 818, 574, 100, 27, 17, { fill: "#25201b", weight: 700, lineRatio: 1.30 })}
+      ${card.extraForm?.condition ? fitTextBlock(`Mega 条件：${card.extraForm.condition}`, 84, 945, 584, 40, 18, 15, { fill: "#7b5318", weight: 900, lineRatio: 1.20 }) : ""}
     </g>
     <text x="375" y="1014" text-anchor="middle" font-size="15" font-weight="700" fill="#b8ad96">${escapeXml(card.id)}</text>
   `;
@@ -228,7 +231,7 @@ function renderBodyMega(card) {
   const tags = card.affinityTags ?? [];
   const megaDisplayName = extra.name.replace(/^Mega\s+/i, "");
   const inner = `
-    ${artStage("Mega 原画预留", "mega", { x: 28, y: 28, width: 694, height: 728, accent: "#d8b75c", imageDataUri: card.__ttsMegaArt })}
+    ${artStage("Mega 原画预留", "mega", { x: 28, y: 28, width: 694, height: 964, accent: "#d8b75c", imageDataUri: card.__ttsMegaArt })}
     <path d="M42 56 C120 20, 190 32, 246 78 L206 126 C154 88, 98 98, 48 132 Z" fill="rgba(216,183,92,0.24)" stroke="#d8b75c" stroke-width="4"/>
     <text x="136" y="91" text-anchor="middle" font-size="30" font-weight="900" fill="#fff0a6">MEGA</text>
     <circle cx="103" cy="162" r="48" fill="#1c1308" stroke="#d8b75c" stroke-width="5"/>
@@ -236,12 +239,12 @@ function renderBodyMega(card) {
     <text x="103" y="210" text-anchor="middle" font-size="17" font-weight="900" fill="#f4f0e8">体力</text>
     <text x="658" y="260" text-anchor="middle" writing-mode="tb" font-size="${megaDisplayName.length > 5 ? 37 : 44}" font-weight="900" fill="#fff8cf" stroke="#1b1005" stroke-width="5" paint-order="stroke">${escapeXml(megaDisplayName)}</text>
     <text x="618" y="120" text-anchor="middle" writing-mode="tb" font-size="22" font-weight="900" fill="#d8b75c">${escapeXml(card.archetype)}</text>
-    <g transform="translate(54 672)">${tagsSvg(tags, 0, 0, { fill: "rgba(31,18,3,0.54)", stroke: "rgba(216,183,92,0.50)", color: "#fff3c4", max: 5 })}</g>
+    <g transform="translate(54 642)">${tagsSvg(tags, 0, 0, { fill: "rgba(31,18,3,0.54)", stroke: "rgba(216,183,92,0.50)", color: "#fff3c4", max: 5 })}</g>
     <g filter="url(#shadow)">
-      <path d="M46 742 H704 L676 986 H74 Z" fill="rgba(23,14,8,0.72)" stroke="#d8b75c" stroke-opacity="0.68" stroke-width="3"/>
-      <rect x="78" y="772" width="244" height="46" rx="7" fill="#d8b75c"/>
-      <text x="200" y="805" text-anchor="middle" font-size="24" font-weight="900" fill="#221506">${escapeXml(extra.skillName)}</text>
-      ${fitTextBlock(extra.effectText, 84, 852, 578, 108, 28, 20, { fill: "#fff8e8", weight: 700 })}
+      <path d="M46 704 H704 L676 992 H74 Z" fill="rgba(23,14,8,0.72)" stroke="#d8b75c" stroke-opacity="0.68" stroke-width="3"/>
+      <rect x="78" y="732" width="244" height="46" rx="7" fill="#d8b75c"/>
+      <text x="200" y="765" text-anchor="middle" font-size="24" font-weight="900" fill="#221506">${escapeXml(extra.skillName)}</text>
+      ${fitTextBlock(extra.effectText, 84, 812, 578, 162, 26, 16, { fill: "#fff8e8", weight: 700, lineRatio: 1.26 })}
     </g>
     <text x="375" y="1014" text-anchor="middle" font-size="15" font-weight="800" fill="#bca15d">${escapeXml(card.id)} · mega back</text>
   `;
@@ -260,7 +263,7 @@ function renderCharacter(card) {
       <path d="M42 306 C96 342, 42 384, 102 432" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
       <path d="M42 532 C96 568, 42 610, 102 658" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
     </g>
-    ${artStage("角色原画预留", "character", { x: 126, y: 26, width: 598, height: 746, accent: roleColor, imageDataUri: card.__ttsArt })}
+    ${artStage("角色原画预留", "character", { x: 126, y: 26, width: 598, height: 960, accent: roleColor, imageDataUri: card.__ttsArt })}
     <circle cx="76" cy="92" r="42" fill="url(#sealGlow)" stroke="${roleTrimColor}" stroke-width="4"/>
     <text x="76" y="104" text-anchor="middle" font-size="29" font-weight="900" fill="#fff0a6">${escapeXml(card.mainRole.slice(0, 1))}</text>
     ${prefix ? verticalText(prefix, 76, 206, 25, { fill: roleTrimColor, stroke: "#160b09", strokeWidth: 4, gap: 36 }) : ""}

@@ -28,6 +28,7 @@
     "timing": { "type": "string" },
     "skillName": { "type": "string" },
     "effectText": { "type": "string" },
-    "notes": { "type": "string" }
+    "notes": { "type": "string" },
+    "source": { "type": "string" }
   }
 }
