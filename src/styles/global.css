@@ -431,7 +431,7 @@ strong { color: var(--text-gold); font-weight: 800; }
   pointer-events: none;
   filter: saturate(0.96) contrast(1.04);
 }
-.tcg-card__full-art--character { opacity: 0.32; }
+.tcg-card__full-art--character { opacity: 0.94; }
 .tcg-card__full-art--body { opacity: 0.34; }
 .tcg-card__full-art--extra { opacity: 0.38; }
 .tcg-char > :not(.tcg-card__full-art),
@@ -494,25 +494,14 @@ strong { color: var(--text-gold); font-weight: 800; }
 }
 .tcg-char__art--image {
   height: 150px;
-  background: #080a12;
-}
-.tcg-char__art--image img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 22%;
-  opacity: 0.92;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
 }
 .tcg-char__art--image::before {
-  background: linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.42));
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
 }
 .tcg-char__art--image::after {
-  content: "";
-  inset: auto 0 0;
-  height: 42%;
-  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.48));
-  opacity: 1;
+  content: none;
 }
 .tcg-char__tags { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0 1rem 0.62rem; }
 .tcg-char__meta {
