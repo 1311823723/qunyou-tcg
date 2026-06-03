@@ -1,6 +1,6 @@
 import baiziBody from "../assets/card-art-web/baizi-body.webp";
 import baiziBodyMega from "../assets/card-art-web/baizi-body-mega-v2.webp";
-import fengyaojingDesertButcher from "../assets/card-art-web/fengyaojing-desert-butcher.webp";
+import fengyaojingDesertButcher from "../assets/card-art-web/fengyaojing-desert-butcher-v2.webp";
 import guamaoBody from "../assets/card-art-web/guamao-body.webp";
 import guamaoBodyMega from "../assets/card-art-web/guamao-body-mega.webp";
 import kekeAssassin from "../assets/card-art-web/keke-assassin.webp";

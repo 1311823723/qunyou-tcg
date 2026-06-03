@@ -44,6 +44,7 @@ const CARD_ART = {
     char_combo_004: "xiangcai-politician-final.png",
     char_combo_007: "xiangcai-watcher-final-v2.png",
     char_combo_013: "xiangcai-neo-final-v2.png",
+    char_general_017: "fengyaojing-desert-butcher-v2.png",
   },
 };
 

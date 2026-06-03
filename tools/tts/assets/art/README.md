@@ -14,5 +14,6 @@ Current mappings are defined in `tools/tts/export-tts.js`:
 - `xiangcai-politician-final.png`: Politician Xiangcai art for `char_combo_004`.
 - `xiangcai-watcher-final-v2.png`: Watcher Xiangcai art for `char_combo_007`.
 - `xiangcai-neo-final-v2.png`: Neo Xiangcai art for `char_combo_013`.
+- `fengyaojing-desert-butcher-v2.png`: Desert Butcher Fengyaojing art for `char_general_017`.
 
 Card data remains in `data/cards/*.json`; art mapping is export-only.
