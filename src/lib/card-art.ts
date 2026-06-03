@@ -1,13 +1,14 @@
-import baiziBody from "../../tools/tts/assets/art/baizi-body.png";
-import baiziBodyMega from "../../tools/tts/assets/art/baizi-body-mega-v2.png";
-import guamaoBody from "../../tools/tts/assets/art/guamao-body.png";
-import guamaoBodyMega from "../../tools/tts/assets/art/guamao-body-mega.png";
-import kekeAssassin from "../../tools/tts/assets/art/keke-assassin.png";
-import kekeAssassinMega from "../../tools/tts/assets/art/keke-assassin-mega.png";
-import xiangcaiNeo from "../../tools/tts/assets/art/xiangcai-neo-final-v2.png";
-import xiangcaiPolitician from "../../tools/tts/assets/art/xiangcai-politician-final.png";
-import xiangcaiProphet from "../../tools/tts/assets/art/xiangcai-prophet-final-v2.png";
-import xiangcaiWatcher from "../../tools/tts/assets/art/xiangcai-watcher-final-v2.png";
+import baiziBody from "../assets/card-art-web/baizi-body.webp";
+import baiziBodyMega from "../assets/card-art-web/baizi-body-mega-v2.webp";
+import fengyaojingDesertButcher from "../assets/card-art-web/fengyaojing-desert-butcher.webp";
+import guamaoBody from "../assets/card-art-web/guamao-body.webp";
+import guamaoBodyMega from "../assets/card-art-web/guamao-body-mega.webp";
+import kekeAssassin from "../assets/card-art-web/keke-assassin.webp";
+import kekeAssassinMega from "../assets/card-art-web/keke-assassin-mega.webp";
+import xiangcaiNeo from "../assets/card-art-web/xiangcai-neo-final-v2.webp";
+import xiangcaiPolitician from "../assets/card-art-web/xiangcai-politician-final.webp";
+import xiangcaiProphet from "../assets/card-art-web/xiangcai-prophet-final-v2.webp";
+import xiangcaiWatcher from "../assets/card-art-web/xiangcai-watcher-final-v2.webp";
 
 export interface BodyArt {
   front?: ImageMetadata;
@@ -35,6 +36,7 @@ const characterArt: Record<string, ImageMetadata> = {
   char_combo_004: xiangcaiPolitician,
   char_combo_007: xiangcaiWatcher,
   char_combo_013: xiangcaiNeo,
+  char_general_017: fengyaojingDesertButcher,
 };
 
 export function getBodyArt(id: string): BodyArt | undefined {
