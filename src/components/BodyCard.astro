@@ -15,6 +15,17 @@ const art = getBodyArt(b.id);
   <div class="card-flip__inner" id={`flip-${b.id}`}>
     <!-- 正面：本体 -->
     <div class="card-flip__face card-flip__face--front">
+      {art?.front && (
+        <img
+          class="tcg-card__full-art tcg-card__full-art--body"
+          src={art.front.src}
+          width={art.front.width}
+          height={art.front.height}
+          alt=""
+          loading="lazy"
+          aria-hidden="true"
+        />
+      )}
       <div class="tcg-body__banner">
         <div>
           <div class="tcg-body__type">本体 · {b.archetype}</div>
@@ -55,6 +66,17 @@ const art = getBodyArt(b.id);
     <!-- 背面：额外形态 -->
     {b.extraForm && (
       <div class="card-flip__face card-flip__face--back">
+        {art?.extra && (
+          <img
+            class="tcg-card__full-art tcg-card__full-art--body tcg-card__full-art--extra"
+            src={art.extra.src}
+            width={art.extra.width}
+            height={art.extra.height}
+            alt=""
+            loading="lazy"
+            aria-hidden="true"
+          />
+        )}
         <div class="tcg-body__banner tcg-body__banner--extra">
           <div>
             <div class="tcg-body__type tcg-body__type--extra">{formLabel}</div>

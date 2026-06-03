@@ -419,6 +419,31 @@ strong { color: var(--text-gold); font-weight: 800; }
 .card-frame[data-kind=trick] { --card-accent: var(--accent-mega-purple); }
 
 .tcg-char { display: flex; min-height: 420px; flex-direction: column; }
+.tcg-card__full-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  opacity: 0.3;
+  pointer-events: none;
+  filter: saturate(0.96) contrast(1.04);
+}
+.tcg-card__full-art--character { opacity: 0.32; }
+.tcg-card__full-art--body { opacity: 0.34; }
+.tcg-card__full-art--extra { opacity: 0.38; }
+.tcg-char > :not(.tcg-card__full-art),
+.card-flip__face > :not(.tcg-card__full-art) {
+  position: relative;
+  z-index: 1;
+}
+.tcg-char--with-art {
+  background:
+    linear-gradient(180deg, rgba(7, 8, 16, 0.5), rgba(8, 10, 18, 0.78)),
+    radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--card-accent) 18%, transparent), transparent 52%);
+}
 .tcg-char__head {
   display: flex;
   align-items: flex-start;
@@ -426,7 +451,8 @@ strong { color: var(--text-gold); font-weight: 800; }
   gap: 0.75rem;
   padding: 1rem 1.05rem 0.72rem;
   border-bottom: 1px solid var(--border-soft);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--card-accent) 13%, transparent), transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--card-accent) 20%, rgba(5, 6, 12, 0.62)), rgba(5, 6, 12, 0.28));
+  backdrop-filter: blur(10px);
 }
 .tcg-char__profession { margin-bottom: 0.24rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.64rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; }
 .tcg-char__name { margin: 0; color: var(--text-primary); font-size: 1.08rem; font-weight: 900; line-height: 1.25; }
@@ -502,21 +528,24 @@ strong { color: var(--text-gold); font-weight: 800; }
   padding: 0.48rem 0.58rem;
   border: 1px solid var(--border-soft);
   border-radius: 10px;
-  background: rgba(0,0,0,0.28);
+  background: rgba(2, 4, 10, 0.5);
+  backdrop-filter: blur(10px);
   font-size: 0.72rem;
   line-height: 1.35;
 }
 .tcg-char__meta-label { display: block; margin-bottom: 0.12rem; color: var(--text-faint); font-family: var(--font-mono); font-size: 0.56rem; font-weight: 900; letter-spacing: 0.14em; }
 .tcg-char__cost { color: var(--text-gold); font-weight: 900; }
-.tcg-char__cost--exit { color: #ff8d82; border-color: rgba(255,87,72,0.26); background: rgba(255,87,72,0.1); }
-.tcg-char__cost--compound { color: #c8a8ff; border-color: rgba(157,108,255,0.3); background: rgba(157,108,255,0.1); }
+.tcg-char__cost--exit { color: #ff8d82; border-color: rgba(255,87,72,0.32); background: rgba(70, 12, 16, 0.48); }
+.tcg-char__cost--compound { color: #c8a8ff; border-color: rgba(157,108,255,0.34); background: rgba(42, 22, 76, 0.48); }
 .tcg-char__skill {
   flex: 1;
   margin: 0.72rem 0.78rem 0.82rem;
   padding: 0.86rem;
   border: 1px solid var(--border-soft);
   border-radius: 14px;
-  background: linear-gradient(180deg, rgba(0,0,0,0.32), rgba(0,0,0,0.2));
+  background: linear-gradient(180deg, rgba(3, 4, 10, 0.66), rgba(3, 4, 10, 0.5));
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.055);
 }
 .tcg-char__skill-name { margin-bottom: 0.5rem; color: var(--text-gold); font-size: 0.92rem; font-weight: 900; }
 .tcg-char__skill-text,
@@ -538,10 +567,11 @@ strong { color: var(--text-gold); font-weight: 800; }
   gap: 1rem;
   padding: 1.15rem 1.18rem;
   border-bottom: 1px solid rgba(255, 217, 138, 0.18);
-  background: linear-gradient(100deg, rgba(255, 90, 53, 0.14), rgba(216, 183, 92, 0.07), transparent);
+  background: linear-gradient(100deg, rgba(42, 12, 10, 0.72), rgba(35, 25, 12, 0.5), rgba(8, 10, 18, 0.22));
+  backdrop-filter: blur(10px);
 }
 .tcg-body__banner--extra {
-  background: linear-gradient(100deg, rgba(157, 108, 255, 0.18), rgba(216, 183, 92, 0.1), transparent);
+  background: linear-gradient(100deg, rgba(40, 20, 82, 0.68), rgba(42, 31, 12, 0.48), rgba(8, 10, 18, 0.22));
   border-bottom-color: rgba(157, 108, 255, 0.24);
 }
 .tcg-body__type { color: var(--accent-mega); font-family: var(--font-mono); font-size: 0.65rem; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; }
@@ -582,8 +612,15 @@ strong { color: var(--text-gold); font-weight: 800; }
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 0 26px rgba(216,183,92,0.12);
 }
 .tcg-body--compact .tcg-body__art { height: 120px; }
-.tcg-body__body { padding: 1rem 1.18rem; }
-.tcg-body__mega-box { margin: 0 1rem 1rem; padding: 0.92rem 1rem; border: 1px solid rgba(157,108,255,0.36); border-radius: 14px; background: linear-gradient(135deg, rgba(157,108,255,0.12), rgba(216,183,92,0.06)); }
+.tcg-body__body {
+  margin: 0.9rem 1rem 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255,255,255,0.055);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(3, 4, 10, 0.58), rgba(3, 4, 10, 0.42));
+  backdrop-filter: blur(12px);
+}
+.tcg-body__mega-box { margin: 0.9rem 1rem 1rem; padding: 0.92rem 1rem; border: 1px solid rgba(157,108,255,0.36); border-radius: 14px; background: linear-gradient(135deg, rgba(38, 21, 76, 0.58), rgba(42, 31, 12, 0.38)); backdrop-filter: blur(12px); }
 .tcg-body__mega-label { margin-bottom: 0.42rem; color: var(--accent-mega-purple); font-family: var(--font-mono); font-size: 0.62rem; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; }
 
 /* 翻面效果 */
@@ -596,11 +633,13 @@ strong { color: var(--text-gold); font-weight: 800; }
   transform: rotateY(180deg);
 }
 .card-flip__face {
+  position: relative;
   grid-area: 1 / 1;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .card-flip__face--front {
   min-height: 320px;

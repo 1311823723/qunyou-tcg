@@ -17,7 +17,18 @@ const ck = costKind(c.cost);
 const rv = roleVar(c.mainRole);
 const art = getCharacterArt(c.id);
 ---
-<CardFrame class={`tcg-char ${compact ? "tcg-char--compact" : ""}`} role={rv} kind="character">
+<CardFrame class={`tcg-char ${art ? "tcg-char--with-art" : ""} ${compact ? "tcg-char--compact" : ""}`} role={rv} kind="character">
+  {art && (
+    <img
+      class="tcg-card__full-art tcg-card__full-art--character"
+      src={art.src}
+      width={art.width}
+      height={art.height}
+      alt=""
+      loading="lazy"
+      aria-hidden="true"
+    />
+  )}
   <header class="tcg-char__head">
     <div>
       {prefix && <div class="tcg-char__profession">{prefix}</div>}
