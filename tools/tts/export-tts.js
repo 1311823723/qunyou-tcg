@@ -33,6 +33,10 @@ const CARD_ART = {
       front: "baizi-body.png",
       mega: "baizi-body-mega-v2.png",
     },
+    body_combo_001: {
+      front: "guamao-body.png",
+      mega: "guamao-body-mega.png",
+    },
   },
   characters: {
     char_aggro_001: "keke-assassin.png",

@@ -1,5 +1,7 @@
 import baiziBody from "../../tools/tts/assets/art/baizi-body.png";
 import baiziBodyMega from "../../tools/tts/assets/art/baizi-body-mega-v2.png";
+import guamaoBody from "../../tools/tts/assets/art/guamao-body.png";
+import guamaoBodyMega from "../../tools/tts/assets/art/guamao-body-mega.png";
 import kekeAssassin from "../../tools/tts/assets/art/keke-assassin.png";
 import kekeAssassinMega from "../../tools/tts/assets/art/keke-assassin-mega.png";
 import xiangcaiNeo from "../../tools/tts/assets/art/xiangcai-neo-final-v2.png";
@@ -20,6 +22,10 @@ const bodyArt: Record<string, BodyArt> = {
   body_trans_001: {
     front: baiziBody,
     extra: baiziBodyMega,
+  },
+  body_combo_001: {
+    front: guamaoBody,
+    extra: guamaoBodyMega,
   },
 };
 
