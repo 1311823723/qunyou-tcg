@@ -28,6 +28,8 @@
     "char_041_baizi_watcher": "baizi-watcher",
     "char_043_baizi_falcon": "baizi-falcon",
     "char_051_baizi_lobbyist": "baizi-lobbyist",
+    "char_060_linglong_defect-robot": "linglong-defect-robot",
+    "char_066_linglong_ninja": "linglong-ninja",
     "char_054_xiangcai_prophet": "xiangcai-prophet-final-v2",
     "char_058_xiangcai_politician": "xiangcai-politician-final",
     "char_061_xiangcai_watcher": "xiangcai-watcher-final-v2",
@@ -36,6 +38,7 @@
     "char_075_baizi_weilong": "baizi-weilong",
     "char_052_fengyaojing_desert-butcher": "fengyaojing-desert-butcher-v2",
     "char_003_qindi_sheriff": "qindi-sheriff",
-    "char_004_horus-lupercal_pelican": "horus-lupercal-pelican"
+    "char_004_horus-lupercal_pelican": "horus-lupercal-pelican",
+    "char_053_xiaoka_zaun-beast": "xiaoka-zaun-beast"
   }
 }
