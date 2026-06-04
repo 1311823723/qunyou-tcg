@@ -699,6 +699,18 @@ strong { color: var(--text-gold); font-weight: 800; }
 .filter-search:focus { outline: none; border-color: rgba(255,90,53,0.56); box-shadow: 0 0 0 3px rgba(255,90,53,0.12); }
 .filter-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.42rem; margin-top: 0.55rem; }
 .filter-group__label { margin-right: 0.12rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.66rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
+.filter-group--roles { padding-top: 0.05rem; }
+.filter-group--roles .filter-chip { min-width: 3.05rem; justify-content: center; padding-inline: 0.86rem; }
+.filter-group--tags { margin-top: 0.58rem; padding-top: 0.66rem; border-top: 1px solid var(--border-soft); }
+.filter-more { margin-top: 0.78rem; }
+.filter-more__summary { display: inline-flex; align-items: center; gap: 0.62rem; min-height: 2.15rem; padding: 0.36rem 0.72rem; border: 1px solid var(--border-soft); border-radius: 999px; color: var(--text-secondary); background: rgba(255,255,255,0.045); font-size: 0.74rem; font-weight: 900; cursor: pointer; transition: 0.16s ease; }
+.filter-more__summary:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.14); }
+.filter-more__summary::marker { content: ""; }
+.filter-more__summary::-webkit-details-marker { display: none; }
+.filter-more__summary::after { content: "⌄"; color: var(--text-gold); font-size: 0.88rem; line-height: 1; transition: transform 0.16s ease; }
+.filter-more[open] .filter-more__summary::after { transform: rotate(180deg); }
+.filter-more__hint { color: var(--text-faint); font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.filter-more[open] .filter-more__hint { color: var(--text-muted); }
 .filter-chip { display: inline-flex; padding: 0.38rem 0.72rem; border: 1px solid var(--border-soft); border-radius: 999px; color: var(--text-secondary); background: rgba(255,255,255,0.045); font-size: 0.74rem; font-weight: 800; text-decoration: none; transition: 0.16s ease; }
 .filter-chip:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.14); }
 .filter-chip.is-active { color: #ffc49a; background: rgba(255,90,53,0.15); border-color: rgba(255,90,53,0.42); box-shadow: 0 0 16px rgba(255,90,53,0.12); }

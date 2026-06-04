@@ -18,20 +18,25 @@ const allLabel = "全部";
         class="filter-search"
         autocomplete="off"
       />
-      <div class="filter-group">
+      <div class="filter-group filter-group--roles" aria-label="按角色定位筛选">
         <span class="filter-group__label">{roleLabel}</span>
         <button class="filter-chip is-active" data-filter="role" data-value="">{allLabel}</button>
         {MAIN_ROLES.map((r) => (
           <button class="filter-chip" data-filter="role" data-value={r}>{r}</button>
         ))}
       </div>
-      <div class="filter-group">
-        <span class="filter-group__label">标签</span>
-        <button class="filter-chip is-active" data-filter="tag" data-value="">{allLabel}</button>
-        {ALL_TAGS.map((t) => (
-          <button class="filter-chip" data-filter="tag" data-value={t}>{t}</button>
-        ))}
-      </div>
+      <details class="filter-more" id="tag-filter-panel">
+        <summary class="filter-more__summary">
+          <span>标签筛选</span>
+          <span class="filter-more__hint">展开全部标签</span>
+        </summary>
+        <div class="filter-group filter-group--tags">
+          <button class="filter-chip is-active" data-filter="tag" data-value="">{allLabel}</button>
+          {ALL_TAGS.map((t) => (
+            <button class="filter-chip" data-filter="tag" data-value={t}>{t}</button>
+          ))}
+        </div>
+      </details>
     </div>
     <div id="filter-empty" class="empty-state" style="display:none;">
       <div class="empty-state__icon">🔍</div>
@@ -101,6 +106,9 @@ const allLabel = "全部";
     // Sync search input
     const input = document.getElementById("filter-search") as HTMLInputElement;
     if (input && input.value !== search) input.value = search;
+
+    const tagPanel = document.getElementById("tag-filter-panel") as HTMLDetailsElement | null;
+    if (tagPanel && tag) tagPanel.open = true;
   }
 
   function updateURL(updates: Record<string, string>) {
