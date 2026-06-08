@@ -140,8 +140,7 @@
     "cards": [
       { "suit": "梅花", "rank": "J" },
       { "suit": "梅花", "rank": "Q" },
-      { "suit": "红桃", "rank": "7" },
-      { "suit": "红桃", "rank": "9" }
+      { "suit": "红桃", "rank": "7" }
     ]
   },
   {
@@ -155,7 +154,6 @@
     "cards": [
       { "suit": "方块", "rank": "3" },
       { "suit": "方块", "rank": "6" },
-      { "suit": "方块", "rank": "8" },
       { "suit": "梅花", "rank": "K" }
     ]
   },
@@ -170,6 +168,19 @@
     "cards": [
       { "suit": "方块", "rank": "10" },
       { "suit": "方块", "rank": "K" }
+    ]
+  },
+  {
+    "id": "hand_trick_009",
+    "name": "别急",
+    "cardType": "手牌",
+    "handType": "锦囊",
+    "tags": ["响应", "反制"],
+    "timing": "当任一玩家使用锦囊牌时",
+    "effectText": "抵消该锦囊牌的效果。",
+    "cards": [
+      { "suit": "红桃", "rank": "9" },
+      { "suit": "方块", "rank": "8" }
     ]
   }
 ]
