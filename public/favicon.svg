@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#26112f"/>
+      <stop offset="0.52" stop-color="#080812"/>
+      <stop offset="1" stop-color="#42110c"/>
+    </linearGradient>
+    <linearGradient id="card" x1="19" y1="12" x2="45" y2="52" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffe3a1"/>
+      <stop offset="0.45" stop-color="#ff6b35"/>
+      <stop offset="1" stop-color="#8f3cff"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="0" stdDeviation="2.4" flood-color="#ff6b35" flood-opacity="0.85"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="4.6" flood-color="#8f3cff" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <path d="M14 16.5C14 12.9 16.9 10 20.5 10h23c3.6 0 6.5 2.9 6.5 6.5v31c0 3.6-2.9 6.5-6.5 6.5h-23c-3.6 0-6.5-2.9-6.5-6.5v-31Z" fill="#090b15" stroke="#ffcf7a" stroke-width="2.5"/>
+  <path d="M20 17.5C20 16.1 21.1 15 22.5 15h19c1.4 0 2.5 1.1 2.5 2.5v29c0 1.4-1.1 2.5-2.5 2.5h-19c-1.4 0-2.5-1.1-2.5-2.5v-29Z" fill="none" stroke="url(#card)" stroke-width="2" filter="url(#glow)"/>
+  <path d="M32 20.5 37.3 29l8.2 3-8.2 3L32 43.5 26.7 35l-8.2-3 8.2-3L32 20.5Z" fill="#ff6b35" stroke="#ffe3a1" stroke-width="1.8" filter="url(#glow)"/>
+  <circle cx="32" cy="32" r="4.2" fill="#fff0bf"/>
+</svg>
