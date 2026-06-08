@@ -51,7 +51,7 @@
     "cardType": "手牌",
     "handType": "基础",
     "tags": ["回复"],
-    "timing": "出牌阶段",
+    "timing": "出牌阶段或处于濒死时",
     "effectText": "回复自己本体 1 点体力，不能超过体力上限。",
     "cards": [
       { "suit": "红桃", "rank": "A" },
