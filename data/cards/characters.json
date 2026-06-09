@@ -740,22 +740,22 @@
     "source": "鹅"
   },
   {
-    "id": "char_040_xiaoapan_detective",
-    "name": "侦探-小阿潘",
+    "id": "char_040_fengyaojing_detective",
+    "name": "侦探-风妖精",
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "控制",
     "tags": [
       "情报",
-      "干扰"
+      "博弈"
     ],
     "cost": {
-      "type": "休整",
-      "amount": 1
+      "type": "休整自身",
+      "text": "休整自身"
     },
     "timing": "出牌阶段",
     "skillName": "推理",
-    "effectText": "你可以观看对手所有手牌，然后选择其中一张，令其弃置。若弃置的是锦囊牌，你摸1张手牌。",
+    "effectText": "与对手拼点。若你胜，选择一项：观看对手所有手牌；或观看对手角色区内一张暗置角色。",
     "source": "鹅"
   },
   {
