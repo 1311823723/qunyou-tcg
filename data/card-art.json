@@ -11,6 +11,10 @@
     "body_combo_001": {
       "front": "guamao-body",
       "extra": "guamao-body-mega"
+    },
+    "body_aggro_001": {
+      "front": "weixiao-body",
+      "extra": "weixiao-body-mega"
     }
   },
   "characters": {
