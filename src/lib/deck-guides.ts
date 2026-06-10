@@ -9,7 +9,7 @@ export interface DeckGuide {
 export const deckGuides: Record<string, DeckGuide> = {
   deck_aggro_001: {
     title: "压血爆杀路线",
-    flow: ["加伤/必中", "打出【杀】", "触发上头", "追加【杀】", "累计 4 伤 Mega"],
+    flow: ["加伤/必中", "打出【杀】", "触发怦然杀意", "追加【杀】", "累计 4 伤 Mega"],
     priorities: [
       "优先保留能让【杀】命中或补伤害的角色，先把本体摸牌引擎打起来。",
       "暗置伏击角色不要急着翻，等对手出牌阶段或关键【杀】结算时制造不确定性。",
