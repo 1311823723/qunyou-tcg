@@ -124,6 +124,29 @@ function splitTitledName(name, fallbackName = "") {
   return { title: "Mega", name: clean || fallbackName };
 }
 
+function hpBadgeSvg(hp, cx, cy, options = {}) {
+  const accent = options.accent ?? "#ead28a";
+  const numberColor = options.numberColor ?? "#ffd98a";
+  const circleFill = options.circleFill ?? "url(#sealGlow)";
+  const innerCircle = options.innerCircle !== false
+    ? `<circle cx="${cx}" cy="${cy}" r="38" fill="rgba(0,0,0,0.38)" stroke="#ffffff" stroke-opacity="0.28" stroke-width="2"/>`
+    : "";
+  const labelWidth = options.labelWidth ?? 84;
+  const labelHeight = options.labelHeight ?? 30;
+  const labelX = cx - labelWidth / 2;
+  const labelY = cy + 36;
+
+  return `
+    <g filter="url(#inkShadow)">
+      <circle cx="${cx}" cy="${cy}" r="52" fill="${circleFill}" stroke="${accent}" stroke-width="5"/>
+      ${innerCircle}
+      <text x="${cx}" y="${cy + 13}" text-anchor="middle" font-size="42" font-weight="900" fill="${numberColor}">${escapeXml(hp)}</text>
+      <rect x="${labelX}" y="${labelY}" width="${labelWidth}" height="${labelHeight}" rx="${labelHeight / 2}" fill="rgba(10,9,12,0.94)" stroke="${accent}" stroke-width="3"/>
+      <text x="${cx}" y="${labelY + 21}" text-anchor="middle" font-size="17" font-weight="900" fill="#f8f3e8">体力</text>
+    </g>
+  `;
+}
+
 function artStage(label, variant, options = {}) {
   const accent = options.accent ?? (variant === "mega" ? "#d8b75c" : variant === "body" ? "#58c7e8" : "#9d6cff");
   const x = options.x ?? 122;
@@ -215,10 +238,7 @@ function renderBodyFront(card) {
       <path d="M594 70 C632 48, 686 58, 706 94 C682 120, 642 116, 608 102 Z" fill="rgba(12,20,28,0.72)" stroke="${accent}" stroke-width="3"/>
       <text x="650" y="103" text-anchor="middle" font-size="23" font-weight="900" fill="#f4f0e8">本体</text>
     </g>
-    <circle cx="103" cy="102" r="52" fill="url(#sealGlow)" stroke="#ead28a" stroke-width="5"/>
-    <circle cx="103" cy="102" r="38" fill="rgba(0,0,0,0.38)" stroke="#ffffff" stroke-opacity="0.28" stroke-width="2"/>
-    <text x="103" y="115" text-anchor="middle" font-size="42" font-weight="900" fill="#ffd98a">${escapeXml(card.hp)}</text>
-    <text x="103" y="154" text-anchor="middle" font-size="18" font-weight="900" fill="#f4f0e8">体力</text>
+    ${hpBadgeSvg(card.hp, 103, 102, { accent: "#ead28a", numberColor: "#ffd98a" })}
     <text x="658" y="270" text-anchor="middle" writing-mode="tb" font-size="${card.name.length > 4 ? 41 : 48}" font-weight="900" fill="#ffffff" stroke="#17100a" stroke-width="5" paint-order="stroke">${escapeXml(card.name)}</text>
     <text x="618" y="138" text-anchor="middle" writing-mode="tb" font-size="22" font-weight="900" fill="#ffe59a">${escapeXml(card.archetype)}</text>
     <g transform="translate(54 644)">${tagsSvg(tags, 0, 0, { fill: "rgba(0,0,0,0.38)", stroke: "rgba(255,255,255,0.34)", max: 5 })}</g>
@@ -243,9 +263,12 @@ function renderBodyMega(card) {
     ${artStage("Mega 原画预留", "mega", { x: 28, y: 28, width: 694, height: 964, accent: "#d8b75c", imageDataUri: card.__ttsMegaArt })}
     <path d="M42 56 C120 20, 190 32, 246 78 L206 126 C154 88, 98 98, 48 132 Z" fill="rgba(216,183,92,0.24)" stroke="#d8b75c" stroke-width="4"/>
     <text x="136" y="91" text-anchor="middle" font-size="30" font-weight="900" fill="#fff0a6">MEGA</text>
-    <circle cx="103" cy="162" r="48" fill="#1c1308" stroke="#d8b75c" stroke-width="5"/>
-    <text x="103" y="174" text-anchor="middle" font-size="42" font-weight="900" fill="#fff0a6">${escapeXml(card.hp)}</text>
-    <text x="103" y="210" text-anchor="middle" font-size="17" font-weight="900" fill="#f4f0e8">体力</text>
+    ${hpBadgeSvg(card.hp, 103, 162, {
+      accent: "#d8b75c",
+      numberColor: "#fff0a6",
+      circleFill: "#1c1308",
+      innerCircle: false,
+    })}
     <text x="670" y="230" text-anchor="middle" writing-mode="tb" font-size="${megaDisplayName.name.length > 4 ? 35 : 42}" font-weight="900" fill="#fff8cf" stroke="#1b1005" stroke-width="5" paint-order="stroke">${escapeXml(megaDisplayName.name)}</text>
     <text x="626" y="210" text-anchor="middle" writing-mode="tb" font-size="${megaDisplayName.title.length > 4 ? 24 : 28}" font-weight="900" fill="#d8b75c" stroke="#1b1005" stroke-width="3" paint-order="stroke">${escapeXml(megaDisplayName.title)}</text>
     <text x="586" y="120" text-anchor="middle" writing-mode="tb" font-size="20" font-weight="900" fill="#d8b75c">${escapeXml(card.archetype)}</text>
