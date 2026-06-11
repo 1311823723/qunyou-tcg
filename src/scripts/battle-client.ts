@@ -399,9 +399,7 @@ function renderCenter(game: GameView, me: PlayerView, opponent?: PlayerView) {
     </div>
     <div class="battle-toolbar">
       <button data-command="deck:shuffle" data-deck="hand">洗混共用牌堆</button>
-      <button data-command="card:inspect-deck" data-count="3">查看牌堆顶 3 张</button>
       <button data-command="hand:randomSelect" data-owner="${opponent?.id || ""}">随机展示对手手牌</button>
-      <button data-command="card:inspect-zone" data-owner="${opponent?.id || ""}" data-zone="characterSlots">查看对手暗置角色</button>
       <button data-command="marker:create">创建标记</button>
     </div>
     <details class="battle-log">
@@ -434,7 +432,8 @@ function renderZone(title: string, cards: CardView[], owner: PlayerView, zone: s
 function renderSlot(item: CardView | MarkerView | null, index: number, owner: PlayerView, isMe: boolean) {
   if (!item) return `<article class="battle-slot" data-drop-target="characterSlot:${index}"><span>角色位 ${index + 1}</span></article>`;
   if ("label" in item) {
-    return `<article class="battle-slot battle-slot--marker"><button data-marker="${item.id}">${escapeHtml(item.label)}</button></article>`;
+    const label = escapeHtml(item.label);
+    return `<article class="battle-slot battle-slot--marker"><button type="button" data-marker="${item.id}" data-marker-label="${label}">${label}</button></article>`;
   }
   return `<article class="battle-slot">${renderCard(item, { owner, zone: `slot:${index}`, interactive: isMe || !item.faceDown })}</article>`;
 }
@@ -492,8 +491,11 @@ function bindActions() {
     });
   });
   root.querySelectorAll<HTMLElement>("[data-marker]").forEach((element) => {
-    element.addEventListener("click", () => {
-      if (confirm("移除这个标记？")) send("marker:remove", { markerId: element.dataset.marker });
+    element.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const label = element.dataset.markerLabel || "这个";
+      if (confirm(`移除标记「${label}」？`))
+        send("marker:remove", { markerId: element.dataset.marker });
     });
   });
   root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
@@ -534,8 +536,6 @@ function handleCommand(element: HTMLElement) {
     send(command, { deck: element.dataset.deck });
   } else if (command === "card:inspect-zone") {
     send("card:inspect", { ownerId: element.dataset.owner, zone: element.dataset.zone });
-  } else if (command === "card:inspect-deck") {
-    send("card:inspect", { zone: "handDeck", count: Number(element.dataset.count) });
   } else if (command === "hand:randomSelect") {
     send(command, { ownerId: element.dataset.owner });
   } else if (command === "marker:create") {
@@ -554,7 +554,7 @@ function openCardMenu(element: HTMLElement) {
   dialogContent.innerHTML = `
     <div class="battle-card-menu">
       <h2>${definition ? escapeHtml(definition.name) : "暗置卡牌"}</h2>
-      ${definition ? `<p><strong>${escapeHtml(definition.subtitle)}</strong></p><p>${escapeHtml(definition.text)}</p>` : `<p>你当前无权查看这张牌。</p>`}
+      ${definition ? `<p><strong>${escapeHtml(definition.subtitle)}</strong></p><p>${escapeHtml(definition.text)}</p>` : `<p>这张卡牌为暗置状态，可以通过卡牌效果查看。</p>`}
       <div class="battle-card-menu__actions">
         ${moveButtons(instanceId, ownerId, zone, definition?.kind)}
       </div>
@@ -604,7 +604,8 @@ function moveButtons(instanceId: string, ownerId: string, zone: string, kind?: s
     `<button type="button" data-move="${target}" data-face-down="${String(faceDown)}">${label}</button>`,
   );
   if (!kind) {
-    buttons.push(`<button type="button" data-inspect-card="${instanceId}">按效果查看</button>`);
+    // 暗置卡牌：通过效果查看（如技能要求的检视）
+    buttons.push(`<button type="button" data-inspect-card="${instanceId}">查看暗置卡牌</button>`);
     return buttons.join("");
   }
   if (kind === "hand") {

@@ -581,29 +581,30 @@ export class BattleRoom extends DurableObject<Env> {
     if (instanceId) {
       const card = this.findCard(instanceId);
       if (!card) throw new Error("找不到这张牌。");
-      this.addLog(`${player.nickname} 查看了一张卡牌`);
-      return { title: "查看卡牌", cards: [this.cardView(card, true)] };
+      // 暗置角色位查看：记录具体位置
+      let slotLabel = "";
+      for (const owner of this.state.players) {
+        const slotIndex = owner.characterSlots.findIndex(
+          (item) => item && "instanceId" in item && item.instanceId === instanceId
+        );
+        if (slotIndex >= 0) {
+          slotLabel = `${owner.nickname} 的第${slotIndex + 1}个暗置角色`;
+          break;
+        }
+      }
+      this.addLog(`${player.nickname} 查看了${slotLabel || "一张卡牌"}`);
+      return { title: slotLabel || "查看卡牌", cards: [this.cardView(card, true)] };
     }
     const zone = cleanText(payload.zone, 30);
-    let cards: CardInstance[] = [];
-    let targetLabel = "";
-    if (zone === "handDeck") {
-      cards = this.state.handDeck.slice(-this.clamp(payload.count, 1, 10)).reverse();
-      targetLabel = "共用牌堆顶";
-    } else {
-      const ownerId = cleanText(payload.ownerId, 20);
-      const owner = this.state.players.find((item) => item.id === ownerId);
-      if (!owner) throw new Error("目标玩家不存在。");
-      if (zone === "hand") {
-        cards = owner.hand;
-        targetLabel = `${owner.nickname} 的手牌`;
-      } else if (zone === "characterSlots") {
-      cards = owner.characterSlots.filter((item): item is CardInstance => !!item && "instanceId" in item && Boolean(item.faceDown));
-        targetLabel = `${owner.nickname} 的暗置角色`;
-      } else throw new Error("不能查看该区域。");
+    const ownerId = cleanText(payload.ownerId, 20);
+    const owner = this.state.players.find((item) => item.id === ownerId);
+    if (!owner) throw new Error("目标玩家不存在。");
+    if (zone === "hand") {
+      const cards = owner.hand;
+      this.addLog(`${player.nickname} 查看了 ${owner.nickname} 的手牌`);
+      return { title: `${owner.nickname} 的手牌`, cards: cards.map((card) => this.cardView(card, true)) };
     }
-    this.addLog(`${player.nickname} 查看了${targetLabel}`);
-    return { title: `查看${targetLabel}`, cards: cards.map((card) => this.cardView(card, true)) };
+    throw new Error("不能查看该区域。");
   }
 
   private randomSelect(player: PlayerState, payload: Record<string, unknown>) {

@@ -1153,6 +1153,7 @@ strong { color: var(--text-gold); font-weight: 800; }
 /* ===== Dialog ===== */
 .battle-dialog { width: min(92vw, 38rem); padding: 0; border: 1px solid var(--border-panel); border-radius: 18px; color: var(--text-primary); background: #111522; box-shadow: 0 28px 100px rgba(0,0,0,0.72); }
 .battle-dialog::backdrop { background: rgba(2,3,8,0.78); backdrop-filter: blur(8px); }
+.battle-dialog::backdrop { background: rgba(2,3,8,0.78); backdrop-filter: blur(8px); }
 .battle-dialog__frame { position: relative; padding: 1.3rem; }
 .battle-dialog__close { position: absolute; top: 0.65rem; right: 0.65rem; width: 2rem; height: 2rem; border: 0; border-radius: 999px; color: var(--text-muted); background: rgba(255,255,255,0.06); cursor: pointer; }
 .battle-card-menu h2 { margin: 0 2.4rem 0.65rem 0; color: var(--text-gold); }
@@ -1170,26 +1171,31 @@ strong { color: var(--text-gold); font-weight: 800; }
   .battle-shell { min-height: calc(100dvh - 64px); }
   .battle-topbar { top: 64px; }
   .battle-topbar__back, .battle-topbar__status span { display: none; }
-  .battle-icon-btn { font-size: 0.58rem; }
-  .battle-root { padding: 0.3rem; }
+  .battle-icon-btn { font-size: 0.58rem; padding: 0.3rem 0.45rem; }
+  .battle-root { padding: 0.25rem; }
   .battle-lobby__heading { display: block; }
   .battle-lobby__heading p { margin-top: 0.7rem; }
   .battle-lobby__seats { grid-template-columns: 1fr; }
   .battle-lobby__controls { grid-template-columns: 1fr; }
-  .battle-player { border-radius: 11px; padding: 0.4rem 0.5rem; }
+  .battle-player { border-radius: 11px; padding: 0.35rem 0.4rem; }
   .battle-player__header { align-items: flex-start; }
-  .battle-counter { min-width: 4.2rem; padding-inline: 0.25rem; }
-  .battle-counter button { min-height: 1.2rem; }
+  .battle-counter { min-width: 3.8rem; padding-inline: 0.2rem; }
+  .battle-counter > strong { font-size: 0.82rem; }
+  .battle-counter button { min-height: 1.35rem; min-width: 1.2rem; }
   .battle-player__field { display: block; }
-  .battle-body-zone { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 0.4rem; }
-  .battle-character-slots { overflow-x: auto; grid-template-columns: repeat(4, minmax(4rem, 1fr)); }
-  .battle-slot { min-height: 5.8rem; }
-  .battle-side-zones { margin-top: 0.4rem; }
-  .battle-common-zones { grid-template-columns: 5rem 1fr 1fr; }
+  .battle-body-zone { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 0.35rem; }
+  .battle-character-slots { overflow-x: auto; grid-template-columns: repeat(4, minmax(4.5rem, 1fr)); }
+  .battle-slot { min-height: 5.6rem; }
+  .battle-side-zones { margin-top: 0.35rem; }
+  .battle-common-zones { grid-template-columns: 4.8rem 1fr 1fr; gap: 0.3rem; }
   .battle-common-zones .battle-pile,
-  .battle-common-zones .battle-zone { min-height: 4.5rem; }
-  .battle-zone__cards .battle-mini-card { width: 2.2rem; margin-left: -1.3rem; }
-  .battle-turnbar { justify-content: space-between; }
+  .battle-common-zones .battle-zone { min-height: 4rem; padding: 0.25rem; }
+  .battle-zone__cards .battle-mini-card { width: 2rem; margin-left: -1.2rem; }
+  .battle-turnbar { justify-content: space-between; font-size: 0.56rem; }
+  .battle-toolbar { gap: 0.25rem; }
+  .battle-toolbar button { min-height: 1.8rem; padding: 0.3rem 0.45rem; font-size: 0.6rem; }
   .battle-card-menu__actions { grid-template-columns: 1fr; }
-  .battle-mini-card { width: clamp(3rem, 8vw, 4.5rem); }
+  .battle-mini-card { width: clamp(3.2rem, 9vw, 4.8rem); }
+  .battle-player--self .battle-card-row .battle-mini-card { width: clamp(3.8rem, 10vw, 5.5rem); }
+  .battle-log ol { max-height: 4rem; font-size: 0.52rem; }
 }
