@@ -6,7 +6,7 @@ import DeckPlayGuide from "../../components/DeckPlayGuide.astro";
 import { getDeckById, resolveDeck, getRoleDistribution, getTagDistribution } from "../../lib/decks";
 import { getDeckGuide } from "../../lib/deck-guides";
 import { getArchetypeKeywords, getArchetypeBlurb, getArchetypeRisks } from "../../lib/archetypes";
-import { ROLE_COLORS_CSS } from "../../lib/ui";
+import { ROLE_COLORS_CSS, archetypeThemeClass } from "../../lib/ui";
 
 const deck = getDeckById("deck_mizai_001");
 if (!deck) throw new Error("Deck not found");
@@ -30,15 +30,15 @@ for (const n of restCosts) restDist[String(n)] = (restDist[String(n)] || 0) + 1;
 
 ---
 <Layout title={deck.name}>
-  <div class="page-wrap">
+  <div class={`page-wrap ${archetypeThemeClass(deck.archetype)}`}>
     <header class="deck-hero">
-      <div class="tag-pill tag-pill--aggro mb-3">PRECONSTRUCTED DECK</div>
+      <div class="tag-pill tag-pill--deck mb-3">PRECONSTRUCTED DECK</div>
       <h1 class="deck-hero__title">{deck.name}</h1>
       <div class="deck-hero__archetype">{deck.archetype}</div>
       {blurb && <p class="deck-hero__blurb">{blurb}</p>}
       {risk && <p class="deck-hero__risk">风险：{risk}</p>}
       <div class="flex flex-wrap gap-1 mt-4">
-        {keywords.map((k) => <span class="tag-pill tag-pill--aggro">{k}</span>)}
+        {keywords.map((k) => <span class="tag-pill tag-pill--deck">{k}</span>)}
       </div>
       {deck.notes && <p class="deck-hero__blurb" style="font-size: 0.88rem; margin-top: 1rem; opacity: 0.9;">{deck.notes}</p>}
     </header>
@@ -95,7 +95,7 @@ for (const n of restCosts) restDist[String(n)] = (restDist[String(n)] || 0) + 1;
         <h3 class="font-bold text-sm mt-5 mb-2" style="color: var(--color-text-highlight);">休整费用分布</h3>
         <div class="flex flex-wrap gap-2">
           {Object.entries(restDist).sort(([a],[b]) => Number(a)-Number(b)).map(([amt, count]) => (
-            <span class="tag-pill tag-pill--aggro">休整 {amt} ×{count}</span>
+            <span class="tag-pill tag-pill--deck">休整 {amt} ×{count}</span>
           ))}
         </div>
       </div>

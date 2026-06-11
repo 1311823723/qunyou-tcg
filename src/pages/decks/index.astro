@@ -3,16 +3,17 @@ import Layout from "../../components/Layout.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import { allDecks, resolveDeck, getDeckSlug } from "../../lib/decks";
 import { getArchetypeKeywords } from "../../lib/archetypes";
+import { archetypeThemeClass } from "../../lib/ui";
 ---
 <Layout title="预组卡组">
   <div class="page-wrap">
     <PageHeader title="预组卡组" subtitle="Preconstructed Decks · 构筑好的 16 张角色 + 本体（含额外形态）。" badge="DECKS" />
-    <div class="grid gap-4 max-w-3xl">
+    <div class="deck-spotlight-grid">
       {allDecks.map((deck) => {
         const resolved = resolveDeck(deck);
         const kw = getArchetypeKeywords(deck.archetype);
         return (
-          <a href={`/decks/${getDeckSlug(deck)}`} class="deck-spotlight" style="text-decoration: none; color: inherit;">
+          <a href={`/decks/${getDeckSlug(deck)}`} class={`deck-spotlight ${archetypeThemeClass(deck.archetype)}`}>
             <div>
               <h2 class="deck-hero__title" style="font-size: clamp(1.55rem, 4vw, 2.4rem);">{deck.name}</h2>
               <div class="deck-hero__archetype">{deck.archetype}</div>
@@ -20,7 +21,7 @@ import { getArchetypeKeywords } from "../../lib/archetypes";
                 <p class="skill-text mt-2">本体 <strong>{resolved.body.name}</strong> · HP {resolved.body.hp} · 角色 {resolved.characters.length}</p>
               )}
               <div class="flex flex-wrap gap-1 mt-3">
-                {kw.map((k) => <span class="tag-pill tag-pill--aggro">{k}</span>)}
+                {kw.map((k) => <span class="tag-pill tag-pill--deck">{k}</span>)}
               </div>
             </div>
             <span class="btn btn--ghost">进入攻略 →</span>

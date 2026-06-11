@@ -19,6 +19,17 @@ export const ROLE_COLORS_CSS: Record<string, string> = {
   "伏击": "var(--color-role-ambush)",
 };
 
+const ARCHETYPE_THEME: Record<string, string> = {
+  "爆杀流": "aggro",
+  "密裁": "mizai",
+  "锦囊流": "combo",
+  "拟态流": "trans",
+};
+
+export function archetypeThemeClass(archetype: string): string {
+  return `deck-theme deck-theme--${ARCHETYPE_THEME[archetype] ?? "neutral"}`;
+}
+
 export function roleVar(mainRole: string): string {
   return ROLE_VAR[mainRole] ?? "role-neutral";
 }

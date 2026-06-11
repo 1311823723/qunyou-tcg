@@ -4,6 +4,7 @@ import HeroCardShowcase from "../components/HeroCardShowcase.astro";
 import { allBodies, allCharacters, getHandCardTotal, getBodyWithExtraFormCount } from "../lib/cards";
 import { allDecks } from "../lib/decks";
 import { getArchetypeKeywords } from "../lib/archetypes";
+import { archetypeThemeClass } from "../lib/ui";
 
 const handTotal = getHandCardTotal();
 
@@ -33,43 +34,14 @@ const collections = [
           <a href="/cards" class="btn btn--secondary">浏览全卡</a>
           <a href="/decks" class="btn btn--ghost">查看预组</a>
         </div>
-        <div class="hero-chips">
-          <span class="hero-chip">本体承伤</span>
-          <span class="hero-chip">暗置角色</span>
-          <span class="hero-chip">翻面进化</span>
-        </div>
       </div>
       <HeroCardShowcase />
     </div>
   </section>
 
-  <section class="page-wrap" style="padding-top: 0;">
-    <div class="hud-panel" style="padding: 1rem;">
-      <div class="stat-hud">
-        <div class="stat-hud__item">
-          <div class="stat-hud__value" style="color: var(--color-role-attack)">{allBodies.length}</div>
-          <div class="stat-hud__label">本体牌</div>
-        </div>
-        <div class="stat-hud__item">
-          <div class="stat-hud__value" style="color: var(--color-mega-purple)">{getBodyWithExtraFormCount()}</div>
-          <div class="stat-hud__label">额外形态</div>
-        </div>
-        <div class="stat-hud__item">
-          <div class="stat-hud__value" style="color: var(--color-text-highlight)">{allCharacters.length}</div>
-          <div class="stat-hud__label">角色牌</div>
-        </div>
-        <div class="stat-hud__item">
-          <div class="stat-hud__value" style="color: var(--color-role-defend)">{handTotal}</div>
-          <div class="stat-hud__label">共用手牌</div>
-        </div>
-      </div>
-      <p class="text-center text-xs mt-3" style="color: var(--text-muted);">Data source · JSON card database · {allDecks.length} 套预组</p>
-    </div>
-  </section>
-
   <section class="page-wrap py-4">
     <h2 class="section-heading">核心机制链路</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+    <div class="mechanic-flow">
       {mechanics.map((m) => (
         <div class="mechanic-tile" style={`--tile-color: ${m.color}; border-top-color: ${m.color}`}>
           <div class="mechanic-tile__icon">{m.icon}</div>
@@ -92,22 +64,23 @@ const collections = [
         </a>
       ))}
     </div>
+    <p class="collection-summary">{getBodyWithExtraFormCount()} 种额外形态 · {allDecks.length} 套预组 · 数据来自 JSON 卡牌库</p>
   </section>
 
   {allDecks.length > 0 && (
     <section class="page-wrap pb-12">
       <h2 class="section-heading">预组卡组 ({allDecks.length} 套)</h2>
-      <div class="grid gap-4">
+      <div class="deck-spotlight-grid">
         {allDecks.map((d) => {
           const dkKeywords = getArchetypeKeywords(d.archetype);
           const dkSlug = d.id.replace(/^deck_/, "").replace(/_\d+$/, "");
           return (
-            <a href={`/decks/${dkSlug}`} class="deck-spotlight" style="text-decoration: none; color: inherit;">
+            <a href={`/decks/${dkSlug}`} class={`deck-spotlight ${archetypeThemeClass(d.archetype)}`}>
               <div>
                 <div class="deck-hero__title" style="font-size: clamp(1.6rem, 4vw, 2.4rem);">{d.name}</div>
                 <div class="deck-hero__archetype">{d.archetype}</div>
                 <div class="flex flex-wrap gap-1 mt-3">
-                  {dkKeywords.map((k) => <span class="tag-pill tag-pill--aggro">{k}</span>)}
+                  {dkKeywords.map((k) => <span class="tag-pill tag-pill--deck">{k}</span>)}
                 </div>
                 {d.notes && <p class="deck-hero__blurb" style="margin-top: 0.75rem; font-size: 0.9rem;">{d.notes}</p>}
               </div>

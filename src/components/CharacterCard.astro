@@ -41,7 +41,9 @@ const textDensity = textLength > 90 ? "dense" : textLength > 65 ? "medium" : "no
       <TagPill label={c.mainRole} variant="role" role={c.mainRole} />
     </div>
   </header>
-  <div class={`tcg-char__art ${art ? "tcg-char__art--image" : ""}`} aria-hidden="true"></div>
+  <div class={`tcg-char__art ${art ? "tcg-char__art--image" : ""}`} aria-hidden="true">
+    {art && <img src={art.src} width={art.width} height={art.height} alt="" loading="lazy" />}
+  </div>
   <div class="tcg-char__tags">
     {c.tags.map((tag) => <TagPill label={tag} />)}
   </div>
