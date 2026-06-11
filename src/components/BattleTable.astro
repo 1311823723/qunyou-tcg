@@ -9,22 +9,48 @@ const { catalog } = Astro.props;
 ---
 <div class="battle-shell" id="battle-app">
   <header class="battle-topbar">
-    <div>
-      <a href="/play" class="battle-topbar__back">退出牌桌</a>
-      <strong id="battle-room-code">房间 ------</strong>
+    <div class="battle-topbar__left">
+      <a href="/play" class="battle-topbar__back" aria-label="退出牌桌">← 退出</a>
+      <strong id="battle-room-code" class="battle-topbar__code">房间 ------</strong>
+      <button type="button" id="battle-copy-code" class="battle-icon-btn battle-icon-btn--compact" title="复制房间码">复制码</button>
     </div>
-    <div class="battle-topbar__status">
-      <span id="battle-connection" data-state="connecting">连接中</span>
-      <button type="button" id="battle-copy-link" class="battle-icon-btn">复制邀请链接</button>
+    <div class="battle-topbar__center">
+      <p class="battle-notice" id="battle-notice">
+        <span class="battle-notice__dot" aria-hidden="true"></span>
+        手动结算 · 系统不判定规则合法性
+      </p>
+    </div>
+    <div class="battle-topbar__right">
+      <span id="battle-connection" class="battle-connection" data-state="connecting" role="status">
+        <span class="battle-connection__dot" aria-hidden="true"></span>
+        <span class="battle-connection__text">连接中</span>
+      </span>
+      <a href="/rules" class="battle-icon-btn" target="_blank" rel="noopener">规则</a>
+      <button type="button" id="battle-copy-link" class="battle-icon-btn">邀请链接</button>
     </div>
   </header>
+
+  <div id="battle-toast" class="battle-toast" role="status" aria-live="polite" hidden></div>
 
   <main id="battle-root" class="battle-root" aria-live="polite">
     <section class="battle-loading hud-panel">
       <h1>正在连接牌桌</h1>
-      <p>正在恢复你的匿名座位与牌局状态。</p>
+      <p>正在恢复你的匿名座位与牌局状态。同一浏览器会自动认回座位。</p>
     </section>
   </main>
+
+  <div id="battle-coach" class="battle-coach" hidden>
+    <div class="battle-coach__backdrop"></div>
+    <div class="battle-coach__card hud-panel">
+      <span class="battle-kicker">新手指引</span>
+      <h2 id="battle-coach-title"></h2>
+      <p id="battle-coach-text"></p>
+      <div class="battle-coach__actions">
+        <button type="button" id="battle-coach-skip" class="battle-small-btn">跳过</button>
+        <button type="button" id="battle-coach-next" class="btn btn--primary">下一步</button>
+      </div>
+    </div>
+  </div>
 
   <dialog id="battle-dialog" class="battle-dialog">
     <form method="dialog" class="battle-dialog__frame">

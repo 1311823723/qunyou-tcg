@@ -1,10 +1,10 @@
 ---
-import Layout from "../../components/Layout.astro";
+import BattleLayout from "../../components/BattleLayout.astro";
 import BattleTable from "../../components/BattleTable.astro";
 import { getBattleCatalog } from "../../lib/battle-catalog";
 
 const catalog = getBattleCatalog();
 ---
-<Layout title="在线牌桌" description="群友杀 TCG 1v1 在线手动牌桌">
+<BattleLayout title="在线牌桌" description="群友杀 TCG 1v1 在线手动牌桌">
   <BattleTable catalog={catalog} />
-</Layout>
+</BattleLayout>

@@ -1,5 +1,13 @@
 import { allBodies, allCharacters, allHandCards, resolveBodyCard } from "./cards";
 import { allDecks } from "./decks";
+import { getArchetypeBlurb } from "./archetypes";
+
+const ARCHETYPE_THEME_SLUG: Record<string, string> = {
+  "爆杀流": "aggro",
+  "密裁": "mizai",
+  "锦囊流": "combo",
+  "拟态流": "trans",
+};
 
 export interface BattleCatalogCard {
   id: string;
@@ -12,6 +20,10 @@ export interface BattleCatalogCard {
   /** 本体额外形态卡图 */
   extraImagePath?: string;
   extraName?: string;
+  /** Mega 技能描述 */
+  extraSubtitle?: string;
+  /** Mega 效果文本 */
+  extraText?: string;
   megaMax?: number;
 }
 
@@ -29,6 +41,8 @@ export function getBattleCatalog() {
       imagePath: `/cards/bodies/${body.id}_front.webp`,
       extraImagePath: `/cards/bodies/${body.id}_mega_back.webp`,
       extraName: body.extraForm?.name,
+      extraSubtitle: body.extraForm ? `${body.archetype} · ${body.extraForm.skillName}` : undefined,
+      extraText: body.extraForm?.effectText,
       megaMax: body.extraFormProgressMax,
     };
   }
@@ -61,6 +75,8 @@ export function getBattleCatalog() {
       name: deck.name,
       archetype: deck.archetype,
       bodyId: deck.bodyId,
+      theme: ARCHETYPE_THEME_SLUG[deck.archetype] ?? "neutral",
+      blurb: getArchetypeBlurb(deck.archetype),
     })),
   };
 }

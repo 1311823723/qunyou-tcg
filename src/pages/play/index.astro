@@ -13,9 +13,9 @@ const catalog = getBattleCatalog();
       <section class="hud-panel battle-entry__panel">
         <h2>创建房间</h2>
         <form id="create-room-form" class="battle-form">
-          <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" /></label>
+          <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="你的昵称" /></label>
           <label>预组
-            <select name="deckId" required>
+            <select name="deckId" required data-deck-select>
               {catalog.decks.map((deck) => <option value={deck.id}>{deck.name} · {deck.archetype}</option>)}
             </select>
           </label>
@@ -27,10 +27,12 @@ const catalog = getBattleCatalog();
       <section class="hud-panel battle-entry__panel">
         <h2>加入房间</h2>
         <form id="join-room-form" class="battle-form">
-          <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" /></label>
-          <label>房间码<input name="roomCode" minlength="6" maxlength="6" required autocomplete="off" /></label>
+          <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="你的昵称" /></label>
+          <label>房间码
+            <input name="roomCode" class="battle-room-input" minlength="6" maxlength="6" required autocomplete="off" placeholder="6 位码" inputmode="text" autocapitalize="characters" spellcheck="false" />
+          </label>
           <label>预组
-            <select name="deckId" required>
+            <select name="deckId" required data-deck-select>
               {catalog.decks.map((deck) => <option value={deck.id}>{deck.name} · {deck.archetype}</option>)}
             </select>
           </label>
@@ -40,15 +42,19 @@ const catalog = getBattleCatalog();
       </section>
     </div>
 
+    <section class="battle-entry__preview hud-panel" id="battle-entry-preview" aria-live="polite"></section>
+
     <section class="battle-entry__notes">
-      <h2 class="section-heading">首版说明</h2>
+      <h2 class="section-heading">对战说明</h2>
       <div class="battle-entry__features">
-        <p><strong>手动结算</strong><br />系统不判断技能、伤害和费用是否合法。</p>
+        <p><strong>手动结算</strong><br />系统不判断技能、伤害和费用是否合法，请双方诚信操作。</p>
         <p><strong>隐藏信息</strong><br />对手只能看到你的手牌数量和暗置卡背。</p>
         <p><strong>断线恢复</strong><br />同一浏览器会自动认回座位，房间保留 24 小时。</p>
       </div>
     </section>
   </div>
+
+  <script id="battle-entry-catalog" type="application/json" set:html={JSON.stringify(catalog)}></script>
 </Layout>
 
 <script>
@@ -56,13 +62,45 @@ const catalog = getBattleCatalog();
 
   const API_URL = getBattleApiUrl();
   const TOKEN_KEY = "qunyou-battle-token-v1";
+  const catalog = JSON.parse(document.querySelector("#battle-entry-catalog")?.textContent || "{}");
   const invitedRoomCode = new URLSearchParams(location.search).get("room")?.trim().toUpperCase();
   const joinRoomInput = document.querySelector("#join-room-form input[name='roomCode']");
+  const preview = document.querySelector("#battle-entry-preview");
 
   if (invitedRoomCode && joinRoomInput instanceof HTMLInputElement) {
     joinRoomInput.value = invitedRoomCode;
     document.querySelector("#join-room-form input[name='nickname']")?.focus();
   }
+
+  joinRoomInput?.addEventListener("input", (event) => {
+    const input = event.currentTarget;
+    if (!(input instanceof HTMLInputElement)) return;
+    input.value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  });
+
+  function renderDeckPreview(deckId) {
+    if (!preview) return;
+    const deck = catalog.decks?.find((item) => item.id === deckId);
+    const body = deck ? catalog.cards?.[deck.bodyId] : undefined;
+    if (!deck) {
+      preview.innerHTML = "";
+      return;
+    }
+    const theme = deck.theme === "aggro" ? "deck-theme" : `deck-theme deck-theme--${deck.theme}`;
+    preview.innerHTML = `<article class="battle-deck-preview__card ${theme}">
+      ${body?.imagePath ? `<img src="${body.imagePath}" alt="" class="battle-deck-preview__art" loading="lazy" />` : ""}
+      <div>
+        <span class="battle-deck-preview__tag">${deck.archetype}</span>
+        <strong>${deck.name}</strong>
+        <p>${deck.blurb || body?.subtitle || ""}</p>
+      </div>
+    </article>`;
+  }
+
+  document.querySelectorAll("[data-deck-select]").forEach((select) => {
+    renderDeckPreview(select.value);
+    select.addEventListener("change", () => renderDeckPreview(select.value));
+  });
 
   function token() {
     const saved = localStorage.getItem(TOKEN_KEY);
@@ -133,7 +171,7 @@ const catalog = getBattleCatalog();
     const payload = values(form);
     const code = String(payload.roomCode).trim().toUpperCase();
     if (!/^[A-Z0-9]{6}$/.test(code)) {
-      setFormStatus(form, "请输入 6 位房间码。", "error");
+      setFormStatus(form, "请输入 6 位房间码（字母或数字）。", "error");
       return;
     }
     setFormStatus(form, "资料已保存，正在进入房间…", "loading");
