@@ -16,8 +16,10 @@ const costText = formatCharacterCost(c.cost);
 const ck = costKind(c.cost);
 const rv = roleVar(c.mainRole);
 const art = getCharacterArt(c.id);
+const textLength = c.effectText.length + c.timing.length + (c.notes?.length ?? 0) * 2;
+const textDensity = textLength > 90 ? "dense" : textLength > 65 ? "medium" : "normal";
 ---
-<CardFrame class={`tcg-char ${art ? "tcg-char--with-art" : ""} ${compact ? "tcg-char--compact" : ""}`} role={rv} kind="character">
+<CardFrame class={`tcg-char tcg-char--${textDensity} ${art ? "tcg-char--with-art" : ""} ${c.notes ? "tcg-char--with-notes" : ""} ${compact ? "tcg-char--compact" : ""}`} role={rv} kind="character">
   {art && (
     <img
       class="tcg-card__full-art tcg-card__full-art--character"

@@ -418,7 +418,14 @@ strong { color: var(--text-gold); font-weight: 800; }
 .card-frame[data-kind=hand] { --card-accent: var(--role-defend); }
 .card-frame[data-kind=trick] { --card-accent: var(--accent-mega-purple); }
 
-.tcg-char { display: flex; min-height: 420px; flex-direction: column; }
+.tcg-char {
+  container-type: inline-size;
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: 5 / 7;
+  flex-direction: column;
+}
 .tcg-card__full-art {
   position: absolute;
   inset: 0;
@@ -449,13 +456,14 @@ strong { color: var(--text-gold); font-weight: 800; }
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 1rem 1.05rem 0.72rem;
+  min-height: 3.55rem;
+  padding: 0.72rem 0.82rem 0.56rem;
   border-bottom: 1px solid var(--border-soft);
   background: linear-gradient(90deg, color-mix(in srgb, var(--card-accent) 20%, rgba(5, 6, 12, 0.62)), rgba(5, 6, 12, 0.28));
   backdrop-filter: blur(10px);
 }
-.tcg-char__profession { margin-bottom: 0.24rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.64rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; }
-.tcg-char__name { margin: 0; color: var(--text-primary); font-size: 1.08rem; font-weight: 900; line-height: 1.25; }
+.tcg-char__profession { margin-bottom: 0.16rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; }
+.tcg-char__name { margin: 0; color: var(--text-primary); font-size: 1rem; font-weight: 900; line-height: 1.2; }
 .tcg-char__badges { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
 .tcg-char__source { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 9999px; font-family: var(--font-body); font-size: 0.7rem; font-weight: 900; line-height: 1; flex-shrink: 0; }
 .tcg-char__source--鹅 { color: #fbbf24; background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.35); }
@@ -464,8 +472,10 @@ strong { color: var(--text-gold); font-weight: 800; }
 .tcg-char__source--盟 { color: #c084fc; background: rgba(192,132,252,0.15); border: 1px solid rgba(192,132,252,0.35); }
 .tcg-char__art {
   position: relative;
-  height: 90px;
-  margin: 0.78rem 0.78rem 0.65rem;
+  height: 25cqw;
+  min-height: 68px;
+  max-height: 90px;
+  margin: 0.58rem 0.62rem 0.48rem;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--card-accent) 24%, var(--border-soft));
   border-radius: 14px;
@@ -493,9 +503,16 @@ strong { color: var(--text-gold); font-weight: 800; }
   text-shadow: 0 0 24px var(--card-accent);
 }
 .tcg-char__art--image {
-  height: 150px;
+  height: 34cqw;
+  min-height: 92px;
+  max-height: 118px;
   background: transparent;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.tcg-char--with-notes .tcg-char__art--image {
+  height: 26cqw;
+  min-height: 72px;
+  max-height: 92px;
 }
 .tcg-char__art--image::before {
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
@@ -503,33 +520,36 @@ strong { color: var(--text-gold); font-weight: 800; }
 .tcg-char__art--image::after {
   content: none;
 }
-.tcg-char__tags { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0 1rem 0.62rem; }
+.tcg-char__tags { display: flex; min-height: 1.72rem; flex-wrap: wrap; align-content: flex-start; gap: 0.28rem; padding: 0 0.72rem 0.42rem; overflow: hidden; }
 .tcg-char__meta {
   display: grid;
   grid-template-columns: 1fr 1.2fr;
-  gap: 0.5rem;
-  margin: 0 0.78rem;
+  gap: 0.38rem;
+  margin: 0 0.62rem;
 }
 .tcg-char__meta-box,
 .tcg-char__cost,
 .tcg-char__timing {
   min-width: 0;
-  padding: 0.48rem 0.58rem;
+  min-height: 2.66rem;
+  padding: 0.36rem 0.46rem;
   border: 1px solid var(--border-soft);
   border-radius: 10px;
   background: rgba(2, 4, 10, 0.5);
   backdrop-filter: blur(10px);
-  font-size: 0.72rem;
-  line-height: 1.35;
+  font-size: 0.67rem;
+  line-height: 1.28;
 }
-.tcg-char__meta-label { display: block; margin-bottom: 0.12rem; color: var(--text-faint); font-family: var(--font-mono); font-size: 0.56rem; font-weight: 900; letter-spacing: 0.14em; }
+.tcg-char__meta-label { display: block; margin-bottom: 0.08rem; color: var(--text-faint); font-family: var(--font-mono); font-size: 0.5rem; font-weight: 900; letter-spacing: 0.14em; }
 .tcg-char__cost { color: var(--text-gold); font-weight: 900; }
 .tcg-char__cost--exit { color: #ff8d82; border-color: rgba(255,87,72,0.32); background: rgba(70, 12, 16, 0.48); }
 .tcg-char__cost--compound { color: #c8a8ff; border-color: rgba(157,108,255,0.34); background: rgba(42, 22, 76, 0.48); }
 .tcg-char__skill {
+  min-height: 0;
   flex: 1;
-  margin: 0.72rem 0.78rem 0.82rem;
-  padding: 0.86rem;
+  margin: 0.52rem 0.62rem 0.58rem;
+  padding: 0.62rem;
+  overflow: hidden;
   border: 1px solid var(--border-soft);
   border-radius: 14px;
   background:
@@ -541,12 +561,14 @@ strong { color: var(--text-gold); font-weight: 800; }
     inset 0 0 0 1px rgba(0,0,0,0.28),
     0 10px 28px rgba(0,0,0,0.18);
 }
-.tcg-char__skill-name { margin-bottom: 0.5rem; color: var(--text-gold); font-size: 0.92rem; font-weight: 900; }
+.tcg-char__skill-name { margin-bottom: 0.32rem; color: var(--text-gold); font-size: 0.82rem; font-weight: 900; line-height: 1.25; }
 .tcg-char__skill-text,
-.skill-text { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.78; text-shadow: 0 1px 2px rgba(0,0,0,0.42); word-break: break-word; }
-.tcg-char__deck { padding: 0 1rem 0.82rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.62rem; text-align: right; }
-.tcg-char__notes { margin: 0 0.86rem 0.86rem; padding-top: 0.58rem; border-top: 1px dashed var(--border-soft); color: var(--text-muted); font-size: 0.74rem; line-height: 1.65; }
-.tcg-char--compact { min-height: 310px; }
+.skill-text { color: var(--text-secondary); font-size: 0.78rem; line-height: 1.58; text-shadow: 0 1px 2px rgba(0,0,0,0.42); word-break: break-word; }
+.tcg-char--medium .tcg-char__skill-text { font-size: 0.73rem; line-height: 1.5; }
+.tcg-char--dense .tcg-char__skill-text { font-size: 0.68rem; line-height: 1.44; }
+.tcg-char__deck { flex-shrink: 0; padding: 0 0.72rem 0.48rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.56rem; line-height: 1; text-align: right; }
+.tcg-char__notes { flex-shrink: 0; margin: 0 0.7rem 0.52rem; padding-top: 0.38rem; border-top: 1px dashed var(--border-soft); color: var(--text-muted); font-size: 0.64rem; line-height: 1.38; }
+.tcg-char--compact { min-height: 310px; aspect-ratio: auto; }
 .tcg-char--compact .tcg-char__art { height: 52px; }
 .tcg-char--compact .tcg-char__tags { display: none; }
 .tcg-char--compact .tcg-char__meta { grid-template-columns: 1fr; }
@@ -841,6 +863,6 @@ strong { color: var(--text-gold); font-weight: 800; }
   .hero-actions .btn { width: 100%; }
   .hero-section { padding-top: 2.25rem; }
   .hero-showcase { min-height: 340px; max-width: 310px; }
-  .tcg-char { min-height: 390px; }
+  .tcg-char { min-height: 0; }
   .hud-panel { border-radius: 18px; }
 }
