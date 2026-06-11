@@ -8,11 +8,13 @@ export interface Props {
 const { title, description } = Astro.props;
 const currentPath = Astro.url.pathname;
 const links = [
+  { href: "/play", label: "在线对战" },
   { href: "/rules", label: "规则" },
   { href: "/cards", label: "卡牌" },
   { href: "/decks", label: "预组" },
 ];
 function isActive(href: string) {
+  if (href === "/play") return currentPath.startsWith("/play");
   if (href === "/cards") return currentPath.startsWith("/cards");
   if (href === "/decks") return currentPath.startsWith("/decks");
   return currentPath === href;

@@ -1,0 +1,37 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const root = new URL("../../", import.meta.url);
+const bodies = JSON.parse(await readFile(new URL("data/cards/bodies.json", root), "utf8"));
+const handCards = JSON.parse(await readFile(new URL("data/cards/hand_cards.json", root), "utf8"));
+const deckFiles = ["aggro", "mizai", "combo", "trans"];
+const decks = await Promise.all(deckFiles.map(async (slug) =>
+  JSON.parse(await readFile(new URL(`data/decks/${slug}.deck.json`, root), "utf8")),
+));
+
+function progressMax(body) {
+  const match = body.extraForm?.condition?.match(/累计[^\d]{0,24}(\d+)\s*(?:点|次|张)/);
+  return match ? Number(match[1]) : undefined;
+}
+
+test("the shared hand deck contains exactly 52 physical cards", () => {
+  assert.equal(handCards.reduce((total, card) => total + card.cards.length, 0), 52);
+});
+
+test("every online deck has one body and sixteen characters", () => {
+  for (const deck of decks) {
+    assert.ok(bodies.some((body) => body.id === deck.bodyId));
+    assert.equal(deck.characterIds.length, 16);
+    assert.equal(new Set(deck.characterIds).size, 16);
+  }
+});
+
+test("current body cards expose the expected Mega progress maxima", () => {
+  assert.deepEqual(Object.fromEntries(bodies.map((body) => [body.id, progressMax(body)])), {
+    body_aggro_001: 4,
+    body_mizai_001: 6,
+    body_combo_001: 6,
+    body_trans_001: 4,
+  });
+});

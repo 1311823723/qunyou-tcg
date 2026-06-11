@@ -42,6 +42,10 @@ export interface BodyCard {
   notes?: string;
 }
 
+export interface ResolvedBodyCard extends BodyCard {
+  extraFormProgressMax?: number;
+}
+
 export interface CharacterCost {
   type: string;
   amount?: number;
@@ -102,6 +106,20 @@ export function isRedSuit(suit: string): boolean {
 
 export function getBodyById(id: string): BodyCard | undefined {
   return allBodies.find((b) => b.id === id);
+}
+
+export function getExtraFormProgressMax(body: BodyCard): number | undefined {
+  const condition = body.extraForm?.condition;
+  if (!condition) return undefined;
+  const match = condition.match(/累计[^\d]{0,24}(\d+)\s*(?:点|次|张)/);
+  return match ? Number(match[1]) : undefined;
+}
+
+export function resolveBodyCard(body: BodyCard): ResolvedBodyCard {
+  return {
+    ...body,
+    extraFormProgressMax: getExtraFormProgressMax(body),
+  };
 }
 
 export function getCharacterById(id: string): CharacterCard | undefined {

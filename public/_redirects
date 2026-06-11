@@ -1,0 +1,2 @@
+/play/room /play/room/index.html 200
+/play/:roomCode /play/room/index.html 200

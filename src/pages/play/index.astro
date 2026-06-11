@@ -1,0 +1,102 @@
+---
+import Layout from "../../components/Layout.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import { getBattleCatalog } from "../../lib/battle-catalog";
+
+const catalog = getBattleCatalog();
+---
+<Layout title="在线对战" description="创建或加入群友杀 TCG 1v1 手动牌桌。">
+  <div class="page-wrap battle-entry">
+    <PageHeader title="在线对战" subtitle="两人、一个房间码，像在线 TTS 一样手动完成牌局。" badge="1V1 TABLE" />
+
+    <div class="battle-entry__grid">
+      <section class="hud-panel battle-entry__panel">
+        <h2>创建房间</h2>
+        <form id="create-room-form" class="battle-form">
+          <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" /></label>
+          <label>预组
+            <select name="deckId" required>
+              {catalog.decks.map((deck) => <option value={deck.id}>{deck.name} · {deck.archetype}</option>)}
+            </select>
+          </label>
+          <button class="btn btn--primary" type="submit">创建牌桌</button>
+        </form>
+      </section>
+
+      <section class="hud-panel battle-entry__panel">
+        <h2>加入房间</h2>
+        <form id="join-room-form" class="battle-form">
+          <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" /></label>
+          <label>房间码<input name="roomCode" minlength="6" maxlength="6" required autocomplete="off" /></label>
+          <label>预组
+            <select name="deckId" required>
+              {catalog.decks.map((deck) => <option value={deck.id}>{deck.name} · {deck.archetype}</option>)}
+            </select>
+          </label>
+          <button class="btn btn--secondary" type="submit">加入牌桌</button>
+        </form>
+      </section>
+    </div>
+
+    <section class="battle-entry__notes">
+      <h2 class="section-heading">首版说明</h2>
+      <div class="battle-entry__features">
+        <p><strong>手动结算</strong><br />系统不判断技能、伤害和费用是否合法。</p>
+        <p><strong>隐藏信息</strong><br />对手只能看到你的手牌数量和暗置卡背。</p>
+        <p><strong>断线恢复</strong><br />同一浏览器会自动认回座位，房间保留 24 小时。</p>
+      </div>
+    </section>
+  </div>
+</Layout>
+
+<script>
+  const API_URL = import.meta.env.PUBLIC_BATTLE_API_URL || "http://localhost:8787";
+  const TOKEN_KEY = "qunyou-battle-token-v1";
+
+  function token() {
+    const saved = localStorage.getItem(TOKEN_KEY);
+    if (saved) return saved;
+    const created = crypto.randomUUID();
+    localStorage.setItem(TOKEN_KEY, created);
+    return created;
+  }
+
+  function values(form) {
+    return Object.fromEntries(new FormData(form).entries());
+  }
+
+  document.querySelector("#create-room-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector("button");
+    button.disabled = true;
+    try {
+      const payload = values(form);
+      const response = await fetch(`${API_URL}/rooms`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...payload, token: token() }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "创建失败");
+      localStorage.setItem("qunyou-battle-pending-v1", JSON.stringify({
+        nickname: payload.nickname,
+        deckId: payload.deckId,
+      }));
+      location.href = `/play/room?code=${result.roomCode}`;
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "创建失败");
+      button.disabled = false;
+    }
+  });
+
+  document.querySelector("#join-room-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const payload = values(event.currentTarget);
+    localStorage.setItem("qunyou-battle-pending-v1", JSON.stringify({
+      nickname: payload.nickname,
+      deckId: payload.deckId,
+    }));
+    location.href = `/play/room?code=${String(payload.roomCode).trim().toUpperCase()}`;
+  });
+</script>

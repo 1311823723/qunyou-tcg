@@ -22,17 +22,34 @@ UI 读取以下数据源：
 
 ```bash
 npm run dev            # 启动本地开发服务器
+npm run dev:battle     # 启动本地实时对战 Worker（端口 8787）
 npm run build          # 构建静态站点
+npm run build:battle   # 检查 Worker 是否可以部署
 npm run preview        # 预览构建产物
 npm run validate       # 校验所有卡牌和预组数据
 npm run print:aggro    # 打印爆杀组预组详情
 npm run export:tts     # 导出 Tabletop Simulator 本地资源
+npm run test:battle    # 校验在线牌桌的卡组与 Mega 数据
 ```
 
 ## 技术栈
 
 - **数据层:** JSON Schema + 校验脚本 (Node.js)
 - **UI:** Astro + Tailwind CSS v4 + TypeScript
+- **在线对战:** Cloudflare Worker + Durable Objects + WebSocket
+
+## 在线对战本地开发
+
+分别启动站点和实时服务：
+
+```bash
+npm run dev
+npm run dev:battle
+```
+
+前端默认连接 `http://localhost:8787`。线上部署时在 Pages 构建环境设置
+`PUBLIC_BATTLE_API_URL` 为对战 Worker 地址，并执行
+`npm run deploy:battle` 部署实时服务。
 
 ## 项目结构
 

@@ -1,0 +1,41 @@
+---
+import type { getBattleCatalog } from "../lib/battle-catalog";
+
+export interface Props {
+  catalog: ReturnType<typeof getBattleCatalog>;
+}
+
+const { catalog } = Astro.props;
+---
+<div class="battle-shell" id="battle-app">
+  <header class="battle-topbar">
+    <div>
+      <a href="/play" class="battle-topbar__back">退出牌桌</a>
+      <strong id="battle-room-code">房间 ------</strong>
+    </div>
+    <div class="battle-topbar__status">
+      <span id="battle-connection" data-state="connecting">连接中</span>
+      <button type="button" id="battle-copy-link" class="battle-icon-btn">复制邀请链接</button>
+    </div>
+  </header>
+
+  <main id="battle-root" class="battle-root" aria-live="polite">
+    <section class="battle-loading hud-panel">
+      <h1>正在连接牌桌</h1>
+      <p>正在恢复你的匿名座位与牌局状态。</p>
+    </section>
+  </main>
+
+  <dialog id="battle-dialog" class="battle-dialog">
+    <form method="dialog" class="battle-dialog__frame">
+      <button class="battle-dialog__close" value="close" aria-label="关闭">×</button>
+      <div id="battle-dialog-content"></div>
+    </form>
+  </dialog>
+
+  <script id="battle-catalog" type="application/json" set:html={JSON.stringify(catalog)}></script>
+</div>
+
+<script>
+  import "../scripts/battle-client";
+</script>
