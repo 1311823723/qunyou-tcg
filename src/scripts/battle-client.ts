@@ -574,7 +574,6 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
       <button type="button" data-command="deck:shuffle" data-deck="hand">洗混共用牌堆</button>
       <button type="button" data-command="hand:randomSelect" data-owner="${opponent?.id || ""}">随机展示对手手牌</button>
       <button type="button" data-command="marker:create">创建标记</button>
-      <button type="button" data-command="room:end" class="battle-small-btn" style="border-color:rgba(255,90,53,0.4);color:var(--accent-aggro-hot)">结束游戏</button>
       ${moveModeCardId ? `<button type="button" data-command="move:cancel">取消落点</button>` : ""}
     </div>
     ${recentLogs.length ? `<ul class="battle-log-recent" aria-label="最近操作">${recentLogs.map((log) => `<li><time>${formatLogTime(log.at)}</time>${escapeHtml(log.text)}</li>`).join("")}</ul>` : ""}
@@ -775,6 +774,8 @@ function handleCommand(element: HTMLElement) {
     send(command, { ownerId: element.dataset.owner });
   } else if (command === "marker:create") {
     showMarkerDialog((label, slotIndex) => send(command, { label, slotIndex }));
+  } else if (command === "room:restart") {
+    showConfirmDialog("重置牌局？双方回到初始状态重新开始。", () => send(command));
   } else if (command === "room:end") {
     showConfirmDialog("确定要结束这场游戏？房间将被销毁，双方都将退出。", () => send(command));
   }

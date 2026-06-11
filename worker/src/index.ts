@@ -253,8 +253,8 @@ export class BattleRoom extends DurableObject<Env> {
 
     try {
       const inspection = this.applyAction(player, message);
-      // room:end 已在 applyAction 中完成所有清理与通知，无需后续处理
-      if (message.type === "room:end") return;
+      // room:end / room:restart 已在 applyAction 中完成所有清理与通知，无需后续处理
+      if (message.type === "room:end" || message.type === "room:restart") return;
       this.state.processedActionIds.push(message.actionId);
       this.state.processedActionIds = this.state.processedActionIds.slice(-100);
       this.state.lastActivityAt = Date.now();
@@ -391,6 +391,59 @@ export class BattleRoom extends DurableObject<Env> {
         this.state.currentPlayerId = opponent.id;
         this.state.turnNumber += 1;
         this.addLog(`${player.nickname} 结束了回合`);
+        return;
+      }
+      case "room:restart": {
+        if (!this.state?.started) throw new Error("牌局尚未开始。");
+        this.addLog(`${player.nickname} 请求重置牌局`);
+        // 重新洗混共用牌堆
+        this.state.handDeck = this.shuffle(handCards.flatMap((definition) =>
+          definition.cards.map((entry) => ({
+            instanceId: crypto.randomUUID(),
+            definitionId: definition.id,
+            kind: "hand" as const,
+            suit: entry.suit,
+            rank: entry.rank,
+          })),
+        ));
+        this.state.handDiscard = [];
+        this.state.resolving = [];
+        this.state.processedActionIds = [];
+        this.state.logs = [];
+        // 重置所有玩家
+        for (const p of this.state.players) {
+          const deck = deckById.get(p.deckId || "");
+          if (!deck) throw new Error("预组数据不存在。");
+          const body = bodyById.get(deck.bodyId);
+          p.health = body?.hp || 7;
+          p.megaProgress = 0;
+          p.bodyFlipped = false;
+          p.body = {
+            instanceId: crypto.randomUUID(),
+            definitionId: deck.bodyId,
+            kind: "body",
+            ownerId: p.id,
+          };
+          p.characterDeck = this.shuffle(deck.characterIds.map((definitionId) => ({
+            instanceId: crypto.randomUUID(),
+            definitionId,
+            kind: "character" as const,
+            ownerId: p.id,
+          })));
+          p.hand = [];
+          p.characterHand = [];
+          p.characterSlots = [null, null, null, null];
+          p.retired = [];
+          p.banished = [];
+          this.draw(p, "hand", 5, false);
+          this.draw(p, "character", 4, false);
+        }
+        const first = this.state.players[crypto.getRandomValues(new Uint8Array(1))[0] % 2];
+        this.state.currentPlayerId = first.id;
+        this.state.firstPlayerId = first.id;
+        this.state.turnNumber = 1;
+        this.state.started = true;
+        this.addLog(`${first.nickname} 为先手（重置）`);
         return;
       }
       case "room:end": {

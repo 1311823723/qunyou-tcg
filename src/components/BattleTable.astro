@@ -27,6 +27,8 @@ const { catalog } = Astro.props;
       </span>
       <a href="/rules" class="battle-icon-btn" target="_blank" rel="noopener">规则</a>
       <button type="button" id="battle-copy-link" class="battle-icon-btn">邀请链接</button>
+      <button type="button" class="battle-icon-btn" data-command="room:restart" title="重置牌局重新开始">重新开始</button>
+      <button type="button" class="battle-icon-btn" data-command="room:end" style="color:var(--accent-aggro-hot);border-color:rgba(255,90,53,0.3)">结束</button>
     </div>
   </header>
 
