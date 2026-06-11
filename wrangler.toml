@@ -2,3 +2,7 @@
 name = "qunyou-tcg"
 pages_build_output_dir = "dist"
 compatibility_date = "2025-05-29"
+
+[[services]]
+binding = "BATTLE_SERVICE"
+service = "qunyou-tcg-battle"

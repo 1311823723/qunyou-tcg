@@ -120,7 +120,9 @@ function getRoomCode() {
 function getToken() {
   const saved = localStorage.getItem(TOKEN_KEY);
   if (saved) return saved;
-  const created = crypto.randomUUID();
+  const created = typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
   localStorage.setItem(TOKEN_KEY, created);
   return created;
 }
@@ -171,9 +173,9 @@ async function connect() {
     window.clearTimeout(timeout);
     if (attempt !== connectionAttempt) return;
     const message = error instanceof DOMException && error.name === "AbortError"
-      ? "连接对战服务器超时。当前网络可能无法访问 workers.dev，或 WebSocket 被代理、防火墙拦截。"
+      ? "连接对战服务器超时。当前网络可能阻断了实时连接，请切换网络后重试。"
       : error instanceof TypeError
-        ? "无法连接对战服务器。请检查网络是否能访问 workers.dev，必要时切换网络或代理后重试。"
+        ? "无法连接对战服务器。请检查网络后重试；若网页能打开但仍失败，请把此提示反馈给维护者。"
         : error instanceof Error ? error.message : "加入房间失败。";
     renderConnectionError(message);
     return;
