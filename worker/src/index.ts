@@ -253,6 +253,8 @@ export class BattleRoom extends DurableObject<Env> {
 
     try {
       const inspection = this.applyAction(player, message);
+      // room:end 已在 applyAction 中完成所有清理与通知，无需后续处理
+      if (message.type === "room:end") return;
       this.state.processedActionIds.push(message.actionId);
       this.state.processedActionIds = this.state.processedActionIds.slice(-100);
       this.state.lastActivityAt = Date.now();
@@ -389,6 +391,21 @@ export class BattleRoom extends DurableObject<Env> {
         this.state.currentPlayerId = opponent.id;
         this.state.turnNumber += 1;
         this.addLog(`${player.nickname} 结束了回合`);
+        return;
+      }
+      case "room:end": {
+        this.addLog(`${player.nickname} 结束了游戏，房间即将销毁`);
+        // 通知所有客户端
+        for (const socket of this.ctx.getWebSockets()) {
+          try { socket.send(JSON.stringify({ type: "roomEnded" })); } catch { /* closing */ }
+        }
+        // 关闭所有连接
+        for (const socket of this.ctx.getWebSockets()) {
+          try { socket.close(1000, "Room ended"); } catch { /* closing */ }
+        }
+        // 清空房间数据（后台执行，无需等待）
+        this.ctx.storage.deleteAll().catch(() => {});
+        this.state = undefined;
         return;
       }
       default:

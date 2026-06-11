@@ -80,7 +80,8 @@ type Snapshot = {
 type ServerMessage =
   | { type: "snapshot"; snapshot: Snapshot }
   | { type: "error"; error: string }
-  | { type: "inspection"; title: string; cards: CardView[] };
+  | { type: "inspection"; title: string; cards: CardView[] }
+  | { type: "roomEnded" };
 
 type PreservedUI = {
   scrollLeft: Record<string, number>;
@@ -315,6 +316,14 @@ async function connect() {
       render();
     } else if (message.type === "inspection") {
       showInspection(message.title, message.cards);
+    } else if (message.type === "roomEnded") {
+      root.innerHTML = `<section class="battle-loading hud-panel">
+        <span class="battle-kicker">游戏结束</span>
+        <h1>房间已关闭</h1>
+        <p>对方结束了这场游戏。</p>
+        <a class="btn btn--primary" href="/play">返回在线对战</a>
+      </section>`;
+      setConnectionState("已结束", "failed");
     } else {
       showError(message.error);
     }
@@ -565,6 +574,7 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
       <button type="button" data-command="deck:shuffle" data-deck="hand">洗混共用牌堆</button>
       <button type="button" data-command="hand:randomSelect" data-owner="${opponent?.id || ""}">随机展示对手手牌</button>
       <button type="button" data-command="marker:create">创建标记</button>
+      <button type="button" data-command="room:end" class="battle-small-btn" style="border-color:rgba(255,90,53,0.4);color:var(--accent-aggro-hot)">结束游戏</button>
       ${moveModeCardId ? `<button type="button" data-command="move:cancel">取消落点</button>` : ""}
     </div>
     ${recentLogs.length ? `<ul class="battle-log-recent" aria-label="最近操作">${recentLogs.map((log) => `<li><time>${formatLogTime(log.at)}</time>${escapeHtml(log.text)}</li>`).join("")}</ul>` : ""}
@@ -603,7 +613,10 @@ function renderSlot(item: CardView | MarkerView | null, index: number, owner: Pl
   if (!item) return `<article class="battle-slot" data-drop-target="characterSlot:${index}"><span>位 ${index + 1}</span></article>`;
   if ("label" in item) {
     const label = escapeHtml(item.label);
-    return `<article class="battle-slot battle-slot--marker"><button type="button" data-marker="${item.id}" data-marker-label="${label}">${label}</button></article>`;
+    return `<article class="battle-slot battle-slot--marker">
+      <span class="battle-slot__marker-label">${label}</span>
+      <button type="button" class="battle-slot__marker-del" data-marker="${item.id}" data-marker-label="${label}" aria-label="删除标记 ${label}">×</button>
+    </article>`;
   }
   return `<article class="battle-slot">${renderCard(item, { owner, zone: `slot:${index}`, interactive: isMe || !item.faceDown, size: "field" })}</article>`;
 }
@@ -762,6 +775,8 @@ function handleCommand(element: HTMLElement) {
     send(command, { ownerId: element.dataset.owner });
   } else if (command === "marker:create") {
     showMarkerDialog((label, slotIndex) => send(command, { label, slotIndex }));
+  } else if (command === "room:end") {
+    showConfirmDialog("确定要结束这场游戏？房间将被销毁，双方都将退出。", () => send(command));
   }
 }
 
