@@ -1,3 +1,5 @@
+import { getBattleApiUrl } from "../lib/battle-api";
+
 type CatalogCard = {
   id: string;
   name: string;
@@ -83,7 +85,8 @@ const dialog = requiredElement<HTMLDialogElement>("#battle-dialog");
 const dialogContent = requiredElement<HTMLElement>("#battle-dialog-content");
 const catalogNode = requiredElement<HTMLScriptElement>("#battle-catalog");
 const catalog = JSON.parse(catalogNode.textContent || "{}") as Catalog;
-const API_URL = import.meta.env.PUBLIC_BATTLE_API_URL || "http://localhost:8787";
+
+const API_URL = getBattleApiUrl();
 const TOKEN_KEY = "qunyou-battle-token-v1";
 const PENDING_KEY = "qunyou-battle-pending-v1";
 const roomCode = getRoomCode();

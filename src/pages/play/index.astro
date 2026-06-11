@@ -50,7 +50,9 @@ const catalog = getBattleCatalog();
 </Layout>
 
 <script>
-  const API_URL = import.meta.env.PUBLIC_BATTLE_API_URL || "http://localhost:8787";
+  import { getBattleApiUrl } from "../../lib/battle-api";
+
+  const API_URL = getBattleApiUrl();
   const TOKEN_KEY = "qunyou-battle-token-v1";
 
   function token() {
