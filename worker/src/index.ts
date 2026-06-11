@@ -245,7 +245,11 @@ export class BattleRoom extends DurableObject<Env> {
     } catch {
       return this.sendError(ws, "消息格式无效。");
     }
-    if (!message.actionId || this.state.processedActionIds.includes(message.actionId)) return;
+    console.log("[worker] received", { type: message.type, actionId: message.actionId, payload: message.payload });
+    if (!message.actionId || this.state.processedActionIds.includes(message.actionId)) {
+      console.log("[worker] skipped", { hasActionId: !!message.actionId, isDuplicate: this.state.processedActionIds.includes(message.actionId) });
+      return;
+    }
 
     try {
       const inspection = this.applyAction(player, message);

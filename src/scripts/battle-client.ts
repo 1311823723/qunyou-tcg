@@ -362,10 +362,13 @@ function renderConnectionError(message: string) {
 
 function send(type: string, payload: Record<string, unknown> = {}) {
   if (socket?.readyState !== WebSocket.OPEN) {
+    console.error("[send] socket not open", { type, readyState: socket?.readyState });
     showError("连接尚未恢复，请稍后再试。");
     return;
   }
-  socket.send(JSON.stringify({ type, actionId: crypto.randomUUID(), payload }));
+  const msg = { type, actionId: crypto.randomUUID(), payload };
+  console.log("[send]", msg);
+  socket.send(JSON.stringify(msg));
 }
 
 function render() {
@@ -676,9 +679,16 @@ function bindActions() {
       event.preventDefault();
       event.stopPropagation();
       const markerId = element.dataset.marker;
-      const label = element.dataset.markerLabel || "这个";
-      if (!markerId) return;
-      showConfirmDialog(`移除标记「${label}」？`, () => send("marker:remove", { markerId }));
+      const label = element.dataset.markerLabel || element.textContent || "这个";
+      console.log("[marker] click", { markerId, label, html: element.outerHTML });
+      if (!markerId) {
+        console.error("[marker] missing markerId", element);
+        return;
+      }
+      showConfirmDialog(`移除标记「${label}」？`, () => {
+        console.log("[marker] confirmed, sending marker:remove", markerId);
+        send("marker:remove", { markerId });
+      });
     });
   });
   root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
