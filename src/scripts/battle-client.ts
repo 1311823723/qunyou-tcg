@@ -168,6 +168,11 @@ document.querySelector("#battle-copy-code")?.addEventListener("click", async (ev
   await copyText(roomCode, event.currentTarget as HTMLButtonElement, "已复制", "复制码");
 });
 
+// 点击弹窗外部（遮罩）关闭
+dialog.addEventListener("click", (event) => {
+  if (event.target === dialog) dialog.close();
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
   if (event.key === "Escape") {
@@ -623,11 +628,17 @@ function renderCard(
   } else {
     imagePath = definition.imagePath;
   }
-  const cardClass = `battle-mini-card battle-mini-card--${definition.kind}${imagePath ? " battle-mini-card--art" : ""}${sizeClass}`;
+  const faceClass = card.faceDown ? " is-face-down" : (definition.kind === "character" && options.zone.startsWith("slot:") ? " is-face-up" : "");
+  const cardClass = `battle-mini-card battle-mini-card--${definition.kind}${imagePath ? " battle-mini-card--art" : ""}${sizeClass}${faceClass}`;
+  const inSlot = definition.kind === "character" && options.zone.startsWith("slot:");
+  const faceBadge = inSlot
+    ? (card.faceDown ? `<span class="battle-mini-card__face-badge battle-mini-card__face-badge--down">暗</span>` : `<span class="battle-mini-card__face-badge">明</span>`)
+    : "";
   return `<button type="button" class="${cardClass}" draggable="${String(options.interactive)}"
     data-card="${card.instanceId}" data-owner="${options.owner.id}" data-zone="${options.zone}"
     aria-label="${escapeHtml(name)}" title="${escapeHtml(definition.text)}">
     ${imagePath ? `<img src="${imagePath}" alt="" loading="lazy" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
+    ${faceBadge}
     <strong>${escapeHtml(name)}</strong><small>${escapeHtml(poker + definition.subtitle)}</small>
   </button>`;
 }
@@ -866,13 +877,17 @@ function openCardMenu(element: HTMLElement) {
   }
   const parts = displayName.includes("-") ? displayName.split("-") : ["", displayName];
   const roleTag = definition?.kind === "character" ? definition.subtitle.split(" · ")[0] : "";
+  const isFaceDown = card?.faceDown ?? false;
+  const faceStatus = definition?.kind === "character"
+    ? (isFaceDown ? `<span class="battle-tag" style="background:rgba(255,179,71,0.15);border-color:rgba(255,179,71,0.4);color:#ffb347">暗置</span>` : `<span class="battle-tag" style="background:rgba(98,217,139,0.12);border-color:rgba(98,217,139,0.35);color:#62d98b">已明置</span>`)
+    : "";
   dialogContent.innerHTML = `
     <div class="battle-card-menu battle-card-menu--rich">
       <div class="battle-card-detail">
         ${imagePath ? `<img class="battle-card-detail__art" src="${imagePath}" alt="" />` : `<div class="battle-card-detail__placeholder">${definition?.kind === "hand" ? "牌" : "角"}</div>`}
         <div class="battle-card-detail__body">
           <h2>${definition ? (parts[0] ? `<span class="battle-card-detail__role">${escapeHtml(parts[0])}</span>` : "") + escapeHtml(parts[1] || displayName) : "暗置卡牌"}</h2>
-          ${roleTag ? `<span class="battle-tag">${escapeHtml(roleTag)}</span>` : ""}
+          ${roleTag ? `<span class="battle-tag">${escapeHtml(roleTag)}</span>` : ""} ${faceStatus}
           ${definition ? `<p class="battle-card-detail__subtitle">${escapeHtml(displaySubtitle)}</p><p class="battle-card-detail__text">${escapeHtml(displayText)}</p>` : `<p>这张卡牌为暗置状态，可以通过卡牌效果查看。</p>`}
         </div>
       </div>
@@ -938,6 +953,8 @@ function moveButtonSections(instanceId: string, ownerId: string, zone: string, k
     add("放回牌堆底", "handDeckBottom");
     if (isMine) add("交给对手", "opponentHand");
     if (isMine) state.push(`<button type="button" data-hand-marker="${instanceId}">暗置为标记</button>`);
+    // 公开区域（弃牌/结算区）的卡牌可以加入手牌
+    if (zone === "handDiscard" || zone === "resolving") add("加入我的手牌", "hand");
   } else if (kind === "character") {
     if (isMine) {
       for (let index = 0; index < 4; index += 1) add(`暗置到位 ${index + 1}`, `characterSlot:${index}`, true);

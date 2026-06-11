@@ -468,7 +468,7 @@ export class BattleRoom extends DurableObject<Env> {
     const { card, owner } = located;
     const target = cleanText(payload.targetZone, 40);
     const publicSource = ["handDiscard", "resolving", "retired", "banished"].includes(located.zone);
-    const publicTarget = ["handDeckTop", "handDeckBottom", "handDiscard", "resolving"].includes(target);
+    const publicTarget = ["handDeckTop", "handDeckBottom", "handDiscard", "resolving", "hand"].includes(target);
     if (card.ownerId && card.ownerId !== actor.id && !publicSource && !publicTarget) {
       this.restoreCard(located);
       throw new Error("不能移动对手的私密卡牌。");
