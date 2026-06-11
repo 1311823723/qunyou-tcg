@@ -993,6 +993,14 @@ strong { color: var(--text-gold); font-weight: 800; }
 .battle-form input:focus,
 .battle-form select:focus,
 .battle-lobby__controls select:focus { border-color: var(--accent-info); box-shadow: 0 0 0 3px rgba(88,199,232,0.12); }
+.battle-form .btn:disabled { cursor: wait; opacity: 0.68; filter: saturate(0.7); }
+.battle-form__status {
+  margin: 0; padding: 0.72rem 0.82rem; border: 1px solid rgba(88,199,232,0.24); border-radius: 10px;
+  color: var(--text-secondary); background: rgba(88,199,232,0.07); font-size: 0.78rem; line-height: 1.55;
+}
+.battle-form__status[hidden] { display: none; }
+.battle-form__status[data-state=success] { border-color: rgba(98,217,139,0.32); color: var(--accent-success); background: rgba(98,217,139,0.08); }
+.battle-form__status[data-state=error] { border-color: rgba(255,90,53,0.34); color: #ff9a87; background: rgba(255,90,53,0.09); }
 .battle-entry__notes { margin-top: 2rem; }
 .battle-entry__features { display: grid; gap: 0.75rem; }
 @media (min-width: 700px) { .battle-entry__features { grid-template-columns: repeat(3, 1fr); } }
@@ -1009,7 +1017,8 @@ strong { color: var(--text-gold); font-weight: 800; }
 .battle-topbar__back { color: var(--text-muted); font-size: 0.76rem; text-decoration: none; }
 .battle-topbar strong { color: var(--text-gold); font-family: var(--font-mono); letter-spacing: 0.08em; }
 .battle-topbar__status span { padding: 0.32rem 0.6rem; border-radius: 999px; color: var(--accent-success); background: rgba(98,217,139,0.1); font-size: 0.7rem; font-weight: 900; }
-.battle-topbar__status span[data-state=closed] { color: var(--accent-aggro-hot); background: rgba(255,90,53,0.11); }
+.battle-topbar__status span[data-state=closed],
+.battle-topbar__status span[data-state=failed] { color: var(--accent-aggro-hot); background: rgba(255,90,53,0.11); }
 .battle-icon-btn,
 .battle-small-btn,
 .battle-toolbar button,
@@ -1025,6 +1034,9 @@ strong { color: var(--text-gold); font-weight: 800; }
 .battle-loading { max-width: 34rem; margin: 10vh auto 0; padding: 2rem; text-align: center; }
 .battle-loading h1 { color: var(--text-gold); }
 .battle-loading p { color: var(--text-muted); line-height: 1.7; }
+.battle-loading--error { border-color: rgba(255,90,53,0.32); box-shadow: 0 20px 70px rgba(255,50,30,0.08); }
+.battle-loading--error h1 { color: #ff8169; }
+.battle-loading__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.7rem; margin-top: 1.4rem; }
 
 .battle-lobby { max-width: 58rem; margin: 4vh auto 0; padding: clamp(1.1rem, 4vw, 2.2rem); }
 .battle-lobby__heading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; }

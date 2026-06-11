@@ -94,11 +94,15 @@ let snapshot: Snapshot | undefined;
 let socket: WebSocket | undefined;
 let reconnectTimer = 0;
 let reconnectDelay = 800;
+let hasConnected = false;
+let connectionAttempt = 0;
 
 roomLabel.textContent = `房间 ${roomCode}`;
 
 document.querySelector("#battle-copy-link")?.addEventListener("click", async () => {
-  await navigator.clipboard.writeText(location.href);
+  const inviteUrl = new URL("/play", location.origin);
+  inviteUrl.searchParams.set("room", roomCode);
+  await navigator.clipboard.writeText(inviteUrl.toString());
   const button = document.querySelector<HTMLButtonElement>("#battle-copy-link");
   if (button) {
     button.textContent = "已复制";
@@ -129,23 +133,70 @@ function getPending() {
   }
 }
 
-function connect() {
+async function connect() {
+  const attempt = ++connectionAttempt;
   if (!roomCode || roomCode.length !== 6) {
     renderFatal("房间码无效，请返回对战首页重新进入。");
+    return;
+  }
+  const pending = getPending();
+  if (!pending.nickname) {
+    const joinUrl = new URL("/play", location.origin);
+    joinUrl.searchParams.set("room", roomCode);
+    location.replace(joinUrl);
     return;
   }
   window.clearTimeout(reconnectTimer);
   status.textContent = "连接中";
   status.dataset.state = "connecting";
-  const pending = getPending();
+  if (!snapshot) renderConnecting("正在确认房间与玩家座位。");
+  const token = getToken();
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const response = await fetch(`${API_URL}/rooms/${roomCode}/join`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        token,
+        nickname: pending.nickname,
+        deckId: pending.deckId,
+      }),
+      signal: controller.signal,
+    });
+    const result = await response.json().catch(() => ({})) as { error?: string };
+    if (!response.ok) throw new Error(result.error || `加入房间失败（${response.status}）`);
+  } catch (error) {
+    window.clearTimeout(timeout);
+    if (attempt !== connectionAttempt) return;
+    const message = error instanceof DOMException && error.name === "AbortError"
+      ? "连接对战服务器超时。当前网络可能无法访问 workers.dev，或 WebSocket 被代理、防火墙拦截。"
+      : error instanceof TypeError
+        ? "无法连接对战服务器。请检查网络是否能访问 workers.dev，必要时切换网络或代理后重试。"
+        : error instanceof Error ? error.message : "加入房间失败。";
+    renderConnectionError(message);
+    return;
+  }
+  window.clearTimeout(timeout);
+  if (attempt !== connectionAttempt) return;
+
   const wsBase = API_URL.replace(/^http/, "ws");
   const url = new URL(`${wsBase}/rooms/${roomCode}/connect`);
-  url.searchParams.set("token", getToken());
-  if (pending.nickname) url.searchParams.set("nickname", pending.nickname);
-  if (pending.deckId) url.searchParams.set("deckId", pending.deckId);
+  url.searchParams.set("token", token);
   socket = new WebSocket(url);
+  let socketFailureHandled = false;
+  const socketTimeout = window.setTimeout(() => {
+    if (attempt === connectionAttempt && socket?.readyState === WebSocket.CONNECTING) {
+      socketFailureHandled = true;
+      socket.close();
+      renderConnectionError("牌桌实时连接超时。网页可以访问，但当前网络可能拦截了 WebSocket；请切换网络或代理后重试。");
+    }
+  }, 10000);
 
   socket.addEventListener("open", () => {
+    window.clearTimeout(socketTimeout);
+    hasConnected = true;
     reconnectDelay = 800;
     status.textContent = "已连接";
     status.dataset.state = "open";
@@ -162,12 +213,45 @@ function connect() {
     }
   });
   socket.addEventListener("close", () => {
+    window.clearTimeout(socketTimeout);
+    if (attempt !== connectionAttempt) return;
+    if (socketFailureHandled) return;
+    if (!hasConnected) {
+      renderConnectionError("实时连接被拒绝或中断。请确认房间仍存在，并检查当前网络是否允许 WebSocket 连接。");
+      return;
+    }
     status.textContent = "重连中";
     status.dataset.state = "closed";
     reconnectTimer = window.setTimeout(connect, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);
   });
   socket.addEventListener("error", () => socket?.close());
+}
+
+function renderConnecting(message: string) {
+  root.innerHTML = `<section class="battle-loading hud-panel">
+    <span class="battle-kicker">连接牌桌</span>
+    <h1>房间 ${escapeHtml(roomCode)}</h1>
+    <p>${escapeHtml(message)}</p>
+  </section>`;
+}
+
+function renderConnectionError(message: string) {
+  status.textContent = "连接失败";
+  status.dataset.state = "failed";
+  root.innerHTML = `<section class="battle-loading battle-loading--error hud-panel">
+    <span class="battle-kicker">未能进入房间 ${escapeHtml(roomCode)}</span>
+    <h1>连接失败</h1>
+    <p>${escapeHtml(message)}</p>
+    <div class="battle-loading__actions">
+      <button type="button" class="btn btn--primary" id="battle-retry">重新连接</button>
+      <a class="btn btn--secondary" href="/play?room=${encodeURIComponent(roomCode)}">返回加入页面</a>
+    </div>
+  </section>`;
+  document.querySelector("#battle-retry")?.addEventListener("click", () => {
+    hasConnected = false;
+    connect();
+  });
 }
 
 function send(type: string, payload: Record<string, unknown> = {}) {

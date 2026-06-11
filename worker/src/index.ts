@@ -142,6 +142,20 @@ export default {
       return json(result, { headers });
     }
 
+    const joinMatch = url.pathname.match(/^\/rooms\/([A-Z0-9]{6})\/join$/);
+    if (request.method === "POST" && joinMatch) {
+      const body = await request.json() as Record<string, unknown>;
+      const nickname = cleanText(body.nickname, 20);
+      const token = cleanText(body.token, 80);
+      const deckId = cleanText(body.deckId, 80);
+      if (!nickname || !token || !deckById.has(deckId)) {
+        return json({ error: "昵称、身份令牌或预组无效。" }, { status: 400, headers });
+      }
+      const stub = env.BATTLE_ROOMS.getByName(joinMatch[1]);
+      const result = await stub.joinRoom(token, nickname, deckId);
+      return json(result.body, { status: result.status, headers });
+    }
+
     const match = url.pathname.match(/^\/rooms\/([A-Z0-9]{6})\/connect$/);
     if (request.method === "GET" && match) {
       if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
@@ -185,23 +199,29 @@ export class BattleRoom extends DurableObject<Env> {
     return { roomCode: code };
   }
 
-  async fetch(request: Request): Promise<Response> {
-    if (!this.state) return json({ error: "房间不存在或已经过期。" }, { status: 404 });
-    const url = new URL(request.url);
-    const token = cleanText(url.searchParams.get("token"), 80);
-    const nickname = cleanText(url.searchParams.get("nickname"), 20);
-    const requestedDeck = cleanText(url.searchParams.get("deckId"), 80);
+  async joinRoom(token: string, nickname: string, deckId: string) {
+    if (!this.state) {
+      return { status: 404, body: { error: "房间不存在或已经过期。" } };
+    }
     let player = this.state.players.find((item) => item.token === token);
-
     if (!player) {
-      if (this.state.players.length >= 2) return json({ error: "房间已满。" }, { status: 409 });
-      if (!token || !nickname) return json({ error: "加入房间需要昵称。" }, { status: 400 });
-      const deckId = deckById.has(requestedDeck) ? requestedDeck : allDecks[0].id;
+      if (this.state.players.length >= 2) {
+        return { status: 409, body: { error: "房间已满，无法加入。" } };
+      }
       player = this.newPlayer("p2", token, nickname, deckId);
       this.state.players.push(player);
       this.addLog(`${nickname} 加入了房间`);
       await this.persist();
     }
+    return { status: 200, body: { ok: true, playerId: player.id } };
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    if (!this.state) return json({ error: "房间不存在或已经过期。" }, { status: 404 });
+    const url = new URL(request.url);
+    const token = cleanText(url.searchParams.get("token"), 80);
+    const player = this.state.players.find((item) => item.token === token);
+    if (!player) return json({ error: "请先通过加入页面进入房间。" }, { status: 401 });
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
