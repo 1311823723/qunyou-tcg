@@ -1,6 +1,5 @@
 import { allBodies, allCharacters, allHandCards, resolveBodyCard } from "./cards";
 import { allDecks } from "./decks";
-import { getBodyArt, getCharacterArt } from "./card-art";
 
 export interface BattleCatalogCard {
   id: string;
@@ -8,8 +7,10 @@ export interface BattleCatalogCard {
   kind: "body" | "character" | "hand";
   subtitle: string;
   text: string;
-  art?: string;
-  extraArt?: string;
+  /** TTS 卡牌渲染图（完整卡面） */
+  imagePath?: string;
+  /** 本体额外形态卡图 */
+  extraImagePath?: string;
   extraName?: string;
   megaMax?: number;
 }
@@ -19,29 +20,27 @@ export function getBattleCatalog() {
 
   for (const rawBody of allBodies) {
     const body = resolveBodyCard(rawBody);
-    const art = getBodyArt(body.id);
     cards[body.id] = {
       id: body.id,
       name: body.name,
       kind: "body",
       subtitle: `${body.archetype} · ${body.skillName}`,
       text: body.effectText,
-      art: art?.front?.src,
-      extraArt: art?.extra?.src,
+      imagePath: `/cards/bodies/${body.id}_front.webp`,
+      extraImagePath: `/cards/bodies/${body.id}_mega_back.webp`,
       extraName: body.extraForm?.name,
       megaMax: body.extraFormProgressMax,
     };
   }
 
   for (const card of allCharacters) {
-    const art = getCharacterArt(card.id);
     cards[card.id] = {
       id: card.id,
       name: card.name,
       kind: "character",
       subtitle: `${card.mainRole} · ${card.skillName}`,
       text: `${card.timing}｜${card.effectText}`,
-      art: art?.src,
+      imagePath: `/cards/characters/${card.id}.webp`,
     };
   }
 

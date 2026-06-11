@@ -450,12 +450,23 @@ function renderCard(
       <span>暗置</span><small>身份未知</small>
     </button>`;
   }
-  const art = options.flipped ? definition.extraArt || definition.art : definition.art;
-  const name = options.flipped ? definition.extraName || definition.name : definition.name;
+  // 本体翻转时使用额外卡图
+  const isFlipped = options.flipped && definition.kind === "body";
+  const name = isFlipped ? definition.extraName || definition.name : definition.name;
   const poker = card.suit && card.rank ? `${suitSymbol(card.suit)}${card.rank} · ` : "";
-  return `<button class="battle-mini-card battle-mini-card--${definition.kind}" draggable="${String(options.interactive)}"
+  // 优先使用 TTS 完整卡图，手牌则根据 suit/rank 拼路径
+  let imagePath: string | undefined;
+  if (definition.kind === "hand") {
+    imagePath = handCardImagePath(definition.id, card.suit, card.rank);
+  } else if (definition.kind === "body" && isFlipped) {
+    imagePath = definition.extraImagePath;
+  } else {
+    imagePath = definition.imagePath;
+  }
+  const cardClass = `battle-mini-card battle-mini-card--${definition.kind}${imagePath ? " battle-mini-card--art" : ""}`;
+  return `<button class="${cardClass}" draggable="${String(options.interactive)}"
     data-card="${card.instanceId}" data-owner="${options.owner.id}" data-zone="${options.zone}" title="${escapeHtml(definition.text)}">
-    ${art ? `<img src="${art}" alt="" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
+    ${imagePath ? `<img src="${imagePath}" alt="" loading="lazy" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
     <strong>${escapeHtml(name)}</strong><small>${escapeHtml(poker + definition.subtitle)}</small>
   </button>`;
 }
@@ -679,6 +690,14 @@ function escapeHtml(value: string) {
 
 function suitSymbol(suit: string) {
   return ({ "黑桃": "♠", "红桃": "♥", "梅花": "♣", "方块": "♦" } as Record<string, string>)[suit] || suit;
+}
+
+/** 手牌：根据 definitionId + suit + rank 构造 TTS 卡图路径 */
+function handCardImagePath(definitionId: string, suit?: string, rank?: string) {
+  if (!suit || !rank) return undefined;
+  const suitSlug = ({ "黑桃": "spade", "红桃": "heart", "梅花": "club", "方块": "diamond" } as Record<string, string>)[suit];
+  if (!suitSlug) return undefined;
+  return `/cards/hand_cards/${definitionId}_${suitSlug}_${rank.toLowerCase()}.webp`;
 }
 
 connect();

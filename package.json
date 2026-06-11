@@ -14,7 +14,8 @@
     "test:battle": "node --test tools/battle/*.test.mjs",
     "print:aggro": "node tools/print-deck.js",
     "art:use": "node tools/use-card-art.js",
-    "export:tts": "node tools/tts/export-tts.js"
+    "export:tts": "node tools/tts/export-tts.js",
+    "cards:web": "node tools/generate-web-cards.js"
   },
   "overrides": {
     "vite": "^7"
