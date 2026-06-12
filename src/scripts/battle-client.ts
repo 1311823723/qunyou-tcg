@@ -360,11 +360,31 @@ function render() {
       ${renderCenter(snapshot.game, me, opponent, isMyTurn)}
       ${renderPlayer(me, true, isMyTurn)}
     </div>
+    <nav class="battle-mobile-nav" aria-label="牌桌区域导航">
+      <a href="#battle-player-opponent">对手</a>
+      <a href="#battle-center">公共区</a>
+      <a href="#battle-player-self">我的阵地</a>
+      <a href="#battle-hand-self">手牌 <b>${me.handCount}</b></a>
+    </nav>
   `;
   bindActions();
+  bindMobileNavigation();
   restoreUIState(preserved);
   startRestartCountdown();
   maybeShowCoach();
+}
+
+function bindMobileNavigation() {
+  document.querySelectorAll<HTMLAnchorElement>(".battle-mobile-nav a").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      const target = document.querySelector<HTMLElement>(link.hash);
+      if (!target) return;
+      event.preventDefault();
+      const rootBounds = root.getBoundingClientRect();
+      const targetBounds = target.getBoundingClientRect();
+      root.scrollTop += targetBounds.top - rootBounds.top - 8;
+    });
+  });
 }
 
 function renderRestartRequest(me: PlayerView, opponent?: PlayerView) {
@@ -407,14 +427,14 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
     <section class="battle-lobby hud-panel ${themeClasses(myDeck?.theme)}">
       <div class="battle-lobby__heading">
         <div>
-          <span class="battle-kicker">准备大厅</span>
-          <h1 class="battle-room-display">${escapeHtml(snapshot?.roomCode || "")}</h1>
+          <span class="battle-kicker">READY ROOM / 1V1</span>
+          <h1>准备开局</h1>
         </div>
         <p>双方选择预组并准备后，服务器自动洗牌、发牌并随机先手。</p>
       </div>
       <div class="battle-invite">
         <div>
-          <span class="battle-invite__label">房间码</span>
+          <span class="battle-invite__label">分享房间码给你的对手</span>
           <strong class="battle-room-display">${escapeHtml(snapshot?.roomCode || roomCode)}</strong>
         </div>
         <div class="battle-invite__actions">
@@ -424,20 +444,23 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
       </div>
       <div class="battle-lobby__seats">
         ${renderLobbySeat(me, true)}
-        ${opponent ? renderLobbySeat(opponent, false) : `<article class="battle-seat battle-seat--empty"><strong>等待对手</strong><p>发送房间链接或房间码给对方。</p></article>`}
+        <div class="battle-lobby__versus"><span>VS</span><i></i></div>
+        ${opponent ? renderLobbySeat(opponent, false) : `<article class="battle-seat battle-seat--empty"><span class="battle-seat__status"><i></i> 对手座位</span><strong>等待对手</strong><p>邀请链接已准备好，另一名玩家加入后会出现在这里。</p><em>尚未加入</em></article>`}
       </div>
-      <div class="battle-deck-preview" id="battle-deck-preview">
-        ${renderDeckPreview(myDeck, bodyCard)}
-      </div>
-      <div class="battle-lobby__controls">
-        <label>我的预组
-          <select id="battle-deck-select" ${me.ready ? "disabled" : ""}>
-            ${catalog.decks.map((deck) => `<option value="${deck.id}" ${deck.id === me.deckId ? "selected" : ""}>${escapeHtml(deck.name)} · ${escapeHtml(deck.archetype)}</option>`).join("")}
-          </select>
-        </label>
-        <button class="btn ${me.ready ? "btn--secondary" : "btn--primary"}" data-command="player:ready" data-ready="${String(!me.ready)}">
-          ${me.ready ? "取消准备" : "准备开局"}
-        </button>
+      <div class="battle-lobby__loadout">
+        <div class="battle-deck-preview" id="battle-deck-preview">
+          ${renderDeckPreview(myDeck, bodyCard)}
+        </div>
+        <div class="battle-lobby__controls">
+          <label>我的预组
+            <select id="battle-deck-select" ${me.ready ? "disabled" : ""}>
+              ${catalog.decks.map((deck) => `<option value="${deck.id}" ${deck.id === me.deckId ? "selected" : ""}>${escapeHtml(deck.name)} · ${escapeHtml(deck.archetype)}</option>`).join("")}
+            </select>
+          </label>
+          <button class="btn ${me.ready ? "btn--secondary" : "btn--primary"}" data-command="player:ready" data-ready="${String(!me.ready)}">
+            ${me.ready ? "取消准备" : "准备开局"}
+          </button>
+        </div>
       </div>
       ${me.ready ? `<p class="battle-lobby__hint">已准备 · 预组已锁定，取消准备后可更换</p>` : ""}
     </section>
@@ -469,7 +492,7 @@ function renderDeckPreview(deck?: CatalogDeck, body?: CatalogCard) {
 function renderLobbySeat(player: PlayerView, isMe: boolean) {
   const deck = deckFor(player);
   return `<article class="battle-seat ${themeClasses(deck?.theme)} ${player.ready ? "is-ready" : ""}">
-    <span>${isMe ? "你的座位" : "对手座位"} · ${player.connected ? "在线" : "离线"}</span>
+    <span class="battle-seat__status"><i class="${player.connected ? "is-online" : ""}"></i>${isMe ? "你的座位" : "对手座位"} · ${player.connected ? "在线" : "离线"}</span>
     <strong>${escapeHtml(player.nickname)}</strong>
     <p>${deck ? `${escapeHtml(deck.name)} · ${escapeHtml(deck.archetype)}` : "尚未选择预组"}</p>
     <em>${player.ready ? "已准备" : "未准备"}</em>
@@ -483,10 +506,10 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
   const megaText = max ? `${player.megaProgress || 0}/${max}` : String(player.megaProgress || 0);
   const turnClass = snapshot?.game.currentPlayerId === player.id ? " battle-player--active-turn" : "";
   return `
-    <section class="battle-player ${themeClasses(deck?.theme)} ${isMe ? "battle-player--self" : "battle-player--opponent"}${turnClass}">
+    <section id="battle-player-${isMe ? "self" : "opponent"}" class="battle-player ${themeClasses(deck?.theme)} ${isMe ? "battle-player--self" : "battle-player--opponent"}${turnClass}" data-side="${isMe ? "self" : "opponent"}">
       <header class="battle-player__header">
-        <div>
-          <span>${isMe ? "你" : "对手"} · ${player.connected ? "在线" : "离线"}</span>
+        <div class="battle-player__identity">
+          <span><i class="${player.connected ? "is-online" : ""}"></i>${isMe ? "你的阵地" : "对手阵地"} · ${player.connected ? "在线" : "离线"}</span>
           <strong>${escapeHtml(player.nickname)}</strong>
           ${snapshot?.game.currentPlayerId === player.id ? `<span class="battle-turn-badge">${isMe && isMyTurn ? "你的回合" : "当前回合"}</span>` : ""}
         </div>
@@ -519,7 +542,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
         </div>
         <div class="battle-card-row" data-scroll-key="${isMe ? "char-hand-self" : "char-hand-opp"}">${player.characterHand.map((card) => renderCard(card, { owner: player, zone: "characterHand", interactive: isMe, size: isMe ? "hand" : "compact" })).join("")}</div>
       </div>
-      <div class="battle-private-rail battle-private-rail--hand">
+      <div ${isMe ? 'id="battle-hand-self"' : ""} class="battle-private-rail battle-private-rail--hand">
         <div class="battle-private-rail__title">
           <strong>${isMe ? "我的手牌" : "对手手牌"}</strong>
           <span>${player.handCount} 张</span>
@@ -549,18 +572,19 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
   const recentLogs = game.logs.slice(-3).reverse();
   const endTurnDisabled = !isMyTurn ? " disabled" : "";
   const endTurnTitle = isMyTurn ? "" : ' title="当前不是你的回合"';
-  return `<section class="battle-center">
-    <div class="battle-turnbar">
-      <span>第 ${game.turnNumber} 回合</span>
-      <strong class="${isMyTurn ? "battle-turnbar__you" : ""}">${current ? `${escapeHtml(current.nickname)} 的回合` : "等待开始"}</strong>
+  return `<section id="battle-center" class="battle-center">
+    <div class="battle-turnbar ${isMyTurn ? "is-your-turn" : ""}">
+      <span class="battle-turnbar__round">TURN ${game.turnNumber}</span>
+      <div><small>${isMyTurn ? "ACTION AVAILABLE" : "WAITING FOR OPPONENT"}</small><strong class="${isMyTurn ? "battle-turnbar__you" : ""}">${current ? `${escapeHtml(current.nickname)} 的回合` : "等待开始"}</strong></div>
       <button class="battle-small-btn battle-small-btn--accent" data-command="turn:end"${endTurnDisabled}${endTurnTitle}>结束回合</button>
     </div>
-  <p class="battle-phase-hint">准备 → 摸牌 → 出牌 → 布阵 → 弃牌 → 结束</p>
+    <div class="battle-center__lane-title"><i></i><span>公共结算区</span><i></i></div>
     <div class="battle-common-zones">
       ${renderPile("共用牌堆", game.handDeckCount, "card:draw-hand", "摸 1 张")}
       ${renderZone("结算区", game.resolving, me, "resolving", true)}
       ${renderZone("手牌弃牌区", game.handDiscard, me, "handDiscard", true)}
     </div>
+    <p class="battle-phase-hint">准备 → 摸牌 → 出牌 → 布阵 → 弃牌 → 结束</p>
     <div class="battle-toolbar">
       <button type="button" data-command="deck:shuffle" data-deck="hand">洗混共用牌堆</button>
       <button type="button" data-command="hand:randomSelect" data-owner="${opponent?.id || ""}">随机展示对手手牌</button>

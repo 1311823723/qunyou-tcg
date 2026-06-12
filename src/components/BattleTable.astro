@@ -10,8 +10,12 @@ const { catalog } = Astro.props;
 <div class="battle-shell" id="battle-app">
   <header class="battle-topbar">
     <div class="battle-topbar__left">
-      <a href="/play" class="battle-topbar__back" aria-label="退出牌桌">← 退出</a>
-      <strong id="battle-room-code" class="battle-topbar__code">房间 ------</strong>
+      <a href="/play" class="battle-topbar__back" aria-label="退出牌桌">← <span>退出</span></a>
+      <span class="battle-topbar__divider" aria-hidden="true"></span>
+      <div class="battle-topbar__room">
+        <span>ROOM</span>
+        <strong id="battle-room-code" class="battle-topbar__code">------</strong>
+      </div>
       <button type="button" id="battle-copy-code" class="battle-icon-btn battle-icon-btn--compact" title="复制房间码">复制码</button>
     </div>
     <div class="battle-topbar__center">
@@ -47,8 +51,10 @@ const { catalog } = Astro.props;
 
   <main id="battle-root" class="battle-root" aria-live="polite">
     <section class="battle-loading hud-panel">
+      <div class="battle-loading__signal" aria-hidden="true"><i></i><i></i><i></i></div>
+      <span class="battle-kicker">CONNECTING TO TABLE</span>
       <h1>正在连接牌桌</h1>
-      <p>正在恢复你的匿名座位与牌局状态。同一浏览器会自动认回座位。</p>
+      <p>正在恢复匿名座位与牌局状态。同一浏览器会自动认回座位。</p>
     </section>
   </main>
 

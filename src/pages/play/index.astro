@@ -1,17 +1,31 @@
 ---
 import Layout from "../../components/Layout.astro";
-import PageHeader from "../../components/PageHeader.astro";
 import { getBattleCatalog } from "../../lib/battle-catalog";
 
 const catalog = getBattleCatalog();
 ---
 <Layout title="在线对战" description="创建或加入群友杀 TCG 1v1 手动牌桌。">
   <div class="page-wrap battle-entry">
-    <PageHeader title="在线对战" subtitle="两人、一个房间码，像在线 TTS 一样手动完成牌局。" badge="1V1 TABLE" />
+    <section class="battle-entry__hero">
+      <div class="battle-entry__hero-copy">
+        <span class="battle-entry__eyebrow"><i></i> 1V1 ONLINE TABLE</span>
+        <h1>把牌摆上桌，<br /><strong>规则由你们决定。</strong></h1>
+        <p>两名玩家、一个房间码。保留实体桌游的自由操作，同时妥善处理手牌、暗置角色与断线恢复。</p>
+        <div class="battle-entry__status-row" aria-label="在线牌桌特性">
+          <span><i class="is-live"></i> 实时同步</span>
+          <span>无需账号</span>
+          <span>手机可用</span>
+        </div>
+      </div>
+      <div class="battle-entry__preview hud-panel" id="battle-entry-preview" aria-live="polite"></div>
+    </section>
 
-    <div class="battle-entry__grid">
-      <section class="hud-panel battle-entry__panel">
-        <h2>创建房间</h2>
+    <div class="battle-entry__grid" aria-label="开始在线对战">
+      <section class="hud-panel battle-entry__panel battle-entry__panel--primary">
+        <div class="battle-entry__panel-heading">
+          <span class="battle-entry__step">01</span>
+          <div><span>HOST A TABLE</span><h2>创建牌桌</h2></div>
+        </div>
         <form id="create-room-form" class="battle-form">
           <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="你的昵称" /></label>
           <label>预组
@@ -19,13 +33,16 @@ const catalog = getBattleCatalog();
               {catalog.decks.map((deck) => <option value={deck.id}>{deck.name} · {deck.archetype}</option>)}
             </select>
           </label>
-          <button class="btn btn--primary" type="submit">创建牌桌</button>
+          <button class="btn btn--primary battle-entry__submit" type="submit"><span>创建牌桌</span><b>→</b></button>
           <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
         </form>
       </section>
 
-      <section class="hud-panel battle-entry__panel">
-        <h2>加入房间</h2>
+      <section class="hud-panel battle-entry__panel battle-entry__panel--join">
+        <div class="battle-entry__panel-heading">
+          <span class="battle-entry__step">02</span>
+          <div><span>JOIN A FRIEND</span><h2>加入房间</h2></div>
+        </div>
         <form id="join-room-form" class="battle-form">
           <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="你的昵称" /></label>
           <label>房间码
@@ -36,20 +53,21 @@ const catalog = getBattleCatalog();
               {catalog.decks.map((deck) => <option value={deck.id}>{deck.name} · {deck.archetype}</option>)}
             </select>
           </label>
-          <button class="btn btn--secondary" type="submit">加入牌桌</button>
+          <button class="btn btn--secondary battle-entry__submit" type="submit"><span>加入牌桌</span><b>→</b></button>
           <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
         </form>
       </section>
     </div>
 
-    <section class="battle-entry__preview hud-panel" id="battle-entry-preview" aria-live="polite"></section>
-
     <section class="battle-entry__notes">
-      <h2 class="section-heading">对战说明</h2>
+      <div class="battle-entry__notes-heading">
+        <span class="battle-entry__eyebrow"><i></i> BEFORE YOU PLAY</span>
+        <h2>像在桌边一样自由，<br />但隐藏信息不会露出来。</h2>
+      </div>
       <div class="battle-entry__features">
-        <p><strong>手动结算</strong><br />系统不判断技能、伤害和费用是否合法，请双方诚信操作。</p>
-        <p><strong>隐藏信息</strong><br />对手只能看到你的手牌数量和暗置卡背。</p>
-        <p><strong>断线恢复</strong><br />同一浏览器会自动认回座位，房间保留 24 小时。</p>
+        <article><span>01</span><strong>手动结算</strong><p>系统不代替玩家判断技能、伤害和费用，复杂效果仍由双方协商处理。</p></article>
+        <article><span>02</span><strong>隐藏信息</strong><p>对手只能看到手牌数量和卡背，查看行为会被明确记录。</p></article>
+        <article><span>03</span><strong>断线恢复</strong><p>同一浏览器会自动认回座位，无人连接的房间保留 24 小时。</p></article>
       </div>
     </section>
   </div>
