@@ -25,10 +25,21 @@ const { catalog } = Astro.props;
         <span class="battle-connection__dot" aria-hidden="true"></span>
         <span class="battle-connection__text">连接中</span>
       </span>
-      <a href="/rules" class="battle-icon-btn" target="_blank" rel="noopener">规则</a>
-      <button type="button" id="battle-copy-link" class="battle-icon-btn">邀请链接</button>
-      <button type="button" class="battle-icon-btn" data-command="room:restart" title="重置牌局重新开始">重新开始</button>
-      <button type="button" class="battle-icon-btn" data-command="room:end" style="color:var(--accent-aggro-hot);border-color:rgba(255,90,53,0.3)">结束</button>
+      <div class="battle-topbar__desktop-actions">
+        <a href="/rules" class="battle-icon-btn" target="_blank" rel="noopener">规则</a>
+        <button type="button" class="battle-icon-btn" data-copy-invite>邀请链接</button>
+        <button type="button" class="battle-icon-btn" data-command="room:restartRequest" data-room-control="restart" title="请求双方重新开始" hidden>重新开始</button>
+        <button type="button" class="battle-icon-btn battle-icon-btn--danger" data-command="room:end">结束</button>
+      </div>
+      <details class="battle-topbar-menu">
+        <summary class="battle-icon-btn battle-topbar-menu__trigger">菜单</summary>
+        <div class="battle-topbar-menu__panel">
+          <a href="/rules" class="battle-icon-btn" target="_blank" rel="noopener">查看规则</a>
+          <button type="button" class="battle-icon-btn" data-copy-invite>复制邀请链接</button>
+          <button type="button" class="battle-icon-btn" data-command="room:restartRequest" data-room-control="restart" hidden>重新开始</button>
+          <button type="button" class="battle-icon-btn battle-icon-btn--danger" data-command="room:end">结束游戏</button>
+        </div>
+      </details>
     </div>
   </header>
 

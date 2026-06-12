@@ -1,0 +1,101 @@
+export type ZoneName =
+  | "hand"
+  | "characterHand"
+  | "characterDeck"
+  | "retired"
+  | "banished"
+  | "body"
+  | "handDeck"
+  | "handDiscard"
+  | "resolving"
+  | "characterSlot";
+
+export interface CardInstance {
+  instanceId: string;
+  definitionId: string;
+  kind: "body" | "character" | "hand";
+  ownerId?: string;
+  faceDown?: boolean;
+  suit?: string;
+  rank?: string;
+}
+
+export interface Marker {
+  id: string;
+  label: string;
+  ownerId: string;
+  card?: CardInstance;
+}
+
+export interface PlayerState {
+  id: string;
+  token: string;
+  nickname: string;
+  deckId?: string;
+  ready: boolean;
+  health: number;
+  megaProgress: number;
+  bodyFlipped: boolean;
+  body?: CardInstance;
+  hand: CardInstance[];
+  characterHand: CardInstance[];
+  characterDeck: CardInstance[];
+  characterSlots: Array<CardInstance | Marker | null>;
+  retired: CardInstance[];
+  banished: CardInstance[];
+}
+
+export interface RoomState {
+  roomCode: string;
+  createdAt: number;
+  lastActivityAt: number;
+  started: boolean;
+  players: PlayerState[];
+  handDeck: CardInstance[];
+  handDiscard: CardInstance[];
+  resolving: CardInstance[];
+  currentPlayerId?: string;
+  firstPlayerId?: string;
+  turnNumber: number;
+  revision: number;
+  logs: Array<{ id: string; text: string; at: number }>;
+  processedActionIds: string[];
+  inspections: InspectionGrant[];
+  pendingRestart?: PendingRestart;
+}
+
+export interface SocketAttachment {
+  playerId: string;
+}
+
+export interface ClientMessage {
+  type: string;
+  actionId: string;
+  baseRevision?: number;
+  payload?: Record<string, unknown>;
+}
+
+export type InspectionAction = "handDeckTop" | "handDeckBottom" | "handDiscard" | "hand";
+
+export interface InspectionGrant {
+  id: string;
+  viewerId: string;
+  cardInstanceIds: string[];
+  allowedActions: InspectionAction[];
+  expiresAt: number;
+}
+
+export interface PendingRestart {
+  id: string;
+  requestedBy: string;
+  expiresAt: number;
+}
+
+export interface InspectionResult {
+  inspectionId: string;
+  viewerId: string;
+  title: string;
+  cards: Array<Record<string, unknown>>;
+  allowedActions: InspectionAction[];
+  audience?: "actor" | "all";
+}

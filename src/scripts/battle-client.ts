@@ -1,92 +1,18 @@
 import { getBattleApiUrl } from "../lib/battle-api";
-
-type CatalogCard = {
-  id: string;
-  name: string;
-  kind: "body" | "character" | "hand";
-  subtitle: string;
-  text: string;
-  imagePath?: string;
-  extraImagePath?: string;
-  extraName?: string;
-  extraSubtitle?: string;
-  extraText?: string;
-  megaMax?: number;
-};
-
-type CatalogDeck = {
-  id: string;
-  name: string;
-  archetype: string;
-  bodyId: string;
-  theme: string;
-  blurb: string;
-};
-
-type Catalog = {
-  cards: Record<string, CatalogCard>;
-  decks: CatalogDeck[];
-};
-
-type CardView = {
-  instanceId: string;
-  definitionId?: string;
-  ownerId?: string;
-  faceDown?: boolean;
-  revealed?: boolean;
-  suit?: string;
-  rank?: string;
-};
-
-type MarkerView = { id: string; label: string; ownerId: string };
-
-type PlayerView = {
-  id: string;
-  nickname: string;
-  deckId?: string;
-  ready: boolean;
-  connected: boolean;
-  health?: number;
-  megaProgress?: number;
-  bodyFlipped?: boolean;
-  body?: CardView;
-  hand: CardView[];
-  characterHand: CardView[];
-  characterDeckCount: number;
-  characterSlots: Array<CardView | MarkerView | null>;
-  retired: CardView[];
-  banished: CardView[];
-};
-
-type GameView = {
-  started: boolean;
-  currentPlayerId?: string;
-  firstPlayerId?: string;
-  turnNumber: number;
-  handDeckCount: number;
-  handDiscard: CardView[];
-  resolving: CardView[];
-  logs: Array<{ id: string; text: string; at: number }>;
-};
-
-type Snapshot = {
-  roomCode: string;
-  you: string;
-  players: PlayerView[];
-  game: GameView;
-  inspection?: { title: string; cards: CardView[] };
-};
-
-type ServerMessage =
-  | { type: "snapshot"; snapshot: Snapshot }
-  | { type: "error"; error: string }
-  | { type: "inspection"; title: string; cards: CardView[] }
-  | { type: "roomEnded" };
-
-type PreservedUI = {
-  scrollLeft: Record<string, number>;
-  logOpen: boolean;
-};
+import { escapeHtml, handCardImagePath, suitSymbol } from "./battle-format";
+import type {
+  CardView,
+  Catalog,
+  CatalogCard,
+  CatalogDeck,
+  GameView,
+  InspectionAction,
+  MarkerView,
+  PlayerView,
+  PreservedUI,
+  ServerMessage,
+  Snapshot,
+} from "./battle-types";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -121,6 +47,8 @@ let moveModeCardId: string | null = null;
 let coachStep = 0;
 let toastTimer = 0;
 let coachShown = false;
+let roomEnded = false;
+let restartCountdownTimer = 0;
 
 const COACH_STEPS = [
   { title: "点击卡牌查看技能", text: "点任意卡牌可阅读完整效果，并从菜单移动到其他区域。" },
@@ -159,14 +87,25 @@ async function copyText(text: string, button?: HTMLButtonElement | null, doneLab
   }
 }
 
-document.querySelector("#battle-copy-link")?.addEventListener("click", async (event) => {
-  const inviteUrl = new URL("/play", location.origin);
-  inviteUrl.searchParams.set("room", roomCode);
-  await copyText(inviteUrl.toString(), event.currentTarget as HTMLButtonElement, "已复制", "邀请链接");
+document.querySelectorAll<HTMLButtonElement>("[data-copy-invite]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const inviteUrl = new URL("/play", location.origin);
+    inviteUrl.searchParams.set("room", roomCode);
+    await copyText(inviteUrl.toString(), button, "已复制");
+  });
 });
 
 document.querySelector("#battle-copy-code")?.addEventListener("click", async (event) => {
   await copyText(roomCode, event.currentTarget as HTMLButtonElement, "已复制", "复制码");
+});
+
+document.querySelector(".battle-topbar")?.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element)) return;
+  const commandElement = event.target.closest<HTMLElement>("[data-command]");
+  if (commandElement) {
+    handleCommand(commandElement);
+    commandElement.closest<HTMLDetailsElement>(".battle-topbar-menu")?.removeAttribute("open");
+  }
 });
 
 // 点击弹窗外部（遮罩）关闭
@@ -315,21 +254,33 @@ async function connect() {
       snapshot = message.snapshot;
       render();
     } else if (message.type === "inspection") {
-      showInspection(message.title, message.cards);
+      showInspection(
+        message.title,
+        message.cards,
+        message.inspectionId,
+        message.viewerId,
+        message.allowedActions,
+      );
     } else if (message.type === "roomEnded") {
+      roomEnded = true;
+      hasConnected = false;
+      connectionAttempt += 1;
+      window.clearTimeout(reconnectTimer);
       root.innerHTML = `<section class="battle-loading hud-panel">
         <span class="battle-kicker">游戏结束</span>
         <h1>房间已关闭</h1>
-        <p>对方结束了这场游戏。</p>
+        <p>这场游戏已经结束，房间已关闭。</p>
         <a class="btn btn--primary" href="/play">返回在线对战</a>
       </section>`;
       setConnectionState("已结束", "failed");
+      syncRoomControls(false);
     } else {
       showError(message.error);
     }
   });
   socket.addEventListener("close", () => {
     window.clearTimeout(socketTimeout);
+    if (roomEnded) return;
     if (attempt !== connectionAttempt) return;
     if (socketFailureHandled) return;
     if (!hasConnected) {
@@ -371,17 +322,22 @@ function renderConnectionError(message: string) {
 
 function send(type: string, payload: Record<string, unknown> = {}) {
   if (socket?.readyState !== WebSocket.OPEN) {
-    console.error("[send] socket not open", { type, readyState: socket?.readyState });
     showError("连接尚未恢复，请稍后再试。");
     return;
   }
-  const msg = { type, actionId: crypto.randomUUID(), payload };
-  console.log("[send]", msg);
+  const msg = {
+    type,
+    actionId: crypto.randomUUID(),
+    baseRevision: snapshot?.revision,
+    payload,
+  };
   socket.send(JSON.stringify(msg));
 }
 
 function render() {
   if (!snapshot) return;
+  syncRoomControls(snapshot.game.started && !snapshot.pendingRestart);
+  window.clearInterval(restartCountdownTimer);
   const preserved = captureUIState();
   const me = snapshot.players.find((player) => player.id === snapshot?.you);
   const opponent = snapshot.players.find((player) => player.id !== snapshot?.you);
@@ -398,6 +354,7 @@ function render() {
   const isMyTurn = snapshot.game.currentPlayerId === snapshot.you;
   root.innerHTML = `
     ${moveModeCardId ? `<div class="battle-move-banner">点击落点模式 · 选择目标区域（Esc 取消）</div>` : ""}
+    ${renderRestartRequest(me, opponent)}
     <div class="battle-table">
       ${opponent ? renderPlayer(opponent, false, isMyTurn) : renderWaitingSeat()}
       ${renderCenter(snapshot.game, me, opponent, isMyTurn)}
@@ -406,7 +363,41 @@ function render() {
   `;
   bindActions();
   restoreUIState(preserved);
+  startRestartCountdown();
   maybeShowCoach();
+}
+
+function renderRestartRequest(me: PlayerView, opponent?: PlayerView) {
+  const pending = snapshot?.pendingRestart;
+  if (!pending) return "";
+  const requester = snapshot?.players.find((player) => player.id === pending.requestedBy);
+  const isRequester = pending.requestedBy === me.id;
+  const remaining = Math.max(0, Math.ceil((pending.expiresAt - Date.now()) / 1000));
+  return `<section class="battle-restart-request hud-panel" role="status">
+    <div>
+      <strong>${escapeHtml(requester?.nickname || "一名玩家")} 请求重新开始</strong>
+      <span>双方确认后会重新洗牌和发牌 · <b data-restart-countdown>${remaining}</b> 秒后失效</span>
+    </div>
+    <div class="battle-restart-request__actions">
+      ${isRequester
+        ? `<button type="button" class="battle-small-btn" data-command="room:restartCancel" data-request-id="${pending.id}">取消请求</button>`
+        : `<button type="button" class="battle-small-btn" data-command="room:restartRespond" data-request-id="${pending.id}" data-accept="false">拒绝</button>
+           <button type="button" class="btn btn--primary" data-command="room:restartRespond" data-request-id="${pending.id}" data-accept="true" ${opponent?.connected === false ? "disabled" : ""}>同意重开</button>`}
+    </div>
+  </section>`;
+}
+
+function startRestartCountdown() {
+  const pending = snapshot?.pendingRestart;
+  if (!pending) return;
+  restartCountdownTimer = window.setInterval(() => {
+    const node = document.querySelector<HTMLElement>("[data-restart-countdown]");
+    if (!node) {
+      window.clearInterval(restartCountdownTimer);
+      return;
+    }
+    node.textContent = String(Math.max(0, Math.ceil((pending.expiresAt - Date.now()) / 1000)));
+  }, 1000);
 }
 
 function renderLobby(me: PlayerView, opponent?: PlayerView) {
@@ -524,14 +515,14 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
       </div>
       <div class="battle-private-rail">
         <div class="battle-private-rail__title">
-          <strong>${isMe ? "角色手牌" : "对手角色手牌"}</strong><span>${player.characterHand.length} 张</span>
+          <strong>${isMe ? "角色手牌" : "对手角色手牌"}</strong><span>${player.characterHandCount} 张</span>
         </div>
         <div class="battle-card-row" data-scroll-key="${isMe ? "char-hand-self" : "char-hand-opp"}">${player.characterHand.map((card) => renderCard(card, { owner: player, zone: "characterHand", interactive: isMe, size: isMe ? "hand" : "compact" })).join("")}</div>
       </div>
       <div class="battle-private-rail battle-private-rail--hand">
         <div class="battle-private-rail__title">
           <strong>${isMe ? "我的手牌" : "对手手牌"}</strong>
-          <span>${player.hand.length} 张</span>
+          <span>${player.handCount} 张</span>
           ${!isMe ? `<button class="battle-small-btn" data-command="card:inspect-zone" data-owner="${player.id}" data-zone="hand">查看手牌</button>` : ""}
         </div>
         <div class="battle-card-row" data-scroll-key="${isMe ? "hand-self" : "hand-opp"}">${player.hand.map((card) => renderCard(card, { owner: player, zone: "hand", interactive: isMe, size: isMe ? "hand" : "compact" })).join("")}</div>
@@ -617,6 +608,14 @@ function renderSlot(item: CardView | MarkerView | null, index: number, owner: Pl
       <button type="button" class="battle-slot__marker-del" data-marker="${item.id}" data-marker-label="${label}" aria-label="删除标记 ${label}">×</button>
     </article>`;
   }
+  if (!item.instanceId && item.faceDown) {
+    return `<article class="battle-slot">
+      <button type="button" class="battle-mini-card battle-mini-card--back battle-mini-card--field"
+        data-inspect-owner="${owner.id}" data-inspect-slot="${index}" aria-label="查看第 ${index + 1} 个暗置角色">
+        <span>暗置</span><small>点击查看</small>
+      </button>
+    </article>`;
+  }
   return `<article class="battle-slot">${renderCard(item, { owner, zone: `slot:${index}`, interactive: isMe || !item.faceDown, size: "field" })}</article>`;
 }
 
@@ -628,7 +627,8 @@ function renderCard(
   const definition = cardDefinition(card);
   const sizeClass = options.size ? ` battle-mini-card--${options.size}` : "";
   if (!definition) {
-    return `<button type="button" class="battle-mini-card battle-mini-card--back${sizeClass}" data-card="${card.instanceId}" data-owner="${options.owner.id}" data-zone="${options.zone}" aria-label="暗置卡牌">
+    const cardAttribute = card.instanceId ? ` data-card="${card.instanceId}"` : "";
+    return `<button type="button" class="battle-mini-card battle-mini-card--back${sizeClass}"${cardAttribute} data-owner="${options.owner.id}" data-zone="${options.zone}" aria-label="暗置卡牌">
       <span>暗置</span><small>身份未知</small>
     </button>`;
   }
@@ -650,7 +650,7 @@ function renderCard(
     ? (card.faceDown ? `<span class="battle-mini-card__face-badge battle-mini-card__face-badge--down">暗</span>` : `<span class="battle-mini-card__face-badge">明</span>`)
     : "";
   return `<button type="button" class="${cardClass}" draggable="${String(options.interactive)}"
-    data-card="${card.instanceId}" data-owner="${options.owner.id}" data-zone="${options.zone}"
+    data-card="${card.instanceId || ""}" data-owner="${options.owner.id}" data-zone="${options.zone}"
     aria-label="${escapeHtml(name)}" title="${escapeHtml(definition.text)}">
     ${imagePath ? `<img src="${imagePath}" alt="" loading="lazy" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
     ${faceBadge}
@@ -686,19 +686,23 @@ function bindActions() {
     });
     element.addEventListener("dragend", () => element.classList.remove("is-dragging"));
   });
+  root.querySelectorAll<HTMLElement>("[data-inspect-owner][data-inspect-slot]").forEach((element) => {
+    element.addEventListener("click", () => {
+      send("card:inspect", {
+        ownerId: element.dataset.inspectOwner,
+        zone: "characterSlot",
+        slotIndex: Number(element.dataset.inspectSlot),
+      });
+    });
+  });
   root.querySelectorAll<HTMLElement>("[data-marker]").forEach((element) => {
     element.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
       const markerId = element.dataset.marker;
       const label = element.dataset.markerLabel || element.textContent || "这个";
-      console.log("[marker] click", { markerId, label, html: element.outerHTML });
-      if (!markerId) {
-        console.error("[marker] missing markerId", element);
-        return;
-      }
+      if (!markerId) return;
       showConfirmDialog(`移除标记「${label}」？`, () => {
-        console.log("[marker] confirmed, sending marker:remove", markerId);
         send("marker:remove", { markerId });
       });
     });
@@ -722,6 +726,12 @@ function bindActions() {
       moveModeCardId = null;
       render();
     });
+  });
+}
+
+function syncRoomControls(started: boolean) {
+  document.querySelectorAll<HTMLElement>('[data-room-control="restart"]').forEach((control) => {
+    control.hidden = !started;
   });
 }
 
@@ -774,10 +784,17 @@ function handleCommand(element: HTMLElement) {
     send(command, { ownerId: element.dataset.owner });
   } else if (command === "marker:create") {
     showMarkerDialog((label, slotIndex) => send(command, { label, slotIndex }));
-  } else if (command === "room:restart") {
-    showConfirmDialog("重置牌局？双方回到初始状态重新开始。", () => send(command));
+  } else if (command === "room:restartRequest") {
+    showConfirmDialog("请求重新开始？对手同意后双方会重新洗牌和发牌。", () => send(command));
+  } else if (command === "room:restartRespond") {
+    send(command, {
+      requestId: element.dataset.requestId,
+      accept: element.dataset.accept === "true",
+    });
+  } else if (command === "room:restartCancel") {
+    send(command, { requestId: element.dataset.requestId });
   } else if (command === "room:end") {
-    showConfirmDialog("确定要结束这场游戏？房间将被销毁，双方都将退出。", () => send(command));
+    showConfirmDialog("确定结束游戏？房间会立即关闭，双方都会退出且无法恢复。", () => send(command));
   }
 }
 
@@ -1016,7 +1033,20 @@ function findVisibleCard(instanceId: string) {
   return [...pools, ...snapshot.game.handDiscard, ...snapshot.game.resolving].find((card) => card?.instanceId === instanceId);
 }
 
-function showInspection(title: string, cards: CardView[]) {
+function showInspection(
+  title: string,
+  cards: CardView[],
+  inspectionId: string,
+  viewerId: string,
+  allowedActions: InspectionAction[],
+) {
+  const canAct = viewerId === snapshot?.you;
+  const actionLabels: Record<InspectionAction, string> = {
+    handDeckTop: "置于牌堆顶",
+    handDeckBottom: "置于牌堆底",
+    handDiscard: "置入弃牌区",
+    hand: "加入我的手牌",
+  };
   dialogContent.innerHTML = `<div class="battle-card-menu"><h2>${escapeHtml(title)}</h2>
     <div class="battle-inspection">${cards.map((card) => {
       const definition = cardDefinition(card);
@@ -1029,12 +1059,11 @@ function showInspection(title: string, cards: CardView[]) {
         <div>
           <strong>${escapeHtml(poker + (definition?.name || "未知"))}</strong>
           <p>${escapeHtml(definition?.text || "")}</p>
-          <div class="battle-card-menu__actions">
-            <button type="button" data-inspection-move="${card.instanceId}" data-target="handDeckTop">置于牌堆顶</button>
-            <button type="button" data-inspection-move="${card.instanceId}" data-target="handDeckBottom">置于牌堆底</button>
-            <button type="button" data-inspection-move="${card.instanceId}" data-target="handDiscard">置入弃牌区</button>
-            <button type="button" data-inspection-move="${card.instanceId}" data-target="hand">加入我的手牌</button>
-          </div>
+          ${canAct && card.instanceId && allowedActions.length
+            ? `<div class="battle-card-menu__actions">${allowedActions.map((action) =>
+                `<button type="button" data-inspection-move="${card.instanceId}" data-target="${action}">${actionLabels[action]}</button>`
+              ).join("")}</div>`
+            : `<p class="battle-dialog-hint">${canAct ? "本次查看仅供确认牌面。" : "由展示发起者决定后续处理。"}</p>`}
         </div>
       </article>`;
     }).join("")}</div></div>`;
@@ -1044,6 +1073,7 @@ function showInspection(title: string, cards: CardView[]) {
       send("card:move", {
         instanceId: button.dataset.inspectionMove,
         targetZone: button.dataset.target,
+        inspectionId,
       });
       dialog.close();
     });
@@ -1086,27 +1116,6 @@ function maybeShowCoach() {
 function finishCoach() {
   localStorage.setItem(COACH_KEY, "1");
   if (coachEl) coachEl.hidden = true;
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;",
-  })[character] || character);
-}
-
-function suitSymbol(suit: string) {
-  return ({ "黑桃": "♠", "红桃": "♥", "梅花": "♣", "方块": "♦" } as Record<string, string>)[suit] || suit;
-}
-
-function handCardImagePath(definitionId: string, suit?: string, rank?: string) {
-  if (!suit || !rank) return undefined;
-  const suitSlug = ({ "黑桃": "spade", "红桃": "heart", "梅花": "club", "方块": "diamond" } as Record<string, string>)[suit];
-  if (!suitSlug) return undefined;
-  return `/cards/hand_cards/${definitionId}_${suitSlug}_${rank.toLowerCase()}.webp`;
 }
 
 connect();

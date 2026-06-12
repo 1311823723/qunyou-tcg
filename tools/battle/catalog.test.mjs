@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const root = new URL("../../", import.meta.url);
 const bodies = JSON.parse(await readFile(new URL("data/cards/bodies.json", root), "utf8"));
 const handCards = JSON.parse(await readFile(new URL("data/cards/hand_cards.json", root), "utf8"));
+const workerConfig = JSON.parse(await readFile(new URL("worker/wrangler.jsonc", root), "utf8"));
 const deckFiles = ["aggro", "mizai", "combo", "trans"];
 const decks = await Promise.all(deckFiles.map(async (slug) =>
   JSON.parse(await readFile(new URL(`data/decks/${slug}.deck.json`, root), "utf8")),
@@ -34,4 +35,15 @@ test("current body cards expose the expected Mega progress maxima", () => {
     body_combo_001: 6,
     body_trans_001: 4,
   });
+});
+
+test("battle worker defines separate create and join rate limits", () => {
+  assert.deepEqual(workerConfig.ratelimits.map((item) => ({
+    name: item.name,
+    limit: item.simple.limit,
+    period: item.simple.period,
+  })), [
+    { name: "CREATE_RATE_LIMITER", limit: 10, period: 60 },
+    { name: "JOIN_RATE_LIMITER", limit: 30, period: 60 },
+  ]);
 });

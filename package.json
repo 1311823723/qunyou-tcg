@@ -12,6 +12,7 @@
     "deploy:battle": "wrangler deploy --config worker/wrangler.jsonc",
     "validate": "node tools/validate-cards.js",
     "test:battle": "node --test tools/battle/*.test.mjs",
+    "test:battle:live": "node tools/battle/room-lifecycle.smoke.mjs",
     "print:aggro": "node tools/print-deck.js",
     "art:use": "node tools/use-card-art.js",
     "export:tts": "node tools/tts/export-tts.js",
