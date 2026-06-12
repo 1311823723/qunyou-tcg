@@ -1,5 +1,6 @@
 import { getBattleApiUrl } from "../lib/battle-api";
 import { escapeHtml, handCardImagePath, suitSymbol } from "./battle-format";
+import { normalizeBattleSnapshot } from "./battle-state.mjs";
 import type {
   CardView,
   Catalog,
@@ -251,7 +252,7 @@ async function connect() {
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(String(event.data)) as ServerMessage;
     if (message.type === "snapshot") {
-      snapshot = message.snapshot;
+      snapshot = normalizeBattleSnapshot(message.snapshot);
       render();
     } else if (message.type === "inspection") {
       showInspection(
@@ -352,6 +353,7 @@ function render() {
   }
 
   const isMyTurn = snapshot.game.currentPlayerId === snapshot.you;
+  const myHandCount = me.handCount ?? me.hand.length;
   root.innerHTML = `
     ${moveModeCardId ? `<div class="battle-move-banner">点击落点模式 · 选择目标区域（Esc 取消）</div>` : ""}
     ${renderRestartRequest(me, opponent)}
@@ -364,7 +366,7 @@ function render() {
       <a href="#battle-player-opponent">对手</a>
       <a href="#battle-center">公共区</a>
       <a href="#battle-player-self">我的阵地</a>
-      <a href="#battle-hand-self">手牌 <b>${me.handCount}</b></a>
+      <a href="#battle-hand-self">手牌 <b>${myHandCount}</b></a>
     </nav>
   `;
   bindActions();
@@ -502,6 +504,8 @@ function renderLobbySeat(player: PlayerView, isMe: boolean) {
 function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
   const body = cardDefinition(player.body);
   const deck = deckFor(player);
+  const handCount = player.handCount ?? player.hand.length;
+  const characterHandCount = player.characterHandCount ?? player.characterHand.length;
   const max = body?.megaMax;
   const megaText = max ? `${player.megaProgress || 0}/${max}` : String(player.megaProgress || 0);
   const turnClass = snapshot?.game.currentPlayerId === player.id ? " battle-player--active-turn" : "";
@@ -536,19 +540,21 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
           ${renderZone("移出游戏", player.banished, player, "banished", isMe)}
         </div>
       </div>
-      <div class="battle-private-rail">
-        <div class="battle-private-rail__title">
-          <strong>${isMe ? "角色手牌" : "对手角色手牌"}</strong><span>${player.characterHandCount} 张</span>
+      <div class="battle-player__private">
+        <div class="battle-private-rail battle-private-rail--characters">
+          <div class="battle-private-rail__title">
+            <strong>${isMe ? "角色手牌" : "对手角色手牌"}</strong><span>${characterHandCount} 张</span>
+          </div>
+          <div class="battle-card-row" data-scroll-key="${isMe ? "char-hand-self" : "char-hand-opp"}">${player.characterHand.map((card) => renderCard(card, { owner: player, zone: "characterHand", interactive: isMe, size: isMe ? "hand" : "compact" })).join("")}</div>
         </div>
-        <div class="battle-card-row" data-scroll-key="${isMe ? "char-hand-self" : "char-hand-opp"}">${player.characterHand.map((card) => renderCard(card, { owner: player, zone: "characterHand", interactive: isMe, size: isMe ? "hand" : "compact" })).join("")}</div>
-      </div>
-      <div ${isMe ? 'id="battle-hand-self"' : ""} class="battle-private-rail battle-private-rail--hand">
-        <div class="battle-private-rail__title">
-          <strong>${isMe ? "我的手牌" : "对手手牌"}</strong>
-          <span>${player.handCount} 张</span>
-          ${!isMe ? `<button class="battle-small-btn" data-command="card:inspect-zone" data-owner="${player.id}" data-zone="hand">查看手牌</button>` : ""}
+        <div ${isMe ? 'id="battle-hand-self"' : ""} class="battle-private-rail battle-private-rail--hand">
+          <div class="battle-private-rail__title">
+            <strong>${isMe ? "我的手牌" : "对手手牌"}</strong>
+            <span>${handCount} 张</span>
+            ${!isMe ? `<button class="battle-small-btn" data-command="card:inspect-zone" data-owner="${player.id}" data-zone="hand">查看手牌</button>` : ""}
+          </div>
+          <div class="battle-card-row" data-scroll-key="${isMe ? "hand-self" : "hand-opp"}">${player.hand.map((card) => renderCard(card, { owner: player, zone: "hand", interactive: isMe, size: isMe ? "hand" : "compact" })).join("")}</div>
         </div>
-        <div class="battle-card-row" data-scroll-key="${isMe ? "hand-self" : "hand-opp"}">${player.hand.map((card) => renderCard(card, { owner: player, zone: "hand", interactive: isMe, size: isMe ? "hand" : "compact" })).join("")}</div>
       </div>
     </section>
   `;

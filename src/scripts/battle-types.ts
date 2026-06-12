@@ -50,9 +50,9 @@ export type PlayerView = {
   bodyFlipped?: boolean;
   body?: CardView;
   hand: CardView[];
-  handCount: number;
+  handCount?: number;
   characterHand: CardView[];
-  characterHandCount: number;
+  characterHandCount?: number;
   characterDeckCount: number;
   characterSlots: Array<CardView | MarkerView | null>;
   retired: CardView[];
