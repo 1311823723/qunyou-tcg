@@ -1623,6 +1623,25 @@
     padding-block: 0.42rem;
   }
 
+  .battle-character-slots {
+    min-width: 0;
+  }
+
+  .battle-character-slots__grid {
+    width: 100%;
+    grid-template-columns: repeat(4, minmax(5.25rem, 6.35rem));
+    justify-content: space-evenly;
+    gap: clamp(0.5rem, 1vw, 1rem);
+    padding-inline: clamp(0.25rem, 1.2vw, 1.25rem);
+  }
+
+  .battle-character-slots .battle-slot,
+  .battle-character-slots .battle-mini-card--field {
+    width: 100%;
+    min-height: 0;
+    aspect-ratio: 5 / 7;
+  }
+
   .battle-player--opponent .battle-player__field {
     padding-right: 1.7rem;
   }
@@ -1769,5 +1788,16 @@
   #battle-app[data-table-mode="compact"] .battle-common-zones .battle-pile,
   #battle-app[data-table-mode="compact"] .battle-common-zones .battle-zone {
     min-height: 4.2rem;
+  }
+
+  #battle-app[data-table-mode="compact"] .battle-character-slots__grid {
+    grid-template-columns: repeat(4, minmax(4.65rem, 5.45rem));
+    gap: clamp(0.4rem, 0.75vw, 0.75rem);
+    padding-inline: clamp(0.15rem, 0.8vw, 0.75rem);
+  }
+
+  #battle-app[data-table-mode="compact"] .battle-character-slots .battle-slot,
+  #battle-app[data-table-mode="compact"] .battle-character-slots .battle-mini-card--field {
+    width: 100%;
   }
 }
