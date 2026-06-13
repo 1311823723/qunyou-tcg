@@ -8,13 +8,13 @@ const catalog = getBattleCatalog();
   <div class="page-wrap battle-entry">
     <section class="battle-entry__hero">
       <div class="battle-entry__hero-copy">
-        <span class="battle-entry__eyebrow"><i></i> 1V1 ONLINE TABLE</span>
-        <h1>把牌摆上桌，<br /><strong>规则由你们决定。</strong></h1>
-        <p>两名玩家、一个房间码。保留实体桌游的自由操作，同时妥善处理手牌、暗置角色与断线恢复。</p>
-        <div class="battle-entry__status-row" aria-label="在线牌桌特性">
-          <span><i class="is-live"></i> 实时同步</span>
-          <span>无需账号</span>
-          <span>手机可用</span>
+        <span class="battle-entry__eyebrow"><i></i> 在线对战</span>
+        <h1>创建或加入<br /><strong>1v1 对战房间</strong></h1>
+        <p>输入昵称并选择预组即可开始。房间支持实时同步、隐藏信息保护和同一浏览器断线恢复。</p>
+        <div class="battle-entry__status-row" aria-label="对战服务信息">
+          <span><i class="is-live"></i> 对战服务可用</span>
+          <span>无需注册</span>
+          <span>支持移动端</span>
         </div>
       </div>
       <div class="battle-entry__preview hud-panel" id="battle-entry-preview" aria-live="polite"></div>
@@ -24,7 +24,7 @@ const catalog = getBattleCatalog();
       <section class="hud-panel battle-entry__panel battle-entry__panel--primary">
         <div class="battle-entry__panel-heading">
           <span class="battle-entry__step">01</span>
-          <div><span>HOST A TABLE</span><h2>创建牌桌</h2></div>
+          <div><span>新建房间</span><h2>创建对战房间</h2></div>
         </div>
         <form id="create-room-form" class="battle-form">
           <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="你的昵称" /></label>
@@ -33,7 +33,7 @@ const catalog = getBattleCatalog();
               {catalog.decks.map((deck) => <option value={deck.id}>{deck.name} · {deck.archetype}</option>)}
             </select>
           </label>
-          <button class="btn btn--primary battle-entry__submit" type="submit"><span>创建牌桌</span><b>→</b></button>
+          <button class="btn btn--primary battle-entry__submit" type="submit"><span>创建房间</span><b>→</b></button>
           <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
         </form>
       </section>
@@ -41,7 +41,7 @@ const catalog = getBattleCatalog();
       <section class="hud-panel battle-entry__panel battle-entry__panel--join">
         <div class="battle-entry__panel-heading">
           <span class="battle-entry__step">02</span>
-          <div><span>JOIN A FRIEND</span><h2>加入房间</h2></div>
+          <div><span>已有房间码</span><h2>加入对战房间</h2></div>
         </div>
         <form id="join-room-form" class="battle-form">
           <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="你的昵称" /></label>
@@ -53,7 +53,7 @@ const catalog = getBattleCatalog();
               {catalog.decks.map((deck) => <option value={deck.id}>{deck.name} · {deck.archetype}</option>)}
             </select>
           </label>
-          <button class="btn btn--secondary battle-entry__submit" type="submit"><span>加入牌桌</span><b>→</b></button>
+          <button class="btn btn--secondary battle-entry__submit" type="submit"><span>加入房间</span><b>→</b></button>
           <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
         </form>
       </section>
@@ -61,13 +61,13 @@ const catalog = getBattleCatalog();
 
     <section class="battle-entry__notes">
       <div class="battle-entry__notes-heading">
-        <span class="battle-entry__eyebrow"><i></i> BEFORE YOU PLAY</span>
-        <h2>像在桌边一样自由，<br />但隐藏信息不会露出来。</h2>
+        <span class="battle-entry__eyebrow"><i></i> 使用说明</span>
+        <h2>开始对战前</h2>
       </div>
       <div class="battle-entry__features">
-        <article><span>01</span><strong>手动结算</strong><p>系统不代替玩家判断技能、伤害和费用，复杂效果仍由双方协商处理。</p></article>
-        <article><span>02</span><strong>隐藏信息</strong><p>对手只能看到手牌数量和卡背，查看行为会被明确记录。</p></article>
-        <article><span>03</span><strong>断线恢复</strong><p>同一浏览器会自动认回座位，无人连接的房间保留 24 小时。</p></article>
+        <article><span>01</span><strong>规则判定</strong><p>系统同步牌桌状态，不自动判断技能、费用、伤害或胜负。</p></article>
+        <article><span>02</span><strong>隐藏信息</strong><p>手牌和暗置角色仅对拥有者可见，查看操作会记录在日志中。</p></article>
+        <article><span>03</span><strong>房间恢复</strong><p>刷新或短暂断线后，同一浏览器会自动恢复原座位。</p></article>
       </div>
     </section>
   </div>

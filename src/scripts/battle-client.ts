@@ -529,18 +529,25 @@ function startRestartCountdown() {
 function renderLobby(me: PlayerView, opponent?: PlayerView) {
   const myDeck = deckFor(me);
   const bodyCard = myDeck ? catalog.cards[myDeck.bodyId] : undefined;
+  const roomStatus = !opponent
+    ? "等待另一名玩家加入"
+    : opponent.ready && !me.ready
+      ? "对手已准备，等待你确认"
+      : me.ready && !opponent.ready
+        ? "你已准备，等待对手确认"
+        : "双方确认准备后自动开始";
   root.innerHTML = `
     <section class="battle-lobby hud-panel ${themeClasses(myDeck?.theme)}">
       <div class="battle-lobby__heading">
         <div>
-          <span class="battle-kicker">READY ROOM / 1V1</span>
-          <h1>准备开局</h1>
+          <span class="battle-lobby__status"><i class="${opponent ? "is-online" : ""}"></i>${opponent ? "2 / 2 玩家已加入" : "1 / 2 玩家已加入"}</span>
+          <h1>对战房间</h1>
         </div>
-        <p>双方选择预组并准备后，服务器自动洗牌、发牌并随机先手。</p>
+        <p>${roomStatus}</p>
       </div>
       <div class="battle-invite">
         <div>
-          <span class="battle-invite__label">分享房间码给你的对手</span>
+          <span class="battle-invite__label">房间码</span>
           <strong class="battle-room-display">${escapeHtml(snapshot?.roomCode || roomCode)}</strong>
         </div>
         <div class="battle-invite__actions">
@@ -550,8 +557,8 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
       </div>
       <div class="battle-lobby__seats">
         ${renderLobbySeat(me, true)}
-        <div class="battle-lobby__versus"><span>VS</span><i></i></div>
-        ${opponent ? renderLobbySeat(opponent, false) : `<article class="battle-seat battle-seat--empty"><span class="battle-seat__status"><i></i> 对手座位</span><strong>等待对手</strong><p>邀请链接已准备好，另一名玩家加入后会出现在这里。</p><em>尚未加入</em></article>`}
+        <div class="battle-lobby__versus"><span>1V1</span><i></i></div>
+        ${opponent ? renderLobbySeat(opponent, false) : `<article class="battle-seat battle-seat--empty"><span class="battle-seat__status"><i></i> 对手座位</span><strong>等待加入</strong><p>将房间码或邀请链接发送给另一名玩家。</p><em>尚未加入</em></article>`}
       </div>
       <div class="battle-lobby__loadout">
         <div class="battle-deck-preview" id="battle-deck-preview">
@@ -564,11 +571,11 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
             </select>
           </label>
           <button class="btn ${me.ready ? "btn--secondary" : "btn--primary"}" data-command="player:ready" data-ready="${String(!me.ready)}">
-            ${me.ready ? "取消准备" : "准备开局"}
+            ${me.ready ? "取消准备" : "确认准备"}
           </button>
         </div>
       </div>
-      ${me.ready ? `<p class="battle-lobby__hint">已准备 · 预组已锁定，取消准备后可更换</p>` : ""}
+      ${me.ready ? `<p class="battle-lobby__hint">当前已准备，预组已锁定。取消准备后可以重新选择。</p>` : ""}
     </section>
   `;
   document.querySelector("#battle-deck-select")?.addEventListener("change", (event) => {
