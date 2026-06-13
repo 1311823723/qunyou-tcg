@@ -310,6 +310,28 @@ a.send("card:move", {
 await a.waitFor((message) => message.type === "error" && /授权/.test(message.error));
 step("inspection grant consumption verified");
 
+a.messages.length = 0;
+b.messages.length = 0;
+a.send("card:move", {
+  instanceId: resolvingCard.instanceId,
+  targetZone: "opponentHand",
+});
+const discardGivenToOpponent = await b.waitFor((message) => {
+  if (message.type !== "snapshot") return false;
+  const me = message.snapshot.players.find((player) => player.id === message.snapshot.you);
+  return me?.hand.some((card) => card.instanceId === resolvingCard.instanceId);
+});
+assert.equal(
+  discardGivenToOpponent.snapshot.players
+    .find((player) => player.id === discardGivenToOpponent.snapshot.you)
+    .hand.length,
+  5,
+);
+assert.ok(discardGivenToOpponent.snapshot.game.logs.some((log) =>
+  log.text.includes("从手牌弃牌区移动到对手手牌区")
+));
+step("public discard moved into opponent private hand");
+
 const staleRevision = a.revision - 1;
 a.messages.length = 0;
 a.send("health:set", { value: 2 }, { baseRevision: staleRevision });
@@ -431,6 +453,7 @@ console.log(JSON.stringify({
   opponentHealthEditable: true,
   handDiscardRecycledToDeckBottom: true,
   resolvingZoneBulkDiscarded: true,
+  publicDiscardTransferredToOpponent: true,
   characterSkillDeclarationDetailed: true,
   semanticDiscardAndRestLogs: true,
   restartRequiresBothPlayers: true,

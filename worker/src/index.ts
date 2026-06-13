@@ -623,7 +623,9 @@ export class BattleRoom extends DurableObject<Env> {
         this.state.handDeck.unshift(card);
       } else if (target === "opponentHand") {
         const opponent = this.state.players.find((item) => item.id !== actor.id);
-        if (!opponent || card.kind !== "hand" || owner.id !== actor.id) throw new Error("不能交给对手。");
+        if (!opponent || card.kind !== "hand" || (owner.id !== actor.id && !isPublicLocation(located))) {
+          throw new Error("不能交给对手。");
+        }
         card.ownerId = opponent.id;
         opponent.hand.push(card);
       } else if (target === "hand") {

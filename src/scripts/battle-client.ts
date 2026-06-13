@@ -691,11 +691,22 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
       <div><small>${isMyTurn ? "ACTION AVAILABLE" : "WAITING FOR OPPONENT"}</small><strong class="${isMyTurn ? "battle-turnbar__you" : ""}">${current ? `${escapeHtml(current.nickname)} 的回合` : "等待开始"}</strong></div>
       <button class="battle-small-btn battle-small-btn--accent" data-command="turn:end"${endTurnDisabled}${endTurnTitle}>结束回合</button>
     </div>
-    <div class="battle-center__lane-title"><i></i><span>公共结算区</span><i></i></div>
-    <div class="battle-common-zones">
-      ${renderPile("共用牌堆", game.handDeckCount, "card:draw-hand", "摸 1 张")}
-      ${renderZone("结算区", game.resolving, me, "resolving", true, "resolving:discardAll", "全部弃置")}
-      ${renderZone("手牌弃牌区", game.handDiscard, me, "handDiscard", true, "deck:recycleDiscard", "洗回牌堆底")}
+    <div class="battle-center__stage">
+      ${opponent ? renderCenterBody(opponent, false) : `<div class="battle-center-body battle-center-body--empty"></div>`}
+      <div class="battle-center__common">
+        <div class="battle-center__lane-title"><i></i><span>公共结算区</span><i></i></div>
+        <div class="battle-common-zones">
+          ${renderPile("共用牌堆", game.handDeckCount, "card:draw-hand", "摸 1 张")}
+          ${renderZone("结算区", game.resolving, me, "resolving", true, [
+            { command: "resolving:discardAll", label: "全部弃置" },
+          ])}
+          ${renderZone("手牌弃牌区", game.handDiscard, me, "handDiscard", true, [
+            { command: "discard:viewAll", label: "查看全部" },
+            { command: "deck:recycleDiscard", label: "洗回牌堆底" },
+          ])}
+        </div>
+      </div>
+      ${renderCenterBody(me, true)}
     </div>
     <p class="battle-phase-hint">准备 → 摸牌 → 出牌 → 布阵 → 弃牌 → 结束</p>
     <div class="battle-toolbar">
@@ -710,6 +721,24 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
       <ol>${game.logs.slice(-30).reverse().map((log) => `<li><time>${formatLogTime(log.at)}</time>${escapeHtml(log.text)}</li>`).join("")}</ol>
     </details>
   </section>`;
+}
+
+function renderCenterBody(player: PlayerView, isMe: boolean) {
+  const body = cardDefinition(player.body);
+  const deck = deckFor(player);
+  return `<aside class="battle-center-body ${themeClasses(deck?.theme)} ${isMe ? "battle-center-body--self" : "battle-center-body--opponent"}">
+    <span>${isMe ? "我的本体" : "对手本体"}</span>
+    ${renderCard(player.body, {
+      owner: player,
+      zone: "body",
+      interactive: isMe,
+      flipped: player.bodyFlipped,
+      size: "field",
+    })}
+    <strong>${escapeHtml(body?.name || player.nickname)}</strong>
+    ${body?.megaCondition ? `<p title="${escapeHtml(body.megaCondition)}"><b>Mega</b>${escapeHtml(body.megaCondition)}</p>` : ""}
+    ${isMe ? `<button class="battle-small-btn" data-command="body:flip">翻转本体</button>` : ""}
+  </aside>`;
 }
 
 function formatLogTime(at: number) {
@@ -740,14 +769,15 @@ function renderZone(
   owner: PlayerView,
   zone: string,
   interactive: boolean,
-  command?: string,
-  action?: string,
+  actions: Array<{ command: string; label: string }> = [],
 ) {
   return `<article class="battle-zone" data-drop-target="${zone}" data-zone-owner="${owner.id}">
     <header>
       <strong>${title}</strong>
       <span>${cards.length}</span>
-      ${command ? `<button type="button" class="battle-zone__action" data-command="${command}" ${cards.length ? "" : "disabled"}>${action}</button>` : ""}
+      ${actions.length ? `<div class="battle-zone__actions">${actions.map(({ command, label }) =>
+        `<button type="button" class="battle-zone__action" data-command="${command}" ${cards.length ? "" : "disabled"}>${label}</button>`
+      ).join("")}</div>` : ""}
     </header>
     <div class="battle-zone__cards">${cards.slice(-5).map((card) => renderCard(card, { owner, zone, interactive, size: "pile" })).join("")}</div>
   </article>`;
@@ -952,6 +982,8 @@ function handleCommand(element: HTMLElement) {
       return;
     }
     showConfirmDialog(`将手牌弃牌区的 ${count} 张牌洗混后放到共用牌堆最下面？`, () => send(command));
+  } else if (command === "discard:viewAll") {
+    showDiscardPile();
   } else if (command === "resolving:discardAll") {
     const count = snapshot?.game.resolving.length || 0;
     if (!count) {
@@ -1224,6 +1256,46 @@ function findVisibleCard(instanceId: string) {
     ...player.banished,
   ]);
   return [...pools, ...snapshot.game.handDiscard, ...snapshot.game.resolving].find((card) => card?.instanceId === instanceId);
+}
+
+function showDiscardPile() {
+  const cards = [...(snapshot?.game.handDiscard || [])].reverse();
+  if (!cards.length) {
+    showError("手牌弃牌区为空。");
+    return;
+  }
+  dialogContent.innerHTML = `<div class="battle-card-menu battle-discard-browser">
+    <h2>手牌弃牌区 · ${cards.length} 张</h2>
+    <p class="battle-dialog-hint">按牌堆顺序显示，最上方为弃牌堆顶。</p>
+    <div class="battle-discard-list">${cards.map((card, index) => {
+      const definition = cardDefinition(card);
+      const poker = card.suit && card.rank ? `${suitSymbol(card.suit)}${card.rank}` : "点数未知";
+      const position = index === 0 ? "牌堆顶" : index === cards.length - 1 ? "牌堆底" : `第 ${index + 1} 张`;
+      return `<article class="battle-discard-row">
+        <div class="battle-discard-row__identity">
+          <small>${position}</small>
+          <strong>${escapeHtml(definition?.name || "未知手牌")}</strong>
+          <span>${escapeHtml(poker)}</span>
+        </div>
+        <div class="battle-discard-row__actions">
+          <button type="button" data-discard-move="${card.instanceId || ""}" data-target="handDeckTop">牌堆顶</button>
+          <button type="button" data-discard-move="${card.instanceId || ""}" data-target="handDeckBottom">牌堆底</button>
+          <button type="button" data-discard-move="${card.instanceId || ""}" data-target="hand">我的手牌</button>
+          <button type="button" data-discard-move="${card.instanceId || ""}" data-target="opponentHand">对方手牌</button>
+        </div>
+      </article>`;
+    }).join("")}</div>
+  </div>`;
+  dialog.showModal();
+  dialogContent.querySelectorAll<HTMLElement>("[data-discard-move]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const instanceId = button.dataset.discardMove;
+      const targetZone = button.dataset.target;
+      if (!instanceId || !targetZone) return;
+      send("card:move", { instanceId, targetZone });
+      dialog.close();
+    });
+  });
 }
 
 function showInspection(
