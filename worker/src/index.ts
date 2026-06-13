@@ -283,15 +283,6 @@ export class BattleRoom extends DurableObject<Env> {
         category: this.errorCategory(messageText),
       }));
       this.sendError(ws, messageText);
-      if (messageText.includes("状态已更新") && this.state) {
-        const attachment = ws.deserializeAttachment() as SocketAttachment | null;
-        if (attachment?.playerId) {
-          ws.send(JSON.stringify({
-            type: "snapshot",
-            snapshot: this.snapshotFor(attachment.playerId),
-          }));
-        }
-      }
     }
   }
 
