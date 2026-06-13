@@ -37,7 +37,21 @@ const API_URL = getBattleApiUrl();
 const TOKEN_KEY = "qunyou-battle-token-v1";
 const PENDING_KEY = "qunyou-battle-pending-v1";
 const COACH_KEY = "qunyou-battle-coach-v1";
+const TABLE_MODE_KEY = "qunyou-battle-table-mode-v1";
 const roomCode = getRoomCode();
+type TableMode = "compact" | "full";
+type PendingMoveVisual = {
+  actionId: string;
+  instanceId: string;
+  targetZone: string;
+  targetIndex?: number;
+  baseRevision: number;
+  sourceRect?: DOMRect;
+  sourceMarkup?: string;
+  targetOwnerId?: string;
+  label: string;
+  timeoutId: number;
+};
 let snapshot: Snapshot | undefined;
 let socket: WebSocket | undefined;
 let reconnectTimer = 0;
@@ -50,6 +64,12 @@ let toastTimer = 0;
 let coachShown = false;
 let roomEnded = false;
 let restartCountdownTimer = 0;
+let tableMode: TableMode = localStorage.getItem(TABLE_MODE_KEY) === "full" ? "full" : "compact";
+let activeRegion = "battle-player-opponent";
+let pendingMoveVisuals: PendingMoveVisual[] = [];
+let moveAnimationQueue = Promise.resolve();
+let regionScrollFrame = 0;
+let regionScrollLockUntil = 0;
 
 const COACH_STEPS = [
   { title: "点击卡牌查看技能", text: "点任意卡牌可阅读完整效果，并从菜单移动到其他区域。" },
@@ -58,6 +78,7 @@ const COACH_STEPS = [
 ];
 
 roomLabel.textContent = roomCode;
+applyTableMode();
 
 function setConnectionState(label: string, state: string) {
   statusText.textContent = label;
@@ -102,6 +123,14 @@ document.querySelector("#battle-copy-code")?.addEventListener("click", async (ev
 
 document.querySelector(".battle-topbar")?.addEventListener("click", (event) => {
   if (!(event.target instanceof Element)) return;
+  const modeToggle = event.target.closest<HTMLElement>("[data-table-mode-toggle]");
+  if (modeToggle) {
+    tableMode = tableMode === "compact" ? "full" : "compact";
+    localStorage.setItem(TABLE_MODE_KEY, tableMode);
+    applyTableMode();
+    modeToggle.closest<HTMLDetailsElement>(".battle-topbar-menu")?.removeAttribute("open");
+    return;
+  }
   const commandElement = event.target.closest<HTMLElement>("[data-command]");
   if (commandElement) {
     handleCommand(commandElement);
@@ -130,6 +159,11 @@ document.addEventListener("keydown", (event) => {
     if (endBtn && !endBtn.hasAttribute("disabled")) endBtn.click();
   }
 });
+
+root.addEventListener("scroll", () => {
+  window.cancelAnimationFrame(regionScrollFrame);
+  regionScrollFrame = window.requestAnimationFrame(updateRegionFromScroll);
+}, { passive: true });
 
 function getRoomCode() {
   const parts = location.pathname.split("/").filter(Boolean);
@@ -165,13 +199,34 @@ function themeClasses(theme?: string) {
   return slug === "aggro" ? "deck-theme" : `deck-theme deck-theme--${slug}`;
 }
 
+function applyTableMode() {
+  const app = document.querySelector<HTMLElement>("#battle-app");
+  if (app) app.dataset.tableMode = tableMode;
+  document.querySelectorAll<HTMLElement>("[data-table-mode-toggle]").forEach((button) => {
+    const compact = tableMode === "compact";
+    button.textContent = compact ? "紧凑模式" : "完整模式";
+    button.setAttribute("aria-pressed", String(compact));
+    button.title = compact ? "切换到完整布局" : "切换到紧凑布局";
+  });
+}
+
 function captureUIState(): PreservedUI {
   const scrollLeft: Record<string, number> = {};
+  const sideZonesOpen: Record<string, boolean> = {};
   root.querySelectorAll<HTMLElement>("[data-scroll-key]").forEach((element) => {
     if (element.dataset.scrollKey) scrollLeft[element.dataset.scrollKey] = element.scrollLeft;
   });
+  root.querySelectorAll<HTMLDetailsElement>("[data-side-zones]").forEach((element) => {
+    if (element.dataset.sideZones) sideZonesOpen[element.dataset.sideZones] = element.open;
+  });
   const logDetails = root.querySelector<HTMLDetailsElement>(".battle-log");
-  return { scrollLeft, logOpen: logDetails?.open ?? false };
+  return {
+    scrollLeft,
+    logOpen: logDetails?.open ?? false,
+    sideZonesOpen,
+    activeRegion,
+    rootScrollTop: root.scrollTop,
+  };
 }
 
 function restoreUIState(state: PreservedUI) {
@@ -181,6 +236,13 @@ function restoreUIState(state: PreservedUI) {
   });
   const logDetails = root.querySelector<HTMLDetailsElement>(".battle-log");
   if (logDetails && state.logOpen) logDetails.open = true;
+  Object.entries(state.sideZonesOpen).forEach(([key, open]) => {
+    const element = root.querySelector<HTMLDetailsElement>(`[data-side-zones="${key}"]`);
+    if (element) element.open = open;
+  });
+  activeRegion = state.activeRegion || activeRegion;
+  root.scrollTop = state.rootScrollTop;
+  updateRegionNavigation();
   if (moveModeCardId) {
     root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((zone) => zone.classList.add("is-move-target"));
     showToast("点击高亮区域放置卡牌，按 Esc 取消");
@@ -252,8 +314,10 @@ async function connect() {
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(String(event.data)) as ServerMessage;
     if (message.type === "snapshot") {
+      const previousRevision = snapshot?.revision ?? -1;
       snapshot = normalizeBattleSnapshot(message.snapshot);
       render();
+      if (snapshot.revision > previousRevision) resolvePendingMoveVisuals(snapshot.revision);
     } else if (message.type === "inspection") {
       showInspection(
         message.title,
@@ -276,6 +340,7 @@ async function connect() {
       setConnectionState("已结束", "failed");
       syncRoomControls(false);
     } else {
+      clearPendingMoveVisuals();
       showError(message.error);
     }
   });
@@ -284,6 +349,7 @@ async function connect() {
     if (roomEnded) return;
     if (attempt !== connectionAttempt) return;
     if (socketFailureHandled) return;
+    clearPendingMoveVisuals();
     if (!hasConnected) {
       renderConnectionError("实时连接被拒绝或中断。请确认房间仍存在，并检查当前网络是否允许 WebSocket 连接。");
       return;
@@ -324,7 +390,7 @@ function renderConnectionError(message: string) {
 function send(type: string, payload: Record<string, unknown> = {}) {
   if (socket?.readyState !== WebSocket.OPEN) {
     showError("连接尚未恢复，请稍后再试。");
-    return;
+    return undefined;
   }
   const msg = {
     type,
@@ -333,6 +399,7 @@ function send(type: string, payload: Record<string, unknown> = {}) {
     payload,
   };
   socket.send(JSON.stringify(msg));
+  return msg.actionId;
 }
 
 function render() {
@@ -362,30 +429,67 @@ function render() {
       ${renderCenter(snapshot.game, me, opponent, isMyTurn)}
       ${renderPlayer(me, true, isMyTurn)}
     </div>
-    <nav class="battle-mobile-nav" aria-label="牌桌区域导航">
-      <a href="#battle-player-opponent">对手</a>
-      <a href="#battle-center">公共区</a>
-      <a href="#battle-player-self">我的阵地</a>
-      <a href="#battle-hand-self">手牌 <b>${myHandCount}</b></a>
+    <nav class="battle-region-nav" aria-label="牌桌区域导航">
+      <button type="button" data-region-target="battle-player-opponent"><span>对手</span></button>
+      <button type="button" data-region-target="battle-center"><span>公共区</span></button>
+      <button type="button" data-region-target="battle-player-self"><span>我的阵地</span></button>
+      <button type="button" data-region-target="battle-hand-self"><span>手牌</span><b>${myHandCount}</b></button>
     </nav>
   `;
   bindActions();
-  bindMobileNavigation();
+  bindRegionNavigation();
   restoreUIState(preserved);
   startRestartCountdown();
   maybeShowCoach();
 }
 
-function bindMobileNavigation() {
-  document.querySelectorAll<HTMLAnchorElement>(".battle-mobile-nav a").forEach((link) => {
-    link.addEventListener("click", (event) => {
-      const target = document.querySelector<HTMLElement>(link.hash);
+function bindRegionNavigation() {
+  root.querySelectorAll<HTMLButtonElement>("[data-region-target]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const targetId = button.dataset.regionTarget || "";
+      const target = document.getElementById(targetId);
       if (!target) return;
-      event.preventDefault();
       const rootBounds = root.getBoundingClientRect();
       const targetBounds = target.getBoundingClientRect();
       root.scrollTop += targetBounds.top - rootBounds.top - 8;
+      activeRegion = targetId;
+      regionScrollLockUntil = Date.now() + 500;
+      updateRegionNavigation();
     });
+  });
+  updateRegionNavigation();
+}
+
+function updateRegionFromScroll() {
+  if (Date.now() < regionScrollLockUntil) return;
+  if (root.scrollTop + root.clientHeight >= root.scrollHeight - 4) {
+    activeRegion = "battle-hand-self";
+    updateRegionNavigation();
+    return;
+  }
+  const rootBounds = root.getBoundingClientRect();
+  const focusY = rootBounds.top + Math.min(root.clientHeight * 0.38, 300);
+  const regions = ["battle-player-opponent", "battle-center", "battle-player-self", "battle-hand-self"]
+    .map((id) => document.getElementById(id))
+    .filter((element): element is HTMLElement => !!element);
+  if (!regions.length) return;
+  const closest = regions.reduce((best, element) => {
+    const bounds = element.getBoundingClientRect();
+    const distance = bounds.top <= focusY && bounds.bottom >= focusY
+      ? 0
+      : Math.min(Math.abs(bounds.top - focusY), Math.abs(bounds.bottom - focusY));
+    return distance < best.distance ? { id: element.id, distance } : best;
+  }, { id: activeRegion, distance: Number.POSITIVE_INFINITY });
+  activeRegion = closest.id;
+  updateRegionNavigation();
+}
+
+function updateRegionNavigation() {
+  root.querySelectorAll<HTMLElement>("[data-region-target]").forEach((button) => {
+    const active = button.dataset.regionTarget === activeRegion;
+    button.classList.toggle("is-active", active);
+    if (active) button.setAttribute("aria-current", "true");
+    else button.removeAttribute("aria-current");
   });
 }
 
@@ -534,11 +638,14 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
             ${player.characterSlots.map((item, index) => renderSlot(item, index, player, isMe)).join("")}
           </div>
         </div>
-        <div class="battle-side-zones">
-          ${renderPile("角色牌堆", player.characterDeckCount, isMe ? "card:draw-character" : "", "摸角色")}
-          ${renderZone("退场区", player.retired, player, "retired", isMe)}
-          ${renderZone("移出游戏", player.banished, player, "banished", isMe)}
-        </div>
+        <details class="battle-side-drawer" data-side-zones="${isMe ? "self" : "opponent"}">
+          <summary><span>侧区</span><b>${player.characterDeckCount} / ${player.retired.length} / ${player.banished.length}</b></summary>
+          <div class="battle-side-zones">
+            ${renderPile("角色牌堆", player.characterDeckCount, isMe ? "card:draw-character" : "", "摸角色", player.id)}
+            ${renderZone("退场区", player.retired, player, "retired", isMe)}
+            ${renderZone("移出游戏", player.banished, player, "banished", isMe)}
+          </div>
+        </details>
       </div>
       <div class="battle-player__private">
         <div class="battle-private-rail battle-private-rail--characters">
@@ -613,9 +720,10 @@ function renderWaitingSeat() {
   return `<section class="battle-player battle-player--opponent battle-player--waiting"><strong>等待对手重新连接</strong></section>`;
 }
 
-function renderPile(title: string, count: number, command: string, action: string) {
+function renderPile(title: string, count: number, command: string, action: string, ownerId?: string) {
   const dropTarget = title === "共用牌堆" ? ` data-drop-target="handDeckTop"` : "";
-  return `<article class="battle-pile"${dropTarget}>
+  const owner = ownerId ? ` data-zone-owner="${ownerId}"` : "";
+  return `<article class="battle-pile"${dropTarget}${owner}>
     <div class="battle-card-back"><span>群友杀</span></div>
     <strong>${title}</strong><span>${count} 张</span>
     ${command ? `<button type="button" class="battle-small-btn" data-command="${command}">${action}</button>` : ""}
@@ -623,7 +731,7 @@ function renderPile(title: string, count: number, command: string, action: strin
 }
 
 function renderZone(title: string, cards: CardView[], owner: PlayerView, zone: string, interactive: boolean) {
-  return `<article class="battle-zone" data-drop-target="${zone}">
+  return `<article class="battle-zone" data-drop-target="${zone}" data-zone-owner="${owner.id}">
     <header><strong>${title}</strong><span>${cards.length}</span></header>
     <div class="battle-zone__cards">${cards.slice(-5).map((card) => renderCard(card, { owner, zone, interactive, size: "pile" })).join("")}</div>
   </article>`;
@@ -748,13 +856,14 @@ function bindActions() {
       element.classList.remove("is-drag-over");
       const instanceId = event.dataTransfer?.getData("text/card-instance");
       if (!instanceId) return;
-      moveCardToTarget(instanceId, element.dataset.dropTarget || "");
+      moveCardToTarget(instanceId, element.dataset.dropTarget || "", element);
     });
     element.addEventListener("click", () => {
       if (!moveModeCardId) return;
-      moveCardToTarget(moveModeCardId, element.dataset.dropTarget || "");
+      moveCardToTarget(moveModeCardId, element.dataset.dropTarget || "", element);
       moveModeCardId = null;
-      render();
+      root.querySelector(".battle-move-banner")?.remove();
+      root.querySelectorAll(".is-move-target").forEach((zone) => zone.classList.remove("is-move-target"));
     });
   });
 }
@@ -769,14 +878,152 @@ function optionsDraggable(element: HTMLElement) {
   return element.getAttribute("draggable") === "true";
 }
 
-function moveCardToTarget(instanceId: string, dropTarget: string) {
+function moveCardToTarget(instanceId: string, dropTarget: string, targetElement?: HTMLElement) {
   const [targetZone, rawIndex] = dropTarget.split(":");
-  send("card:move", {
+  queueCardMove(instanceId, {
     instanceId,
     targetZone,
     targetIndex: rawIndex === undefined ? undefined : Number(rawIndex),
     faceDown: targetZone === "characterSlot",
+  }, targetElement);
+}
+
+function queueCardMove(
+  instanceId: string,
+  payload: Record<string, unknown>,
+  targetElement?: HTMLElement,
+  sourceElement?: HTMLElement | null,
+) {
+  const baseRevision = snapshot?.revision;
+  if (baseRevision === undefined) return;
+  const source = sourceElement
+    || root.querySelector<HTMLElement>(`[data-card="${CSS.escape(instanceId)}"]`)
+    || dialogContent.querySelector<HTMLElement>(`[data-inspection-card="${CSS.escape(instanceId)}"]`);
+  const visualSource = source?.querySelector<HTMLElement>("img, .battle-mini-card") || source;
+  const actionId = send("card:move", payload);
+  if (!actionId) return;
+  const targetZone = String(payload.targetZone || "");
+  const targetIndex = typeof payload.targetIndex === "number" ? payload.targetIndex : undefined;
+  const pending: PendingMoveVisual = {
+    actionId,
+    instanceId,
+    targetZone,
+    targetIndex,
+    baseRevision,
+    sourceRect: visualSource?.getBoundingClientRect(),
+    sourceMarkup: visualSource?.outerHTML,
+    targetOwnerId: targetElement?.dataset.zoneOwner,
+    label: moveTargetLabel(targetZone, targetIndex),
+    timeoutId: 0,
+  };
+  pending.timeoutId = window.setTimeout(() => {
+    pendingMoveVisuals = pendingMoveVisuals.filter((item) => item.actionId !== actionId);
+  }, 6000);
+  pendingMoveVisuals.push(pending);
+}
+
+function clearPendingMoveVisuals() {
+  pendingMoveVisuals.forEach((pending) => window.clearTimeout(pending.timeoutId));
+  pendingMoveVisuals = [];
+}
+
+function resolvePendingMoveVisuals(revision: number) {
+  const confirmed = pendingMoveVisuals.filter((pending) => revision > pending.baseRevision);
+  if (!confirmed.length) return;
+  pendingMoveVisuals = pendingMoveVisuals.filter((pending) => !confirmed.includes(pending));
+  confirmed.forEach((pending) => {
+    window.clearTimeout(pending.timeoutId);
+    moveAnimationQueue = moveAnimationQueue.then(() => playMoveVisual(pending));
   });
+}
+
+async function playMoveVisual(pending: PendingMoveVisual) {
+  const target = findMoveVisualTarget(pending);
+  if (!target) return;
+  target.classList.add("is-move-confirmed");
+  window.setTimeout(() => target.classList.remove("is-move-confirmed"), 700);
+  showToast(`卡牌已移动至${pending.label}`);
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    || !pending.sourceRect
+    || !pending.sourceMarkup) return;
+
+  const targetRect = target.getBoundingClientRect();
+  const flying = document.createElement("div");
+  flying.className = "battle-flying-card";
+  flying.innerHTML = pending.sourceMarkup;
+  Object.assign(flying.style, {
+    left: `${pending.sourceRect.left}px`,
+    top: `${pending.sourceRect.top}px`,
+    width: `${pending.sourceRect.width}px`,
+    height: `${pending.sourceRect.height}px`,
+  });
+  document.body.append(flying);
+  const deltaX = targetRect.left + targetRect.width / 2 - (pending.sourceRect.left + pending.sourceRect.width / 2);
+  const deltaY = targetRect.top + targetRect.height / 2 - (pending.sourceRect.top + pending.sourceRect.height / 2);
+  try {
+    const animation = flying.animate([
+      { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)", opacity: 0.96 },
+      { transform: `translate3d(${deltaX * 0.54}px, ${deltaY * 0.42 - 34}px, 0) scale(0.78) rotate(3deg)`, opacity: 0.9, offset: 0.58 },
+      { transform: `translate3d(${deltaX}px, ${deltaY}px, 0) scale(0.38) rotate(7deg)`, opacity: 0 },
+    ], {
+      duration: 450,
+      easing: "cubic-bezier(.2,.72,.25,1)",
+      fill: "forwards",
+    });
+    await Promise.race([
+      animation.finished,
+      new Promise((resolve) => window.setTimeout(resolve, 520)),
+    ]);
+    animation.cancel();
+  } catch {
+    // Animation cancellation should not affect the confirmed state.
+  } finally {
+    flying.remove();
+  }
+}
+
+function findMoveVisualTarget(pending: PendingMoveVisual) {
+  const self = "#battle-player-self";
+  const opponent = "#battle-player-opponent";
+  if (pending.targetZone === "characterSlot") {
+    return root.querySelector<HTMLElement>(`${self} [data-drop-target="characterSlot:${pending.targetIndex}"]`);
+  }
+  if (pending.targetZone === "retired" || pending.targetZone === "banished" || pending.targetZone === "characterDeckBottom") {
+    return root.querySelector<HTMLElement>(`${self} [data-side-zones="self"] summary`);
+  }
+  if (pending.targetZone === "characterHand") {
+    return root.querySelector<HTMLElement>(`${self} .battle-private-rail--characters`);
+  }
+  if (pending.targetZone === "hand") return root.querySelector<HTMLElement>("#battle-hand-self");
+  if (pending.targetZone === "opponentHand") {
+    return root.querySelector<HTMLElement>(`${opponent} .battle-private-rail--hand`);
+  }
+  if (pending.targetZone === "handDeckTop" || pending.targetZone === "handDeckBottom") {
+    return root.querySelector<HTMLElement>('[data-drop-target="handDeckTop"]');
+  }
+  if (pending.targetZone === "handMarker") {
+    return root.querySelector<HTMLElement>(`${self} [data-drop-target="characterSlot:${pending.targetIndex}"]`);
+  }
+  return root.querySelector<HTMLElement>(`[data-drop-target="${CSS.escape(pending.targetZone)}"]`);
+}
+
+function moveTargetLabel(targetZone: string, targetIndex?: number) {
+  const labels: Record<string, string> = {
+    resolving: "结算区",
+    handDiscard: "手牌弃牌区",
+    handDeckTop: "共用牌堆顶",
+    handDeckBottom: "共用牌堆底",
+    hand: "我的手牌",
+    opponentHand: "对手手牌",
+    characterHand: "角色手牌",
+    characterDeckBottom: "角色牌堆底",
+    retired: "退场区",
+    banished: "移出游戏区",
+    handMarker: "角色位",
+  };
+  if (targetZone === "characterSlot") return `角色位 ${Number(targetIndex) + 1}`;
+  return labels[targetZone] || "目标区域";
 }
 
 function handleCommand(element: HTMLElement) {
@@ -902,7 +1149,12 @@ function showHandMarkerDialog(instanceId: string) {
     btn.addEventListener("click", () => {
       const label = dialogContent.querySelector<HTMLInputElement>("#battle-marker-label")?.value.trim();
       if (!label) return;
-      send("card:move", { instanceId, targetZone: "handMarker", targetIndex: Number(btn.dataset.slot), label });
+      queueCardMove(instanceId, {
+        instanceId,
+        targetZone: "handMarker",
+        targetIndex: Number(btn.dataset.slot),
+        label,
+      }, undefined, dialogContent.querySelector(".battle-card-detail__art"));
       dialog.close();
     });
   });
@@ -983,7 +1235,7 @@ function bindCardMenuActions(instanceId: string, ownerId: string, zone: string, 
     button.addEventListener("click", () => {
       const target = button.dataset.move || "";
       const [targetZone, rawIndex] = target.split(":");
-      send("card:move", {
+      queueCardMove(instanceId, {
         instanceId,
         targetZone,
         targetIndex: rawIndex === undefined ? undefined : Number(rawIndex),
@@ -1084,7 +1336,7 @@ function showInspection(
       const img = definition?.kind === "hand"
         ? handCardImagePath(definition.id, card.suit, card.rank)
         : definition?.imagePath;
-      return `<article class="battle-inspection__card">
+      return `<article class="battle-inspection__card" ${card.instanceId ? `data-inspection-card="${card.instanceId}"` : ""}>
         ${img ? `<img src="${img}" alt="" class="battle-inspection__art" />` : ""}
         <div>
           <strong>${escapeHtml(poker + (definition?.name || "未知"))}</strong>
@@ -1100,11 +1352,12 @@ function showInspection(
   dialog.showModal();
   dialogContent.querySelectorAll<HTMLElement>("[data-inspection-move]").forEach((button) => {
     button.addEventListener("click", () => {
-      send("card:move", {
-        instanceId: button.dataset.inspectionMove,
+      const instanceId = button.dataset.inspectionMove || "";
+      queueCardMove(instanceId, {
+        instanceId,
         targetZone: button.dataset.target,
         inspectionId,
-      });
+      }, undefined, button.closest<HTMLElement>(".battle-inspection__card"));
       dialog.close();
     });
   });
