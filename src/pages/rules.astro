@@ -51,7 +51,7 @@ const setupStats = [
       <div class="grid md:grid-cols-3 gap-3">
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-role-defend);">
           <span class="text-sm font-bold" style="color: var(--color-role-defend);">摸牌阶段</span>
-          <p class="skill-text mt-2">从共用手牌牌堆摸 2 张手牌；从角色牌堆摸 1 张角色牌。</p>
+          <p class="skill-text mt-2">从共用手牌牌堆摸 2 张手牌；若角色区未满，从角色牌堆顶暗置上阵 1 张至编号最小的空位。</p>
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-aggro);">
           <span class="text-sm font-bold" style="color: var(--color-aggro);">出牌阶段</span>
@@ -59,11 +59,11 @@ const setupStats = [
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-role-resource);">
           <span class="text-sm font-bold" style="color: var(--color-role-resource);">布阵阶段</span>
-          <p class="skill-text mt-2">从角色手牌至多暗置上阵 2 张；可主动明置角色（不发动）角色区最多 4 张。</p>
+          <p class="skill-text mt-2">可主动明置角色（不发动）。角色区最多 4 张。</p>
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--text-muted);">
           <span class="text-sm font-bold" style="color: var(--text-muted);">弃牌阶段</span>
-          <p class="skill-text mt-2">手牌上限 = min(当前本体体力, 4) + 己方明置角色数量。须弃牌至手牌上限以内。角色手牌不计入上限。</p>
+          <p class="skill-text mt-2">手牌上限 = min(当前本体体力, 4) + 己方明置角色数量。须弃牌至手牌上限以内。</p>
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--accent-info);">
           <span class="text-sm font-bold" style="color: var(--accent-info);">结束阶段</span>

@@ -54,8 +54,6 @@ export type PlayerView = {
   body?: CardView;
   hand: CardView[];
   handCount?: number;
-  characterHand: CardView[];
-  characterHandCount?: number;
   characterDeckCount: number;
   characterSlots: Array<CardView | MarkerView | null>;
   retired: CardView[];

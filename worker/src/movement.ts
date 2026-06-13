@@ -8,7 +8,7 @@ export type LocatedCard = {
 };
 
 export function isPrivateLocation(located: LocatedCard) {
-  if (["hand", "characterHand", "characterDeck"].includes(located.zone)) return true;
+  if (["hand", "characterDeck"].includes(located.zone)) return true;
   if (located.zone === "characterSlot" || located.zone === "banished") return Boolean(located.card.faceDown);
   return false;
 }
@@ -28,8 +28,8 @@ export function assertCardCanEnter(card: CardInstance, target: string) {
     "handMarker",
   ]);
   const characterTargets = new Set([
-    "characterHand",
     "characterDeckBottom",
+    "characterDeckShuffle",
     "retired",
     "banished",
     "characterSlot",
@@ -42,9 +42,9 @@ export function assertCardCanEnter(card: CardInstance, target: string) {
 export function zoneLabel(zone: string) {
   return ({
     hand: "手牌区",
-    characterHand: "角色手牌",
     characterDeck: "角色牌堆",
     characterDeckBottom: "角色牌堆底",
+    characterDeckShuffle: "角色牌堆",
     retired: "退场区",
     banished: "移出游戏区",
     handDeck: "共用牌堆",

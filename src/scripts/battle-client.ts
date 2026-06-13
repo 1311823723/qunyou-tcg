@@ -611,7 +611,6 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
   const body = cardDefinition(player.body);
   const deck = deckFor(player);
   const handCount = player.handCount ?? player.hand.length;
-  const characterHandCount = player.characterHandCount ?? player.characterHand.length;
   const max = body?.megaMax;
   const megaText = max ? `${player.megaProgress || 0}/${max}` : String(player.megaProgress || 0);
   const turnClass = snapshot?.game.currentPlayerId === player.id ? " battle-player--active-turn" : "";
@@ -641,18 +640,17 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
             ${player.characterSlots.map((item, index) => renderSlot(item, index, player, isMe)).join("")}
           </div>
         </div>
-        <div class="battle-side-zones">
-          ${renderPile("角色牌堆", player.characterDeckCount, isMe ? "card:draw-character" : "", "摸角色", player.id)}
-          ${renderZone("退场区", player.retired, player, "retired", isMe)}
-          ${renderZone("移出游戏", player.banished, player, "banished", isMe)}
-        </div>
       </div>
       <div class="battle-player__private">
-        <div class="battle-private-rail battle-private-rail--characters">
+        <div class="battle-private-rail battle-private-rail--characters battle-character-resources">
           <div class="battle-private-rail__title">
-            <strong>${isMe ? "角色手牌" : "对手角色手牌"}</strong><span>${characterHandCount} 张</span>
+            <strong>${isMe ? "我的角色资源" : "对手角色资源"}</strong>
           </div>
-          <div class="battle-card-row" data-scroll-key="${isMe ? "char-hand-self" : "char-hand-opp"}">${player.characterHand.map((card) => renderCard(card, { owner: player, zone: "characterHand", interactive: isMe, size: isMe ? "hand" : "compact" })).join("")}</div>
+          <div class="battle-side-zones">
+            ${renderPile("角色牌堆", player.characterDeckCount, isMe ? "character:deploy" : "", "上阵角色", player.id)}
+            ${renderZone("退场区", player.retired, player, "retired", isMe)}
+            ${renderZone("移出游戏", player.banished, player, "banished", isMe)}
+          </div>
         </div>
         <div ${isMe ? 'id="battle-hand-self"' : ""} class="battle-private-rail battle-private-rail--hand">
           <div class="battle-private-rail__title">
@@ -954,8 +952,8 @@ function handleCommand(element: HTMLElement) {
     send(command, { ready: element.dataset.ready === "true" });
   } else if (command === "card:draw-hand") {
     send("card:draw", { deck: "hand", count: 1 });
-  } else if (command === "card:draw-character") {
-    send("card:draw", { deck: "character", count: 1 });
+  } else if (command === "character:deploy") {
+    send(command);
   } else if (command === "body:flip") {
     send(command);
   } else if (command === "turn:end") {
@@ -1226,10 +1224,10 @@ function moveButtonSections(instanceId: string, ownerId: string, zone: string, k
     if (isMine) {
       state.push(`<button type="button" data-declare-skill="${instanceId}">声明发动技能</button>`);
       for (let index = 0; index < 4; index += 1) add(`暗置到位 ${index + 1}`, `characterSlot:${index}`, true);
-      add("返回角色手牌", "characterHand");
       add("休整至牌堆底", "characterDeckBottom");
       add("退场", "retired");
       add("移出游戏", "banished");
+      if (zone === "retired") add("洗回角色牌堆", "characterDeckShuffle");
     }
     if (zone.startsWith("slot:")) state.push(`<button type="button" data-flip-card="${instanceId}">明置 / 暗置</button>`);
   }
@@ -1250,7 +1248,6 @@ function findVisibleCard(instanceId: string) {
   const pools = snapshot.players.flatMap((player) => [
     player.body,
     ...player.hand,
-    ...player.characterHand,
     ...player.characterSlots.filter((item): item is CardView => !!item && "instanceId" in item),
     ...player.retired,
     ...player.banished,

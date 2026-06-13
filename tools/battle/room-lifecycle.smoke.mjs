@@ -118,9 +118,14 @@ step("opponent health adjustment synchronized");
 
 for (const opponent of [ownerOpponent, guestOpponent]) {
   assert.equal(opponent.handCount, 5);
-  assert.equal(opponent.characterHandCount, 4);
+  assert.equal("characterHand" in opponent, false);
+  assert.equal("characterHandCount" in opponent, false);
+  assert.equal(opponent.characterDeckCount, 14);
+  assert.equal(opponent.characterSlots.filter(Boolean).length, 2);
   assert.ok(opponent.hand.every((card) => !("instanceId" in card) && !("definitionId" in card)));
-  assert.ok(opponent.characterHand.every((card) => !("instanceId" in card) && !("definitionId" in card)));
+  assert.ok(opponent.characterSlots.filter(Boolean).every((card) =>
+    !("instanceId" in card) && !("definitionId" in card)
+  ));
 }
 
 const third = await post(`/rooms/${code}/join`, {
@@ -133,33 +138,14 @@ step("private snapshots and third-player rejection verified");
 
 a.messages.length = 0;
 b.messages.length = 0;
-const ownerCharacter = ownerView.characterHand[0];
-a.send("card:move", {
-  instanceId: ownerCharacter.instanceId,
-  targetZone: "characterSlot",
-  targetIndex: 0,
-  faceDown: true,
-});
-const [ownerRoleSnapshot, hiddenRoleSnapshot] = await Promise.all([
-  a.waitFor((message) => {
-    if (message.type !== "snapshot") return false;
-    const me = message.snapshot.players.find((player) => player.id === message.snapshot.you);
-    return me?.characterSlots[0]?.instanceId === ownerCharacter.instanceId;
-  }),
-  b.waitFor((message) => {
-    if (message.type !== "snapshot") return false;
-    const opponent = message.snapshot.players.find((player) => player.id !== message.snapshot.you);
-    return Boolean(opponent?.characterSlots[0]?.faceDown);
-  }),
-]);
+const ownerCharacter = ownerView.characterSlots[0];
+const ownerRoleSnapshot = startedA;
+const hiddenRoleSnapshot = startedB;
 const hiddenRole = hiddenRoleSnapshot.snapshot.players
   .find((player) => player.id !== hiddenRoleSnapshot.snapshot.you)
   .characterSlots[0];
 assert.equal(hiddenRole.instanceId, undefined);
 assert.equal(hiddenRole.definitionId, undefined);
-assert.ok(hiddenRoleSnapshot.snapshot.game.logs.some((log) =>
-  log.text.includes("一张角色牌从角色手牌移动到角色区")
-));
 assert.ok(hiddenRoleSnapshot.snapshot.game.logs.every((log) => !log.text.includes(ownerCharacter.definitionId)));
 
 a.messages.length = 0;
@@ -177,6 +163,14 @@ const declaredSkill = await a.waitFor((message) =>
 const declarationLog = declaredSkill.snapshot.game.logs.find((log) => log.text.includes("声明发动角色"));
 assert.ok(declarationLog.text.includes("技能【"));
 step("character skill declaration logged with full details");
+
+a.messages.length = 0;
+a.send("card:move", {
+  instanceId: ownerCharacter.instanceId,
+  targetZone: "characterHand",
+});
+await a.waitFor((message) => message.type === "error" && /目标区域无效/.test(message.error));
+step("removed character hand target rejected");
 
 b.messages.length = 0;
 b.send("card:inspect", {
@@ -246,7 +240,7 @@ a.send("card:move", {
   instanceId: roleInSlot.instanceId,
   targetZone: "characterDeckBottom",
 });
-await a.waitFor((message) =>
+const restedRole = await a.waitFor((message) =>
   message.type === "snapshot"
   && message.snapshot.game.logs.some((log) =>
     log.text.includes("休整了角色牌【")
@@ -254,6 +248,107 @@ await a.waitFor((message) =>
   ),
 );
 step("character rest log includes character name");
+
+a.messages.length = 0;
+a.send("character:deploy");
+const deployedToFirstGap = await a.waitFor((message) => {
+  if (message.type !== "snapshot") return false;
+  const me = message.snapshot.players.find((player) => player.id === message.snapshot.you);
+  return Boolean(me?.characterSlots[0]?.instanceId)
+    && me.characterSlots[0].instanceId !== roleInSlot.instanceId
+    && me.characterDeckCount === 14;
+});
+step("character deployed to the lowest empty slot");
+
+for (const expectedCount of [13, 12]) {
+  a.messages.length = 0;
+  a.send("character:deploy");
+  await a.waitFor((message) => {
+    if (message.type !== "snapshot") return false;
+    const me = message.snapshot.players.find((player) => player.id === message.snapshot.you);
+    return me?.characterDeckCount === expectedCount
+      && me.characterSlots.filter(Boolean).length === 16 - expectedCount;
+  });
+}
+a.messages.length = 0;
+a.send("character:deploy");
+await a.waitFor((message) => message.type === "error" && /角色区已满/.test(message.error));
+step("full character zone rejected without drawing");
+
+const fullField = deployedToFirstGap.snapshot.players
+  .find((player) => player.id === deployedToFirstGap.snapshot.you);
+const roleToRecycle = fullField.characterSlots[1];
+a.messages.length = 0;
+a.send("card:move", {
+  instanceId: roleToRecycle.instanceId,
+  targetZone: "retired",
+});
+const retiredRole = await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.players
+    .find((player) => player.id === message.snapshot.you)
+    ?.retired.some((card) => card.instanceId === roleToRecycle.instanceId),
+);
+a.messages.length = 0;
+a.send("card:move", {
+  instanceId: roleToRecycle.instanceId,
+  targetZone: "characterDeckShuffle",
+});
+let characterState = await a.waitFor((message) => {
+  if (message.type !== "snapshot") return false;
+  const me = message.snapshot.players.find((player) => player.id === message.snapshot.you);
+  return me?.retired.length === 0
+    && me.characterDeckCount === retiredRole.snapshot.players
+      .find((player) => player.id === retiredRole.snapshot.you).characterDeckCount + 1;
+});
+step("retired character shuffled back into character deck");
+
+for (const role of characterState.snapshot.players
+  .find((player) => player.id === characterState.snapshot.you)
+  .characterSlots.filter((item) => item?.instanceId)) {
+  a.messages.length = 0;
+  a.send("card:move", {
+    instanceId: role.instanceId,
+    targetZone: "banished",
+  });
+  characterState = await a.waitFor((message) =>
+    message.type === "snapshot"
+    && !message.snapshot.players
+      .find((player) => player.id === message.snapshot.you)
+      ?.characterSlots.some((item) => item?.instanceId === role.instanceId),
+  );
+}
+
+while (characterState.snapshot.players
+  .find((player) => player.id === characterState.snapshot.you)
+  .characterDeckCount > 0) {
+  const beforeDeploy = characterState.snapshot.players
+    .find((player) => player.id === characterState.snapshot.you).characterDeckCount;
+  a.messages.length = 0;
+  a.send("character:deploy");
+  characterState = await a.waitFor((message) => {
+    if (message.type !== "snapshot") return false;
+    const me = message.snapshot.players.find((player) => player.id === message.snapshot.you);
+    return me?.characterDeckCount === beforeDeploy - 1 && Boolean(me.characterSlots[0]?.instanceId);
+  });
+  const deployed = characterState.snapshot.players
+    .find((player) => player.id === characterState.snapshot.you).characterSlots[0];
+  a.messages.length = 0;
+  a.send("card:move", {
+    instanceId: deployed.instanceId,
+    targetZone: "banished",
+  });
+  characterState = await a.waitFor((message) =>
+    message.type === "snapshot"
+    && !message.snapshot.players
+      .find((player) => player.id === message.snapshot.you)
+      ?.characterSlots[0],
+  );
+}
+a.messages.length = 0;
+a.send("character:deploy");
+await a.waitFor((message) => message.type === "error" && /角色牌堆为空/.test(message.error));
+step("empty character deck rejected without changing the field");
 
 a.messages.length = 0;
 const deckCountBeforeRecycle = a.revision;
@@ -407,8 +502,10 @@ for (const message of [restartedA, restartedB]) {
     assert.equal(player.health, 7);
     assert.equal(player.megaProgress, 0);
     assert.equal(player.hand.length, 5);
-    assert.equal(player.characterHand.length, 4);
-    assert.equal(player.characterDeckCount, 12);
+    assert.equal("characterHand" in player, false);
+    assert.equal("characterHandCount" in player, false);
+    assert.equal(player.characterDeckCount, 14);
+    assert.equal(player.characterSlots.filter(Boolean).length, 2);
   }
 }
 assert.notEqual(
@@ -454,6 +551,10 @@ console.log(JSON.stringify({
   handDiscardRecycledToDeckBottom: true,
   resolvingZoneBulkDiscarded: true,
   publicDiscardTransferredToOpponent: true,
+  directCharacterDeployment: true,
+  emptyCharacterDeckRejected: true,
+  removedCharacterHandRejected: true,
+  retiredCharacterShuffledIntoDeck: true,
   characterSkillDeclarationDetailed: true,
   semanticDiscardAndRestLogs: true,
   restartRequiresBothPlayers: true,

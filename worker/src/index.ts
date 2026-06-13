@@ -25,6 +25,7 @@ import {
   isPublicLocation,
   zoneLabel,
 } from "./movement";
+import { migrateRoomState, ROOM_STATE_VERSION } from "./state-migration.mts";
 import type { LocatedCard } from "./movement";
 import type {
   CardInstance,
@@ -156,6 +157,8 @@ export class BattleRoom extends DurableObject<Env> {
         this.state.revision ??= 0;
         this.state.inspections ??= [];
         this.state.processedActionIds ??= [];
+        const migrated = this.migrateState();
+        if (migrated) await ctx.storage.put("room", this.state);
       }
     });
   }
@@ -164,6 +167,7 @@ export class BattleRoom extends DurableObject<Env> {
     if (this.state) return { roomCode: this.state.roomCode };
     const now = Date.now();
     this.state = {
+      stateVersion: ROOM_STATE_VERSION,
       roomCode: code,
       createdAt: now,
       lastActivityAt: now,
@@ -331,12 +335,20 @@ export class BattleRoom extends DurableObject<Env> {
       megaProgress: 0,
       bodyFlipped: false,
       hand: [],
-      characterHand: [],
       characterDeck: [],
       characterSlots: [null, null, null, null],
       retired: [],
       banished: [],
     };
+  }
+
+  private migrateState() {
+    if (!this.state) return false;
+    const result = migrateRoomState(this.state, (items) => this.shuffle(items));
+    if (result.recycledCount) {
+      this.addLog(`规则更新：${result.recycledCount} 张角色手牌已洗回各自角色牌堆`);
+    }
+    return result.migrated;
   }
 
   private applyAction(player: PlayerState, message: ClientMessage): InspectionResult | void {
@@ -364,6 +376,10 @@ export class BattleRoom extends DurableObject<Env> {
       case "card:draw":
         this.requireStarted();
         this.draw(player, cleanText(payload.deck, 20), this.clamp(payload.count, 1, 10));
+        return;
+      case "character:deploy":
+        this.requireStarted();
+        this.deployCharacter(player);
         return;
       case "card:move":
         this.requireStarted();
@@ -545,12 +561,12 @@ export class BattleRoom extends DurableObject<Env> {
         ownerId: player.id,
       })));
       player.hand = [];
-      player.characterHand = [];
       player.characterSlots = [null, null, null, null];
       player.retired = [];
       player.banished = [];
       this.draw(player, "hand", 5, false);
-      this.draw(player, "character", 4, false);
+      this.deployCharacter(player, false);
+      this.deployCharacter(player, false);
     }
     const first = this.state.players[crypto.getRandomValues(new Uint8Array(1))[0] % 2];
     this.state.started = true;
@@ -572,16 +588,20 @@ export class BattleRoom extends DurableObject<Env> {
         player.hand.push(card);
       }
       if (log) this.addLog(`${player.nickname} 摸了 ${count} 张手牌`);
-    } else if (deck === "character") {
-      for (let index = 0; index < count; index += 1) {
-        const card = player.characterDeck.pop();
-        if (!card) break;
-        player.characterHand.push(card);
-      }
-      if (log) this.addLog(`${player.nickname} 摸了 ${count} 张角色牌`);
     } else {
       throw new Error("牌堆无效。");
     }
+  }
+
+  private deployCharacter(player: PlayerState, log = true) {
+    const slotIndex = player.characterSlots.findIndex((item) => item === null);
+    if (slotIndex < 0) throw new Error("角色区已满，不能继续上阵。");
+    const card = player.characterDeck.pop();
+    if (!card) throw new Error("角色牌堆为空，不能上阵角色。");
+    card.faceDown = true;
+    card.ownerId = player.id;
+    player.characterSlots[slotIndex] = card;
+    if (log) this.addLog(`${player.nickname} 从角色牌堆暗置上阵了 1 张角色至位置 ${slotIndex + 1}`);
   }
 
   private moveCard(actor: PlayerState, payload: Record<string, unknown>) {
@@ -640,12 +660,13 @@ export class BattleRoom extends DurableObject<Env> {
         if (!label) throw new Error("标记名称不能为空。");
         card.faceDown = true;
         actor.characterSlots[targetIndex] = { id: crypto.randomUUID(), label, ownerId: actor.id, card };
-      } else if (target === "characterHand") {
-        card.faceDown = false;
-        owner.characterHand.push(card);
       } else if (target === "characterDeckBottom") {
         card.faceDown = false;
         owner.characterDeck.unshift(card);
+      } else if (target === "characterDeckShuffle") {
+        if (located.zone !== "retired") throw new Error("只有退场区角色可以洗回角色牌堆。");
+        card.faceDown = false;
+        owner.characterDeck = this.shuffle([...owner.characterDeck, card]);
       } else if (target === "retired") {
         card.faceDown = false;
         owner.retired.push(card);
@@ -670,6 +691,8 @@ export class BattleRoom extends DurableObject<Env> {
       this.addLog(`${actor.nickname} 弃置了${ownerLabel}${this.handCardLabel(card)}`);
     } else if (target === "characterDeckBottom" && card.kind === "character") {
       this.addLog(`${actor.nickname} 休整了${this.cardLabel(card)}，置于角色牌堆底`);
+    } else if (target === "characterDeckShuffle" && card.kind === "character") {
+      this.addLog(`${actor.nickname} 将${this.cardLabel(card)}从退场区洗回${owner.nickname}的角色牌堆`);
     } else {
       this.addLog(`${actor.nickname} 将${cardLabel}从${sourceLabel}移动到${targetLabel}`);
     }
@@ -695,7 +718,6 @@ export class BattleRoom extends DurableObject<Env> {
     for (const player of this.state.players) {
       const playerZones: Array<[ZoneName, CardInstance[]]> = [
         ["hand", player.hand],
-        ["characterHand", player.characterHand],
         ["characterDeck", player.characterDeck],
         ["retired", player.retired],
         ["banished", player.banished],
@@ -867,7 +889,6 @@ export class BattleRoom extends DurableObject<Env> {
       ...this.state.players.flatMap((player) => [
         ...(player.body ? [player.body] : []),
         ...player.hand,
-        ...player.characterHand,
         ...player.characterDeck,
         ...player.characterSlots.filter((item): item is CardInstance => !!item && "instanceId" in item),
         ...player.retired,
@@ -900,10 +921,6 @@ export class BattleRoom extends DurableObject<Env> {
           ? player.hand.map((card) => this.cardView(card, true))
           : player.hand.map(() => ({ ownerId: player.id, faceDown: true })),
         handCount: player.hand.length,
-        characterHand: player.id === playerId
-          ? player.characterHand.map((card) => this.cardView(card, true))
-          : player.characterHand.map(() => ({ ownerId: player.id, faceDown: true })),
-        characterHandCount: player.characterHand.length,
         characterDeckCount: player.characterDeck.length,
         characterSlots: player.characterSlots.map((item) => {
           if (!item) return item;

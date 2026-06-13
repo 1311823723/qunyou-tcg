@@ -1,6 +1,5 @@
 export type ZoneName =
   | "hand"
-  | "characterHand"
   | "characterDeck"
   | "retired"
   | "banished"
@@ -38,7 +37,6 @@ export interface PlayerState {
   bodyFlipped: boolean;
   body?: CardInstance;
   hand: CardInstance[];
-  characterHand: CardInstance[];
   characterDeck: CardInstance[];
   characterSlots: Array<CardInstance | Marker | null>;
   retired: CardInstance[];
@@ -46,6 +44,7 @@ export interface PlayerState {
 }
 
 export interface RoomState {
+  stateVersion: number;
   roomCode: string;
   createdAt: number;
   lastActivityAt: number;

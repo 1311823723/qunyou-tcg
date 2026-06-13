@@ -1884,3 +1884,95 @@
     width: 100%;
   }
 }
+
+/* Character system v2: direct deployment with a compact resource rail. */
+.battle-character-resources .battle-side-zones {
+  width: 100%;
+}
+
+@media (min-width: 981px) {
+  .battle-player__field,
+  #battle-app[data-table-mode="compact"] .battle-player__field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .battle-character-slots__grid {
+    grid-template-columns: repeat(4, minmax(5.8rem, 7rem));
+    max-width: 43rem;
+    margin-inline: auto;
+  }
+
+  #battle-app[data-table-mode="compact"] .battle-character-slots__grid {
+    grid-template-columns: repeat(4, minmax(5.4rem, 6.35rem));
+    max-width: 39rem;
+  }
+
+  .battle-player__private,
+  #battle-app[data-table-mode="compact"] .battle-player__private {
+    grid-template-columns: minmax(17rem, 0.85fr) minmax(22rem, 1.15fr);
+  }
+
+  .battle-character-resources {
+    align-self: stretch;
+  }
+
+  .battle-character-resources .battle-side-zones {
+    grid-template-columns: minmax(5.4rem, 0.72fr) repeat(2, minmax(6.2rem, 1fr));
+    gap: 0.35rem;
+  }
+
+  .battle-character-resources .battle-pile,
+  .battle-character-resources .battle-zone {
+    min-height: 6.4rem;
+  }
+
+  .battle-character-resources .battle-card-back {
+    width: 2.8rem;
+  }
+
+  .battle-center__stage {
+    grid-template-columns: minmax(7.8rem, 9.4rem) minmax(21rem, 1fr) minmax(7.8rem, 9.4rem);
+    gap: clamp(0.7rem, 1.3vw, 1.25rem);
+  }
+
+  .battle-center-body .battle-mini-card--field {
+    width: clamp(7rem, 8vw, 8.5rem);
+  }
+
+  #battle-app[data-table-mode="compact"] .battle-center__stage {
+    grid-template-columns: minmax(7rem, 8.4rem) minmax(20rem, 1fr) minmax(7rem, 8.4rem);
+  }
+
+  #battle-app[data-table-mode="compact"] .battle-center-body .battle-mini-card--field {
+    width: clamp(6.5rem, 7.3vw, 7.7rem);
+  }
+
+  .battle-common-zones {
+    grid-template-columns: minmax(4.3rem, 0.52fr) minmax(8.5rem, 1.45fr) minmax(5.2rem, 0.7fr);
+    gap: 0.32rem;
+  }
+
+  .battle-common-zones .battle-pile,
+  .battle-common-zones .battle-zone,
+  #battle-app[data-table-mode="compact"] .battle-common-zones .battle-pile,
+  #battle-app[data-table-mode="compact"] .battle-common-zones .battle-zone {
+    min-height: 3.7rem;
+    padding: 0.22rem 0.3rem;
+  }
+
+  .battle-common-zones .battle-card-back {
+    width: 2rem;
+  }
+
+  .battle-common-zones .battle-zone__cards {
+    min-height: 2.5rem;
+  }
+}
+
+@media (max-width: 980px) {
+  .battle-character-resources .battle-side-zones {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(5.5rem, 1fr));
+    overflow-x: auto;
+  }
+}

@@ -14,8 +14,7 @@ function snapshot(player) {
         ready: true,
         connected: true,
         hand: [],
-        characterHand: [],
-        characterDeckCount: 12,
+        characterDeckCount: 14,
         characterSlots: [null, null, null, null],
         retired: [],
         banished: [],
@@ -43,25 +42,25 @@ function snapshot(player) {
   };
 }
 
-test("private card counts fall back to redacted arrays", () => {
+test("private hand counts fall back to redacted arrays", () => {
   const normalized = normalizeBattleSnapshot(snapshot({
     hand: [{ faceDown: true }, { faceDown: true }],
-    characterHand: [{ faceDown: true }],
   }));
   const opponent = normalized.players[1];
   assert.equal(opponent.handCount, 2);
-  assert.equal(opponent.characterHandCount, 1);
 });
 
 test("count-only legacy snapshots receive safe card-back placeholders", () => {
   const normalized = normalizeBattleSnapshot(snapshot({
     handCount: 5,
+    characterHand: [{ faceDown: true }],
     characterHandCount: 4,
   }));
   const opponent = normalized.players[1];
   assert.equal(opponent.hand.length, 5);
-  assert.equal(opponent.characterHand.length, 4);
-  assert.ok([...opponent.hand, ...opponent.characterHand].every((card) =>
+  assert.ok(opponent.hand.every((card) =>
     card.faceDown && !card.instanceId && !card.definitionId
   ));
+  assert.equal("characterHand" in opponent, false);
+  assert.equal("characterHandCount" in opponent, false);
 });

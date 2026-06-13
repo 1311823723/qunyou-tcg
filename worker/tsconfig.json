@@ -8,7 +8,8 @@
     "types": [],
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*.ts", "worker-configuration.d.ts"]
+  "include": ["src/**/*.ts", "src/**/*.mts", "worker-configuration.d.ts"]
 }

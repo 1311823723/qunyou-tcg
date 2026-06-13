@@ -20,20 +20,19 @@ export function normalizeBattleSnapshot(snapshot) {
   return {
     ...snapshot,
     players: snapshot.players.map((player) => {
+      const {
+        characterHand: _legacyCharacterHand,
+        characterHandCount: _legacyCharacterHandCount,
+        ...currentPlayer
+      } = player;
       const hand = cards(player.hand);
-      const characterHand = cards(player.characterHand);
       const handCount = count(player.handCount, hand.length);
-      const characterHandCount = count(player.characterHandCount, characterHand.length);
       const isOpponent = player.id !== snapshot.you;
 
       return {
-        ...player,
+        ...currentPlayer,
         hand: isOpponent ? padPrivateCards(hand, handCount, player.id) : hand,
         handCount,
-        characterHand: isOpponent
-          ? padPrivateCards(characterHand, characterHandCount, player.id)
-          : characterHand,
-        characterHandCount,
       };
     }),
   };
