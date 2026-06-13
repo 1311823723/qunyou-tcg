@@ -1896,15 +1896,24 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .battle-character-slots {
+    align-content: start;
+    padding-block: 0.15rem 0.35rem;
+  }
+
   .battle-character-slots__grid {
-    grid-template-columns: repeat(4, minmax(5.8rem, 7rem));
-    max-width: 43rem;
+    width: max-content;
+    max-width: 100%;
+    grid-template-columns: repeat(4, clamp(8.2rem, 9vw, 9.6rem));
+    justify-content: center;
+    gap: clamp(0.65rem, 1vw, 1rem);
     margin-inline: auto;
+    padding-inline: 0;
   }
 
   #battle-app[data-table-mode="compact"] .battle-character-slots__grid {
-    grid-template-columns: repeat(4, minmax(5.4rem, 6.35rem));
-    max-width: 39rem;
+    grid-template-columns: repeat(4, clamp(7.6rem, 8.2vw, 8.8rem));
+    gap: clamp(0.55rem, 0.85vw, 0.85rem);
   }
 
   .battle-player__private,
