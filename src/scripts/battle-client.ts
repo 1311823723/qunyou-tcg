@@ -700,6 +700,7 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
     <p class="battle-phase-hint">准备 → 摸牌 → 出牌 → 布阵 → 弃牌 → 结束</p>
     <div class="battle-toolbar">
       <button type="button" data-command="deck:shuffle" data-deck="hand">洗混共用牌堆</button>
+      <button type="button" data-command="deck:recycleDiscard" ${game.handDiscard.length ? "" : "disabled"}>弃牌洗回牌堆底</button>
       <button type="button" data-command="hand:randomSelect" data-owner="${opponent?.id || ""}">随机展示对手手牌</button>
       <button type="button" data-command="marker:create">创建标记</button>
       ${moveModeCardId ? `<button type="button" data-command="move:cancel">取消落点</button>` : ""}
@@ -930,6 +931,13 @@ function handleCommand(element: HTMLElement) {
     });
   } else if (command === "deck:shuffle") {
     send(command, { deck: element.dataset.deck });
+  } else if (command === "deck:recycleDiscard") {
+    const count = snapshot?.game.handDiscard.length || 0;
+    if (!count) {
+      showError("手牌弃牌区为空。");
+      return;
+    }
+    showConfirmDialog(`将手牌弃牌区的 ${count} 张牌洗混后放到共用牌堆最下面？`, () => send(command));
   } else if (command === "card:inspect-zone") {
     send("card:inspect", { ownerId: element.dataset.owner, zone: element.dataset.zone });
   } else if (command === "hand:randomSelect") {

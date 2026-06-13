@@ -386,6 +386,10 @@ export class BattleRoom extends DurableObject<Env> {
         this.requireStarted();
         this.shuffleDeck(player, cleanText(payload.deck, 30));
         return;
+      case "deck:recycleDiscard":
+        this.requireStarted();
+        this.recycleHandDiscard(player);
+        return;
       case "body:flip":
         this.requireStarted();
         player.bodyFlipped = !player.bodyFlipped;
@@ -794,6 +798,19 @@ export class BattleRoom extends DurableObject<Env> {
     else if (deck === "character") player.characterDeck = this.shuffle(player.characterDeck);
     else throw new Error("牌堆无效。");
     this.addLog(`${player.nickname} 洗混了${deck === "hand" ? "共用手牌牌堆" : "角色牌堆"}`);
+  }
+
+  private recycleHandDiscard(player: PlayerState) {
+    if (!this.state) return;
+    if (this.state.handDiscard.length === 0) throw new Error("手牌弃牌区为空。");
+    const recycled = this.shuffle(this.state.handDiscard).map((card) => ({
+      ...card,
+      ownerId: undefined,
+      faceDown: false,
+    }));
+    this.state.handDiscard = [];
+    this.state.handDeck = [...recycled, ...this.state.handDeck];
+    this.addLog(`${player.nickname} 将手牌弃牌区的 ${recycled.length} 张牌洗混并放到共用牌堆底`);
   }
 
   private findCard(instanceId: string) {

@@ -195,7 +195,7 @@ step("non-viewer move rejected");
 a.messages.length = 0;
 a.send("card:inspect", { ownerId: guestView.id, zone: "hand" });
 const fullInspection = await a.waitFor((message) => message.type === "inspection" && message.cards.length === 5);
-const [firstInspected, secondInspected] = fullInspection.cards;
+const [firstInspected] = fullInspection.cards;
 a.send("card:move", {
   instanceId: firstInspected.instanceId,
   targetZone: "handDiscard",
@@ -206,8 +206,28 @@ await a.waitFor((message) =>
   && message.snapshot.game.handDiscard.some((card) => card.instanceId === firstInspected.instanceId),
 );
 a.messages.length = 0;
+const deckCountBeforeRecycle = a.revision;
+a.send("deck:recycleDiscard");
+const recycledDiscard = await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.revision > deckCountBeforeRecycle
+  && message.snapshot.game.handDiscard.length === 0
+  && message.snapshot.game.handDeckCount === 43,
+);
+assert.ok(recycledDiscard.snapshot.game.logs.some((log) =>
+  log.text.includes("将手牌弃牌区的 1 张牌洗混并放到共用牌堆底")
+));
+step("hand discard recycled to shared deck bottom");
+
+a.send("card:inspect", { ownerId: guestView.id, zone: "hand" });
+const secondInspection = await a.waitFor((message) =>
+  message.type === "inspection"
+  && message.inspectionId !== fullInspection.inspectionId
+  && message.cards.length === 4,
+);
+a.messages.length = 0;
 a.send("card:move", {
-  instanceId: secondInspected.instanceId,
+  instanceId: secondInspection.cards[0].instanceId,
   targetZone: "handDiscard",
   inspectionId: fullInspection.inspectionId,
 });
@@ -333,6 +353,7 @@ console.log(JSON.stringify({
   duplicateActionIgnored: true,
   randomRevealSentToBothPlayers: true,
   opponentHealthEditable: true,
+  handDiscardRecycledToDeckBottom: true,
   restartRequiresBothPlayers: true,
   restartDecisionToleratesNewerRevision: true,
   restartSyncedToBothPlayers: true,
