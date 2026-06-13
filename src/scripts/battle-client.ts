@@ -70,6 +70,8 @@ let pendingMoveVisuals: PendingMoveVisual[] = [];
 let moveAnimationQueue = Promise.resolve();
 let regionScrollFrame = 0;
 let regionScrollLockUntil = 0;
+let suppressedCardClick = "";
+let suppressedCardClickUntil = 0;
 
 const COACH_STEPS = [
   { title: "点击卡牌查看技能", text: "点任意卡牌可阅读完整效果，并从菜单移动到其他区域。" },
@@ -794,10 +796,10 @@ function renderCard(
   const faceBadge = inSlot
     ? (card.faceDown ? `<span class="battle-mini-card__face-badge battle-mini-card__face-badge--down">暗</span>` : `<span class="battle-mini-card__face-badge">明</span>`)
     : "";
-  return `<button type="button" class="${cardClass}" draggable="${String(options.interactive)}"
+  return `<button type="button" class="${cardClass}" draggable="false" data-card-draggable="${String(options.interactive)}"
     data-card="${card.instanceId || ""}" data-owner="${options.owner.id}" data-zone="${options.zone}"
     aria-label="${escapeHtml(name)}" title="${escapeHtml(definition.text)}">
-    ${imagePath ? `<img src="${imagePath}" alt="" loading="lazy" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
+    ${imagePath ? `<img src="${imagePath}" alt="" loading="lazy" draggable="false" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
     ${faceBadge}
     <strong>${escapeHtml(name)}</strong><small>${escapeHtml(poker + definition.subtitle)}</small>
   </button>`;
@@ -820,13 +822,25 @@ function bindActions() {
   });
   root.querySelectorAll<HTMLElement>("[data-card]").forEach((element) => {
     element.addEventListener("click", (event) => {
+      if (element.dataset.card === suppressedCardClick && Date.now() < suppressedCardClickUntil) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       if (moveModeCardId) return;
       openCardMenu(element);
       event.stopPropagation();
     });
+    bindPointerCardDrag(element);
     element.addEventListener("dragstart", (event) => {
-      if (!optionsDraggable(element)) return;
-      event.dataTransfer?.setData("text/card-instance", element.dataset.card || "");
+      const instanceId = element.dataset.card || "";
+      if (!optionsDraggable(element) || !instanceId || !event.dataTransfer) {
+        event.preventDefault();
+        return;
+      }
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", instanceId);
+      event.dataTransfer.setData("text/card-instance", instanceId);
       element.classList.add("is-dragging");
     });
     element.addEventListener("dragend", () => element.classList.remove("is-dragging"));
@@ -855,13 +869,16 @@ function bindActions() {
   root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
     element.addEventListener("dragover", (event) => {
       event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
       element.classList.add("is-drag-over");
     });
     element.addEventListener("dragleave", () => element.classList.remove("is-drag-over"));
     element.addEventListener("drop", (event) => {
       event.preventDefault();
+      event.stopPropagation();
       element.classList.remove("is-drag-over");
-      const instanceId = event.dataTransfer?.getData("text/card-instance");
+      const instanceId = event.dataTransfer?.getData("text/card-instance")
+        || event.dataTransfer?.getData("text/plain");
       if (!instanceId) return;
       moveCardToTarget(instanceId, element.dataset.dropTarget || "", element);
     });
@@ -882,7 +899,63 @@ function syncRoomControls(started: boolean) {
 }
 
 function optionsDraggable(element: HTMLElement) {
-  return element.getAttribute("draggable") === "true";
+  return element.dataset.cardDraggable === "true";
+}
+
+function bindPointerCardDrag(element: HTMLElement) {
+  if (!optionsDraggable(element)) return;
+  let startX = 0;
+  let startY = 0;
+  let dragging = false;
+  let activeTarget: HTMLElement | null = null;
+
+  const clearTarget = () => {
+    activeTarget?.classList.remove("is-drag-over");
+    activeTarget = null;
+  };
+  const finish = () => {
+    clearTarget();
+    element.classList.remove("is-dragging");
+    root.querySelectorAll(".is-pointer-drag-target").forEach((target) => target.classList.remove("is-pointer-drag-target"));
+    window.removeEventListener("mousemove", handleMouseMove);
+    window.removeEventListener("mouseup", handleMouseUp);
+    dragging = false;
+  };
+
+  const handleMouseMove = (event: MouseEvent) => {
+    if (!dragging && Math.hypot(event.clientX - startX, event.clientY - startY) < 7) return;
+    if (!dragging) {
+      dragging = true;
+      event.preventDefault();
+      element.classList.add("is-dragging");
+      root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((target) => target.classList.add("is-pointer-drag-target"));
+    }
+    const nextTarget = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-drop-target]") || null;
+    if (nextTarget === activeTarget) return;
+    clearTarget();
+    activeTarget = nextTarget;
+    activeTarget?.classList.add("is-drag-over");
+  };
+  const handleMouseUp = (event: MouseEvent) => {
+    if (dragging) {
+      event.preventDefault();
+      const instanceId = element.dataset.card || "";
+      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-drop-target]") || activeTarget;
+      suppressedCardClick = instanceId;
+      suppressedCardClickUntil = Date.now() + 400;
+      if (instanceId && target) moveCardToTarget(instanceId, target.dataset.dropTarget || "", target);
+    }
+    finish();
+  };
+
+  element.addEventListener("mousedown", (event) => {
+    if (event.button !== 0) return;
+    startX = event.clientX;
+    startY = event.clientY;
+    dragging = false;
+    window.addEventListener("mousemove", handleMouseMove, { passive: false });
+    window.addEventListener("mouseup", handleMouseUp);
+  });
 }
 
 function moveCardToTarget(instanceId: string, dropTarget: string, targetElement?: HTMLElement) {
