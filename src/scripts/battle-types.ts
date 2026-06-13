@@ -101,7 +101,6 @@ export type ServerMessage =
 export type PreservedUI = {
   scrollLeft: Record<string, number>;
   logOpen: boolean;
-  sideZonesOpen: Record<string, boolean>;
   activeRegion: string;
   rootScrollTop: number;
 };

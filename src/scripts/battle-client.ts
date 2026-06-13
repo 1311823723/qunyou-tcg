@@ -214,18 +214,13 @@ function applyTableMode() {
 
 function captureUIState(): PreservedUI {
   const scrollLeft: Record<string, number> = {};
-  const sideZonesOpen: Record<string, boolean> = {};
   root.querySelectorAll<HTMLElement>("[data-scroll-key]").forEach((element) => {
     if (element.dataset.scrollKey) scrollLeft[element.dataset.scrollKey] = element.scrollLeft;
-  });
-  root.querySelectorAll<HTMLDetailsElement>("[data-side-zones]").forEach((element) => {
-    if (element.dataset.sideZones) sideZonesOpen[element.dataset.sideZones] = element.open;
   });
   const logDetails = root.querySelector<HTMLDetailsElement>(".battle-log");
   return {
     scrollLeft,
     logOpen: logDetails?.open ?? false,
-    sideZonesOpen,
     activeRegion,
     rootScrollTop: root.scrollTop,
   };
@@ -238,10 +233,6 @@ function restoreUIState(state: PreservedUI) {
   });
   const logDetails = root.querySelector<HTMLDetailsElement>(".battle-log");
   if (logDetails && state.logOpen) logDetails.open = true;
-  Object.entries(state.sideZonesOpen).forEach(([key, open]) => {
-    const element = root.querySelector<HTMLDetailsElement>(`[data-side-zones="${key}"]`);
-    if (element) element.open = open;
-  });
   activeRegion = state.activeRegion || activeRegion;
   root.scrollTop = state.rootScrollTop;
   updateRegionNavigation();
@@ -647,14 +638,11 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
             ${player.characterSlots.map((item, index) => renderSlot(item, index, player, isMe)).join("")}
           </div>
         </div>
-        <details class="battle-side-drawer" data-side-zones="${isMe ? "self" : "opponent"}">
-          <summary><span>侧区</span><b>${player.characterDeckCount} / ${player.retired.length} / ${player.banished.length}</b></summary>
-          <div class="battle-side-zones">
-            ${renderPile("角色牌堆", player.characterDeckCount, isMe ? "card:draw-character" : "", "摸角色", player.id)}
-            ${renderZone("退场区", player.retired, player, "retired", isMe)}
-            ${renderZone("移出游戏", player.banished, player, "banished", isMe)}
-          </div>
-        </details>
+        <div class="battle-side-zones">
+          ${renderPile("角色牌堆", player.characterDeckCount, isMe ? "card:draw-character" : "", "摸角色", player.id)}
+          ${renderZone("退场区", player.retired, player, "retired", isMe)}
+          ${renderZone("移出游戏", player.banished, player, "banished", isMe)}
+        </div>
       </div>
       <div class="battle-player__private">
         <div class="battle-private-rail battle-private-rail--characters">
@@ -730,7 +718,11 @@ function renderWaitingSeat() {
 }
 
 function renderPile(title: string, count: number, command: string, action: string, ownerId?: string) {
-  const dropTarget = title === "共用牌堆" ? ` data-drop-target="handDeckTop"` : "";
+  const dropTarget = title === "共用牌堆"
+    ? ` data-drop-target="handDeckTop"`
+    : title === "角色牌堆"
+      ? ` data-drop-target="characterDeckBottom"`
+      : "";
   const owner = ownerId ? ` data-zone-owner="${ownerId}"` : "";
   return `<article class="battle-pile"${dropTarget}${owner}>
     <div class="battle-card-back"><span>群友杀</span></div>
@@ -1070,7 +1062,7 @@ function findMoveVisualTarget(pending: PendingMoveVisual) {
     return root.querySelector<HTMLElement>(`${self} [data-drop-target="characterSlot:${pending.targetIndex}"]`);
   }
   if (pending.targetZone === "retired" || pending.targetZone === "banished" || pending.targetZone === "characterDeckBottom") {
-    return root.querySelector<HTMLElement>(`${self} [data-side-zones="self"] summary`);
+    return root.querySelector<HTMLElement>(`${self} [data-drop-target="${pending.targetZone}"]`);
   }
   if (pending.targetZone === "characterHand") {
     return root.querySelector<HTMLElement>(`${self} .battle-private-rail--characters`);
