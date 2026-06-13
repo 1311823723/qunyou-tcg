@@ -103,6 +103,19 @@ const originalBodyId = ownerView.body.instanceId;
 const ownerOpponent = startedA.snapshot.players.find((player) => player.id !== startedA.snapshot.you);
 const guestOpponent = startedB.snapshot.players.find((player) => player.id !== startedB.snapshot.you);
 
+b.send("health:set", { playerId: ownerView.id, value: 5 });
+await Promise.all([
+  a.waitFor((message) =>
+    message.type === "snapshot"
+    && message.snapshot.players.find((player) => player.id === ownerView.id)?.health === 5,
+  ),
+  b.waitFor((message) =>
+    message.type === "snapshot"
+    && message.snapshot.players.find((player) => player.id === ownerView.id)?.health === 5,
+  ),
+]);
+step("opponent health adjustment synchronized");
+
 for (const opponent of [ownerOpponent, guestOpponent]) {
   assert.equal(opponent.handCount, 5);
   assert.equal(opponent.characterHandCount, 4);
@@ -244,11 +257,20 @@ step("restart cancellation verified");
 a.messages.length = 0;
 b.messages.length = 0;
 a.send("room:restartRequest");
-const acceptable = await b.waitFor((message) => message.type === "snapshot" && message.snapshot.pendingRestart);
+const [requesterPending, acceptable] = await Promise.all([
+  a.waitFor((message) => message.type === "snapshot" && message.snapshot.pendingRestart),
+  b.waitFor((message) => message.type === "snapshot" && message.snapshot.pendingRestart),
+]);
+a.send("health:set", { value: 4 });
+await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.revision > requesterPending.snapshot.revision
+  && message.snapshot.players.find((player) => player.id === message.snapshot.you)?.health === 4,
+);
 b.send("room:restartRespond", {
   requestId: acceptable.snapshot.pendingRestart.id,
   accept: true,
-});
+}, { baseRevision: acceptable.snapshot.revision });
 const [restartedA, restartedB] = await Promise.all([
   a.waitFor((message) =>
     message.type === "snapshot"
@@ -310,7 +332,9 @@ console.log(JSON.stringify({
   staleRevisionRejected: true,
   duplicateActionIgnored: true,
   randomRevealSentToBothPlayers: true,
+  opponentHealthEditable: true,
   restartRequiresBothPlayers: true,
+  restartDecisionToleratesNewerRevision: true,
   restartSyncedToBothPlayers: true,
   roomEndedSentToBothPlayers: true,
   roomDeleted: true,

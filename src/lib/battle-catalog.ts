@@ -1,6 +1,7 @@
 import { allBodies, allCharacters, allHandCards, resolveBodyCard } from "./cards";
 import { allDecks } from "./decks";
 import { getArchetypeBlurb } from "./archetypes";
+import { formatCharacterCost } from "./ui";
 
 const ARCHETYPE_THEME_SLUG: Record<string, string> = {
   "爆杀流": "aggro",
@@ -25,6 +26,9 @@ export interface BattleCatalogCard {
   /** Mega 效果文本 */
   extraText?: string;
   megaMax?: number;
+  megaCondition?: string;
+  timing?: string;
+  costText?: string;
 }
 
 export function getBattleCatalog() {
@@ -44,6 +48,7 @@ export function getBattleCatalog() {
       extraSubtitle: body.extraForm ? `${body.archetype} · ${body.extraForm.skillName}` : undefined,
       extraText: body.extraForm?.effectText,
       megaMax: body.extraFormProgressMax,
+      megaCondition: body.extraForm?.condition,
     };
   }
 
@@ -53,7 +58,9 @@ export function getBattleCatalog() {
       name: card.name,
       kind: "character",
       subtitle: `${card.mainRole} · ${card.skillName}`,
-      text: `${card.timing}｜${card.effectText}`,
+      text: card.effectText,
+      timing: card.timing,
+      costText: formatCharacterCost(card.cost),
       imagePath: `/cards/characters/${card.id}.webp`,
     };
   }

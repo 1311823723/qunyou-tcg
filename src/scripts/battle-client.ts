@@ -291,8 +291,12 @@ async function connect() {
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(String(event.data)) as ServerMessage;
     if (message.type === "snapshot") {
-      snapshot = normalizeBattleSnapshot(message.snapshot);
+      const nextSnapshot = normalizeBattleSnapshot(message.snapshot);
+      const restarted = didGameRestart(snapshot, nextSnapshot);
+      if (restarted) resetTransientUIForRestart();
+      snapshot = nextSnapshot;
       render();
+      if (restarted) showToast("牌局已重新开始");
     } else if (message.type === "inspection") {
       showInspection(
         message.title,
@@ -373,6 +377,24 @@ function send(type: string, payload: Record<string, unknown> = {}) {
   };
   socket.send(JSON.stringify(msg));
   return msg.actionId;
+}
+
+function didGameRestart(previous: Snapshot | undefined, next: Snapshot) {
+  if (!previous?.game.started || !next.game.started) return false;
+  const previousMe = previous.players.find((player) => player.id === previous.you);
+  const nextMe = next.players.find((player) => player.id === next.you);
+  return Boolean(
+    previousMe?.body?.instanceId
+    && nextMe?.body?.instanceId
+    && previousMe.body.instanceId !== nextMe.body.instanceId,
+  );
+}
+
+function resetTransientUIForRestart() {
+  moveModeCardId = null;
+  activeRegion = "battle-center";
+  if (dialog.open) dialog.close();
+  dialogContent.innerHTML = "";
 }
 
 function render() {
@@ -602,7 +624,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
           ${snapshot?.game.currentPlayerId === player.id ? `<span class="battle-turn-badge">${isMe && isMyTurn ? "你的回合" : "当前回合"}</span>` : ""}
         </div>
         <div class="battle-counters">
-          ${renderCounter("体力", player.health || 0, "health:set", player.id, isMe)}
+          ${renderCounter("体力", player.health || 0, "health:set", player.id, true)}
           ${renderCounter("Mega", megaText, "megaProgress:set", player.id, isMe, max)}
         </div>
       </header>
@@ -611,6 +633,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
           <span class="battle-zone-label">本体</span>
           ${renderCard(player.body, { owner: player, zone: "body", interactive: isMe, flipped: player.bodyFlipped, size: "field" })}
           ${isMe ? `<button class="battle-small-btn" data-command="body:flip">翻转本体</button>` : ""}
+          ${body?.megaCondition ? `<p class="battle-mega-condition" title="${escapeHtml(body.megaCondition)}"><strong>Mega 条件</strong>${escapeHtml(body.megaCondition)}</p>` : ""}
         </div>
         <div class="battle-character-slots">
           <span class="battle-zone-label battle-zone-label--row">角色区</span>
@@ -650,8 +673,8 @@ function renderCounter(label: string, value: string | number, command: string, p
   return `<div class="battle-counter ${ready ? "is-ready" : ""}">
     <span>${label}</span><strong>${value}</strong>
     ${editable ? `<div class="battle-counter__actions">
-      <button type="button" data-command="${command}" data-value="${numeric - 1}" aria-label="${label}减一">−</button>
-      <button type="button" data-command="${command}" data-value="${numeric + 1}" aria-label="${label}加一">＋</button>
+      <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric - 1}" aria-label="${label}减一">−</button>
+      <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric + 1}" aria-label="${label}加一">＋</button>
       <button type="button" data-counter-set="${command}" data-player="${playerId}" data-current="${numeric}" data-label="${label}">设置</button>
     </div>` : ""}
   </div>`;
@@ -768,11 +791,15 @@ function renderCard(
   const faceBadge = inSlot
     ? (card.faceDown ? `<span class="battle-mini-card__face-badge battle-mini-card__face-badge--down">暗</span>` : `<span class="battle-mini-card__face-badge">明</span>`)
     : "";
+  const costBadge = definition.kind === "character" && definition.costText
+    ? `<span class="battle-mini-card__cost" title="技能消耗：${escapeHtml(definition.costText)}">${escapeHtml(definition.costText)}</span>`
+    : "";
   return `<button type="button" class="${cardClass}" draggable="${String(options.interactive)}"
     data-card="${card.instanceId || ""}" data-owner="${options.owner.id}" data-zone="${options.zone}"
-    aria-label="${escapeHtml(name)}" title="${escapeHtml(definition.text)}">
+    aria-label="${escapeHtml(name)}" title="${escapeHtml([definition.costText, definition.timing, definition.text].filter(Boolean).join("｜"))}">
     ${imagePath ? `<img src="${imagePath}" alt="" loading="lazy" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
     ${faceBadge}
+    ${costBadge}
     <strong>${escapeHtml(name)}</strong><small>${escapeHtml(poker + definition.subtitle)}</small>
   </button>`;
 }
@@ -789,7 +816,10 @@ function bindActions() {
     element.addEventListener("click", () => {
       const label = element.dataset.label || "数值";
       const current = Number(element.dataset.current || 0);
-      showNumberDialog(label, current, (value) => send(element.dataset.counterSet || "", { value }));
+      showNumberDialog(label, current, (value) => send(element.dataset.counterSet || "", {
+        value,
+        playerId: element.dataset.player,
+      }));
     });
   });
   root.querySelectorAll<HTMLElement>("[data-card]").forEach((element) => {
@@ -894,7 +924,10 @@ function handleCommand(element: HTMLElement) {
     }
     send(command);
   } else if (command === "health:set" || command === "megaProgress:set") {
-    send(command, { value: Number(element.dataset.value) });
+    send(command, {
+      value: Number(element.dataset.value),
+      playerId: element.dataset.player,
+    });
   } else if (command === "deck:shuffle") {
     send(command, { deck: element.dataset.deck });
   } else if (command === "card:inspect-zone") {
@@ -1050,6 +1083,13 @@ function openCardMenu(element: HTMLElement) {
         <div class="battle-card-detail__body">
           <h2>${definition ? (parts[0] ? `<span class="battle-card-detail__role">${escapeHtml(parts[0])}</span>` : "") + escapeHtml(parts[1] || displayName) : "暗置卡牌"}</h2>
           ${roleTag ? `<span class="battle-tag">${escapeHtml(roleTag)}</span>` : ""} ${faceStatus}
+          ${definition?.kind === "character" ? `<div class="battle-card-detail__rules">
+            <span><b>技能消耗</b>${escapeHtml(definition.costText || "无")}</span>
+            <span><b>发动时机</b>${escapeHtml(definition.timing || "未注明")}</span>
+          </div>` : ""}
+          ${definition?.kind === "body" && definition.megaCondition ? `<div class="battle-card-detail__rules">
+            <span><b>Mega 条件</b>${escapeHtml(definition.megaCondition)}</span>
+          </div>` : ""}
           ${definition ? `<p class="battle-card-detail__subtitle">${escapeHtml(displaySubtitle)}</p><p class="battle-card-detail__text">${escapeHtml(displayText)}</p>` : `<p>这张卡牌为暗置状态，可以通过卡牌效果查看。</p>`}
         </div>
       </div>

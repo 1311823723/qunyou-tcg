@@ -10,6 +10,9 @@ export type CatalogCard = {
   extraSubtitle?: string;
   extraText?: string;
   megaMax?: number;
+  megaCondition?: string;
+  timing?: string;
+  costText?: string;
 };
 
 export type CatalogDeck = {

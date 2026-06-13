@@ -16,6 +16,7 @@ import {
 import {
   clearExpiredRestart,
   createRestartRequest,
+  isRevisionIndependentRestartCommand,
 } from "./restart";
 import {
   assertCardCanEnter,
@@ -244,7 +245,10 @@ export class BattleRoom extends DurableObject<Env> {
         await this.persist();
         this.broadcast();
       }
-      if (!Number.isInteger(message.baseRevision) || message.baseRevision !== this.state.revision) {
+      if (
+        !isRevisionIndependentRestartCommand(message.type)
+        && (!Number.isInteger(message.baseRevision) || message.baseRevision !== this.state.revision)
+      ) {
         throw new Error("牌桌状态已更新，请等待同步后重试。");
       }
       const inspection = this.applyAction(player, message);
@@ -389,8 +393,13 @@ export class BattleRoom extends DurableObject<Env> {
         return;
       case "health:set": {
         this.requireStarted();
-        player.health = this.clamp(payload.value, 0, 99);
-        this.addLog(`${player.nickname} 将体力调整为 ${player.health}`);
+        const targetId = cleanText(payload.playerId, 20);
+        const target = targetId
+          ? this.state.players.find((item) => item.id === targetId)
+          : player;
+        if (!target) throw new Error("目标玩家不存在。");
+        target.health = this.clamp(payload.value, 0, 99);
+        this.addLog(`${player.nickname} 将${target.id === player.id ? "自己的" : `${target.nickname} 的`}体力调整为 ${target.health}`);
         return;
       }
       case "megaProgress:set": {

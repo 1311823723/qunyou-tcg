@@ -10,6 +10,7 @@ const deckFiles = ["aggro", "mizai", "combo", "trans"];
 const decks = await Promise.all(deckFiles.map(async (slug) =>
   JSON.parse(await readFile(new URL(`data/decks/${slug}.deck.json`, root), "utf8")),
 ));
+const characters = JSON.parse(await readFile(new URL("data/cards/characters.json", root), "utf8"));
 
 function progressMax(body) {
   const match = body.extraForm?.condition?.match(/累计[^\d]{0,24}(\d+)\s*(?:点|次|张)/);
@@ -35,6 +36,15 @@ test("current body cards expose the expected Mega progress maxima", () => {
     body_combo_001: 6,
     body_trans_001: 4,
   });
+});
+
+test("online card source data exposes Mega conditions and character costs", () => {
+  assert.ok(bodies.every((body) => body.extraForm?.condition));
+  assert.ok(characters.every((card) => {
+    if (!card.timing || !card.cost?.type) return false;
+    if (card.cost.type === "休整") return Number.isFinite(card.cost.amount);
+    return Boolean(card.cost.text);
+  }));
 });
 
 test("battle worker defines separate create and join rate limits", () => {

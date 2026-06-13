@@ -164,9 +164,15 @@
 /* 明置/暗置 角标 */
 .battle-mini-card__face-badge { position: absolute; z-index: 2; top: 0.2rem; right: 0.2rem; width: 1.3rem; height: 1.3rem; display: grid; place-items: center; border-radius: 50%; background: rgba(98,217,139,0.92); color: #052210; font-size: 0.58rem; font-weight: 900; box-shadow: 0 0 6px rgba(98,217,139,0.3); pointer-events: none; }
 .battle-mini-card__face-badge--down { background: rgba(255,179,71,0.92); color: #2e1a00; box-shadow: 0 0 6px rgba(255,179,71,0.3); }
+.battle-mini-card__cost { position: absolute; z-index: 3; right: 0.18rem; bottom: 0.18rem; max-width: calc(100% - 0.36rem); padding: 0.12rem 0.28rem; overflow: hidden; border: 1px solid rgba(255,217,138,0.42); border-radius: 5px; color: #fff0bd; background: rgba(7,8,13,0.9); font: 900 0.48rem/1.15 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.48); }
 .battle-mini-card.is-face-down { border-color: rgba(255,179,71,0.35); box-shadow: 0 4px 12px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,179,71,0.15); }
 .battle-mini-card.is-face-up { border-color: rgba(98,217,139,0.35); box-shadow: 0 4px 12px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(98,217,139,0.2); }
 .battle-center { padding: 0.55rem 0.65rem; border: 1px solid rgba(216,183,92,0.22); border-radius: 14px; background: radial-gradient(ellipse at 50% 0%, rgba(216,183,92,0.06), transparent 55%), rgba(8,9,16,0.9); }
+.battle-mega-condition { margin: 0.3rem 0 0; color: var(--text-muted); font-size: 0.55rem; line-height: 1.35; text-align: center; }
+.battle-mega-condition strong { display: block; margin-bottom: 0.08rem; color: #c8a8ff; font-size: 0.5rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.battle-card-detail__rules { display: grid; gap: 0.35rem; margin: 0.65rem 0; }
+.battle-card-detail__rules span { display: grid; grid-template-columns: 4.4rem 1fr; gap: 0.45rem; padding: 0.4rem 0.5rem; border: 1px solid rgba(216,183,92,0.16); border-radius: 7px; color: var(--text-primary); background: rgba(216,183,92,0.045); font-size: 0.72rem; line-height: 1.45; }
+.battle-card-detail__rules b { color: var(--text-gold); font-size: 0.62rem; letter-spacing: 0.04em; }
 .battle-turnbar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.25rem; color: var(--text-muted); font-size: 0.72rem; }
 .battle-turnbar strong { color: var(--text-gold); }
 .battle-turnbar__you { color: var(--accent-info); }
@@ -1557,4 +1563,211 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+}
+
+/* Desktop stepped arena: two command platforms converging on a compact shared lane. */
+@media (min-width: 981px) {
+  .battle-table {
+    --arena-step: clamp(2.75rem, 6vw, 6.5rem);
+    gap: 0.28rem;
+    padding: 0.7rem;
+  }
+
+  .battle-player {
+    position: relative;
+    width: calc(100% - var(--arena-step));
+  }
+
+  .battle-player--opponent {
+    margin-right: var(--arena-step);
+    border-bottom-right-radius: 3.4rem;
+  }
+
+  .battle-player--self {
+    margin-left: var(--arena-step);
+    border-top-left-radius: 3.4rem;
+  }
+
+  .battle-player--opponent::after,
+  .battle-player--self::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    width: var(--arena-step);
+    height: 42%;
+    pointer-events: none;
+    border-color: rgba(216,183,92,0.18);
+    background:
+      linear-gradient(135deg, var(--deck-glow), transparent 68%),
+      rgba(3,8,13,0.56);
+  }
+
+  .battle-player--opponent::after {
+    right: calc(-1 * var(--arena-step));
+    bottom: 0;
+    border-right: 1px solid;
+    border-bottom: 1px solid;
+    border-bottom-right-radius: 2.4rem;
+  }
+
+  .battle-player--self::after {
+    top: 0;
+    left: calc(-1 * var(--arena-step));
+    border-top: 1px solid;
+    border-left: 1px solid;
+    border-top-left-radius: 2.4rem;
+  }
+
+  .battle-player__field {
+    grid-template-columns: minmax(5rem, 0.42fr) minmax(24rem, 3fr) minmax(12rem, 0.95fr);
+    padding-block: 0.42rem;
+  }
+
+  .battle-player--opponent .battle-player__field {
+    padding-right: 1.7rem;
+  }
+
+  .battle-player--self .battle-player__field {
+    padding-left: 1.7rem;
+  }
+
+  .battle-center {
+    position: relative;
+    z-index: 2;
+    width: calc(100% - (var(--arena-step) * 2));
+    margin-inline: auto;
+    padding: 0.38rem 0.75rem 0.42rem;
+    border-radius: 12px;
+    background:
+      linear-gradient(90deg, rgba(88,199,232,0.045), rgba(216,183,92,0.08) 50%, rgba(157,108,255,0.045)),
+      rgba(2,7,12,0.9);
+    box-shadow:
+      inset 0 1px rgba(255,255,255,0.035),
+      inset 0 0 28px rgba(0,0,0,0.42),
+      0 0 24px rgba(216,183,92,0.06);
+  }
+
+  .battle-center::before,
+  .battle-center::after {
+    top: 50%;
+    width: var(--arena-step);
+    background: linear-gradient(90deg, transparent, rgba(216,183,92,0.3));
+  }
+
+  .battle-center::before {
+    left: auto;
+    right: 100%;
+    transform: none;
+  }
+
+  .battle-center::after {
+    right: auto;
+    left: 100%;
+    transform: scaleX(-1);
+  }
+
+  .battle-turnbar {
+    position: absolute;
+    top: 0.35rem;
+    left: 50%;
+    z-index: 3;
+    width: min(34rem, 48%);
+    min-height: 2.05rem;
+    margin: 0;
+    padding: 0.2rem 0.4rem;
+    transform: translateX(-50%);
+  }
+
+  .battle-turnbar__round {
+    font-size: 0.56rem;
+  }
+
+  .battle-turnbar small {
+    display: none;
+  }
+
+  .battle-turnbar strong {
+    font-size: 0.72rem;
+  }
+
+  .battle-turnbar .battle-small-btn {
+    min-height: 1.6rem;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.58rem;
+  }
+
+  .battle-center__lane-title {
+    justify-content: flex-start;
+    width: calc(50% - 17.5rem);
+    min-width: 7rem;
+    min-height: 2.1rem;
+    margin: 0 0 0.22rem;
+    font-size: 0.64rem;
+  }
+
+  .battle-center__lane-title i {
+    max-width: 2rem;
+  }
+
+  .battle-common-zones {
+    grid-template-columns: minmax(5.5rem, 0.46fr) minmax(18rem, 2.3fr) minmax(6.5rem, 0.62fr);
+    gap: 0.42rem;
+    width: 100%;
+  }
+
+  .battle-common-zones .battle-pile,
+  .battle-common-zones .battle-zone {
+    min-height: 4.55rem;
+    padding: 0.28rem 0.4rem;
+  }
+
+  .battle-common-zones .battle-card-back {
+    width: 2.25rem;
+  }
+
+  .battle-common-zones .battle-zone__cards {
+    min-height: 2.9rem;
+  }
+
+  .battle-common-zones .battle-mini-card--pile {
+    width: clamp(2.4rem, 3vw, 3.15rem);
+  }
+
+  .battle-phase-hint {
+    display: none;
+  }
+
+  .battle-toolbar {
+    gap: 0.3rem;
+    margin-top: 0.22rem;
+    padding-top: 0.22rem;
+  }
+
+  .battle-toolbar button {
+    min-height: 1.8rem;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.57rem;
+  }
+
+  .battle-log-recent {
+    width: min(100%, 48rem);
+    margin-top: 0.22rem;
+  }
+
+  .battle-log-recent li {
+    padding-block: 0.2rem;
+  }
+
+  .battle-log {
+    margin-top: 0;
+  }
+
+  #battle-app[data-table-mode="compact"] .battle-center {
+    padding: 0.32rem 0.65rem 0.35rem;
+  }
+
+  #battle-app[data-table-mode="compact"] .battle-common-zones .battle-pile,
+  #battle-app[data-table-mode="compact"] .battle-common-zones .battle-zone {
+    min-height: 4.2rem;
+  }
 }
