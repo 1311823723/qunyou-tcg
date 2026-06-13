@@ -140,11 +140,18 @@ a.send("card:move", {
   targetIndex: 0,
   faceDown: true,
 });
-const hiddenRoleSnapshot = await b.waitFor((message) => {
-  if (message.type !== "snapshot") return false;
-  const opponent = message.snapshot.players.find((player) => player.id !== message.snapshot.you);
-  return Boolean(opponent?.characterSlots[0]?.faceDown);
-});
+const [ownerRoleSnapshot, hiddenRoleSnapshot] = await Promise.all([
+  a.waitFor((message) => {
+    if (message.type !== "snapshot") return false;
+    const me = message.snapshot.players.find((player) => player.id === message.snapshot.you);
+    return me?.characterSlots[0]?.instanceId === ownerCharacter.instanceId;
+  }),
+  b.waitFor((message) => {
+    if (message.type !== "snapshot") return false;
+    const opponent = message.snapshot.players.find((player) => player.id !== message.snapshot.you);
+    return Boolean(opponent?.characterSlots[0]?.faceDown);
+  }),
+]);
 const hiddenRole = hiddenRoleSnapshot.snapshot.players
   .find((player) => player.id !== hiddenRoleSnapshot.snapshot.you)
   .characterSlots[0];
@@ -154,6 +161,22 @@ assert.ok(hiddenRoleSnapshot.snapshot.game.logs.some((log) =>
   log.text.includes("一张角色牌从角色手牌移动到角色区")
 ));
 assert.ok(hiddenRoleSnapshot.snapshot.game.logs.every((log) => !log.text.includes(ownerCharacter.definitionId)));
+
+a.messages.length = 0;
+a.send("character:declareSkill", { instanceId: ownerCharacter.instanceId });
+const declaredSkill = await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.game.logs.some((log) =>
+    log.text.includes("声明发动角色")
+    && log.text.includes("类型：")
+    && log.text.includes("发动时机：")
+    && log.text.includes("消耗：")
+    && log.text.includes("效果：")
+  ),
+);
+const declarationLog = declaredSkill.snapshot.game.logs.find((log) => log.text.includes("声明发动角色"));
+assert.ok(declarationLog.text.includes("技能【"));
+step("character skill declaration logged with full details");
 
 b.messages.length = 0;
 b.send("card:inspect", {
@@ -205,6 +228,33 @@ await a.waitFor((message) =>
   message.type === "snapshot"
   && message.snapshot.game.handDiscard.some((card) => card.instanceId === firstInspected.instanceId),
 );
+const discardSnapshot = a.messages.find((message) =>
+  message.type === "snapshot"
+  && message.snapshot.game.handDiscard.some((card) => card.instanceId === firstInspected.instanceId),
+);
+assert.ok(discardSnapshot.snapshot.game.logs.some((log) =>
+  log.text.includes("弃置了")
+  && /(黑桃|红桃|梅花|方块).+【.+】/.test(log.text)
+));
+step("discard log includes suit, rank and card name");
+
+a.messages.length = 0;
+const roleInSlot = ownerRoleSnapshot.snapshot.players
+  .find((player) => player.id === declaredSkill.snapshot.you)
+  .characterSlots[0];
+a.send("card:move", {
+  instanceId: roleInSlot.instanceId,
+  targetZone: "characterDeckBottom",
+});
+await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.game.logs.some((log) =>
+    log.text.includes("休整了角色牌【")
+    && log.text.includes("置于角色牌堆底")
+  ),
+);
+step("character rest log includes character name");
+
 a.messages.length = 0;
 const deckCountBeforeRecycle = a.revision;
 a.send("deck:recycleDiscard");
@@ -218,6 +268,32 @@ assert.ok(recycledDiscard.snapshot.game.logs.some((log) =>
   log.text.includes("将手牌弃牌区的 1 张牌洗混并放到共用牌堆底")
 ));
 step("hand discard recycled to shared deck bottom");
+
+a.messages.length = 0;
+const ownerAfterRecycle = recycledDiscard.snapshot.players
+  .find((player) => player.id === recycledDiscard.snapshot.you);
+const resolvingCard = ownerAfterRecycle.hand[0];
+a.send("card:move", {
+  instanceId: resolvingCard.instanceId,
+  targetZone: "resolving",
+});
+await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.game.resolving.some((card) => card.instanceId === resolvingCard.instanceId),
+);
+
+a.messages.length = 0;
+a.send("resolving:discardAll");
+const clearedResolving = await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.game.resolving.length === 0
+  && message.snapshot.game.handDiscard.some((card) => card.instanceId === resolvingCard.instanceId),
+);
+assert.ok(clearedResolving.snapshot.game.logs.some((log) =>
+  log.text.includes("将结算区的 1 张牌全部弃置：")
+  && /(黑桃|红桃|梅花|方块).+【.+】/.test(log.text)
+));
+step("resolving zone bulk discard verified");
 
 a.send("card:inspect", { ownerId: guestView.id, zone: "hand" });
 const secondInspection = await a.waitFor((message) =>
@@ -354,6 +430,9 @@ console.log(JSON.stringify({
   randomRevealSentToBothPlayers: true,
   opponentHealthEditable: true,
   handDiscardRecycledToDeckBottom: true,
+  resolvingZoneBulkDiscarded: true,
+  characterSkillDeclarationDetailed: true,
+  semanticDiscardAndRestLogs: true,
   restartRequiresBothPlayers: true,
   restartDecisionToleratesNewerRevision: true,
   restartSyncedToBothPlayers: true,

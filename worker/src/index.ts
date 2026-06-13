@@ -7,6 +7,7 @@ import mizaiDeck from "../../data/decks/mizai.deck.json";
 import comboDeck from "../../data/decks/combo.deck.json";
 import transDeck from "../../data/decks/trans.deck.json";
 import { getExtraFormProgressMax } from "../../src/lib/body-progress";
+import { formatCharacterCost } from "../../src/lib/ui";
 import {
   consumeInspectionGrant,
   createInspectionGrant,
@@ -376,6 +377,10 @@ export class BattleRoom extends DurableObject<Env> {
         this.addLog(`${player.nickname} ${card.faceDown ? "暗置" : "明置"}了一张角色`);
         return;
       }
+      case "character:declareSkill":
+        this.requireStarted();
+        this.declareCharacterSkill(player, cleanText(payload.instanceId, 80));
+        return;
       case "card:inspect":
         this.requireStarted();
         return this.inspect(player, payload);
@@ -389,6 +394,10 @@ export class BattleRoom extends DurableObject<Env> {
       case "deck:recycleDiscard":
         this.requireStarted();
         this.recycleHandDiscard(player);
+        return;
+      case "resolving:discardAll":
+        this.requireStarted();
+        this.discardResolving(player);
         return;
       case "body:flip":
         this.requireStarted();
@@ -654,7 +663,29 @@ export class BattleRoom extends DurableObject<Env> {
     }
     if (requiresInspection) consumeInspectionGrant(this.state, inspectionId);
     const cardLabel = revealInLog ? this.cardLabel(card) : `一张${card.kind === "character" ? "角色牌" : "手牌"}`;
-    this.addLog(`${actor.nickname} 将${cardLabel}从${sourceLabel}移动到${targetLabel}`);
+    if (target === "handDiscard" && card.kind === "hand") {
+      const ownerLabel = owner.id === actor.id ? "" : `${owner.nickname} 的`;
+      this.addLog(`${actor.nickname} 弃置了${ownerLabel}${this.handCardLabel(card)}`);
+    } else if (target === "characterDeckBottom" && card.kind === "character") {
+      this.addLog(`${actor.nickname} 休整了${this.cardLabel(card)}，置于角色牌堆底`);
+    } else {
+      this.addLog(`${actor.nickname} 将${cardLabel}从${sourceLabel}移动到${targetLabel}`);
+    }
+  }
+
+  private declareCharacterSkill(player: PlayerState, instanceId: string) {
+    const located = this.locateCard(instanceId);
+    if (!located || located.card.kind !== "character") throw new Error("找不到这张角色牌。");
+    if (located.owner.id !== player.id) throw new Error("只能声明自己的角色技能。");
+    const definition = characterById.get(located.card.definitionId);
+    if (!definition) throw new Error("角色数据不存在。");
+    this.addLog(
+      `${player.nickname} 声明发动角色【${definition.name}】的技能【${definition.skillName}】`
+      + `｜类型：角色 / ${definition.mainRole}`
+      + `｜发动时机：${definition.timing}`
+      + `｜消耗：${formatCharacterCost(definition.cost)}`
+      + `｜效果：${definition.effectText}`,
+    );
   }
 
   private locateCard(instanceId: string): LocatedCard | undefined {
@@ -811,6 +842,18 @@ export class BattleRoom extends DurableObject<Env> {
     this.state.handDiscard = [];
     this.state.handDeck = [...recycled, ...this.state.handDeck];
     this.addLog(`${player.nickname} 将手牌弃牌区的 ${recycled.length} 张牌洗混并放到共用牌堆底`);
+  }
+
+  private discardResolving(player: PlayerState) {
+    if (!this.state) return;
+    if (this.state.resolving.length === 0) throw new Error("结算区为空。");
+    const discarded = this.state.resolving.map((card) => {
+      card.faceDown = false;
+      return card;
+    });
+    this.state.resolving = [];
+    this.state.handDiscard.push(...discarded);
+    this.addLog(`${player.nickname} 将结算区的 ${discarded.length} 张牌全部弃置：${discarded.map((card) => this.handCardLabel(card)).join("、")}`);
   }
 
   private findCard(instanceId: string) {

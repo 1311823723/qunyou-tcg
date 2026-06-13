@@ -694,13 +694,12 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
     <div class="battle-center__lane-title"><i></i><span>公共结算区</span><i></i></div>
     <div class="battle-common-zones">
       ${renderPile("共用牌堆", game.handDeckCount, "card:draw-hand", "摸 1 张")}
-      ${renderZone("结算区", game.resolving, me, "resolving", true)}
-      ${renderZone("手牌弃牌区", game.handDiscard, me, "handDiscard", true)}
+      ${renderZone("结算区", game.resolving, me, "resolving", true, "resolving:discardAll", "全部弃置")}
+      ${renderZone("手牌弃牌区", game.handDiscard, me, "handDiscard", true, "deck:recycleDiscard", "洗回牌堆底")}
     </div>
     <p class="battle-phase-hint">准备 → 摸牌 → 出牌 → 布阵 → 弃牌 → 结束</p>
     <div class="battle-toolbar">
       <button type="button" data-command="deck:shuffle" data-deck="hand">洗混共用牌堆</button>
-      <button type="button" data-command="deck:recycleDiscard" ${game.handDiscard.length ? "" : "disabled"}>弃牌洗回牌堆底</button>
       <button type="button" data-command="hand:randomSelect" data-owner="${opponent?.id || ""}">随机展示对手手牌</button>
       <button type="button" data-command="marker:create">创建标记</button>
       ${moveModeCardId ? `<button type="button" data-command="move:cancel">取消落点</button>` : ""}
@@ -735,9 +734,21 @@ function renderPile(title: string, count: number, command: string, action: strin
   </article>`;
 }
 
-function renderZone(title: string, cards: CardView[], owner: PlayerView, zone: string, interactive: boolean) {
+function renderZone(
+  title: string,
+  cards: CardView[],
+  owner: PlayerView,
+  zone: string,
+  interactive: boolean,
+  command?: string,
+  action?: string,
+) {
   return `<article class="battle-zone" data-drop-target="${zone}" data-zone-owner="${owner.id}">
-    <header><strong>${title}</strong><span>${cards.length}</span></header>
+    <header>
+      <strong>${title}</strong>
+      <span>${cards.length}</span>
+      ${command ? `<button type="button" class="battle-zone__action" data-command="${command}" ${cards.length ? "" : "disabled"}>${action}</button>` : ""}
+    </header>
     <div class="battle-zone__cards">${cards.slice(-5).map((card) => renderCard(card, { owner, zone, interactive, size: "pile" })).join("")}</div>
   </article>`;
 }
@@ -811,7 +822,10 @@ function cardDefinition(card?: CardView) {
 
 function bindActions() {
   root.querySelectorAll<HTMLElement>("[data-command]").forEach((element) => {
-    element.addEventListener("click", () => handleCommand(element));
+    element.addEventListener("click", (event) => {
+      event.stopPropagation();
+      handleCommand(element);
+    });
   });
   root.querySelectorAll<HTMLElement>("[data-counter-set]").forEach((element) => {
     element.addEventListener("click", () => {
@@ -938,6 +952,13 @@ function handleCommand(element: HTMLElement) {
       return;
     }
     showConfirmDialog(`将手牌弃牌区的 ${count} 张牌洗混后放到共用牌堆最下面？`, () => send(command));
+  } else if (command === "resolving:discardAll") {
+    const count = snapshot?.game.resolving.length || 0;
+    if (!count) {
+      showError("结算区为空。");
+      return;
+    }
+    showConfirmDialog(`将结算区的 ${count} 张牌全部置入手牌弃牌区？`, () => send(command));
   } else if (command === "card:inspect-zone") {
     send("card:inspect", { ownerId: element.dataset.owner, zone: element.dataset.zone });
   } else if (command === "hand:randomSelect") {
@@ -1141,6 +1162,10 @@ function bindCardMenuActions(instanceId: string, ownerId: string, zone: string, 
     dialog.close();
     showHandMarkerDialog(instanceId);
   });
+  dialogContent.querySelector<HTMLElement>("[data-declare-skill]")?.addEventListener("click", () => {
+    send("character:declareSkill", { instanceId });
+    dialog.close();
+  });
 }
 
 function moveButtonSections(instanceId: string, ownerId: string, zone: string, kind?: string) {
@@ -1167,6 +1192,7 @@ function moveButtonSections(instanceId: string, ownerId: string, zone: string, k
     if (zone === "handDiscard" || zone === "resolving") add("加入我的手牌", "hand");
   } else if (kind === "character") {
     if (isMine) {
+      state.push(`<button type="button" data-declare-skill="${instanceId}">声明发动技能</button>`);
       for (let index = 0; index < 4; index += 1) add(`暗置到位 ${index + 1}`, `characterSlot:${index}`, true);
       add("返回角色手牌", "characterHand");
       add("休整至牌堆底", "characterDeckBottom");
