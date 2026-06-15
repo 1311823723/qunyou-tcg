@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "dev:battle": "wrangler dev --config worker/wrangler.jsonc",
-    "build": "astro build",
+    "build": "npm run cards:sync && astro build",
     "build:battle": "wrangler deploy --dry-run --config worker/wrangler.jsonc",
     "preview": "astro preview",
     "deploy:battle": "wrangler deploy --config worker/wrangler.jsonc",
@@ -16,7 +16,9 @@
     "print:aggro": "node tools/print-deck.js",
     "art:use": "node tools/use-card-art.js",
     "export:tts": "node tools/tts/export-tts.js",
-    "cards:web": "node tools/generate-web-cards.js"
+    "export:cards": "node tools/tts/export-tts.js --cards-only",
+    "cards:web": "node tools/generate-web-cards.js",
+    "cards:sync": "npm run export:cards && npm run cards:web"
   },
   "overrides": {
     "vite": "^7"

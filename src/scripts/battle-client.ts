@@ -1,5 +1,5 @@
 import { getBattleApiUrl } from "../lib/battle-api";
-import { escapeHtml, handCardImagePath, suitSymbol } from "./battle-format";
+import { escapeHtml, handCardHighResImagePath, handCardImagePath, suitSymbol } from "./battle-format";
 import { normalizeBattleSnapshot } from "./battle-state.mjs";
 import type {
   CardView,
@@ -1512,6 +1512,7 @@ type CardDialogView = {
   displaySubtitle: string;
   displayText: string;
   imagePath?: string;
+  highResImagePath?: string;
   roleTag: string;
   faceStatus: string;
   titleHtml: string;
@@ -1525,6 +1526,7 @@ function resolveCardDialogView(instanceId: string, ownerId: string): CardDialogV
   let displaySubtitle = definition?.subtitle || "";
   let displayText = definition?.text || "";
   let imagePath = definition?.imagePath;
+  let highResImagePath = definition?.highResImagePath;
   if (definition?.kind === "body") {
     const owner = snapshot?.players.find((p) => p.id === ownerId);
     if (owner?.bodyFlipped && definition.extraName) {
@@ -1532,10 +1534,12 @@ function resolveCardDialogView(instanceId: string, ownerId: string): CardDialogV
       displaySubtitle = definition.extraSubtitle || definition.subtitle;
       displayText = definition.extraText || definition.text;
       imagePath = definition.extraImagePath || imagePath;
+      highResImagePath = definition.extraHighResImagePath || highResImagePath;
     }
   }
   if (definition?.kind === "hand" && card) {
     imagePath = handCardImagePath(definition.id, card.suit, card.rank) || imagePath;
+    highResImagePath = handCardHighResImagePath(definition.id, card.suit, card.rank) || highResImagePath;
   }
   const parts = displayName.includes("-") ? displayName.split("-") : ["", displayName];
   const roleTag = definition?.kind === "character" ? definition.subtitle.split(" · ")[0] : "";
@@ -1553,6 +1557,7 @@ function resolveCardDialogView(instanceId: string, ownerId: string): CardDialogV
     displaySubtitle,
     displayText,
     imagePath,
+    highResImagePath,
     roleTag,
     faceStatus,
     titleHtml,
@@ -1575,7 +1580,13 @@ function renderCardArtPreview(view: CardDialogView) {
 
 function renderCardArtDialog(view: CardDialogView) {
   const art = view.imagePath
-    ? `<img class="battle-card-zoom__image" src="${view.imagePath}" alt="" />`
+    ? `<div class="battle-card-zoom__image-stack">
+        <img class="battle-card-zoom__image battle-card-zoom__image--placeholder" src="${view.imagePath}" alt="" />
+        ${view.highResImagePath
+          ? `<img class="battle-card-zoom__image battle-card-zoom__image--hd" src="${view.highResImagePath}" alt="" data-card-hd-image />`
+          : ""}
+        ${view.highResImagePath ? `<span class="battle-card-zoom__loading" data-card-hd-loading>正在加载高清卡图…</span>` : ""}
+      </div>`
     : `<div class="battle-card-zoom__back"><span>暗置</span><small>身份未知</small></div>`;
   dialogContent.innerHTML = `
     <div class="battle-card-menu battle-card-menu--art">
@@ -1650,6 +1661,19 @@ function bindCardMenuActions(instanceId: string, ownerId: string, zone: string, 
   dialogContent.querySelector<HTMLElement>("[data-card-detail-back]")?.addEventListener("click", () => {
     renderCardDialog(instanceId, ownerId, zone, "detail");
   });
+  const highResImage = dialogContent.querySelector<HTMLImageElement>("[data-card-hd-image]");
+  const highResLoading = dialogContent.querySelector<HTMLElement>("[data-card-hd-loading]");
+  if (highResImage) {
+    const markLoaded = () => {
+      highResImage.classList.add("is-loaded");
+      if (highResLoading) highResLoading.hidden = true;
+    };
+    if (highResImage.complete && highResImage.naturalWidth > 0) markLoaded();
+    else highResImage.addEventListener("load", markLoaded, { once: true });
+    highResImage.addEventListener("error", () => {
+      if (highResLoading) highResLoading.textContent = "高清图加载失败，已显示普通卡图";
+    }, { once: true });
+  }
 }
 
 function cardActionDescriptors(instanceId: string, ownerId: string, zone: string, kind?: string) {

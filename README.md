@@ -29,8 +29,13 @@ npm run preview        # 预览构建产物
 npm run validate       # 校验所有卡牌和预组数据
 npm run print:aggro    # 打印爆杀组预组详情
 npm run export:tts     # 导出 Tabletop Simulator 本地资源
+npm run cards:sync     # 生成网页缩略图与高清预览图
 npm run test:battle    # 校验在线牌桌的卡组与 Mega 数据
 ```
+
+`npm run build` 会自动执行 `cards:sync`。卡牌数据与原画是唯一源文件，
+`public/cards`（250px）和 `public/cards-hd`（750px）均为自动生成资源，
+无需手工维护多份画质。
 
 ## 技术栈
 

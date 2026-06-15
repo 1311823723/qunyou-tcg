@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import sharp from "sharp";
 
 const root = new URL("../../", import.meta.url);
 const bodies = JSON.parse(await readFile(new URL("data/cards/bodies.json", root), "utf8"));
@@ -56,4 +58,19 @@ test("battle worker defines separate create and join rate limits", () => {
     { name: "CREATE_RATE_LIMITER", limit: 10, period: 60 },
     { name: "JOIN_RATE_LIMITER", limit: 30, period: 60 },
   ]);
+});
+
+test("every table card has a 750px high-resolution preview", async () => {
+  for (const subDir of ["bodies", "characters", "hand_cards"]) {
+    const tableDir = new URL(`public/cards/${subDir}/`, root);
+    const highResDir = new URL(`public/cards-hd/${subDir}/`, root);
+    const tableFiles = (await readdir(tableDir)).filter((file) => file.endsWith(".webp")).sort();
+    const highResFiles = (await readdir(highResDir)).filter((file) => file.endsWith(".webp")).sort();
+    assert.deepEqual(highResFiles, tableFiles);
+    for (const file of highResFiles) {
+      const metadata = await sharp(fileURLToPath(new URL(file, highResDir))).metadata();
+      assert.equal(metadata.width, 750, `${subDir}/${file} width`);
+      assert.equal(metadata.height, 1050, `${subDir}/${file} height`);
+    }
+  }
 });

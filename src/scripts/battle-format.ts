@@ -13,8 +13,16 @@ export function suitSymbol(suit: string) {
 }
 
 export function handCardImagePath(definitionId: string, suit?: string, rank?: string) {
+  return handCardImagePathForRoot("/cards", definitionId, suit, rank);
+}
+
+export function handCardHighResImagePath(definitionId: string, suit?: string, rank?: string) {
+  return handCardImagePathForRoot("/cards-hd", definitionId, suit, rank);
+}
+
+function handCardImagePathForRoot(root: string, definitionId: string, suit?: string, rank?: string) {
   if (!suit || !rank) return undefined;
   const suitSlug = ({ "黑桃": "spade", "红桃": "heart", "梅花": "club", "方块": "diamond" } as Record<string, string>)[suit];
   if (!suitSlug) return undefined;
-  return `/cards/hand_cards/${definitionId}_${suitSlug}_${rank.toLowerCase()}.webp`;
+  return `${root}/hand_cards/${definitionId}_${suitSlug}_${rank.toLowerCase()}.webp`;
 }

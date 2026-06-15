@@ -18,8 +18,12 @@ export interface BattleCatalogCard {
   text: string;
   /** TTS 卡牌渲染图（完整卡面） */
   imagePath?: string;
+  /** 点击放大后按需加载的高清卡面 */
+  highResImagePath?: string;
   /** 本体额外形态卡图 */
   extraImagePath?: string;
+  /** 本体额外形态高清卡图 */
+  extraHighResImagePath?: string;
   extraName?: string;
   /** Mega 技能描述 */
   extraSubtitle?: string;
@@ -43,7 +47,9 @@ export function getBattleCatalog() {
       subtitle: `${body.archetype} · ${body.skillName}`,
       text: body.effectText,
       imagePath: `/cards/bodies/${body.id}_front.webp`,
+      highResImagePath: `/cards-hd/bodies/${body.id}_front.webp`,
       extraImagePath: `/cards/bodies/${body.id}_mega_back.webp`,
+      extraHighResImagePath: `/cards-hd/bodies/${body.id}_mega_back.webp`,
       extraName: body.extraForm?.name,
       extraSubtitle: body.extraForm ? `${body.archetype} · ${body.extraForm.skillName}` : undefined,
       extraText: body.extraForm?.effectText,
@@ -62,6 +68,7 @@ export function getBattleCatalog() {
       timing: card.timing,
       costText: formatCharacterCost(card.cost),
       imagePath: `/cards/characters/${card.id}.webp`,
+      highResImagePath: `/cards-hd/characters/${card.id}.webp`,
     };
   }
 

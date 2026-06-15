@@ -3,36 +3,54 @@ const path = require("path");
 const sharp = require("sharp");
 
 const TTS_EXPORT = path.join(__dirname, "..", "exports", "tts", "cards");
-const OUTPUT = path.join(__dirname, "..", "public", "cards");
+const OUTPUTS = [
+  {
+    root: path.join(__dirname, "..", "public", "cards"),
+    width: 250,
+    quality: 80,
+    smartSubsample: false,
+    label: "table",
+  },
+  {
+    root: path.join(__dirname, "..", "public", "cards-hd"),
+    width: 750,
+    quality: 86,
+    smartSubsample: true,
+    label: "preview",
+  },
+];
 
-const WEB_WIDTH = 250;
-
-async function optimizeCard(srcPath, destPath) {
+async function optimizeCard(srcPath, destPath, { width, quality, smartSubsample }) {
   fs.mkdirSync(path.dirname(destPath), { recursive: true });
   await sharp(srcPath)
-    .resize(WEB_WIDTH)
-    .webp({ quality: 80 })
+    .resize(width)
+    .webp({ quality, smartSubsample })
     .toFile(destPath);
 }
 
 async function processDir(subDir) {
   const srcDir = path.join(TTS_EXPORT, subDir);
-  const destDir = path.join(OUTPUT, subDir);
   if (!fs.existsSync(srcDir)) {
     console.log(`  Skip ${subDir} (not found)`);
     return [];
   }
 
-  fs.mkdirSync(destDir, { recursive: true });
   const files = fs.readdirSync(srcDir).filter((f) => f.endsWith(".png"));
   const results = [];
+  for (const output of OUTPUTS) {
+    const destDir = path.join(output.root, subDir);
+    fs.rmSync(destDir, { recursive: true, force: true });
+    fs.mkdirSync(destDir, { recursive: true });
+  }
 
   for (const file of files) {
     const src = path.join(srcDir, file);
-    const dest = path.join(destDir, file.replace(/\.png$/, ".webp"));
     try {
-      await optimizeCard(src, dest);
-      results.push({ file, relativePath: `/cards/${subDir}/${file.replace(/\.png$/, ".webp")}` });
+      for (const output of OUTPUTS) {
+        const dest = path.join(output.root, subDir, file.replace(/\.png$/, ".webp"));
+        await optimizeCard(src, dest, output);
+      }
+      results.push(file);
     } catch (err) {
       console.error(`  Failed: ${file} — ${err.message}`);
     }
@@ -42,7 +60,7 @@ async function processDir(subDir) {
 }
 
 async function main() {
-  console.log("Generating web-optimized card images from TTS exports...");
+  console.log("Generating table and high-resolution web cards from TTS exports...");
 
   const characters = await processDir("characters");
   console.log(`  Characters: ${characters.length}`);
@@ -54,7 +72,10 @@ async function main() {
   console.log(`  Hand cards: ${handCards.length}`);
 
   const total = characters.length + bodies.length + handCards.length;
-  console.log(`Done. ${total} cards optimized → ${OUTPUT}`);
+  console.log(`Done. ${total} cards × ${OUTPUTS.length} sizes`);
+  for (const output of OUTPUTS) {
+    console.log(`  ${output.label}: ${output.width}px → ${output.root}`);
+  }
 }
 
 main().catch((err) => {

@@ -270,7 +270,12 @@
 .battle-card-zoom__topline h2 { margin: 0; }
 .battle-card-zoom__topline p { margin: 0.1rem 0 0; color: var(--text-muted); font-size: 0.78rem; line-height: 1.4; }
 .battle-card-zoom__stage { display: grid; place-items: center; min-height: min(68vh, 39rem); padding: 0.75rem; border: 1px solid rgba(216,183,92,0.15); border-radius: 16px; background: radial-gradient(ellipse at 50% 30%, rgba(216,183,92,0.1), transparent 62%), rgba(0,0,0,0.26); }
-.battle-card-zoom__image { display: block; width: min(100%, 24rem); max-height: 68vh; object-fit: contain; border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,0.64), 0 0 0 1px rgba(255,255,255,0.16); }
+.battle-card-zoom__image-stack { position: relative; width: min(100%, 24rem); }
+.battle-card-zoom__image { display: block; width: 100%; max-height: 68vh; object-fit: contain; border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,0.64), 0 0 0 1px rgba(255,255,255,0.16); }
+.battle-card-zoom__image--placeholder { filter: saturate(0.86); }
+.battle-card-zoom__image--hd { position: absolute; inset: 0; height: 100%; opacity: 0; transition: opacity 0.18s ease; }
+.battle-card-zoom__image--hd.is-loaded { opacity: 1; }
+.battle-card-zoom__loading { position: absolute; left: 50%; bottom: 0.7rem; z-index: 2; padding: 0.24rem 0.55rem; transform: translateX(-50%); border: 1px solid rgba(216,183,92,0.34); border-radius: 999px; color: var(--text-gold); background: rgba(4,6,10,0.82); font-size: 0.6rem; font-weight: 900; white-space: nowrap; }
 .battle-card-zoom__back { width: min(100%, 18rem); aspect-ratio: 5 / 7; display: grid; place-items: end start; padding: 1.1rem; border: 1px solid rgba(157,108,255,0.42); border-radius: 16px; background: radial-gradient(circle at 50% 35%, rgba(157,108,255,0.38), transparent 45%), repeating-linear-gradient(45deg, #111226, #111226 10px, #0c0d19 10px, #0c0d19 20px); box-shadow: var(--shadow-card); }
 .battle-card-zoom__back span { color: var(--text-gold); font: 900 1.3rem var(--font-display); }
 .battle-card-zoom__back small { color: var(--text-muted); font-weight: 900; }
@@ -2157,8 +2162,12 @@
     padding: 0.45rem;
   }
 
-  .battle-card-zoom__image {
+  .battle-card-zoom__image-stack {
     width: min(100%, 19rem);
+  }
+
+  .battle-card-zoom__image {
+    width: 100%;
     max-height: 66vh;
   }
 

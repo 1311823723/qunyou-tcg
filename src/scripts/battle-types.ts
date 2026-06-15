@@ -5,7 +5,9 @@ export type CatalogCard = {
   subtitle: string;
   text: string;
   imagePath?: string;
+  highResImagePath?: string;
   extraImagePath?: string;
+  extraHighResImagePath?: string;
   extraName?: string;
   extraSubtitle?: string;
   extraText?: string;

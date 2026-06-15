@@ -38,6 +38,12 @@ function cleanExportDir() {
   fs.mkdirSync(EXPORT_DIR, { recursive: true });
 }
 
+function cleanCardExportDir() {
+  const cardsDir = path.join(EXPORT_DIR, "cards");
+  fs.rmSync(cardsDir, { recursive: true, force: true });
+  fs.mkdirSync(cardsDir, { recursive: true });
+}
+
 function readDecks() {
   const decksDir = path.join(DATA_DIR, "decks");
   return fs.readdirSync(decksDir)
@@ -211,10 +217,20 @@ function copyPresetDecks(decks, characterCards) {
 }
 
 async function main() {
-  cleanExportDir();
+  const cardsOnly = process.argv.includes("--cards-only");
+  if (cardsOnly) cleanCardExportDir();
+  else cleanExportDir();
+
+  const cards = await renderCards();
+  if (cardsOnly) {
+    console.log("TTS card render complete");
+    console.log(`  Bodies/Mega: ${cards.bodyFronts.length}`);
+    console.log(`  Characters: ${cards.characters.length}`);
+    console.log(`  Hand cards: ${cards.hands.length}`);
+    return;
+  }
 
   const decks = readDecks();
-  const cards = await renderCards();
   const backs = await renderBacks();
   const table = await renderTableAssets();
   const presetDecks = copyPresetDecks(decks, cards.characters);
