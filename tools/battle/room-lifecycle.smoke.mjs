@@ -49,6 +49,7 @@ function client(code, player) {
     socket.send(JSON.stringify({
       type,
       actionId,
+      protocolVersion: options.protocolVersion ?? 2,
       baseRevision: options.baseRevision ?? revision,
       payload,
     }));
@@ -86,7 +87,11 @@ await Promise.all([
   b.waitFor((message) => message.type === "snapshot"),
 ]);
 
-a.send("player:ready", { ready: true });
+const readyActionId = a.send("player:ready", { ready: true });
+const readyAck = await a.waitFor((message) =>
+  message.type === "actionAck" && message.actionId === readyActionId,
+);
+assert.ok(Number.isInteger(readyAck.revision));
 await b.waitFor((message) =>
   message.type === "snapshot"
   && message.snapshot.players.some((player) => player.id !== message.snapshot.you && player.ready),
@@ -429,8 +434,11 @@ step("public discard moved into opponent private hand");
 
 const staleRevision = a.revision - 1;
 a.messages.length = 0;
-a.send("health:set", { value: 2 }, { baseRevision: staleRevision });
-await a.waitFor((message) => message.type === "error" && /状态已更新/.test(message.error));
+const staleActionId = a.send("health:set", { value: 2 }, { baseRevision: staleRevision });
+const staleError = await a.waitFor((message) => message.type === "error" && /状态已更新/.test(message.error));
+assert.equal(staleError.actionId, staleActionId);
+assert.equal(staleError.revision, a.revision);
+assert.equal(typeof staleError.category, "string");
 step("stale revision rejected");
 
 const duplicateActionId = crypto.randomUUID();
@@ -440,14 +448,37 @@ await a.waitFor((message) =>
   message.type === "snapshot"
   && message.snapshot.players.find((player) => player.id === message.snapshot.you)?.health === 2,
 );
+await a.waitFor((message) =>
+  message.type === "actionAck"
+  && message.actionId === duplicateActionId
+  && !message.duplicate,
+);
 a.send("health:set", { value: 6 }, { actionId: duplicateActionId });
-await new Promise((resolve) => setTimeout(resolve, 150));
+const duplicateAck = await a.waitFor((message) =>
+  message.type === "actionAck"
+  && message.actionId === duplicateActionId
+  && message.duplicate === true,
+);
+assert.equal(duplicateAck.revision, a.revision);
 assert.equal(
   a.messages.filter((message) => message.type === "snapshot").at(-1)
     .snapshot.players.find((player) => player.id === a.messages.filter((message) => message.type === "snapshot").at(-1).snapshot.you).health,
   2,
 );
-step("duplicate action ignored");
+step("duplicate action acknowledged without reapplying");
+
+a.messages.length = 0;
+const legacyActionId = a.send("health:set", { value: 3 }, { protocolVersion: 1 });
+await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.players.find((player) => player.id === message.snapshot.you)?.health === 3,
+);
+await new Promise((resolve) => setTimeout(resolve, 80));
+assert.equal(
+  a.messages.some((message) => message.type === "actionAck" && message.actionId === legacyActionId),
+  false,
+);
+step("legacy client remains compatible without action acknowledgements");
 
 a.messages.length = 0;
 b.messages.length = 0;

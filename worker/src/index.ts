@@ -233,7 +233,14 @@ export class BattleRoom extends DurableObject<Env> {
     } catch {
       return this.sendError(ws, "消息格式无效。");
     }
-    if (!message.actionId || this.state.processedActionIds.includes(message.actionId)) {
+    if (!message.actionId) {
+      return this.sendError(ws, "操作标识无效。", {
+        revision: this.state.revision,
+        category: "invalid_action",
+      });
+    }
+    if (this.state.processedActionIds.includes(message.actionId)) {
+      if ((message.protocolVersion ?? 1) >= 2) this.sendActionAck(ws, message.actionId, true);
       return;
     }
 
@@ -263,6 +270,7 @@ export class BattleRoom extends DurableObject<Env> {
       this.state.revision += 1;
       await this.persist();
       this.broadcast();
+      if ((message.protocolVersion ?? 1) >= 2) this.sendActionAck(ws, message.actionId);
       if (inspection) {
         if (inspection.audience === "all") {
           for (const socket of this.ctx.getWebSockets()) {
@@ -291,7 +299,11 @@ export class BattleRoom extends DurableObject<Env> {
         command: message.type,
         category: this.errorCategory(messageText),
       }));
-      this.sendError(ws, messageText);
+      this.sendError(ws, messageText, {
+        actionId: message.actionId,
+        revision: this.state.revision,
+        category: this.errorCategory(messageText),
+      });
     }
   }
 
@@ -985,8 +997,21 @@ export class BattleRoom extends DurableObject<Env> {
     }
   }
 
-  private sendError(ws: WebSocket, error: string) {
-    ws.send(JSON.stringify({ type: "error", error }));
+  private sendActionAck(ws: WebSocket, actionId: string, duplicate = false) {
+    ws.send(JSON.stringify({
+      type: "actionAck",
+      actionId,
+      revision: this.state?.revision ?? 0,
+      ...(duplicate ? { duplicate: true } : {}),
+    }));
+  }
+
+  private sendError(
+    ws: WebSocket,
+    error: string,
+    metadata: { actionId?: string; revision?: number; category?: string } = {},
+  ) {
+    ws.send(JSON.stringify({ type: "error", error, ...metadata }));
   }
 
   private async endRoom(player: PlayerState) {

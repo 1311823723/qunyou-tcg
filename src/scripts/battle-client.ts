@@ -41,12 +41,49 @@ const TABLE_MODE_KEY = "qunyou-battle-table-mode-v1";
 const roomCode = getRoomCode();
 type TableMode = "compact" | "full";
 let snapshot: Snapshot | undefined;
+let confirmedSnapshot: Snapshot | undefined;
 let socket: WebSocket | undefined;
 let reconnectTimer = 0;
 let reconnectDelay = 800;
 let hasConnected = false;
 let connectionAttempt = 0;
-let moveModeCardId: string | null = null;
+type CardActionDescriptor = {
+  id: string;
+  label: string;
+  kind: "moveMode" | "move" | "flip" | "inspect" | "declare" | "marker" | "bodyFlip";
+  quick: boolean;
+  targetZone?: string;
+  targetIndex?: number;
+  targetOwnerId?: string;
+  faceDown?: boolean;
+};
+
+type PendingAction = {
+  actionId: string;
+  type: string;
+  baseRevision: number;
+  payload: Record<string, unknown>;
+  label: string;
+  successMessage: string;
+  lockKey: string;
+  cardId?: string;
+  targetKey?: string;
+  ackRevision?: number;
+  optimistic?: boolean;
+  slow?: boolean;
+  sent?: boolean;
+  timeoutId?: number;
+};
+
+type ActiveMoveTargets = {
+  cardId: string;
+  actions: CardActionDescriptor[];
+};
+
+let activeMoveTargets: ActiveMoveTargets | null = null;
+const pendingActions = new Map<string, PendingAction>();
+let highlightedTargetKey = "";
+let highlightedTargetTimer = 0;
 let coachStep = 0;
 let toastTimer = 0;
 let coachShown = false;
@@ -138,8 +175,8 @@ dialog.addEventListener("close", () => {
 document.addEventListener("keydown", (event) => {
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
   if (event.key === "Escape") {
-    if (moveModeCardId) {
-      moveModeCardId = null;
+    if (activeMoveTargets) {
+      activeMoveTargets = null;
       render();
       return;
     }
@@ -226,10 +263,12 @@ function restoreUIState(state: PreservedUI) {
   activeRegion = state.activeRegion || activeRegion;
   root.scrollTop = state.rootScrollTop;
   updateRegionNavigation();
-  if (moveModeCardId) {
-    root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((zone) => zone.classList.add("is-move-target"));
-    showToast("点击高亮区域放置卡牌，按 Esc 取消");
+  if (activeMoveTargets) {
+    applyMoveTargetHints(activeMoveTargets);
+    showToast("请选择标注的目标区域，按 Esc 取消");
   }
+  if (highlightedTargetKey) applyHighlightedTarget();
+  applyInteractionAvailability();
 }
 
 async function connect() {
@@ -292,17 +331,25 @@ async function connect() {
     window.clearTimeout(socketTimeout);
     hasConnected = true;
     reconnectDelay = 800;
-    setConnectionState("已连接", "open");
+    setConnectionState(snapshot ? `已同步 · r${snapshot.revision}` : "已连接，等待同步", "open");
   });
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(String(event.data)) as ServerMessage;
     if (message.type === "snapshot") {
       const nextSnapshot = normalizeBattleSnapshot(message.snapshot);
-      const restarted = didGameRestart(snapshot, nextSnapshot);
+      const restarted = didGameRestart(confirmedSnapshot ?? snapshot, nextSnapshot);
       if (restarted) resetTransientUIForRestart();
-      snapshot = nextSnapshot;
+      confirmedSnapshot = nextSnapshot;
+      rebuildOptimisticSnapshot();
+      settleConfirmedActions();
+      setConnectionState(`已同步 · r${nextSnapshot.revision}`, "open");
       render();
       if (restarted) showToast("牌局已重新开始");
+    } else if (message.type === "actionAck") {
+      const pending = pendingActions.get(message.actionId);
+      if (!pending) return;
+      pending.ackRevision = message.revision;
+      settleConfirmedActions();
     } else if (message.type === "inspection") {
       showInspection(
         message.title,
@@ -324,7 +371,8 @@ async function connect() {
       </section>`;
       setConnectionState("已结束", "failed");
       syncRoomControls(false);
-    } else {
+    } else if (message.type === "error") {
+      rejectPendingAction(message.actionId);
       showError(message.error);
     }
   });
@@ -337,6 +385,7 @@ async function connect() {
       renderConnectionError("实时连接被拒绝或中断。请确认房间仍存在，并检查当前网络是否允许 WebSocket 连接。");
       return;
     }
+    clearPendingActions(true);
     setConnectionState("重连中", "closed");
     reconnectTimer = window.setTimeout(connect, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);
@@ -370,19 +419,274 @@ function renderConnectionError(message: string) {
   });
 }
 
+function actionFeedback(type: string, payload: Record<string, unknown>) {
+  const targetZone = typeof payload.targetZone === "string" ? payload.targetZone : "";
+  const targetIndex = Number.isInteger(payload.targetIndex) ? Number(payload.targetIndex) : undefined;
+  const targetLabels: Record<string, string> = {
+    resolving: "结算区",
+    handDiscard: "手牌弃牌区",
+    handDeckTop: "共用牌堆顶",
+    handDeckBottom: "共用牌堆底",
+    opponentHand: "对手手牌",
+    hand: "我的手牌",
+    handMarker: "角色位标记",
+    characterDeckBottom: "角色牌堆底",
+    characterDeckShuffle: "角色牌堆",
+    retired: "退场区",
+    banished: "移出游戏区",
+    characterSlot: `角色位 ${Number(targetIndex) + 1}`,
+  };
+  if (type === "card:move") {
+    const target = targetLabels[targetZone] || "目标区域";
+    return { label: `移动至${target}`, successMessage: `已置入${target}` };
+  }
+  const labels: Record<string, string> = {
+    "card:draw": "摸牌",
+    "character:deploy": "上阵角色",
+    "card:flip": "翻转卡牌",
+    "body:flip": "翻转本体",
+    "character:declareSkill": "声明技能",
+    "health:set": "调整体力",
+    "megaProgress:set": "调整 Mega",
+    "deck:shuffle": "洗牌",
+    "deck:recycleDiscard": "洗回弃牌",
+    "resolving:discardAll": "弃置结算区",
+    "turn:end": "结束回合",
+    "marker:create": "创建标记",
+    "marker:remove": "移除标记",
+    "player:ready": "更新准备状态",
+    "player:selectDeck": "选择预组",
+    "room:restartRequest": "请求重新开始",
+    "room:restartRespond": "回应重新开始",
+    "room:restartCancel": "取消重新开始",
+  };
+  const label = labels[type] || "同步操作";
+  return { label, successMessage: `${label}已同步` };
+}
+
+function actionLockKey(type: string, payload: Record<string, unknown>) {
+  if (typeof payload.instanceId === "string" && payload.instanceId) return `card:${payload.instanceId}`;
+  if ((type === "health:set" || type === "megaProgress:set") && payload.playerId) {
+    return `${type}:${String(payload.playerId)}`;
+  }
+  return type;
+}
+
+function hasPendingLock(lockKey: string) {
+  return [...pendingActions.values()].some((action) => action.lockKey === lockKey);
+}
+
 function send(type: string, payload: Record<string, unknown> = {}) {
   if (socket?.readyState !== WebSocket.OPEN) {
     showError("连接尚未恢复，请稍后再试。");
     return undefined;
   }
+  const lockKey = actionLockKey(type, payload);
+  if (hasPendingLock(lockKey)) {
+    showToast("该操作正在同步，请稍候");
+    return undefined;
+  }
+  const feedback = actionFeedback(type, payload);
   const msg = {
     type,
     actionId: crypto.randomUUID(),
-    baseRevision: snapshot?.revision,
+    protocolVersion: 2,
+    baseRevision: confirmedSnapshot?.revision ?? snapshot?.revision,
     payload,
   };
-  socket.send(JSON.stringify(msg));
+  const optimistic = type === "card:move" && applyOptimisticMove(payload);
+  const pending: PendingAction = {
+    actionId: msg.actionId,
+    type,
+    baseRevision: msg.baseRevision ?? 0,
+    payload,
+    label: feedback.label,
+    successMessage: feedback.successMessage,
+    lockKey,
+    cardId: typeof payload.instanceId === "string" ? payload.instanceId : undefined,
+    targetKey: type === "card:move" ? moveTargetKey(payload) : undefined,
+    optimistic,
+  };
+  pendingActions.set(msg.actionId, pending);
+  dispatchNextPendingAction();
+  render();
   return msg.actionId;
+}
+
+function dispatchNextPendingAction() {
+  if (socket?.readyState !== WebSocket.OPEN) return;
+  if ([...pendingActions.values()].some((action) => action.sent)) return;
+  const pending = [...pendingActions.values()][0];
+  if (!pending) return;
+  pending.sent = true;
+  pending.baseRevision = confirmedSnapshot?.revision ?? snapshot?.revision ?? 0;
+  pending.timeoutId = window.setTimeout(() => {
+    const current = pendingActions.get(pending.actionId);
+    if (!current) return;
+    current.slow = true;
+    showToast("同步时间较长，正在等待服务器确认");
+    render();
+  }, 8000);
+  socket.send(JSON.stringify({
+    type: pending.type,
+    actionId: pending.actionId,
+    protocolVersion: 2,
+    baseRevision: pending.baseRevision,
+    payload: pending.payload,
+  }));
+}
+
+function moveTargetKey(payload: Record<string, unknown>) {
+  const targetZone = String(payload.targetZone || "");
+  const targetIndex = Number.isInteger(payload.targetIndex) ? `:${String(payload.targetIndex)}` : "";
+  const targetOwner = payload.targetOwnerId ? `@${String(payload.targetOwnerId)}` : "";
+  return `${targetZone}${targetIndex}${targetOwner}`;
+}
+
+function cloneSnapshot(value: Snapshot) {
+  return structuredClone(value);
+}
+
+function removeVisibleCard(state: Snapshot, instanceId: string) {
+  for (const player of state.players) {
+    if (player.body?.instanceId === instanceId) {
+      const card = player.body;
+      player.body = undefined;
+      return { card, owner: player };
+    }
+    const handIndex = player.hand.findIndex((card) => card.instanceId === instanceId);
+    if (handIndex >= 0) return { card: player.hand.splice(handIndex, 1)[0], owner: player };
+    const retiredIndex = player.retired.findIndex((card) => card.instanceId === instanceId);
+    if (retiredIndex >= 0) return { card: player.retired.splice(retiredIndex, 1)[0], owner: player };
+    const banishedIndex = player.banished.findIndex((card) => card.instanceId === instanceId);
+    if (banishedIndex >= 0) return { card: player.banished.splice(banishedIndex, 1)[0], owner: player };
+    const slotIndex = player.characterSlots.findIndex((item) => item && "instanceId" in item && item.instanceId === instanceId);
+    if (slotIndex >= 0) {
+      const card = player.characterSlots[slotIndex] as CardView;
+      player.characterSlots[slotIndex] = null;
+      return { card, owner: player };
+    }
+  }
+  const resolvingIndex = state.game.resolving.findIndex((card) => card.instanceId === instanceId);
+  if (resolvingIndex >= 0) {
+    const card = state.game.resolving.splice(resolvingIndex, 1)[0];
+    return { card, owner: state.players.find((player) => player.id === card.ownerId) };
+  }
+  const discardIndex = state.game.handDiscard.findIndex((card) => card.instanceId === instanceId);
+  if (discardIndex >= 0) {
+    const card = state.game.handDiscard.splice(discardIndex, 1)[0];
+    return { card, owner: state.players.find((player) => player.id === card.ownerId) };
+  }
+  return undefined;
+}
+
+function applyMoveToSnapshot(state: Snapshot, payload: Record<string, unknown>) {
+  const instanceId = String(payload.instanceId || "");
+  const targetZone = String(payload.targetZone || "");
+  const targetIndex = Number(payload.targetIndex);
+  const located = removeVisibleCard(state, instanceId);
+  if (!located) return false;
+  const { card } = located;
+  const actor = state.players.find((player) => player.id === state.you);
+  const owner = located.owner ?? state.players.find((player) => player.id === card.ownerId) ?? actor;
+  if (!actor || !owner) return false;
+  if (targetZone === "resolving") state.game.resolving.push(card);
+  else if (targetZone === "handDiscard") state.game.handDiscard.push({ ...card, faceDown: false });
+  else if (targetZone === "handDeckTop" || targetZone === "handDeckBottom") state.game.handDeckCount += 1;
+  else if (targetZone === "hand") actor.hand.push({ ...card, ownerId: actor.id });
+  else if (targetZone === "opponentHand") {
+    const opponent = state.players.find((player) => player.id !== actor.id);
+    if (!opponent) return false;
+    opponent.handCount = (opponent.handCount ?? opponent.hand.length) + 1;
+    opponent.hand.push({ faceDown: true });
+  } else if (targetZone === "characterDeckBottom" || targetZone === "characterDeckShuffle") {
+    owner.characterDeckCount += 1;
+  } else if (targetZone === "retired") owner.retired.push({ ...card, faceDown: false });
+  else if (targetZone === "banished") owner.banished.push(card);
+  else if (targetZone === "characterSlot" && Number.isInteger(targetIndex) && !owner.characterSlots[targetIndex]) {
+    owner.characterSlots[targetIndex] = { ...card, faceDown: Boolean(payload.faceDown), slotIndex: targetIndex };
+  } else {
+    return false;
+  }
+  if (card.ownerId === actor.id && targetZone !== "hand") {
+    actor.handCount = actor.hand.length;
+  }
+  return true;
+}
+
+function rebuildOptimisticSnapshot() {
+  if (!confirmedSnapshot) return;
+  snapshot = cloneSnapshot(confirmedSnapshot);
+  for (const action of pendingActions.values()) {
+    if (action.type !== "card:move" || !action.optimistic || !action.cardId || !action.targetKey) continue;
+    const [dropTarget] = action.targetKey.split("@");
+    const [targetZone, rawIndex] = dropTarget.split(":");
+    applyMoveToSnapshot(snapshot, {
+      instanceId: action.cardId,
+      targetZone,
+      targetIndex: rawIndex === undefined ? undefined : Number(rawIndex),
+      faceDown: targetZone === "characterSlot",
+    });
+  }
+}
+
+function applyOptimisticMove(payload: Record<string, unknown>) {
+  if (!snapshot) return false;
+  const next = cloneSnapshot(snapshot);
+  if (!applyMoveToSnapshot(next, payload)) return false;
+  snapshot = next;
+  return true;
+}
+
+function settleConfirmedActions() {
+  const revision = confirmedSnapshot?.revision ?? 0;
+  const completed = [...pendingActions.values()].filter(
+    (action) => action.ackRevision !== undefined && revision >= action.ackRevision,
+  );
+  if (!completed.length) return;
+  for (const action of completed) {
+    if (action.timeoutId) window.clearTimeout(action.timeoutId);
+    pendingActions.delete(action.actionId);
+  }
+  rebuildOptimisticSnapshot();
+  const latest = completed.at(-1);
+  if (latest?.targetKey) highlightMoveTarget(latest.targetKey);
+  if (latest) showToast(latest.successMessage);
+  dispatchNextPendingAction();
+  render();
+}
+
+function rejectPendingAction(actionId?: string) {
+  if (actionId) {
+    const pending = pendingActions.get(actionId);
+    if (pending?.timeoutId) window.clearTimeout(pending.timeoutId);
+    pendingActions.delete(actionId);
+  }
+  activeMoveTargets = null;
+  rebuildOptimisticSnapshot();
+  dispatchNextPendingAction();
+  render();
+}
+
+function clearPendingActions(notify: boolean) {
+  const hadPending = pendingActions.size > 0;
+  for (const action of pendingActions.values()) {
+    if (action.timeoutId) window.clearTimeout(action.timeoutId);
+  }
+  pendingActions.clear();
+  activeMoveTargets = null;
+  rebuildOptimisticSnapshot();
+  render();
+  if (notify && hadPending) showToast("连接中断，未确认操作已回滚；重连后请核对牌桌");
+}
+
+function highlightMoveTarget(targetKey: string) {
+  highlightedTargetKey = targetKey;
+  window.clearTimeout(highlightedTargetTimer);
+  highlightedTargetTimer = window.setTimeout(() => {
+    highlightedTargetKey = "";
+    render();
+  }, 700);
 }
 
 function didGameRestart(previous: Snapshot | undefined, next: Snapshot) {
@@ -397,7 +701,8 @@ function didGameRestart(previous: Snapshot | undefined, next: Snapshot) {
 }
 
 function resetTransientUIForRestart() {
-  moveModeCardId = null;
+  activeMoveTargets = null;
+  clearPendingActions(false);
   activeRegion = "battle-center";
   if (dialog.open) dialog.close();
   dialogContent.innerHTML = "";
@@ -423,7 +728,7 @@ function render() {
   const isMyTurn = snapshot.game.currentPlayerId === snapshot.you;
   const myHandCount = me.handCount ?? me.hand.length;
   root.innerHTML = `
-    ${moveModeCardId ? `<div class="battle-move-banner">点击落点模式 · 选择目标区域（Esc 取消）</div>` : ""}
+    ${activeMoveTargets ? `<div class="battle-move-banner">点击落点模式 · 请选择标注的目标区域（Esc 取消）</div>` : ""}
     ${renderRestartRequest(me, opponent)}
     <div class="battle-table">
       ${opponent ? renderPlayer(opponent, false, isMyTurn) : renderWaitingSeat()}
@@ -658,7 +963,8 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
             ${renderZone("移出游戏", player.banished, player, "banished", isMe)}
           </div>
         </div>
-        <div ${isMe ? 'id="battle-hand-self"' : ""} class="battle-private-rail battle-private-rail--hand">
+        <div ${isMe ? 'id="battle-hand-self"' : ""} class="battle-private-rail battle-private-rail--hand"
+          data-drop-target="${isMe ? "hand" : "opponentHand"}" data-zone-owner="${player.id}">
           <div class="battle-private-rail__title">
             <strong>${isMe ? "我的手牌" : "对手手牌"}</strong>
             <span>${handCount} 张</span>
@@ -717,7 +1023,7 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
       <button type="button" data-command="deck:shuffle" data-deck="hand">洗混共用牌堆</button>
       <button type="button" data-command="hand:randomSelect" data-owner="${opponent?.id || ""}">随机展示对手手牌</button>
       <button type="button" data-command="marker:create">创建标记</button>
-      ${moveModeCardId ? `<button type="button" data-command="move:cancel">取消落点</button>` : ""}
+      ${activeMoveTargets ? `<button type="button" data-command="move:cancel">取消落点</button>` : ""}
     </div>
     ${recentLogs.length ? `<ul class="battle-log-recent" aria-label="最近操作">${recentLogs.map((log) => `<li><time>${formatLogTime(log.at)}</time>${escapeHtml(log.text)}</li>`).join("")}</ul>` : ""}
     <details class="battle-log">
@@ -788,7 +1094,7 @@ function renderZone(
 }
 
 function renderSlot(item: CardView | MarkerView | null, index: number, owner: PlayerView, isMe: boolean) {
-  if (!item) return `<article class="battle-slot battle-slot--empty" data-drop-target="characterSlot:${index}"><span>位 ${index + 1}</span></article>`;
+  if (!item) return `<article class="battle-slot battle-slot--empty" data-drop-target="characterSlot:${index}" data-zone-owner="${owner.id}"><span>位 ${index + 1}</span></article>`;
   if ("label" in item) {
     const label = escapeHtml(item.label);
     return `<article class="battle-slot battle-slot--marker">
@@ -874,16 +1180,32 @@ function bindActions() {
   });
   root.querySelectorAll<HTMLElement>("[data-card]").forEach((element) => {
     element.addEventListener("click", (event) => {
-      if (moveModeCardId) return;
+      if (activeMoveTargets) return;
       openCardMenu(element);
       event.stopPropagation();
     });
     element.addEventListener("dragstart", (event) => {
       if (!optionsDraggable(element)) return;
+      const instanceId = element.dataset.card || "";
+      const definition = cardDefinition(findVisibleCard(instanceId));
+      activeMoveTargets = {
+        cardId: instanceId,
+        actions: cardActionDescriptors(
+          instanceId,
+          element.dataset.owner || "",
+          element.dataset.zone || "",
+          definition?.kind,
+        ).filter((action) => action.kind === "move"),
+      };
       event.dataTransfer?.setData("text/card-instance", element.dataset.card || "");
       element.classList.add("is-dragging");
+      applyMoveTargetHints(activeMoveTargets);
     });
-    element.addEventListener("dragend", () => element.classList.remove("is-dragging"));
+    element.addEventListener("dragend", () => {
+      element.classList.remove("is-dragging");
+      activeMoveTargets = null;
+      clearMoveTargetHints();
+    });
   });
   root.querySelectorAll<HTMLElement>("[data-inspect-owner][data-inspect-slot]").forEach((element) => {
     element.addEventListener("click", () => {
@@ -908,6 +1230,7 @@ function bindActions() {
   });
   root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
     element.addEventListener("dragover", (event) => {
+      if (!activeMoveTargets || !actionForDropElement(activeMoveTargets, element)) return;
       event.preventDefault();
       element.classList.add("is-drag-over");
     });
@@ -917,12 +1240,17 @@ function bindActions() {
       element.classList.remove("is-drag-over");
       const instanceId = event.dataTransfer?.getData("text/card-instance");
       if (!instanceId) return;
-      moveCardToTarget(instanceId, element.dataset.dropTarget || "");
+      const action = activeMoveTargets ? actionForDropElement(activeMoveTargets, element) : undefined;
+      if (action) executeMoveAction(instanceId, action);
+      activeMoveTargets = null;
+      clearMoveTargetHints();
     });
     element.addEventListener("click", () => {
-      if (!moveModeCardId) return;
-      moveCardToTarget(moveModeCardId, element.dataset.dropTarget || "");
-      moveModeCardId = null;
+      if (!activeMoveTargets) return;
+      const action = actionForDropElement(activeMoveTargets, element);
+      if (!action) return;
+      executeMoveAction(activeMoveTargets.cardId, action);
+      activeMoveTargets = null;
       render();
     });
   });
@@ -935,23 +1263,84 @@ function syncRoomControls(started: boolean) {
 }
 
 function optionsDraggable(element: HTMLElement) {
-  return element.getAttribute("draggable") === "true";
+  return element.getAttribute("draggable") === "true"
+    && socket?.readyState === WebSocket.OPEN
+    && !hasPendingLock(`card:${element.dataset.card || ""}`);
 }
 
-function moveCardToTarget(instanceId: string, dropTarget: string) {
-  const [targetZone, rawIndex] = dropTarget.split(":");
+function executeMoveAction(instanceId: string, action: CardActionDescriptor) {
   send("card:move", {
     instanceId,
-    targetZone,
-    targetIndex: rawIndex === undefined ? undefined : Number(rawIndex),
-    faceDown: targetZone === "characterSlot",
+    targetZone: action.targetZone,
+    targetIndex: action.targetIndex,
+    targetOwnerId: action.targetOwnerId,
+    faceDown: action.faceDown,
+  });
+}
+
+function actionForDropElement(active: ActiveMoveTargets, element: HTMLElement) {
+  const [targetZone, rawIndex] = (element.dataset.dropTarget || "").split(":");
+  const targetIndex = rawIndex === undefined ? undefined : Number(rawIndex);
+  return active.actions.find((action) =>
+    action.targetZone === targetZone
+    && action.targetIndex === targetIndex
+    && (!action.targetOwnerId || !element.dataset.zoneOwner || action.targetOwnerId === element.dataset.zoneOwner)
+  );
+}
+
+function clearMoveTargetHints() {
+  root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
+    element.classList.remove("is-move-target", "is-drag-over");
+    delete element.dataset.moveLabel;
+  });
+}
+
+function applyMoveTargetHints(active: ActiveMoveTargets) {
+  clearMoveTargetHints();
+  root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
+    const action = actionForDropElement(active, element);
+    if (!action) return;
+    element.classList.add("is-move-target");
+    element.dataset.moveLabel = action.label;
+  });
+}
+
+function applyHighlightedTarget() {
+  root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
+    const owner = element.dataset.zoneOwner ? `@${element.dataset.zoneOwner}` : "";
+    const dropTarget = element.dataset.dropTarget || "";
+    const key = `${dropTarget}${owner}`;
+    if (key === highlightedTargetKey || (!highlightedTargetKey.includes("@") && dropTarget === highlightedTargetKey)) {
+      element.classList.add("is-action-success");
+    }
+  });
+}
+
+function applyInteractionAvailability() {
+  const connected = socket?.readyState === WebSocket.OPEN;
+  document.querySelectorAll<HTMLElement>(
+    "[data-command], [data-counter-set], [data-card-action], [data-inspection-move], [data-discard-move], [data-dialog-confirm], .battle-slot-picker__btn",
+  ).forEach((element) => {
+    const command = element.dataset.command || element.dataset.counterSet || "";
+    const playerId = element.dataset.player;
+    const lockKey = (command === "health:set" || command === "megaProgress:set") && playerId
+      ? `${command}:${playerId}`
+      : command;
+    if (!connected || (lockKey && hasPendingLock(lockKey))) element.setAttribute("disabled", "");
+  });
+  root.querySelectorAll<HTMLElement>("[data-card]").forEach((element) => {
+    const cardId = element.dataset.card || "";
+    if (!connected || hasPendingLock(`card:${cardId}`)) {
+      element.setAttribute("draggable", "false");
+      if (hasPendingLock(`card:${cardId}`)) element.classList.add("is-action-pending");
+    }
   });
 }
 
 function handleCommand(element: HTMLElement) {
   const command = element.dataset.command || "";
   if (command === "move:cancel") {
-    moveModeCardId = null;
+    activeMoveTargets = null;
     render();
     return;
   }
@@ -1248,37 +1637,124 @@ function renderCardDialog(instanceId: string, ownerId: string, zone: string, mod
 }
 
 function bindCardMenuActions(instanceId: string, ownerId: string, zone: string, kind?: string) {
-  dialogContent.querySelector<HTMLElement>("[data-move-mode]")?.addEventListener("click", () => {
-    moveModeCardId = instanceId;
-    dialog.close();
-    render();
-  });
-  dialogContent.querySelectorAll<HTMLElement>("[data-move]").forEach((button) => {
+  const actions = cardActionDescriptors(instanceId, ownerId, zone, kind);
+  dialogContent.querySelectorAll<HTMLElement>("[data-card-action]").forEach((button) => {
     button.addEventListener("click", () => {
-      const target = button.dataset.move || "";
-      const [targetZone, rawIndex] = target.split(":");
-      send("card:move", {
-        instanceId,
-        targetZone,
-        targetIndex: rawIndex === undefined ? undefined : Number(rawIndex),
-        faceDown: button.dataset.faceDown === "true",
-      });
-      dialog.close();
+      const action = actions.find((item) => item.id === button.dataset.cardAction);
+      if (action) executeCardAction(instanceId, action, ownerId, zone, kind);
     });
   });
-  dialogContent.querySelector<HTMLElement>("[data-flip-card]")?.addEventListener("click", () => {
+  dialogContent.querySelector<HTMLElement>("[data-card-art-zoom]")?.addEventListener("click", () => {
+    renderCardDialog(instanceId, ownerId, zone, "art");
+  });
+  dialogContent.querySelector<HTMLElement>("[data-card-detail-back]")?.addEventListener("click", () => {
+    renderCardDialog(instanceId, ownerId, zone, "detail");
+  });
+}
+
+function cardActionDescriptors(instanceId: string, ownerId: string, zone: string, kind?: string) {
+  const isMine = ownerId === snapshot?.you;
+  const actions: CardActionDescriptor[] = [];
+  const addMove = (id: string, label: string, targetZone: string, quick: boolean, targetIndex?: number, faceDown = false) => {
+    const targetOwnerId = ["characterSlot", "characterDeckBottom", "characterDeckShuffle", "retired", "banished"].includes(targetZone)
+      ? ownerId
+      : undefined;
+    actions.push({ id, label, kind: "move", quick, targetZone, targetIndex, targetOwnerId, faceDown });
+  };
+  if (!kind) {
+    actions.push({ id: "inspect", label: "查看暗置卡牌", kind: "inspect", quick: true });
+    return actions;
+  }
+  if (kind === "body") {
+    if (isMine) actions.push({ id: "body-flip", label: "翻转本体", kind: "bodyFlip", quick: true });
+    return actions;
+  }
+  if (isMine) actions.push({ id: "move-mode", label: "点击落点移动", kind: "moveMode", quick: kind === "hand" });
+  if (kind === "hand") {
+    addMove("resolving", "打到结算区", "resolving", true);
+    addMove("discard", "弃置", "handDiscard", true);
+    addMove("deck-top", "放回牌堆顶", "handDeckTop", false);
+    addMove("deck-bottom", "放回牌堆底", "handDeckBottom", false);
+    if (isMine) addMove("opponent-hand", "交给对手", "opponentHand", false);
+    if (isMine) actions.push({ id: "hand-marker", label: "暗置为标记", kind: "marker", quick: false });
+    if (zone === "handDiscard" || zone === "resolving") addMove("my-hand", "加入我的手牌", "hand", true);
+  } else if (kind === "character") {
+    if (isMine) {
+      if (zone.startsWith("slot:")) {
+        actions.push({ id: "declare", label: "声明技能", kind: "declare", quick: true });
+        actions.push({ id: "flip", label: "明置 / 暗置", kind: "flip", quick: true });
+      }
+      for (let index = 0; index < 4; index += 1) {
+        addMove(`slot-${index}`, `暗置到位 ${index + 1}`, "characterSlot", false, index, true);
+      }
+      addMove("rest", "休整至牌堆底", "characterDeckBottom", zone.startsWith("slot:"));
+      addMove("retire", "退场", "retired", zone.startsWith("slot:"));
+      addMove("banish", "移出游戏", "banished", zone === "retired");
+      if (zone === "retired") addMove("shuffle-back", "洗回角色牌堆", "characterDeckShuffle", true);
+    }
+  }
+  actions.push({ id: "inspect", label: "查看卡牌", kind: "inspect", quick: false });
+  return actions;
+}
+
+function renderCardActionButton(action: CardActionDescriptor, instanceId: string) {
+  const pending = hasPendingLock(`card:${instanceId}`);
+  const disabled = pending || socket?.readyState !== WebSocket.OPEN;
+  return `<button type="button" data-card-action="${action.id}" ${disabled ? "disabled" : ""}>${pending ? "同步中…" : escapeHtml(action.label)}</button>`;
+}
+
+function moveButtonSections(instanceId: string, ownerId: string, zone: string, kind?: string) {
+  const actions = cardActionDescriptors(instanceId, ownerId, zone, kind);
+  const quick = actions.filter((action) => action.quick);
+  const more = actions.filter((action) => !action.quick);
+  return `
+    ${quick.length ? `<section class="battle-card-menu__quick">
+      <h3>常用操作</h3>
+      <div class="battle-card-menu__actions">${quick.map((action) => renderCardActionButton(action, instanceId)).join("")}</div>
+    </section>` : ""}
+    ${more.length ? `<details class="battle-card-menu__more">
+      <summary>更多操作 <span>${more.length}</span></summary>
+      <div class="battle-card-menu__actions">${more.map((action) => renderCardActionButton(action, instanceId)).join("")}</div>
+    </details>` : ""}
+  `;
+}
+
+function executeCardAction(
+  instanceId: string,
+  action: CardActionDescriptor,
+  ownerId: string,
+  zone: string,
+  kind?: string,
+) {
+  if (action.kind === "moveMode") {
+    activeMoveTargets = {
+      cardId: instanceId,
+      actions: cardActionDescriptors(instanceId, ownerId, zone, kind)
+        .filter((item) => item.kind === "move"),
+    };
+    dialog.close();
+    render();
+    return;
+  }
+  if (action.kind === "move") {
+    send("card:move", {
+      instanceId,
+      targetZone: action.targetZone,
+      targetIndex: action.targetIndex,
+      targetOwnerId: action.targetOwnerId,
+      faceDown: action.faceDown,
+    });
+  } else if (action.kind === "flip") {
     send("card:flip", { instanceId });
-    dialog.close();
-  });
-  dialogContent.querySelector<HTMLElement>("[data-inspect-card]")?.addEventListener("click", () => {
+  } else if (action.kind === "inspect") {
     send("card:inspect", { instanceId });
-    dialog.close();
-  });
-  dialogContent.querySelector<HTMLElement>("[data-hand-marker]")?.addEventListener("click", () => {
+  } else if (action.kind === "marker") {
     dialog.close();
     showHandMarkerDialog(instanceId);
-  });
-  dialogContent.querySelector<HTMLElement>("[data-declare-skill]")?.addEventListener("click", () => {
+    return;
+  } else if (action.kind === "bodyFlip") {
+    send("body:flip");
+  } else if (action.kind === "declare") {
     const actionId = send("character:declareSkill", { instanceId });
     if (!actionId) return;
     highlightedSkillCardId = instanceId;
@@ -1289,61 +1765,9 @@ function bindCardMenuActions(instanceId: string, ownerId: string, zone: string, 
       highlightedSkillUntil = 0;
       render();
     }, 1850);
-    showToast("已声明角色技能");
-    dialog.close();
-    render();
-  });
-  dialogContent.querySelector<HTMLElement>("[data-card-art-zoom]")?.addEventListener("click", () => {
-    renderCardDialog(instanceId, ownerId, zone, "art");
-  });
-  dialogContent.querySelector<HTMLElement>("[data-card-detail-back]")?.addEventListener("click", () => {
-    renderCardDialog(instanceId, ownerId, zone, "detail");
-  });
-}
-
-function moveButtonSections(instanceId: string, ownerId: string, zone: string, kind?: string) {
-  const isMine = ownerId === snapshot?.you;
-  const move: string[] = [];
-  const state: string[] = [];
-  const view: string[] = [];
-  const add = (label: string, target: string, faceDown = false) => move.push(
-    `<button type="button" data-move="${target}" data-face-down="${String(faceDown)}">${label}</button>`,
-  );
-  if (!kind) {
-    view.push(`<button type="button" data-inspect-card="${instanceId}">查看暗置卡牌</button>`);
-    return renderActionSections(move, state, view);
   }
-  if (isMine) move.push(`<button type="button" data-move-mode="${instanceId}">点击落点移动</button>`);
-  if (kind === "hand") {
-    add("打到结算区", "resolving");
-    add("置入弃牌区", "handDiscard");
-    add("放回牌堆顶", "handDeckTop");
-    add("放回牌堆底", "handDeckBottom");
-    if (isMine) add("交给对手", "opponentHand");
-    if (isMine) state.push(`<button type="button" data-hand-marker="${instanceId}">暗置为标记</button>`);
-    // 公开区域（弃牌/结算区）的卡牌可以加入手牌
-    if (zone === "handDiscard" || zone === "resolving") add("加入我的手牌", "hand");
-  } else if (kind === "character") {
-    if (isMine) {
-      state.push(`<button type="button" data-declare-skill="${instanceId}">声明发动技能</button>`);
-      for (let index = 0; index < 4; index += 1) add(`暗置到位 ${index + 1}`, `characterSlot:${index}`, true);
-      add("休整至牌堆底", "characterDeckBottom");
-      add("退场", "retired");
-      add("移出游戏", "banished");
-      if (zone === "retired") add("洗回角色牌堆", "characterDeckShuffle");
-    }
-    if (zone.startsWith("slot:")) state.push(`<button type="button" data-flip-card="${instanceId}">明置 / 暗置</button>`);
-  }
-  view.push(`<button type="button" data-inspect-card="${instanceId}">查看卡牌</button>`);
-  return renderActionSections(move, state, view);
-}
-
-function renderActionSections(move: string[], state: string[], view: string[]) {
-  const sections: string[] = [];
-  if (move.length) sections.push(`<div class="battle-action-group"><h3>移动</h3><div class="battle-card-menu__actions">${move.join("")}</div></div>`);
-  if (state.length) sections.push(`<div class="battle-action-group"><h3>状态</h3><div class="battle-card-menu__actions">${state.join("")}</div></div>`);
-  if (view.length) sections.push(`<div class="battle-action-group"><h3>查看</h3><div class="battle-card-menu__actions">${view.join("")}</div></div>`);
-  return sections.join("");
+  dialog.close();
+  render();
 }
 
 function findVisibleCard(instanceId: string) {

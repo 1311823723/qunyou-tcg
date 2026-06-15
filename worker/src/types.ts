@@ -70,6 +70,7 @@ export interface SocketAttachment {
 export interface ClientMessage {
   type: string;
   actionId: string;
+  protocolVersion?: number;
   baseRevision?: number;
   payload?: Record<string, unknown>;
 }

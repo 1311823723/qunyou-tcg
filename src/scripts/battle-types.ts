@@ -88,7 +88,8 @@ export type InspectionAction = "handDeckTop" | "handDeckBottom" | "handDiscard" 
 
 export type ServerMessage =
   | { type: "snapshot"; snapshot: Snapshot }
-  | { type: "error"; error: string }
+  | { type: "actionAck"; actionId: string; revision: number; duplicate?: boolean }
+  | { type: "error"; error: string; actionId?: string; revision?: number; category?: string }
   | {
       type: "inspection";
       inspectionId: string;
