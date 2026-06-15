@@ -56,6 +56,9 @@ let tableMode: TableMode = localStorage.getItem(TABLE_MODE_KEY) === "full" ? "fu
 let activeRegion = "battle-player-opponent";
 let regionScrollFrame = 0;
 let regionScrollLockUntil = 0;
+let highlightedSkillCardId = "";
+let highlightedSkillUntil = 0;
+let highlightedSkillTimer = 0;
 
 const COACH_STEPS = [
   { title: "点击卡牌查看技能", text: "点任意卡牌可阅读完整效果，并从菜单移动到其他区域。" },
@@ -127,6 +130,9 @@ document.querySelector(".battle-topbar")?.addEventListener("click", (event) => {
 // 点击弹窗外部（遮罩）关闭
 dialog.addEventListener("click", (event) => {
   if (event.target === dialog) dialog.close();
+});
+dialog.addEventListener("close", () => {
+  dialog.classList.remove("battle-dialog--art");
 });
 
 document.addEventListener("keydown", (event) => {
@@ -754,9 +760,9 @@ function renderPile(title: string, count: number, command: string, action: strin
       ? ` data-drop-target="characterDeckBottom"`
       : "";
   const owner = ownerId ? ` data-zone-owner="${ownerId}"` : "";
-  return `<article class="battle-pile"${dropTarget}${owner}>
+  return `<article class="battle-pile ${count ? "" : "is-empty"}"${dropTarget}${owner}>
     <div class="battle-card-back"><span>群友杀</span></div>
-    <strong>${title}</strong><span>${count} 张</span>
+    <strong>${title}</strong><span class="battle-zone-count">${count} 张</span>
     ${command ? `<button type="button" class="battle-small-btn" data-command="${command}">${action}</button>` : ""}
   </article>`;
 }
@@ -769,10 +775,10 @@ function renderZone(
   interactive: boolean,
   actions: Array<{ command: string; label: string }> = [],
 ) {
-  return `<article class="battle-zone" data-drop-target="${zone}" data-zone-owner="${owner.id}">
+  return `<article class="battle-zone ${cards.length ? "" : "is-empty"}" data-drop-target="${zone}" data-zone-owner="${owner.id}">
     <header>
       <strong>${title}</strong>
-      <span>${cards.length}</span>
+      <span class="battle-zone-count">${cards.length}</span>
       ${actions.length ? `<div class="battle-zone__actions">${actions.map(({ command, label }) =>
         `<button type="button" class="battle-zone__action" data-command="${command}" ${cards.length ? "" : "disabled"}>${label}</button>`
       ).join("")}</div>` : ""}
@@ -782,7 +788,7 @@ function renderZone(
 }
 
 function renderSlot(item: CardView | MarkerView | null, index: number, owner: PlayerView, isMe: boolean) {
-  if (!item) return `<article class="battle-slot" data-drop-target="characterSlot:${index}"><span>位 ${index + 1}</span></article>`;
+  if (!item) return `<article class="battle-slot battle-slot--empty" data-drop-target="characterSlot:${index}"><span>位 ${index + 1}</span></article>`;
   if ("label" in item) {
     const label = escapeHtml(item.label);
     return `<article class="battle-slot battle-slot--marker">
@@ -826,7 +832,8 @@ function renderCard(
     imagePath = definition.imagePath;
   }
   const faceClass = card.faceDown ? " is-face-down" : (definition.kind === "character" && options.zone.startsWith("slot:") ? " is-face-up" : "");
-  const cardClass = `battle-mini-card battle-mini-card--${definition.kind}${imagePath ? " battle-mini-card--art" : ""}${sizeClass}${faceClass}`;
+  const skillClass = card.instanceId && card.instanceId === highlightedSkillCardId && Date.now() < highlightedSkillUntil ? " is-skill-declared" : "";
+  const cardClass = `battle-mini-card battle-mini-card--${definition.kind}${imagePath ? " battle-mini-card--art" : ""}${sizeClass}${faceClass}${skillClass}`;
   const inSlot = definition.kind === "character" && options.zone.startsWith("slot:");
   const faceBadge = inSlot
     ? (card.faceDown ? `<span class="battle-mini-card__face-badge battle-mini-card__face-badge--down">暗</span>` : `<span class="battle-mini-card__face-badge">明</span>`)
@@ -1107,10 +1114,22 @@ function showConfirmDialog(message: string, onConfirm: () => void) {
   dialog.showModal();
 }
 
-function openCardMenu(element: HTMLElement) {
-  const instanceId = element.dataset.card || "";
-  const ownerId = element.dataset.owner || "";
-  const zone = element.dataset.zone || "";
+type CardDialogMode = "detail" | "art";
+
+type CardDialogView = {
+  card?: CardView;
+  definition?: CatalogCard;
+  displayName: string;
+  displaySubtitle: string;
+  displayText: string;
+  imagePath?: string;
+  roleTag: string;
+  faceStatus: string;
+  titleHtml: string;
+  kind?: string;
+};
+
+function resolveCardDialogView(instanceId: string, ownerId: string): CardDialogView {
   const card = findVisibleCard(instanceId);
   const definition = cardDefinition(card);
   let displayName = definition?.name || "";
@@ -1133,15 +1152,83 @@ function openCardMenu(element: HTMLElement) {
   const roleTag = definition?.kind === "character" ? definition.subtitle.split(" · ")[0] : "";
   const isFaceDown = card?.faceDown ?? false;
   const faceStatus = definition?.kind === "character"
-    ? (isFaceDown ? `<span class="battle-tag" style="background:rgba(255,179,71,0.15);border-color:rgba(255,179,71,0.4);color:#ffb347">暗置</span>` : `<span class="battle-tag" style="background:rgba(98,217,139,0.12);border-color:rgba(98,217,139,0.35);color:#62d98b">已明置</span>`)
+    ? (isFaceDown ? `<span class="battle-tag battle-tag--facedown">暗置</span>` : `<span class="battle-tag battle-tag--faceup">已明置</span>`)
     : "";
+  const titleHtml = definition
+    ? `${parts[0] ? `<span class="battle-card-detail__role">${escapeHtml(parts[0])}</span>` : ""}${escapeHtml(parts[1] || displayName)}`
+    : "暗置卡牌";
+  return {
+    card,
+    definition,
+    displayName,
+    displaySubtitle,
+    displayText,
+    imagePath,
+    roleTag,
+    faceStatus,
+    titleHtml,
+    kind: definition?.kind,
+  };
+}
+
+function renderCardArtPreview(view: CardDialogView) {
+  if (view.imagePath) {
+    return `<button type="button" class="battle-card-detail__art-button" data-card-art-zoom aria-label="放大查看 ${escapeHtml(view.displayName || "卡牌")}">
+      <img class="battle-card-detail__art" src="${view.imagePath}" alt="" />
+      <span>点击查看大图</span>
+    </button>`;
+  }
+  return `<div class="battle-card-detail__placeholder battle-card-detail__placeholder--back">
+    <span>${view.definition?.kind === "hand" ? "牌" : "暗"}</span>
+    <small>${view.definition ? "暂无卡图" : "身份未知"}</small>
+  </div>`;
+}
+
+function renderCardArtDialog(view: CardDialogView) {
+  const art = view.imagePath
+    ? `<img class="battle-card-zoom__image" src="${view.imagePath}" alt="" />`
+    : `<div class="battle-card-zoom__back"><span>暗置</span><small>身份未知</small></div>`;
+  dialogContent.innerHTML = `
+    <div class="battle-card-menu battle-card-menu--art">
+      <div class="battle-card-zoom">
+        <div class="battle-card-zoom__topline">
+          <button type="button" class="battle-small-btn" data-card-detail-back>返回详情</button>
+          <div>
+            <h2>${view.definition ? escapeHtml(view.displayName) : "暗置卡牌"}</h2>
+            <p>${view.definition ? escapeHtml(view.displaySubtitle) : "无权限查看牌面"}</p>
+          </div>
+          ${view.faceStatus}
+        </div>
+        <div class="battle-card-zoom__stage">${art}</div>
+      </div>
+    </div>
+  `;
+}
+
+function openCardMenu(element: HTMLElement) {
+  const instanceId = element.dataset.card || "";
+  const ownerId = element.dataset.owner || "";
+  const zone = element.dataset.zone || "";
+  renderCardDialog(instanceId, ownerId, zone, "detail");
+  dialog.showModal();
+}
+
+function renderCardDialog(instanceId: string, ownerId: string, zone: string, mode: CardDialogMode) {
+  const view = resolveCardDialogView(instanceId, ownerId);
+  const definition = view.definition;
+  dialog.classList.toggle("battle-dialog--art", mode === "art");
+  if (mode === "art") {
+    renderCardArtDialog(view);
+    bindCardMenuActions(instanceId, ownerId, zone, definition?.kind);
+    return;
+  }
   dialogContent.innerHTML = `
     <div class="battle-card-menu battle-card-menu--rich">
       <div class="battle-card-detail">
-        ${imagePath ? `<img class="battle-card-detail__art" src="${imagePath}" alt="" />` : `<div class="battle-card-detail__placeholder">${definition?.kind === "hand" ? "牌" : "角"}</div>`}
+        ${renderCardArtPreview(view)}
         <div class="battle-card-detail__body">
-          <h2>${definition ? (parts[0] ? `<span class="battle-card-detail__role">${escapeHtml(parts[0])}</span>` : "") + escapeHtml(parts[1] || displayName) : "暗置卡牌"}</h2>
-          ${roleTag ? `<span class="battle-tag">${escapeHtml(roleTag)}</span>` : ""} ${faceStatus}
+          <h2>${view.titleHtml}</h2>
+          ${view.roleTag ? `<span class="battle-tag">${escapeHtml(view.roleTag)}</span>` : ""} ${view.faceStatus}
           ${definition?.kind === "character" ? `<div class="battle-card-detail__rules">
             <span><b>技能消耗</b>${escapeHtml(definition.costText || "无")}</span>
             <span><b>发动时机</b>${escapeHtml(definition.timing || "未注明")}</span>
@@ -1149,7 +1236,7 @@ function openCardMenu(element: HTMLElement) {
           ${definition?.kind === "body" && definition.megaCondition ? `<div class="battle-card-detail__rules">
             <span><b>Mega 条件</b>${escapeHtml(definition.megaCondition)}</span>
           </div>` : ""}
-          ${definition ? `<p class="battle-card-detail__subtitle">${escapeHtml(displaySubtitle)}</p><p class="battle-card-detail__text">${escapeHtml(displayText)}</p>` : `<p>这张卡牌为暗置状态，可以通过卡牌效果查看。</p>`}
+          ${definition ? `<p class="battle-card-detail__subtitle">${escapeHtml(view.displaySubtitle)}</p><p class="battle-card-detail__text">${escapeHtml(view.displayText)}</p>` : `<p>这张卡牌为暗置状态，可以通过卡牌效果查看。</p>`}
         </div>
       </div>
       <div class="battle-card-menu__sections">
@@ -1157,7 +1244,6 @@ function openCardMenu(element: HTMLElement) {
       </div>
     </div>
   `;
-  dialog.showModal();
   bindCardMenuActions(instanceId, ownerId, zone, definition?.kind);
 }
 
@@ -1193,8 +1279,25 @@ function bindCardMenuActions(instanceId: string, ownerId: string, zone: string, 
     showHandMarkerDialog(instanceId);
   });
   dialogContent.querySelector<HTMLElement>("[data-declare-skill]")?.addEventListener("click", () => {
-    send("character:declareSkill", { instanceId });
+    const actionId = send("character:declareSkill", { instanceId });
+    if (!actionId) return;
+    highlightedSkillCardId = instanceId;
+    highlightedSkillUntil = Date.now() + 1800;
+    window.clearTimeout(highlightedSkillTimer);
+    highlightedSkillTimer = window.setTimeout(() => {
+      highlightedSkillCardId = "";
+      highlightedSkillUntil = 0;
+      render();
+    }, 1850);
+    showToast("已声明角色技能");
     dialog.close();
+    render();
+  });
+  dialogContent.querySelector<HTMLElement>("[data-card-art-zoom]")?.addEventListener("click", () => {
+    renderCardDialog(instanceId, ownerId, zone, "art");
+  });
+  dialogContent.querySelector<HTMLElement>("[data-card-detail-back]")?.addEventListener("click", () => {
+    renderCardDialog(instanceId, ownerId, zone, "detail");
   });
 }
 
