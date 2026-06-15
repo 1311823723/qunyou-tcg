@@ -28,6 +28,8 @@ import {
 import { migrateRoomState, ROOM_STATE_VERSION } from "./state-migration.mts";
 import type { LocatedCard } from "./movement";
 import type {
+  BattleLogKind,
+  BattleLogTarget,
   CardInstance,
   ClientMessage,
   InspectionResult,
@@ -178,7 +180,14 @@ export class BattleRoom extends DurableObject<Env> {
       resolving: [],
       turnNumber: 0,
       revision: 0,
-      logs: [{ id: crypto.randomUUID(), text: `${nickname} 创建了房间`, at: now }],
+      logs: [{
+        id: crypto.randomUUID(),
+        text: `${nickname} 创建了房间`,
+        at: now,
+        actorId: "p1",
+        kind: "system",
+        target: { zone: "lobby", ownerId: "p1" },
+      }],
       processedActionIds: [],
       inspections: [],
     };
@@ -197,7 +206,7 @@ export class BattleRoom extends DurableObject<Env> {
       }
       player = this.newPlayer("p2", token, nickname, deckId);
       this.state.players.push(player);
-      this.addLog(`${nickname} 加入了房间`);
+      this.addLog(`${nickname} 加入了房间`, player.id, "system", { zone: "lobby", ownerId: player.id });
       this.state.revision += 1;
       await this.persist();
     }
@@ -373,13 +382,16 @@ export class BattleRoom extends DurableObject<Env> {
         const deckId = cleanText(payload.deckId, 80);
         if (!deckById.has(deckId)) throw new Error("预组不存在。");
         player.deckId = deckId;
-        this.addLog(`${player.nickname} 选择了预组`);
+        this.addLog(`${player.nickname} 选择了预组`, player.id, "action", { zone: "player", ownerId: player.id });
         return;
       }
       case "player:ready": {
         if (this.state.started) throw new Error("牌局已经开始。");
         player.ready = Boolean(payload.ready);
-        this.addLog(`${player.nickname}${player.ready ? "已准备" : "取消准备"}`);
+        this.addLog(`${player.nickname}${player.ready ? "已准备" : "取消准备"}`, player.id, "action", {
+          zone: "player",
+          ownerId: player.id,
+        });
         if (this.state.players.length === 2 && this.state.players.every((item) => item.ready && item.deckId)) {
           this.startGame();
         }
@@ -402,7 +414,12 @@ export class BattleRoom extends DurableObject<Env> {
         const card = this.findCard(cleanText(payload.instanceId, 80));
         if (!card || card.kind !== "character" || card.ownerId !== player.id) throw new Error("只能翻转自己的角色。");
         card.faceDown = !card.faceDown;
-        this.addLog(`${player.nickname} ${card.faceDown ? "暗置" : "明置"}了一张角色`);
+        const located = this.locateCard(card.instanceId);
+        this.addLog(`${player.nickname} ${card.faceDown ? "暗置" : "明置"}了一张角色`, player.id, "action", {
+          zone: "characterSlot",
+          ownerId: player.id,
+          slotIndex: located?.zone === "characterSlot" ? located.index : undefined,
+        });
         return;
       }
       case "character:declareSkill":
@@ -430,7 +447,10 @@ export class BattleRoom extends DurableObject<Env> {
       case "body:flip":
         this.requireStarted();
         player.bodyFlipped = !player.bodyFlipped;
-        this.addLog(`${player.nickname} 将本体翻至${player.bodyFlipped ? "额外形态" : "正面"}`);
+        this.addLog(`${player.nickname} 将本体翻至${player.bodyFlipped ? "额外形态" : "正面"}`, player.id, "action", {
+          zone: "body",
+          ownerId: player.id,
+        });
         return;
       case "health:set": {
         this.requireStarted();
@@ -440,14 +460,20 @@ export class BattleRoom extends DurableObject<Env> {
           : player;
         if (!target) throw new Error("目标玩家不存在。");
         target.health = this.clamp(payload.value, 0, 99);
-        this.addLog(`${player.nickname} 将${target.id === player.id ? "自己的" : `${target.nickname} 的`}体力调整为 ${target.health}`);
+        this.addLog(`${player.nickname} 将${target.id === player.id ? "自己的" : `${target.nickname} 的`}体力调整为 ${target.health}`, player.id, "action", {
+          zone: "health",
+          ownerId: target.id,
+        });
         return;
       }
       case "megaProgress:set": {
         this.requireStarted();
         const max = this.megaMax(player);
         player.megaProgress = this.clamp(payload.value, 0, max ?? 99);
-        this.addLog(`${player.nickname} 将 Mega 能量调整为 ${player.megaProgress}${max ? `/${max}` : ""}`);
+        this.addLog(`${player.nickname} 将 Mega 能量调整为 ${player.megaProgress}${max ? `/${max}` : ""}`, player.id, "action", {
+          zone: "mega",
+          ownerId: player.id,
+        });
         return;
       }
       case "marker:create": {
@@ -457,7 +483,11 @@ export class BattleRoom extends DurableObject<Env> {
         const label = cleanText(payload.label, 20);
         if (!label) throw new Error("标记名称不能为空。");
         player.characterSlots[index] = { id: crypto.randomUUID(), label, ownerId: player.id };
-        this.addLog(`${player.nickname} 创建了「${label}」标记`);
+        this.addLog(`${player.nickname} 创建了「${label}」标记`, player.id, "action", {
+          zone: "characterSlot",
+          ownerId: player.id,
+          slotIndex: index,
+        });
         return;
       }
       case "marker:remove": {
@@ -472,7 +502,11 @@ export class BattleRoom extends DurableObject<Env> {
               marker.card.faceDown = false;
               this.state.handDiscard.push(marker.card);
             }
-            this.addLog(`${player.nickname} 移除了「${marker.label}」标记`);
+            this.addLog(`${player.nickname} 移除了「${marker.label}」标记`, player.id, "action", {
+              zone: "characterSlot",
+              ownerId: owner.id,
+              slotIndex: index,
+            });
             return;
           }
         }
@@ -485,7 +519,7 @@ export class BattleRoom extends DurableObject<Env> {
         if (!opponent) throw new Error("对手尚未加入。");
         this.state.currentPlayerId = opponent.id;
         this.state.turnNumber += 1;
-        this.addLog(`${player.nickname} 结束了回合`);
+        this.addLog(`${player.nickname} 结束了回合`, player.id, "action", { zone: "turn" });
         return;
       }
       case "room:restartRequest": {
@@ -495,7 +529,7 @@ export class BattleRoom extends DurableObject<Env> {
           throw new Error("对手当前离线，不能发起重新开始。");
         }
         createRestartRequest(this.state, player.id);
-        this.addLog(`${player.nickname} 请求重新开始牌局`);
+        this.addLog(`${player.nickname} 请求重新开始牌局`, player.id, "action", { zone: "restart" });
         return;
       }
       case "room:restartRespond": {
@@ -509,7 +543,7 @@ export class BattleRoom extends DurableObject<Env> {
         }
         if (payload.accept !== true) {
           this.state.pendingRestart = undefined;
-          this.addLog(`${player.nickname} 拒绝了重新开始请求`);
+          this.addLog(`${player.nickname} 拒绝了重新开始请求`, player.id, "action", { zone: "restart" });
           return;
         }
         this.state.pendingRestart = undefined;
@@ -523,7 +557,7 @@ export class BattleRoom extends DurableObject<Env> {
         if (!pending || pending.id !== requestId) throw new Error("重新开始请求不存在或已经失效。");
         if (pending.requestedBy !== player.id) throw new Error("只有发起者可以取消请求。");
         this.state.pendingRestart = undefined;
-        this.addLog(`${player.nickname} 取消了重新开始请求`);
+        this.addLog(`${player.nickname} 取消了重新开始请求`, player.id, "action", { zone: "restart" });
         return;
       }
       default:
@@ -587,7 +621,7 @@ export class BattleRoom extends DurableObject<Env> {
     this.state.turnNumber = 1;
     this.addLog(reason === "restart"
       ? `牌局已重新开始，${first.nickname} 为先手`
-      : `牌局开始，${first.nickname} 为先手`);
+      : `牌局开始，${first.nickname} 为先手`, undefined, "system", { zone: "turn" });
   }
 
   private draw(player: PlayerState, deck: string, count: number, log = true) {
@@ -599,7 +633,10 @@ export class BattleRoom extends DurableObject<Env> {
         card.ownerId = player.id;
         player.hand.push(card);
       }
-      if (log) this.addLog(`${player.nickname} 摸了 ${count} 张手牌`);
+      if (log) this.addLog(`${player.nickname} 摸了 ${count} 张手牌`, player.id, "action", {
+        zone: "hand",
+        ownerId: player.id,
+      });
     } else {
       throw new Error("牌堆无效。");
     }
@@ -613,7 +650,11 @@ export class BattleRoom extends DurableObject<Env> {
     card.faceDown = true;
     card.ownerId = player.id;
     player.characterSlots[slotIndex] = card;
-    if (log) this.addLog(`${player.nickname} 从角色牌堆暗置上阵了 1 张角色至位置 ${slotIndex + 1}`);
+    if (log) this.addLog(`${player.nickname} 从角色牌堆暗置上阵了 1 张角色至位置 ${slotIndex + 1}`, player.id, "action", {
+      zone: "characterSlot",
+      ownerId: player.id,
+      slotIndex,
+    });
   }
 
   private moveCard(actor: PlayerState, payload: Record<string, unknown>) {
@@ -698,15 +739,27 @@ export class BattleRoom extends DurableObject<Env> {
     }
     if (requiresInspection) consumeInspectionGrant(this.state, inspectionId);
     const cardLabel = revealInLog ? this.cardLabel(card) : `一张${card.kind === "character" ? "角色牌" : "手牌"}`;
+    const targetOwnerId = target === "opponentHand"
+      ? this.state.players.find((item) => item.id !== actor.id)?.id
+      : target === "hand"
+        ? actor.id
+        : ["retired", "banished", "characterSlot", "characterDeckBottom", "characterDeckShuffle"].includes(target)
+          ? owner.id
+          : undefined;
+    const logTarget = {
+      zone: target,
+      ...(targetOwnerId ? { ownerId: targetOwnerId } : {}),
+      ...(target === "characterSlot" && Number.isInteger(targetIndex) ? { slotIndex: targetIndex } : {}),
+    };
     if (target === "handDiscard" && card.kind === "hand") {
       const ownerLabel = owner.id === actor.id ? "" : `${owner.nickname} 的`;
-      this.addLog(`${actor.nickname} 弃置了${ownerLabel}${this.handCardLabel(card)}`);
+      this.addLog(`${actor.nickname} 弃置了${ownerLabel}${this.handCardLabel(card)}`, actor.id, "action", logTarget);
     } else if (target === "characterDeckBottom" && card.kind === "character") {
-      this.addLog(`${actor.nickname} 休整了${this.cardLabel(card)}，置于角色牌堆底`);
+      this.addLog(`${actor.nickname} 休整了${this.cardLabel(card)}，置于角色牌堆底`, actor.id, "action", logTarget);
     } else if (target === "characterDeckShuffle" && card.kind === "character") {
-      this.addLog(`${actor.nickname} 将${this.cardLabel(card)}从退场区洗回${owner.nickname}的角色牌堆`);
+      this.addLog(`${actor.nickname} 将${this.cardLabel(card)}从退场区洗回${owner.nickname}的角色牌堆`, actor.id, "action", logTarget);
     } else {
-      this.addLog(`${actor.nickname} 将${cardLabel}从${sourceLabel}移动到${targetLabel}`);
+      this.addLog(`${actor.nickname} 将${cardLabel}从${sourceLabel}移动到${targetLabel}`, actor.id, "action", logTarget);
     }
   }
 
@@ -722,6 +775,9 @@ export class BattleRoom extends DurableObject<Env> {
       + `｜发动时机：${definition.timing}`
       + `｜消耗：${formatCharacterCost(definition.cost)}`
       + `｜效果：${definition.effectText}`,
+      player.id,
+      "action",
+      { zone: "characterSlot", ownerId: player.id, slotIndex: located.index },
     );
   }
 
@@ -795,7 +851,11 @@ export class BattleRoom extends DurableObject<Env> {
         throw new Error("不能通过卡牌标识查看对手的私密卡牌。");
       }
       const grant = createInspectionGrant(this.state, player.id, [located.card], []);
-      this.addLog(`${player.nickname} 查看了一张卡牌`);
+      this.addLog(`${player.nickname} 查看了一张卡牌`, player.id, "inspection", {
+        zone: located.zone,
+        ownerId: located.owner.id,
+        ...(located.zone === "characterSlot" ? { slotIndex: located.index } : {}),
+      });
       return {
         inspectionId: grant.id,
         viewerId: player.id,
@@ -812,7 +872,10 @@ export class BattleRoom extends DurableObject<Env> {
       const cards = owner.hand;
       const allowedActions = ["handDeckTop", "handDeckBottom", "handDiscard", "hand"] as const;
       const grant = createInspectionGrant(this.state, player.id, cards, [...allowedActions]);
-      this.addLog(`${player.nickname} 查看了 ${owner.nickname} 的手牌`);
+      this.addLog(`${player.nickname} 查看了 ${owner.nickname} 的手牌`, player.id, "inspection", {
+        zone: "hand",
+        ownerId: owner.id,
+      });
       return {
         inspectionId: grant.id,
         viewerId: player.id,
@@ -827,7 +890,11 @@ export class BattleRoom extends DurableObject<Env> {
       const item = owner.characterSlots[slotIndex];
       if (!item || "label" in item) throw new Error("该位置没有可查看的角色牌。");
       const grant = createInspectionGrant(this.state, player.id, [item], []);
-      this.addLog(`${player.nickname} 查看了 ${owner.nickname} 的第 ${slotIndex + 1} 个暗置角色`);
+      this.addLog(`${player.nickname} 查看了 ${owner.nickname} 的第 ${slotIndex + 1} 个暗置角色`, player.id, "inspection", {
+        zone: "characterSlot",
+        ownerId: owner.id,
+        slotIndex,
+      });
       return {
         inspectionId: grant.id,
         viewerId: player.id,
@@ -848,7 +915,10 @@ export class BattleRoom extends DurableObject<Env> {
     const label = this.handCardLabel(card);
     const allowedActions = ["handDeckTop", "handDeckBottom", "handDiscard", "hand"] as const;
     const grant = createInspectionGrant(this.state, player.id, [card], [...allowedActions]);
-    this.addLog(`${player.nickname} 随机展示了 ${owner.nickname} 的 ${label}`);
+    this.addLog(`${player.nickname} 随机展示了 ${owner.nickname} 的 ${label}`, player.id, "inspection", {
+      zone: "hand",
+      ownerId: owner.id,
+    });
     return {
       inspectionId: grant.id,
       viewerId: player.id,
@@ -864,7 +934,10 @@ export class BattleRoom extends DurableObject<Env> {
     if (deck === "hand") this.state.handDeck = this.shuffle(this.state.handDeck);
     else if (deck === "character") player.characterDeck = this.shuffle(player.characterDeck);
     else throw new Error("牌堆无效。");
-    this.addLog(`${player.nickname} 洗混了${deck === "hand" ? "共用手牌牌堆" : "角色牌堆"}`);
+    this.addLog(`${player.nickname} 洗混了${deck === "hand" ? "共用手牌牌堆" : "角色牌堆"}`, player.id, "action", {
+      zone: deck === "hand" ? "handDeck" : "characterDeck",
+      ...(deck === "character" ? { ownerId: player.id } : {}),
+    });
   }
 
   private recycleHandDiscard(player: PlayerState) {
@@ -877,7 +950,9 @@ export class BattleRoom extends DurableObject<Env> {
     }));
     this.state.handDiscard = [];
     this.state.handDeck = [...recycled, ...this.state.handDeck];
-    this.addLog(`${player.nickname} 将手牌弃牌区的 ${recycled.length} 张牌洗混并放到共用牌堆底`);
+    this.addLog(`${player.nickname} 将手牌弃牌区的 ${recycled.length} 张牌洗混并放到共用牌堆底`, player.id, "action", {
+      zone: "handDeckBottom",
+    });
   }
 
   private discardResolving(player: PlayerState) {
@@ -889,7 +964,9 @@ export class BattleRoom extends DurableObject<Env> {
     });
     this.state.resolving = [];
     this.state.handDiscard.push(...discarded);
-    this.addLog(`${player.nickname} 将结算区的 ${discarded.length} 张牌全部弃置：${discarded.map((card) => this.handCardLabel(card)).join("、")}`);
+    this.addLog(`${player.nickname} 将结算区的 ${discarded.length} 张牌全部弃置：${discarded.map((card) => this.handCardLabel(card)).join("、")}`, player.id, "action", {
+      zone: "handDiscard",
+    });
   }
 
   private findCard(instanceId: string) {
@@ -1016,7 +1093,7 @@ export class BattleRoom extends DurableObject<Env> {
 
   private async endRoom(player: PlayerState) {
     if (!this.state) throw new Error("房间状态不存在。");
-    this.addLog(`${player.nickname} 结束了游戏`);
+    this.addLog(`${player.nickname} 结束了游戏`, player.id, "action", { zone: "room" });
     const sockets = this.ctx.getWebSockets();
     for (const socket of sockets) {
       try {
@@ -1036,9 +1113,21 @@ export class BattleRoom extends DurableObject<Env> {
     }
   }
 
-  private addLog(text: string) {
+  private addLog(
+    text: string,
+    actorId?: string,
+    kind: BattleLogKind = actorId ? "action" : "system",
+    target?: BattleLogTarget,
+  ) {
     if (!this.state) return;
-    this.state.logs.push({ id: crypto.randomUUID(), text, at: Date.now() });
+    this.state.logs.push({
+      id: crypto.randomUUID(),
+      text,
+      at: Date.now(),
+      ...(actorId ? { actorId } : {}),
+      kind,
+      ...(target ? { target } : {}),
+    });
     this.state.logs = this.state.logs.slice(-100);
   }
 

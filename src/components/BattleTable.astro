@@ -31,6 +31,7 @@ const { catalog } = Astro.props;
       </span>
       <div class="battle-topbar__desktop-actions">
         <button type="button" class="battle-icon-btn battle-mode-toggle" data-table-mode-toggle aria-pressed="true">紧凑模式</button>
+        <button type="button" class="battle-icon-btn" data-shortcut-help>快捷键</button>
         <a href="/rules" class="battle-icon-btn" target="_blank" rel="noopener">规则</a>
         <button type="button" class="battle-icon-btn" data-copy-invite>邀请链接</button>
         <button type="button" class="battle-icon-btn" data-command="room:restartRequest" data-room-control="restart" title="请求双方重新开始" hidden>重新开始</button>
@@ -40,6 +41,7 @@ const { catalog } = Astro.props;
         <summary class="battle-icon-btn battle-topbar-menu__trigger">菜单</summary>
         <div class="battle-topbar-menu__panel">
           <button type="button" class="battle-icon-btn battle-mode-toggle" data-table-mode-toggle aria-pressed="true">紧凑模式</button>
+          <button type="button" class="battle-icon-btn" data-shortcut-help>快捷键</button>
           <a href="/rules" class="battle-icon-btn" target="_blank" rel="noopener">查看规则</a>
           <button type="button" class="battle-icon-btn" data-copy-invite>复制邀请链接</button>
           <button type="button" class="battle-icon-btn" data-command="room:restartRequest" data-room-control="restart" hidden>重新开始</button>
@@ -50,8 +52,9 @@ const { catalog } = Astro.props;
   </header>
 
   <div id="battle-toast" class="battle-toast" role="status" aria-live="polite" hidden></div>
+  <div id="battle-announcer" class="battle-sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
-  <main id="battle-root" class="battle-root" aria-live="polite">
+  <main id="battle-root" class="battle-root">
     <section class="battle-loading hud-panel">
       <div class="battle-loading__signal" aria-hidden="true"><i></i><i></i><i></i></div>
       <span class="battle-kicker">CONNECTING TO TABLE</span>

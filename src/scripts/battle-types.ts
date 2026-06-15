@@ -62,6 +62,19 @@ export type PlayerView = {
   banished: CardView[];
 };
 
+export type BattleLog = {
+  id: string;
+  text: string;
+  at: number;
+  actorId?: string;
+  kind?: "action" | "inspection" | "system";
+  target?: {
+    zone: string;
+    ownerId?: string;
+    slotIndex?: number;
+  };
+};
+
 export type GameView = {
   started: boolean;
   currentPlayerId?: string;
@@ -70,7 +83,7 @@ export type GameView = {
   handDeckCount: number;
   handDiscard: CardView[];
   resolving: CardView[];
-  logs: Array<{ id: string; text: string; at: number }>;
+  logs: BattleLog[];
 };
 
 export type Snapshot = {
@@ -105,6 +118,7 @@ export type ServerMessage =
 export type PreservedUI = {
   scrollLeft: Record<string, number>;
   logOpen: boolean;
+  logFilter: "all" | "mine" | "opponent" | "inspection";
   activeRegion: string;
   rootScrollTop: number;
 };

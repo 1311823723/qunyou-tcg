@@ -26,6 +26,23 @@ export interface Marker {
   card?: CardInstance;
 }
 
+export type BattleLogKind = "action" | "inspection" | "system";
+
+export interface BattleLogTarget {
+  zone: string;
+  ownerId?: string;
+  slotIndex?: number;
+}
+
+export interface BattleLog {
+  id: string;
+  text: string;
+  at: number;
+  actorId?: string;
+  kind?: BattleLogKind;
+  target?: BattleLogTarget;
+}
+
 export interface PlayerState {
   id: string;
   token: string;
@@ -57,7 +74,7 @@ export interface RoomState {
   firstPlayerId?: string;
   turnNumber: number;
   revision: number;
-  logs: Array<{ id: string; text: string; at: number }>;
+  logs: BattleLog[];
   processedActionIds: string[];
   inspections: InspectionGrant[];
   pendingRestart?: PendingRestart;

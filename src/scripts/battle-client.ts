@@ -1,8 +1,14 @@
 import { getBattleApiUrl } from "../lib/battle-api";
 import { escapeHtml, handCardHighResImagePath, handCardImagePath, suitSymbol } from "./battle-format";
 import { normalizeBattleSnapshot } from "./battle-state.mjs";
+import {
+  battleLogRegionId,
+  battleLogTargetKey,
+  filterBattleLogs,
+} from "./battle-log.mjs";
 import type {
   CardView,
+  BattleLog,
   Catalog,
   CatalogCard,
   CatalogDeck,
@@ -27,6 +33,7 @@ const status = requiredElement<HTMLElement>("#battle-connection");
 const statusText = status.querySelector<HTMLElement>(".battle-connection__text") ?? status;
 const roomLabel = requiredElement<HTMLElement>("#battle-room-code");
 const toastEl = document.querySelector<HTMLElement>("#battle-toast");
+const announcerEl = document.querySelector<HTMLElement>("#battle-announcer");
 const coachEl = document.querySelector<HTMLElement>("#battle-coach");
 const dialog = requiredElement<HTMLDialogElement>("#battle-dialog");
 const dialogContent = requiredElement<HTMLElement>("#battle-dialog-content");
@@ -96,11 +103,14 @@ let regionScrollLockUntil = 0;
 let highlightedSkillCardId = "";
 let highlightedSkillUntil = 0;
 let highlightedSkillTimer = 0;
+let logFilter: PreservedUI["logFilter"] = "all";
+let dialogReturnFocus: HTMLElement | null = null;
 
 const COACH_STEPS = [
   { title: "点击卡牌查看技能", text: "点任意卡牌可阅读完整效果，并从菜单移动到其他区域。" },
   { title: "拖拽或点击落点", text: "桌面端可拖拽卡牌；移动端请用菜单里的「点击落点移动」，再点目标区域。" },
   { title: "结束回合与日志", text: "中央栏可结束回合、查看操作日志。系统不自动判定规则，请双方诚信结算。" },
+  { title: "键盘也能快速操作", text: "按 D 摸牌、R 上阵角色、E 结束回合；按 Esc 可取消落点或关闭弹窗。" },
 ];
 
 roomLabel.textContent = roomCode;
@@ -109,6 +119,7 @@ applyTableMode();
 function setConnectionState(label: string, state: string) {
   statusText.textContent = label;
   status.dataset.state = state;
+  if (state === "open" || state === "closed" || state === "failed") announce(label);
 }
 
 setConnectionState("连接中", "connecting");
@@ -119,6 +130,14 @@ function showToast(message: string) {
   toastEl.hidden = false;
   window.clearTimeout(toastTimer);
   toastTimer = window.setTimeout(() => { toastEl.hidden = true; }, 2200);
+}
+
+function announce(message: string) {
+  if (!announcerEl) return;
+  announcerEl.textContent = "";
+  window.requestAnimationFrame(() => {
+    announcerEl.textContent = message;
+  });
 }
 
 async function copyText(text: string, button?: HTMLButtonElement | null, doneLabel = "已复制", resetLabel?: string) {
@@ -149,6 +168,12 @@ document.querySelector("#battle-copy-code")?.addEventListener("click", async (ev
 
 document.querySelector(".battle-topbar")?.addEventListener("click", (event) => {
   if (!(event.target instanceof Element)) return;
+  const shortcutHelp = event.target.closest<HTMLElement>("[data-shortcut-help]");
+  if (shortcutHelp) {
+    showShortcutHelp(shortcutHelp);
+    shortcutHelp.closest<HTMLDetailsElement>(".battle-topbar-menu")?.removeAttribute("open");
+    return;
+  }
   const modeToggle = event.target.closest<HTMLElement>("[data-table-mode-toggle]");
   if (modeToggle) {
     tableMode = tableMode === "compact" ? "full" : "compact";
@@ -170,24 +195,61 @@ dialog.addEventListener("click", (event) => {
 });
 dialog.addEventListener("close", () => {
   dialog.classList.remove("battle-dialog--art");
+  const returnTarget = dialogReturnFocus;
+  dialogReturnFocus = null;
+  if (returnTarget?.isConnected) window.requestAnimationFrame(() => returnTarget.focus());
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+  if (shouldIgnoreShortcut(event)) return;
   if (event.key === "Escape") {
     if (activeMoveTargets) {
       activeMoveTargets = null;
       render();
       return;
     }
-    if (dialog.open) dialog.close();
+    if (dialog.open) {
+      dialog.close();
+      return;
+    }
   }
-  if (event.key === "e" || event.key === "E") {
-    if (dialog.open) return;
-    const endBtn = root.querySelector<HTMLElement>('[data-command="turn:end"]');
-    if (endBtn && !endBtn.hasAttribute("disabled")) endBtn.click();
+  const key = event.key.toLowerCase();
+  const command = key === "d"
+    ? "card:draw-hand"
+    : key === "r"
+      ? "character:deploy"
+      : key === "e"
+        ? "turn:end"
+        : "";
+  if (command) {
+    const button = root.querySelector<HTMLElement>(`[data-command="${command}"]`);
+    if (button && !button.hasAttribute("disabled")) {
+      event.preventDefault();
+      button.click();
+    }
   }
 });
+
+function shouldIgnoreShortcut(event: KeyboardEvent) {
+  if (event.metaKey || event.ctrlKey || event.altKey || event.repeat) return true;
+  if (dialog.open) return event.key !== "Escape";
+  if (coachEl && !coachEl.hidden) {
+    if (event.key === "Escape") {
+      finishCoach();
+    }
+    return true;
+  }
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(
+    target.closest("input, textarea, select, button, a, [contenteditable='true'], [role='dialog'], [role='menu']"),
+  );
+}
+
+function openBattleDialog(returnFocus?: HTMLElement | null) {
+  dialogReturnFocus = returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  dialog.showModal();
+}
 
 root.addEventListener("scroll", () => {
   window.cancelAnimationFrame(regionScrollFrame);
@@ -248,6 +310,7 @@ function captureUIState(): PreservedUI {
   return {
     scrollLeft,
     logOpen: logDetails?.open ?? false,
+    logFilter,
     activeRegion,
     rootScrollTop: root.scrollTop,
   };
@@ -260,6 +323,7 @@ function restoreUIState(state: PreservedUI) {
   });
   const logDetails = root.querySelector<HTMLDetailsElement>(".battle-log");
   if (logDetails && state.logOpen) logDetails.open = true;
+  logFilter = state.logFilter || logFilter;
   activeRegion = state.activeRegion || activeRegion;
   root.scrollTop = state.rootScrollTop;
   updateRegionNavigation();
@@ -651,12 +715,17 @@ function settleConfirmedActions() {
   rebuildOptimisticSnapshot();
   const latest = completed.at(-1);
   if (latest?.targetKey) highlightMoveTarget(latest.targetKey);
-  if (latest) showToast(latest.successMessage);
+  if (latest) {
+    showToast(latest.successMessage);
+    announce(latest.successMessage);
+    focusPendingTarget(latest);
+  }
   dispatchNextPendingAction();
   render();
 }
 
 function rejectPendingAction(actionId?: string) {
+  const rejected = actionId ? pendingActions.get(actionId) : undefined;
   if (actionId) {
     const pending = pendingActions.get(actionId);
     if (pending?.timeoutId) window.clearTimeout(pending.timeoutId);
@@ -666,6 +735,9 @@ function rejectPendingAction(actionId?: string) {
   rebuildOptimisticSnapshot();
   dispatchNextPendingAction();
   render();
+  if (rejected?.cardId) {
+    window.requestAnimationFrame(() => root.querySelector<HTMLElement>(`[data-card="${rejected.cardId}"]`)?.focus());
+  }
 }
 
 function clearPendingActions(notify: boolean) {
@@ -687,6 +759,24 @@ function highlightMoveTarget(targetKey: string) {
     highlightedTargetKey = "";
     render();
   }, 700);
+}
+
+function elementForTargetKey(targetKey: string) {
+  const [dropTarget, ownerId] = targetKey.split("@");
+  return [...root.querySelectorAll<HTMLElement>("[data-drop-target]")].find((element) =>
+    element.dataset.dropTarget === dropTarget
+    && (!ownerId || element.dataset.zoneOwner === ownerId)
+  );
+}
+
+function focusPendingTarget(action: PendingAction) {
+  if (!action.targetKey) return;
+  window.requestAnimationFrame(() => {
+    const target = elementForTargetKey(action.targetKey || "");
+    if (!target) return;
+    target.tabIndex = -1;
+    target.focus({ preventScroll: true });
+  });
 }
 
 function didGameRestart(previous: Snapshot | undefined, next: Snapshot) {
@@ -958,7 +1048,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
             <strong>${isMe ? "我的角色资源" : "对手角色资源"}</strong>
           </div>
           <div class="battle-side-zones">
-            ${renderPile("角色牌堆", player.characterDeckCount, isMe ? "character:deploy" : "", "上阵角色", player.id)}
+            ${renderPile("角色牌堆", player.characterDeckCount, isMe ? "character:deploy" : "", "上阵角色", player.id, isMe ? "R" : undefined)}
             ${renderZone("退场区", player.retired, player, "retired", isMe)}
             ${renderZone("移出游戏", player.banished, player, "banished", isMe)}
           </div>
@@ -993,20 +1083,21 @@ function renderCounter(label: string, value: string | number, command: string, p
 function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | undefined, isMyTurn: boolean) {
   const current = snapshot?.players.find((player) => player.id === game.currentPlayerId);
   const recentLogs = game.logs.slice(-3).reverse();
+  const filteredLogs = filterBattleLogs(game.logs, logFilter, snapshot?.you || "").slice(-30).reverse() as BattleLog[];
   const endTurnDisabled = !isMyTurn ? " disabled" : "";
   const endTurnTitle = isMyTurn ? "" : ' title="当前不是你的回合"';
   return `<section id="battle-center" class="battle-center">
     <div class="battle-turnbar ${isMyTurn ? "is-your-turn" : ""}">
       <span class="battle-turnbar__round">TURN ${game.turnNumber}</span>
       <div><small>${isMyTurn ? "ACTION AVAILABLE" : "WAITING FOR OPPONENT"}</small><strong class="${isMyTurn ? "battle-turnbar__you" : ""}">${current ? `${escapeHtml(current.nickname)} 的回合` : "等待开始"}</strong></div>
-      <button class="battle-small-btn battle-small-btn--accent" data-command="turn:end"${endTurnDisabled}${endTurnTitle}>结束回合</button>
+      <button class="battle-small-btn battle-small-btn--accent" data-command="turn:end" aria-keyshortcuts="E"${endTurnDisabled}${endTurnTitle}>结束回合</button>
     </div>
     <div class="battle-center__stage">
       ${opponent ? renderCenterBody(opponent, false) : `<div class="battle-center-body battle-center-body--empty"></div>`}
       <div class="battle-center__common">
         <div class="battle-center__lane-title"><i></i><span>公共结算区</span><i></i></div>
         <div class="battle-common-zones">
-          ${renderPile("共用牌堆", game.handDeckCount, "card:draw-hand", "摸 1 张")}
+          ${renderPile("共用牌堆", game.handDeckCount, "card:draw-hand", "摸 1 张", undefined, "D")}
           ${renderZone("结算区", game.resolving, me, "resolving", true, [
             { command: "resolving:discardAll", label: "全部弃置" },
           ])}
@@ -1025,12 +1116,31 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
       <button type="button" data-command="marker:create">创建标记</button>
       ${activeMoveTargets ? `<button type="button" data-command="move:cancel">取消落点</button>` : ""}
     </div>
-    ${recentLogs.length ? `<ul class="battle-log-recent" aria-label="最近操作">${recentLogs.map((log) => `<li><time>${formatLogTime(log.at)}</time>${escapeHtml(log.text)}</li>`).join("")}</ul>` : ""}
+    ${recentLogs.length ? `<ul class="battle-log-recent" aria-label="最近操作">${recentLogs.map(renderBattleLogItem).join("")}</ul>` : ""}
     <details class="battle-log">
       <summary>全部日志 · ${game.logs.length}</summary>
-      <ol>${game.logs.slice(-30).reverse().map((log) => `<li><time>${formatLogTime(log.at)}</time>${escapeHtml(log.text)}</li>`).join("")}</ol>
+      <div class="battle-log__filters" role="group" aria-label="筛选操作日志">
+        ${[
+          ["all", "全部"],
+          ["mine", "我的操作"],
+          ["opponent", "对手操作"],
+          ["inspection", "查看行为"],
+        ].map(([value, label]) => `<button type="button" data-log-filter="${value}" aria-pressed="${String(logFilter === value)}">${label}</button>`).join("")}
+      </div>
+      ${filteredLogs.length
+        ? `<ol>${filteredLogs.map(renderBattleLogItem).join("")}</ol>`
+        : `<p class="battle-log__empty">当前筛选下暂无日志</p>`}
     </details>
   </section>`;
+}
+
+function renderBattleLogItem(log: BattleLog) {
+  const canLocate = Boolean(log.target);
+  const content = `<time>${formatLogTime(log.at)}</time>${escapeHtml(log.text)}`;
+  return `<li>${canLocate
+    ? `<button type="button" class="battle-log__entry" data-log-id="${escapeHtml(log.id)}" title="定位到相关区域">${content}</button>`
+    : `<span class="battle-log__entry">${content}</span>`
+  }</li>`;
 }
 
 function renderCenterBody(player: PlayerView, isMe: boolean) {
@@ -1059,7 +1169,7 @@ function renderWaitingSeat() {
   return `<section class="battle-player battle-player--opponent battle-player--waiting"><strong>等待对手重新连接</strong></section>`;
 }
 
-function renderPile(title: string, count: number, command: string, action: string, ownerId?: string) {
+function renderPile(title: string, count: number, command: string, action: string, ownerId?: string, shortcut?: string) {
   const dropTarget = title === "共用牌堆"
     ? ` data-drop-target="handDeckTop"`
     : title === "角色牌堆"
@@ -1069,7 +1179,7 @@ function renderPile(title: string, count: number, command: string, action: strin
   return `<article class="battle-pile ${count ? "" : "is-empty"}"${dropTarget}${owner}>
     <div class="battle-card-back"><span>群友杀</span></div>
     <strong>${title}</strong><span class="battle-zone-count">${count} 张</span>
-    ${command ? `<button type="button" class="battle-small-btn" data-command="${command}">${action}</button>` : ""}
+    ${command ? `<button type="button" class="battle-small-btn" data-command="${command}"${shortcut ? ` aria-keyshortcuts="${shortcut}"` : ""}>${action}</button>` : ""}
   </article>`;
 }
 
@@ -1162,6 +1272,18 @@ function cardDefinition(card?: CardView) {
 }
 
 function bindActions() {
+  root.querySelectorAll<HTMLElement>("[data-log-filter]").forEach((element) => {
+    element.addEventListener("click", () => {
+      const next = element.dataset.logFilter;
+      if (next === "all" || next === "mine" || next === "opponent" || next === "inspection") {
+        logFilter = next;
+        render();
+      }
+    });
+  });
+  root.querySelectorAll<HTMLElement>("[data-log-id]").forEach((element) => {
+    element.addEventListener("click", () => locateBattleLog(element.dataset.logId || ""));
+  });
   root.querySelectorAll<HTMLElement>("[data-command]").forEach((element) => {
     element.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -1221,11 +1343,8 @@ function bindActions() {
       event.preventDefault();
       event.stopPropagation();
       const markerId = element.dataset.marker;
-      const label = element.dataset.markerLabel || element.textContent || "这个";
       if (!markerId) return;
-      showConfirmDialog(`移除标记「${label}」？`, () => {
-        send("marker:remove", { markerId });
-      });
+      send("marker:remove", { markerId });
     });
   });
   root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
@@ -1254,6 +1373,31 @@ function bindActions() {
       render();
     });
   });
+}
+
+function locateBattleLog(logId: string) {
+  const log = snapshot?.game.logs.find((item) => item.id === logId);
+  if (!log?.target || !snapshot) return;
+  const regionId = battleLogRegionId(log.target, snapshot.you);
+  const region = regionId ? document.getElementById(regionId) : null;
+  if (region) {
+    const rootBounds = root.getBoundingClientRect();
+    const regionBounds = region.getBoundingClientRect();
+    root.scrollTo({
+      top: root.scrollTop + regionBounds.top - rootBounds.top - 8,
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+    activeRegion = regionId || activeRegion;
+    updateRegionNavigation();
+  }
+  const targetKey = battleLogTargetKey(log.target, snapshot.you);
+  const target = targetKey ? elementForTargetKey(targetKey) : region;
+  if (!target) return;
+  target.classList.add("is-log-located");
+  target.tabIndex = -1;
+  target.focus({ preventScroll: true });
+  window.setTimeout(() => target.classList.remove("is-log-located"), 1200);
+  announce(`已定位：${log.text}`);
 }
 
 function syncRoomControls(started: boolean) {
@@ -1354,11 +1498,7 @@ function handleCommand(element: HTMLElement) {
     send(command);
   } else if (command === "turn:end") {
     if (element.hasAttribute("disabled")) {
-      showError("当前不是你的回合。若双方同意换手，请直接切换回合标记。");
-      return;
-    }
-    if (snapshot?.game.currentPlayerId !== snapshot?.you) {
-      showConfirmDialog("当前不是你的回合，仍要结束并标记回合切换？", () => send(command));
+      showError("当前不是你的回合。");
       return;
     }
     send(command);
@@ -1375,7 +1515,7 @@ function handleCommand(element: HTMLElement) {
       showError("手牌弃牌区为空。");
       return;
     }
-    showConfirmDialog(`将手牌弃牌区的 ${count} 张牌洗混后放到共用牌堆最下面？`, () => send(command));
+    send(command);
   } else if (command === "discard:viewAll") {
     showDiscardPile();
   } else if (command === "resolving:discardAll") {
@@ -1431,7 +1571,7 @@ function showNumberDialog(label: string, current: number, onSubmit: (value: numb
     onSubmit(Number(input.value));
     dialog.close();
   });
-  dialog.showModal();
+  openBattleDialog();
   input?.focus();
   input?.select();
 }
@@ -1459,7 +1599,7 @@ function showMarkerDialog(onSubmit: (label: string, slotIndex: number) => void) 
       dialog.close();
     });
   });
-  dialog.showModal();
+  openBattleDialog();
 }
 
 function showHandMarkerDialog(instanceId: string) {
@@ -1483,7 +1623,7 @@ function showHandMarkerDialog(instanceId: string) {
       dialog.close();
     });
   });
-  dialog.showModal();
+  openBattleDialog();
 }
 
 function showConfirmDialog(message: string, onConfirm: () => void) {
@@ -1500,7 +1640,7 @@ function showConfirmDialog(message: string, onConfirm: () => void) {
     onConfirm();
     dialog.close();
   });
-  dialog.showModal();
+  openBattleDialog();
 }
 
 type CardDialogMode = "detail" | "art";
@@ -1610,7 +1750,7 @@ function openCardMenu(element: HTMLElement) {
   const ownerId = element.dataset.owner || "";
   const zone = element.dataset.zone || "";
   renderCardDialog(instanceId, ownerId, zone, "detail");
-  dialog.showModal();
+  openBattleDialog(element);
 }
 
 function renderCardDialog(instanceId: string, ownerId: string, zone: string, mode: CardDialogMode) {
@@ -1834,7 +1974,7 @@ function showDiscardPile() {
       </article>`;
     }).join("")}</div>
   </div>`;
-  dialog.showModal();
+  openBattleDialog();
   dialogContent.querySelectorAll<HTMLElement>("[data-discard-move]").forEach((button) => {
     button.addEventListener("click", () => {
       const instanceId = button.dataset.discardMove;
@@ -1880,7 +2020,7 @@ function showInspection(
         </div>
       </article>`;
     }).join("")}</div></div>`;
-  dialog.showModal();
+  openBattleDialog();
   dialogContent.querySelectorAll<HTMLElement>("[data-inspection-move]").forEach((button) => {
     button.addEventListener("click", () => {
       send("card:move", {
@@ -1897,7 +2037,25 @@ function showError(message: string) {
   dialogContent.innerHTML = `<div class="battle-card-menu"><h2>操作未完成</h2><p>${escapeHtml(message)}</p>
     <button type="button" class="btn btn--primary" data-dialog-cancel>知道了</button></div>`;
   dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
-  dialog.showModal();
+  announce(`操作未完成：${message}`);
+  openBattleDialog();
+}
+
+function showShortcutHelp(returnFocus?: HTMLElement) {
+  dialogContent.innerHTML = `<div class="battle-card-menu battle-shortcut-help">
+    <span class="battle-kicker">键盘操作</span>
+    <h2>快捷键</h2>
+    <dl>
+      <div><dt><kbd>D</kbd></dt><dd>摸一张普通手牌</dd></div>
+      <div><dt><kbd>R</kbd></dt><dd>从角色牌堆上阵角色</dd></div>
+      <div><dt><kbd>E</kbd></dt><dd>结束当前回合</dd></div>
+      <div><dt><kbd>Esc</kbd></dt><dd>取消落点或关闭弹窗</dd></div>
+    </dl>
+    <p class="battle-dialog-hint">输入文字、操作弹窗或连接中断时不会触发快捷键。</p>
+    <button type="button" class="btn btn--primary" data-dialog-cancel>知道了</button>
+  </div>`;
+  dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
+  openBattleDialog(returnFocus);
 }
 
 function renderFatal(message: string) {

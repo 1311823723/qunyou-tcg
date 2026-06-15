@@ -231,6 +231,24 @@
 .battle-log ol { max-height: 7rem; margin: 0.35rem 0 0; padding: 0.4rem 0.6rem 0.4rem 1.5rem; overflow-y: auto; border-radius: 6px; background: rgba(0,0,0,0.25); font-size: 0.62rem; line-height: 1.45; }
 .battle-log li + li { margin-top: 0.2rem; }
 .battle-log time { margin-right: 0.4rem; color: var(--text-faint); font-family: var(--font-mono); }
+.battle-log__filters { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.3rem; margin: 0.35rem 0; }
+.battle-log__filters button { min-height: 1.8rem; padding: 0.2rem 0.6rem; border: 1px solid var(--border-soft); border-radius: 999px; color: var(--text-muted); background: rgba(255,255,255,0.035); font: 800 0.58rem var(--font-body); cursor: pointer; }
+.battle-log__filters button[aria-pressed="true"] { color: var(--accent-info); border-color: rgba(88,199,232,0.38); background: rgba(88,199,232,0.1); }
+.battle-log__entry { display: inline; padding: 0; border: 0; color: inherit; background: transparent; font: inherit; line-height: inherit; text-align: left; }
+button.battle-log__entry { cursor: pointer; }
+button.battle-log__entry:hover, button.battle-log__entry:focus-visible { color: var(--text-primary); text-decoration: underline; text-decoration-color: rgba(88,199,232,0.55); text-underline-offset: 0.18rem; }
+.battle-log__empty { margin: 0.4rem 0 0; padding: 0.6rem; border-radius: 6px; color: var(--text-faint); background: rgba(0,0,0,0.2); text-align: center; }
+.is-log-located { animation: battle-log-located 1.2s ease-out; }
+@keyframes battle-log-located {
+  0%, 45% { box-shadow: 0 0 0 2px rgba(88,199,232,0.72), 0 0 26px rgba(88,199,232,0.32); }
+  100% { box-shadow: none; }
+}
+.battle-sr-only { position: fixed; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.battle-shortcut-help dl { display: grid; gap: 0.45rem; margin: 0.8rem 0; }
+.battle-shortcut-help dl div { display: grid; grid-template-columns: 3rem 1fr; align-items: center; gap: 0.65rem; padding: 0.55rem 0.65rem; border: 1px solid var(--border-soft); border-radius: 9px; background: rgba(255,255,255,0.025); }
+.battle-shortcut-help dt, .battle-shortcut-help dd { margin: 0; }
+.battle-shortcut-help dd { color: var(--text-secondary); font-size: 0.78rem; }
+.battle-shortcut-help kbd { display: inline-grid; min-width: 2rem; min-height: 2rem; place-items: center; border: 1px solid rgba(216,183,92,0.4); border-bottom-width: 3px; border-radius: 7px; color: var(--text-gold); background: rgba(216,183,92,0.08); font: 900 0.72rem var(--font-mono); }
 .battle-dialog { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(92vw, 42rem); margin: 0; padding: 0; border: 1px solid var(--border-panel); border-radius: 18px; color: var(--text-primary); background: #111522; box-shadow: 0 28px 100px rgba(0,0,0,0.72); max-height: 88vh; overflow-y: auto; }
 .battle-dialog--art { width: min(94vw, 54rem); }
 .battle-dialog::backdrop { background: rgba(2,3,8,0.78); backdrop-filter: blur(8px); }

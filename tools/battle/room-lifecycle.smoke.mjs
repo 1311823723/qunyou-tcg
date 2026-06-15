@@ -167,6 +167,14 @@ const declaredSkill = await a.waitFor((message) =>
 );
 const declarationLog = declaredSkill.snapshot.game.logs.find((log) => log.text.includes("声明发动角色"));
 assert.ok(declarationLog.text.includes("技能【"));
+assert.equal(declarationLog.actorId, declaredSkill.snapshot.you);
+assert.equal(declarationLog.kind, "action");
+assert.deepEqual(declarationLog.target, {
+  zone: "characterSlot",
+  ownerId: declaredSkill.snapshot.you,
+  slotIndex: 0,
+});
+assert.equal(JSON.stringify(declarationLog.target).includes("instanceId"), false);
 step("character skill declaration logged with full details");
 
 a.messages.length = 0;
@@ -235,6 +243,10 @@ assert.ok(discardSnapshot.snapshot.game.logs.some((log) =>
   log.text.includes("弃置了")
   && /(黑桃|红桃|梅花|方块).+【.+】/.test(log.text)
 ));
+const discardLog = discardSnapshot.snapshot.game.logs.find((log) => log.text.includes("弃置了"));
+assert.equal(discardLog.kind, "action");
+assert.equal(discardLog.target.zone, "handDiscard");
+assert.equal(JSON.stringify(discardLog.target).includes(firstInspected.instanceId), false);
 step("discard log includes suit, rank and card name");
 
 a.messages.length = 0;
