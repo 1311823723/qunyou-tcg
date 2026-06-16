@@ -423,7 +423,11 @@ export class BattleRoom extends DurableObject<Env> {
         if (!card || card.kind !== "character" || card.ownerId !== player.id) throw new Error("只能翻转自己的角色。");
         card.faceDown = !card.faceDown;
         const located = this.locateCard(card.instanceId);
-        this.addLog(`${player.nickname} ${card.faceDown ? "暗置" : "明置"}了一张角色`, player.id, "action", {
+        const definition = characterById.get(card.definitionId);
+        const flipLabel = card.faceDown
+          ? "暗置了一张角色"
+          : `明置了角色【${definition?.name || "未知角色"}】`;
+        this.addLog(`${player.nickname} ${flipLabel}`, player.id, "action", {
           zone: "characterSlot",
           ownerId: player.id,
           slotIndex: located?.zone === "characterSlot" ? located.index : undefined,

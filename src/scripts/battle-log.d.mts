@@ -17,3 +17,10 @@ export function battleLogRegionId(
   target: BattleLog["target"],
   viewerId: string,
 ): string | undefined;
+
+export function formatBattleLog(log: BattleLog): {
+  badge: string;
+  tone: string;
+  text: string;
+  detail?: string;
+};

@@ -5,6 +5,7 @@ import {
   battleLogRegionId,
   battleLogTargetKey,
   filterBattleLogs,
+  formatBattleLog,
 } from "./battle-log.mjs";
 import type {
   CardView,
@@ -555,30 +556,63 @@ function actionFeedback(type: string, payload: Record<string, unknown>) {
   };
   if (type === "card:move") {
     const target = targetLabels[targetZone] || "目标区域";
-    return { label: `移动至${target}`, successMessage: `已置入${target}` };
+    const cardName = cardDisplayName(String(payload.instanceId || ""));
+    return {
+      label: `移动至${target}`,
+      successMessage: cardName ? `已将${cardName}置入${target}` : `已置入${target}`,
+    };
   }
   const labels: Record<string, string> = {
-    "card:draw": "摸牌",
-    "character:deploy": "上阵角色",
-    "card:flip": "翻转卡牌",
-    "body:flip": "翻转本体",
-    "character:declareSkill": "声明技能",
-    "health:set": "调整体力",
-    "megaProgress:set": "调整 Mega",
-    "deck:shuffle": "洗牌",
-    "deck:recycleDiscard": "洗回弃牌",
-    "resolving:discardAll": "弃置结算区",
-    "turn:end": "结束回合",
-    "marker:create": "创建标记",
-    "marker:remove": "移除标记",
-    "player:ready": "更新准备状态",
-    "player:selectDeck": "选择预组",
-    "room:restartRequest": "请求重新开始",
-    "room:restartRespond": "回应重新开始",
-    "room:restartCancel": "取消重新开始",
+    "card:draw": "已摸 1 张手牌",
+    "character:deploy": "已上阵 1 张角色",
+    "card:flip": "已翻转角色",
+    "body:flip": "已翻转本体",
+    "character:declareSkill": "已声明技能",
+    "health:set": "体力已调整",
+    "megaProgress:set": "Mega 已调整",
+    "deck:shuffle": "牌堆已洗混",
+    "deck:recycleDiscard": "弃牌已洗回牌堆底",
+    "resolving:discardAll": "结算区已全部弃置",
+    "turn:end": "已结束回合",
+    "marker:create": "标记已创建",
+    "marker:remove": "标记已移除",
+    "player:ready": "准备状态已更新",
+    "player:selectDeck": "预组已选择",
+    "room:restartRequest": "重新开始请求已发送",
+    "room:restartRespond": "重新开始回应已发送",
+    "room:restartCancel": "重新开始请求已取消",
   };
-  const label = labels[type] || "同步操作";
-  return { label, successMessage: `${label}已同步` };
+  const label = labels[type] || "操作已同步";
+  return { label, successMessage: label };
+}
+
+function cardDisplayName(instanceId: string) {
+  const card = findVisibleCard(instanceId);
+  const definition = cardDefinition(card);
+  if (!definition) return "";
+  const poker = card?.suit && card.rank ? `${suitSymbol(card.suit)}${card.rank} ` : "";
+  return `【${poker}${definition.name}】`;
+}
+
+function actionTargetKey(type: string, payload: Record<string, unknown>) {
+  if (type === "card:move") return moveTargetKey(payload);
+  const you = snapshot?.you || confirmedSnapshot?.you || "";
+  if (type === "card:draw") return you ? `hand@${you}` : "hand";
+  if (type === "character:deploy") return you ? `characterDeckBottom@${you}` : "characterDeckBottom";
+  if (type === "card:flip" || type === "character:declareSkill") {
+    return typeof payload.instanceId === "string" ? `card:${payload.instanceId}` : undefined;
+  }
+  if (type === "body:flip") return you ? `body@${you}` : undefined;
+  if (type === "health:set" || type === "megaProgress:set") {
+    const playerId = String(payload.playerId || you);
+    return playerId ? `player@${playerId}` : undefined;
+  }
+  if (type === "deck:shuffle") return payload.deck === "hand" ? "handDeckTop" : you ? `characterDeckBottom@${you}` : "characterDeckBottom";
+  if (type === "deck:recycleDiscard") return "handDeckTop";
+  if (type === "resolving:discardAll") return "handDiscard";
+  if (type === "turn:end") return "battle-center";
+  if (type === "marker:create" && Number.isInteger(payload.slotIndex)) return `characterSlot:${String(payload.slotIndex)}@${you}`;
+  return undefined;
 }
 
 function actionLockKey(type: string, payload: Record<string, unknown>) {
@@ -621,7 +655,7 @@ function send(type: string, payload: Record<string, unknown> = {}) {
     successMessage: feedback.successMessage,
     lockKey,
     cardId: typeof payload.instanceId === "string" ? payload.instanceId : undefined,
-    targetKey: type === "card:move" ? moveTargetKey(payload) : undefined,
+    targetKey: actionTargetKey(type, payload),
     optimistic,
   };
   pendingActions.set(msg.actionId, pending);
@@ -815,6 +849,16 @@ function highlightMoveTarget(targetKey: string) {
 }
 
 function elementForTargetKey(targetKey: string) {
+  if (targetKey === "battle-center") return document.getElementById("battle-center") ?? undefined;
+  if (targetKey.startsWith("card:")) {
+    return root.querySelector<HTMLElement>(`[data-card="${CSS.escape(targetKey.slice(5))}"]`) ?? undefined;
+  }
+  if (targetKey.startsWith("body@")) {
+    return root.querySelector<HTMLElement>(`[data-owner="${CSS.escape(targetKey.slice(5))}"][data-zone="body"]`) ?? undefined;
+  }
+  if (targetKey.startsWith("player@")) {
+    return root.querySelector<HTMLElement>(`[data-player-id="${CSS.escape(targetKey.slice(7))}"]`) ?? undefined;
+  }
   const [dropTarget, ownerId] = targetKey.split("@");
   return [...root.querySelectorAll<HTMLElement>("[data-drop-target]")].find((element) =>
     element.dataset.dropTarget === dropTarget
@@ -1292,7 +1336,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
   const megaText = max ? `${player.megaProgress || 0}/${max}` : String(player.megaProgress || 0);
   const turnClass = snapshot?.game.currentPlayerId === player.id ? " battle-player--active-turn" : "";
   return `
-    <section id="battle-player-${isMe ? "self" : "opponent"}" class="battle-player ${themeClasses(deck?.theme)} ${isMe ? "battle-player--self" : "battle-player--opponent"}${turnClass}" data-side="${isMe ? "self" : "opponent"}">
+    <section id="battle-player-${isMe ? "self" : "opponent"}" class="battle-player ${themeClasses(deck?.theme)} ${isMe ? "battle-player--self" : "battle-player--opponent"}${turnClass}" data-side="${isMe ? "self" : "opponent"}" data-player-id="${player.id}">
       <header class="battle-player__header">
         <div class="battle-player__identity">
           <span><i class="${player.connected ? "is-online" : ""}"></i>${isMe ? "你的阵地" : "对手阵地"} · ${player.connected ? "在线" : "离线"}</span>
@@ -1412,9 +1456,11 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
 
 function renderBattleLogItem(log: BattleLog) {
   const canLocate = Boolean(log.target);
-  const content = `<time>${formatLogTime(log.at)}</time>${escapeHtml(log.text)}`;
+  const view = formatBattleLog(log);
+  const detail = view.detail ? `<small>${escapeHtml(view.detail)}</small>` : "";
+  const content = `<time>${formatLogTime(log.at)}</time><span class="battle-log__badge battle-log__badge--${escapeHtml(view.tone)}">${escapeHtml(view.badge)}</span><span class="battle-log__text">${escapeHtml(view.text)}${detail}</span>`;
   return `<li>${canLocate
-    ? `<button type="button" class="battle-log__entry" data-log-id="${escapeHtml(log.id)}" title="定位到相关区域">${content}</button>`
+    ? `<button type="button" class="battle-log__entry" data-log-id="${escapeHtml(log.id)}" title="${escapeHtml(log.text)}">${content}</button>`
     : `<span class="battle-log__entry">${content}</span>`
   }</li>`;
 }
@@ -1728,6 +1774,8 @@ function applyMoveTargetHints(active: ActiveMoveTargets) {
 }
 
 function applyHighlightedTarget() {
+  const directTarget = elementForTargetKey(highlightedTargetKey);
+  if (directTarget) directTarget.classList.add("is-action-success");
   root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
     const owner = element.dataset.zoneOwner ? `@${element.dataset.zoneOwner}` : "";
     const dropTarget = element.dataset.dropTarget || "";
