@@ -8,6 +8,8 @@ export type CatalogCard = {
   highResImagePath?: string;
   extraImagePath?: string;
   extraHighResImagePath?: string;
+  portraitPath?: string;
+  extraPortraitPath?: string;
   extraName?: string;
   extraSubtitle?: string;
   extraText?: string;
@@ -101,6 +103,20 @@ export type Snapshot = {
 
 export type InspectionAction = "handDeckTop" | "handDeckBottom" | "handDiscard" | "hand";
 
+export type AnimationMode = "full" | "compact" | "off";
+
+export type VisualEffectEvent = {
+  type: "visualEffect";
+  eventId: string;
+  revision: number;
+  effect: "turnStart" | "characterFlip" | "characterSkill" | "bodyMega";
+  actorId?: string;
+  ownerId: string;
+  definitionId?: string;
+  slotIndex?: number;
+  faceDown?: boolean;
+};
+
 export type ServerMessage =
   | { type: "snapshot"; snapshot: Snapshot }
   | { type: "actionAck"; actionId: string; revision: number; duplicate?: boolean }
@@ -113,6 +129,7 @@ export type ServerMessage =
       cards: CardView[];
       allowedActions: InspectionAction[];
     }
+  | VisualEffectEvent
   | { type: "roomEnded" };
 
 export type PreservedUI = {

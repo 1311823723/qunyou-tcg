@@ -102,11 +102,36 @@ const [startedA, startedB] = await Promise.all([
   b.waitFor((message) => message.type === "snapshot" && message.snapshot.game.started),
 ]);
 step("game started");
+const [turnStartA, turnStartB] = await Promise.all([
+  a.waitFor((message) => message.type === "visualEffect" && message.effect === "turnStart"),
+  b.waitFor((message) => message.type === "visualEffect" && message.effect === "turnStart"),
+]);
+assert.equal(turnStartA.eventId, turnStartB.eventId);
+assert.equal(turnStartA.revision, startedA.snapshot.revision);
+assert.equal(turnStartB.revision, startedB.snapshot.revision);
+step("turn start visual effect synchronized");
 const ownerView = startedA.snapshot.players.find((player) => player.id === startedA.snapshot.you);
 const guestView = startedB.snapshot.players.find((player) => player.id === startedB.snapshot.you);
 const originalBodyId = ownerView.body.instanceId;
 const ownerOpponent = startedA.snapshot.players.find((player) => player.id !== startedA.snapshot.you);
 const guestOpponent = startedB.snapshot.players.find((player) => player.id !== startedB.snapshot.you);
+assert.equal(turnStartA.definitionId, startedA.snapshot.players.find((player) => player.id === turnStartA.ownerId)?.body.definitionId);
+
+a.messages.length = 0;
+b.messages.length = 0;
+a.send("body:flip");
+const [megaA, megaB] = await Promise.all([
+  a.waitFor((message) => message.type === "visualEffect" && message.effect === "bodyMega"),
+  b.waitFor((message) => message.type === "visualEffect" && message.effect === "bodyMega"),
+]);
+assert.equal(megaA.eventId, megaB.eventId);
+assert.equal(megaA.definitionId, ownerView.body.definitionId);
+assert.equal(megaA.ownerId, ownerView.id);
+await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.players.find((player) => player.id === ownerView.id)?.bodyFlipped,
+);
+step("body Mega visual effect synchronized");
 
 b.send("health:set", { playerId: ownerView.id, value: 5 });
 await Promise.all([
@@ -154,7 +179,32 @@ assert.equal(hiddenRole.definitionId, undefined);
 assert.ok(hiddenRoleSnapshot.snapshot.game.logs.every((log) => !log.text.includes(ownerCharacter.definitionId)));
 
 a.messages.length = 0;
+b.messages.length = 0;
+a.send("card:flip", { instanceId: ownerCharacter.instanceId });
+const [flipA, flipB] = await Promise.all([
+  a.waitFor((message) => message.type === "visualEffect" && message.effect === "characterFlip"),
+  b.waitFor((message) => message.type === "visualEffect" && message.effect === "characterFlip"),
+]);
+assert.equal(flipA.eventId, flipB.eventId);
+assert.equal(flipA.definitionId, ownerCharacter.definitionId);
+assert.equal(flipA.slotIndex, 0);
+await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.players.find((player) => player.id === message.snapshot.you)
+    ?.characterSlots[0]?.faceDown === false,
+);
+step("character flip visual effect synchronized");
+
+a.messages.length = 0;
+b.messages.length = 0;
 a.send("character:declareSkill", { instanceId: ownerCharacter.instanceId });
+const [skillEffectA, skillEffectB] = await Promise.all([
+  a.waitFor((message) => message.type === "visualEffect" && message.effect === "characterSkill"),
+  b.waitFor((message) => message.type === "visualEffect" && message.effect === "characterSkill"),
+]);
+assert.equal(skillEffectA.eventId, skillEffectB.eventId);
+assert.equal(skillEffectA.definitionId, ownerCharacter.definitionId);
+assert.equal(skillEffectA.slotIndex, 0);
 const declaredSkill = await a.waitFor((message) =>
   message.type === "snapshot"
   && message.snapshot.game.logs.some((log) =>

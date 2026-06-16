@@ -116,3 +116,20 @@ export interface InspectionResult {
   allowedActions: InspectionAction[];
   audience?: "actor" | "all";
 }
+
+export type VisualEffectName = "turnStart" | "characterFlip" | "characterSkill" | "bodyMega";
+
+export interface VisualEffectSpec {
+  effect: VisualEffectName;
+  actorId?: string;
+  ownerId: string;
+  definitionId?: string;
+  slotIndex?: number;
+  faceDown?: boolean;
+}
+
+export interface VisualEffectEvent extends VisualEffectSpec {
+  type: "visualEffect";
+  eventId: string;
+  revision: number;
+}

@@ -1,6 +1,7 @@
 import { allBodies, allCharacters, allHandCards, resolveBodyCard } from "./cards";
 import { allDecks } from "./decks";
 import { getArchetypeBlurb } from "./archetypes";
+import { getCharacterArt } from "./card-art";
 import { formatCharacterCost } from "./ui";
 
 const ARCHETYPE_THEME_SLUG: Record<string, string> = {
@@ -24,6 +25,10 @@ export interface BattleCatalogCard {
   extraImagePath?: string;
   /** 本体额外形态高清卡图 */
   extraHighResImagePath?: string;
+  /** 战斗演出人物图或独立原画 */
+  portraitPath?: string;
+  /** Mega 战斗演出人物图 */
+  extraPortraitPath?: string;
   extraName?: string;
   /** Mega 技能描述 */
   extraSubtitle?: string;
@@ -50,6 +55,8 @@ export function getBattleCatalog() {
       highResImagePath: `/cards-hd/bodies/${body.id}_front.webp`,
       extraImagePath: `/cards/bodies/${body.id}_mega_back.webp`,
       extraHighResImagePath: `/cards-hd/bodies/${body.id}_mega_back.webp`,
+      portraitPath: `/battle-portraits/${body.id}_front.webp`,
+      extraPortraitPath: `/battle-portraits/${body.id}_mega.webp`,
       extraName: body.extraForm?.name,
       extraSubtitle: body.extraForm ? `${body.archetype} · ${body.extraForm.skillName}` : undefined,
       extraText: body.extraForm?.effectText,
@@ -59,6 +66,7 @@ export function getBattleCatalog() {
   }
 
   for (const card of allCharacters) {
+    const art = getCharacterArt(card.id);
     cards[card.id] = {
       id: card.id,
       name: card.name,
@@ -69,6 +77,7 @@ export function getBattleCatalog() {
       costText: formatCharacterCost(card.cost),
       imagePath: `/cards/characters/${card.id}.webp`,
       highResImagePath: `/cards-hd/characters/${card.id}.webp`,
+      portraitPath: art?.src,
     };
   }
 

@@ -37,6 +37,7 @@ import type {
   PlayerState,
   RoomState,
   SocketAttachment,
+  VisualEffectSpec,
   ZoneName,
 } from "./types";
 
@@ -272,13 +273,15 @@ export class BattleRoom extends DurableObject<Env> {
       ) {
         throw new Error("牌桌状态已更新，请等待同步后重试。");
       }
-      const inspection = this.applyAction(player, message);
+      const visualEffects: VisualEffectSpec[] = [];
+      const inspection = this.applyAction(player, message, visualEffects);
       this.state.processedActionIds.push(message.actionId);
       this.state.processedActionIds = this.state.processedActionIds.slice(-100);
       this.state.lastActivityAt = Date.now();
       this.state.revision += 1;
       await this.persist();
       this.broadcast();
+      this.broadcastVisualEffects(visualEffects);
       if ((message.protocolVersion ?? 1) >= 2) this.sendActionAck(ws, message.actionId);
       if (inspection) {
         if (inspection.audience === "all") {
@@ -372,7 +375,11 @@ export class BattleRoom extends DurableObject<Env> {
     return result.migrated;
   }
 
-  private applyAction(player: PlayerState, message: ClientMessage): InspectionResult | void {
+  private applyAction(
+    player: PlayerState,
+    message: ClientMessage,
+    visualEffects: VisualEffectSpec[],
+  ): InspectionResult | void {
     if (!this.state) throw new Error("房间状态不存在。");
     const payload = message.payload || {};
 
@@ -393,7 +400,8 @@ export class BattleRoom extends DurableObject<Env> {
           ownerId: player.id,
         });
         if (this.state.players.length === 2 && this.state.players.every((item) => item.ready && item.deckId)) {
-          this.startGame();
+          const first = this.startGame();
+          visualEffects.push(this.turnStartEffect(first));
         }
         return;
       }
@@ -420,12 +428,30 @@ export class BattleRoom extends DurableObject<Env> {
           ownerId: player.id,
           slotIndex: located?.zone === "characterSlot" ? located.index : undefined,
         });
+        visualEffects.push({
+          effect: "characterFlip",
+          actorId: player.id,
+          ownerId: player.id,
+          ...(card.faceDown ? {} : { definitionId: card.definitionId }),
+          ...(located?.zone === "characterSlot" ? { slotIndex: located.index } : {}),
+          faceDown: Boolean(card.faceDown),
+        });
         return;
       }
-      case "character:declareSkill":
+      case "character:declareSkill": {
         this.requireStarted();
-        this.declareCharacterSkill(player, cleanText(payload.instanceId, 80));
+        const located = this.declareCharacterSkill(player, cleanText(payload.instanceId, 80));
+        if (!located.card.faceDown && located.zone === "characterSlot") {
+          visualEffects.push({
+            effect: "characterSkill",
+            actorId: player.id,
+            ownerId: player.id,
+            definitionId: located.card.definitionId,
+            slotIndex: located.index,
+          });
+        }
         return;
+      }
       case "card:inspect":
         this.requireStarted();
         return this.inspect(player, payload);
@@ -451,6 +477,14 @@ export class BattleRoom extends DurableObject<Env> {
           zone: "body",
           ownerId: player.id,
         });
+        if (player.bodyFlipped && player.body) {
+          visualEffects.push({
+            effect: "bodyMega",
+            actorId: player.id,
+            ownerId: player.id,
+            definitionId: player.body.definitionId,
+          });
+        }
         return;
       case "health:set": {
         this.requireStarted();
@@ -520,6 +554,7 @@ export class BattleRoom extends DurableObject<Env> {
         this.state.currentPlayerId = opponent.id;
         this.state.turnNumber += 1;
         this.addLog(`${player.nickname} 结束了回合`, player.id, "action", { zone: "turn" });
+        visualEffects.push(this.turnStartEffect(opponent, player.id));
         return;
       }
       case "room:restartRequest": {
@@ -547,7 +582,8 @@ export class BattleRoom extends DurableObject<Env> {
           return;
         }
         this.state.pendingRestart = undefined;
-        this.initializeGame("restart");
+        const first = this.initializeGame("restart");
+        visualEffects.push(this.turnStartEffect(first, player.id));
         return;
       }
       case "room:restartCancel": {
@@ -566,11 +602,11 @@ export class BattleRoom extends DurableObject<Env> {
   }
 
   private startGame() {
-    this.initializeGame("start");
+    return this.initializeGame("start");
   }
 
   private initializeGame(reason: "start" | "restart") {
-    if (!this.state) return;
+    if (!this.state) throw new Error("房间状态不存在。");
     this.state.inspections = [];
     this.state.pendingRestart = undefined;
     this.state.handDeck = this.shuffle(handCards.flatMap((definition) =>
@@ -622,6 +658,7 @@ export class BattleRoom extends DurableObject<Env> {
     this.addLog(reason === "restart"
       ? `牌局已重新开始，${first.nickname} 为先手`
       : `牌局开始，${first.nickname} 为先手`, undefined, "system", { zone: "turn" });
+    return first;
   }
 
   private draw(player: PlayerState, deck: string, count: number, log = true) {
@@ -779,6 +816,7 @@ export class BattleRoom extends DurableObject<Env> {
       "action",
       { zone: "characterSlot", ownerId: player.id, slotIndex: located.index },
     );
+    return located;
   }
 
   private locateCard(instanceId: string): LocatedCard | undefined {
@@ -1072,6 +1110,35 @@ export class BattleRoom extends DurableObject<Env> {
         // A closing socket will disappear from getWebSockets on the next event.
       }
     }
+  }
+
+  private broadcastVisualEffects(effects: VisualEffectSpec[]) {
+    if (!this.state || effects.length === 0) return;
+    const revision = this.state.revision;
+    for (const effect of effects) {
+      const message = {
+        type: "visualEffect",
+        eventId: crypto.randomUUID(),
+        revision,
+        ...effect,
+      };
+      for (const socket of this.ctx.getWebSockets()) {
+        try {
+          socket.send(JSON.stringify(message));
+        } catch {
+          // A closing socket will disappear from the next socket list.
+        }
+      }
+    }
+  }
+
+  private turnStartEffect(player: PlayerState, actorId?: string): VisualEffectSpec {
+    return {
+      effect: "turnStart",
+      ...(actorId ? { actorId } : {}),
+      ownerId: player.id,
+      ...(player.body ? { definitionId: player.body.definitionId } : {}),
+    };
   }
 
   private sendActionAck(ws: WebSocket, actionId: string, duplicate = false) {

@@ -8,6 +8,7 @@ import {
 } from "./battle-log.mjs";
 import type {
   CardView,
+  AnimationMode,
   BattleLog,
   Catalog,
   CatalogCard,
@@ -19,6 +20,7 @@ import type {
   PreservedUI,
   ServerMessage,
   Snapshot,
+  VisualEffectEvent,
 } from "./battle-types";
 
 function requiredElement<T extends Element>(selector: string): T {
@@ -27,13 +29,14 @@ function requiredElement<T extends Element>(selector: string): T {
   return element;
 }
 
-requiredElement<HTMLElement>("#battle-app");
+const app = requiredElement<HTMLElement>("#battle-app");
 const root = requiredElement<HTMLElement>("#battle-root");
 const status = requiredElement<HTMLElement>("#battle-connection");
 const statusText = status.querySelector<HTMLElement>(".battle-connection__text") ?? status;
 const roomLabel = requiredElement<HTMLElement>("#battle-room-code");
 const toastEl = document.querySelector<HTMLElement>("#battle-toast");
 const announcerEl = document.querySelector<HTMLElement>("#battle-announcer");
+const effectLayer = requiredElement<HTMLElement>("#battle-effect-layer");
 const coachEl = document.querySelector<HTMLElement>("#battle-coach");
 const dialog = requiredElement<HTMLDialogElement>("#battle-dialog");
 const dialogContent = requiredElement<HTMLElement>("#battle-dialog-content");
@@ -45,6 +48,7 @@ const TOKEN_KEY = "qunyou-battle-token-v1";
 const PENDING_KEY = "qunyou-battle-pending-v1";
 const COACH_KEY = "qunyou-battle-coach-v1";
 const TABLE_MODE_KEY = "qunyou-battle-table-mode-v1";
+const ANIMATION_MODE_KEY = "qunyou-battle-animation-mode-v1";
 const roomCode = getRoomCode();
 type TableMode = "compact" | "full";
 let snapshot: Snapshot | undefined;
@@ -105,6 +109,14 @@ let highlightedSkillUntil = 0;
 let highlightedSkillTimer = 0;
 let logFilter: PreservedUI["logFilter"] = "all";
 let dialogReturnFocus: HTMLElement | null = null;
+let animationMode = readAnimationMode();
+const effectQueue: VisualEffectEvent[] = [];
+const seenEffectIds = new Set<string>();
+let effectPlaying = false;
+let effectTimer = 0;
+let effectResolve: (() => void) | undefined;
+let effectGeneration = 0;
+let bodyPortraitsPreloaded = false;
 
 const COACH_STEPS = [
   { title: "点击卡牌查看技能", text: "点任意卡牌可阅读完整效果，并从菜单移动到其他区域。" },
@@ -115,6 +127,7 @@ const COACH_STEPS = [
 
 roomLabel.textContent = roomCode;
 applyTableMode();
+applyAnimationMode();
 
 function setConnectionState(label: string, state: string) {
   statusText.textContent = label;
@@ -168,6 +181,14 @@ document.querySelector("#battle-copy-code")?.addEventListener("click", async (ev
 
 document.querySelector(".battle-topbar")?.addEventListener("click", (event) => {
   if (!(event.target instanceof Element)) return;
+  const animationToggle = event.target.closest<HTMLElement>("[data-animation-mode-toggle]");
+  if (animationToggle) {
+    animationMode = animationMode === "full" ? "compact" : animationMode === "compact" ? "off" : "full";
+    localStorage.setItem(ANIMATION_MODE_KEY, animationMode);
+    applyAnimationMode();
+    animationToggle.closest<HTMLDetailsElement>(".battle-topbar-menu")?.removeAttribute("open");
+    return;
+  }
   const shortcutHelp = event.target.closest<HTMLElement>("[data-shortcut-help]");
   if (shortcutHelp) {
     showShortcutHelp(shortcutHelp);
@@ -301,6 +322,33 @@ function applyTableMode() {
   });
 }
 
+function readAnimationMode(): AnimationMode {
+  const saved = localStorage.getItem(ANIMATION_MODE_KEY);
+  return saved === "compact" || saved === "off" ? saved : "full";
+}
+
+function effectiveAnimationMode(): AnimationMode {
+  if (animationMode === "off") return "off";
+  return matchMedia("(prefers-reduced-motion: reduce)").matches ? "compact" : animationMode;
+}
+
+function applyAnimationMode() {
+  app.dataset.animationMode = effectiveAnimationMode();
+  const labels: Record<AnimationMode, string> = {
+    full: "动画：完整",
+    compact: "动画：精简",
+    off: "动画：关闭",
+  };
+  document.querySelectorAll<HTMLElement>("[data-animation-mode-toggle]").forEach((button) => {
+    button.textContent = labels[animationMode];
+    button.setAttribute("aria-label", `${labels[animationMode]}，点击切换`);
+    button.title = matchMedia("(prefers-reduced-motion: reduce)").matches && animationMode === "full"
+      ? "系统已开启减少动态效果，当前按精简模式播放"
+      : "切换战斗动画效果";
+  });
+  if (effectiveAnimationMode() === "off") clearVisualEffects();
+}
+
 function captureUIState(): PreservedUI {
   const scrollLeft: Record<string, number> = {};
   root.querySelectorAll<HTMLElement>("[data-scroll-key]").forEach((element) => {
@@ -401,13 +449,17 @@ async function connect() {
     const message = JSON.parse(String(event.data)) as ServerMessage;
     if (message.type === "snapshot") {
       const nextSnapshot = normalizeBattleSnapshot(message.snapshot);
-      const restarted = didGameRestart(confirmedSnapshot ?? snapshot, nextSnapshot);
+      const previousSnapshot = confirmedSnapshot ?? snapshot;
+      const restarted = didGameRestart(previousSnapshot, nextSnapshot);
       if (restarted) resetTransientUIForRestart();
+      if (!restarted) enqueueBodyReturnEffects(previousSnapshot, nextSnapshot);
       confirmedSnapshot = nextSnapshot;
       rebuildOptimisticSnapshot();
       settleConfirmedActions();
       setConnectionState(`已同步 · r${nextSnapshot.revision}`, "open");
       render();
+      preloadBodyPortraits();
+      flushVisualEffects();
       if (restarted) showToast("牌局已重新开始");
     } else if (message.type === "actionAck") {
       const pending = pendingActions.get(message.actionId);
@@ -422,6 +474,8 @@ async function connect() {
         message.viewerId,
         message.allowedActions,
       );
+    } else if (message.type === "visualEffect") {
+      enqueueVisualEffect(message);
     } else if (message.type === "roomEnded") {
       roomEnded = true;
       hasConnected = false;
@@ -435,6 +489,7 @@ async function connect() {
       </section>`;
       setConnectionState("已结束", "failed");
       syncRoomControls(false);
+      clearVisualEffects();
     } else if (message.type === "error") {
       rejectPendingAction(message.actionId);
       showError(message.error);
@@ -450,6 +505,7 @@ async function connect() {
       return;
     }
     clearPendingActions(true);
+    clearVisualEffects();
     setConnectionState("重连中", "closed");
     reconnectTimer = window.setTimeout(connect, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);
@@ -796,6 +852,175 @@ function resetTransientUIForRestart() {
   activeRegion = "battle-center";
   if (dialog.open) dialog.close();
   dialogContent.innerHTML = "";
+  clearVisualEffects();
+}
+
+function enqueueVisualEffect(event: VisualEffectEvent) {
+  if (seenEffectIds.has(event.eventId)) return;
+  seenEffectIds.add(event.eventId);
+  if (seenEffectIds.size > 200) {
+    const oldest = seenEffectIds.values().next().value;
+    if (oldest) seenEffectIds.delete(oldest);
+  }
+  if (effectiveAnimationMode() === "off") return;
+  effectQueue.push(event);
+  effectQueue.sort((left, right) => left.revision - right.revision);
+  flushVisualEffects();
+}
+
+function enqueueBodyReturnEffects(previous: Snapshot | undefined, next: Snapshot) {
+  if (!previous?.game.started || !next.game.started) return;
+  for (const player of next.players) {
+    const before = previous.players.find((item) => item.id === player.id);
+    if (!before?.bodyFlipped || player.bodyFlipped || !player.body?.definitionId) continue;
+    enqueueVisualEffect({
+      type: "visualEffect",
+      eventId: `body-return-${next.revision}-${player.id}`,
+      revision: next.revision,
+      effect: "bodyMega",
+      ownerId: player.id,
+      definitionId: player.body.definitionId,
+      faceDown: true,
+    });
+  }
+}
+
+async function flushVisualEffects() {
+  if (effectPlaying || !snapshot || effectiveAnimationMode() === "off") return;
+  const next = effectQueue[0];
+  if (!next || snapshot.revision < next.revision) return;
+  effectQueue.shift();
+  effectPlaying = true;
+  const generation = effectGeneration;
+  try {
+    await playVisualEffect(next, generation);
+  } finally {
+    effectPlaying = false;
+    if (generation === effectGeneration) flushVisualEffects();
+  }
+}
+
+function visualEffectSource(event: VisualEffectEvent) {
+  if (event.effect === "characterFlip" || event.effect === "characterSkill") {
+    if (!Number.isInteger(event.slotIndex)) return undefined;
+    return root.querySelector<HTMLElement>(
+      `[data-owner="${event.ownerId}"][data-zone="slot:${event.slotIndex}"]`,
+    ) ?? undefined;
+  }
+  return root.querySelector<HTMLElement>(`[data-owner="${event.ownerId}"][data-zone="body"]`) ?? undefined;
+}
+
+async function playVisualEffect(event: VisualEffectEvent, generation: number) {
+  const mode = effectiveAnimationMode();
+  if (mode === "off") return;
+  const source = visualEffectSource(event);
+  const sourceClass = event.effect === "turnStart"
+    ? "is-effect-turn"
+    : event.effect === "characterFlip"
+      ? "is-effect-flip"
+      : event.effect === "characterSkill"
+        ? "is-effect-skill"
+        : event.faceDown
+          ? "is-effect-mega-return"
+          : "is-effect-mega";
+  source?.classList.add(sourceClass);
+
+  const definition = event.definitionId ? catalog.cards[event.definitionId] : undefined;
+  const owner = snapshot?.players.find((player) => player.id === event.ownerId);
+  const isSelf = event.ownerId === snapshot?.you;
+  const title = event.effect === "turnStart"
+    ? (isSelf ? "你的回合" : `${owner?.nickname || "对手"}的回合`)
+    : event.effect === "characterFlip"
+      ? (event.faceDown ? "角色暗置" : "角色明置")
+      : event.effect === "characterSkill"
+        ? definition?.subtitle.split(" · ").at(-1) || "技能发动"
+        : event.faceDown
+          ? "回归常态"
+          : "MEGA";
+  const subtitle = event.effect === "characterSkill"
+    ? definition?.name || "角色技能"
+    : event.effect === "bodyMega"
+      ? (event.faceDown ? definition?.name : definition?.extraName || definition?.name)
+      : definition?.name || owner?.nickname || "";
+
+  if (mode === "full" && event.effect !== "characterFlip") {
+    const portrait = event.effect === "bodyMega" && !event.faceDown
+      ? definition?.extraPortraitPath || definition?.extraHighResImagePath || definition?.extraImagePath
+      : definition?.portraitPath || definition?.highResImagePath || definition?.imagePath;
+    const normalCard = definition?.highResImagePath || definition?.imagePath;
+    const megaCard = definition?.extraHighResImagePath || definition?.extraImagePath || normalCard;
+    const frontCard = event.effect === "bodyMega" && event.faceDown ? megaCard : normalCard;
+    const backCard = event.effect === "bodyMega" && event.faceDown ? normalCard : megaCard;
+    effectLayer.innerHTML = `<section class="battle-cinematic battle-cinematic--${event.effect}${event.faceDown ? " is-returning" : ""}">
+      <div class="battle-cinematic__shade"></div>
+      <div class="battle-cinematic__energy" aria-hidden="true"><i></i><i></i><i></i></div>
+      ${event.effect === "bodyMega" && frontCard
+        ? `<div class="battle-cinematic__flip-card">
+            <img class="battle-cinematic__card-front" src="${escapeHtml(frontCard)}" alt="" />
+            <img class="battle-cinematic__card-back" src="${escapeHtml(backCard || frontCard)}" alt="" />
+          </div>`
+        : ""}
+      ${portrait ? `<img class="battle-cinematic__portrait" src="${escapeHtml(portrait)}" alt="" />` : ""}
+      <div class="battle-cinematic__caption">
+        <small>${escapeHtml(subtitle || "")}</small>
+        <strong>${escapeHtml(title)}</strong>
+      </div>
+    </section>`;
+    effectLayer.classList.add("is-playing");
+  }
+
+  announce(`${subtitle ? `${subtitle}，` : ""}${title}`);
+  const duration = mode === "full"
+    ? event.effect === "bodyMega" ? 1180 : 980
+    : 620;
+  await new Promise<void>((resolve) => {
+    effectResolve = resolve;
+    window.clearTimeout(effectTimer);
+    effectTimer = window.setTimeout(() => {
+      effectResolve = undefined;
+      resolve();
+    }, duration);
+  });
+  if (generation !== effectGeneration) return;
+  source?.classList.remove(sourceClass);
+  effectLayer.classList.remove("is-playing");
+  effectLayer.innerHTML = "";
+}
+
+function clearVisualEffects() {
+  effectGeneration += 1;
+  effectQueue.length = 0;
+  window.clearTimeout(effectTimer);
+  effectResolve?.();
+  effectResolve = undefined;
+  effectLayer.classList.remove("is-playing");
+  effectLayer.innerHTML = "";
+  root.querySelectorAll<HTMLElement>(
+    ".is-effect-turn, .is-effect-flip, .is-effect-skill, .is-effect-mega, .is-effect-mega-return",
+  ).forEach((element) => {
+    element.classList.remove(
+      "is-effect-turn",
+      "is-effect-flip",
+      "is-effect-skill",
+      "is-effect-mega",
+      "is-effect-mega-return",
+    );
+  });
+  effectPlaying = false;
+}
+
+function preloadBodyPortraits() {
+  if (bodyPortraitsPreloaded || !snapshot?.game.started) return;
+  bodyPortraitsPreloaded = true;
+  const paths = snapshot.players.flatMap((player) => {
+    const definition = cardDefinition(player.body);
+    return [definition?.portraitPath, definition?.extraPortraitPath].filter((path): path is string => Boolean(path));
+  });
+  for (const path of new Set(paths)) {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = path;
+  }
 }
 
 function render() {

@@ -31,6 +31,7 @@ const { catalog } = Astro.props;
       </span>
       <div class="battle-topbar__desktop-actions">
         <button type="button" class="battle-icon-btn battle-mode-toggle" data-table-mode-toggle aria-pressed="true">紧凑模式</button>
+        <button type="button" class="battle-icon-btn battle-animation-toggle" data-animation-mode-toggle>动画：完整</button>
         <button type="button" class="battle-icon-btn" data-shortcut-help>快捷键</button>
         <a href="/rules" class="battle-icon-btn" target="_blank" rel="noopener">规则</a>
         <button type="button" class="battle-icon-btn" data-copy-invite>邀请链接</button>
@@ -41,6 +42,7 @@ const { catalog } = Astro.props;
         <summary class="battle-icon-btn battle-topbar-menu__trigger">菜单</summary>
         <div class="battle-topbar-menu__panel">
           <button type="button" class="battle-icon-btn battle-mode-toggle" data-table-mode-toggle aria-pressed="true">紧凑模式</button>
+          <button type="button" class="battle-icon-btn battle-animation-toggle" data-animation-mode-toggle>动画：完整</button>
           <button type="button" class="battle-icon-btn" data-shortcut-help>快捷键</button>
           <a href="/rules" class="battle-icon-btn" target="_blank" rel="noopener">查看规则</a>
           <button type="button" class="battle-icon-btn" data-copy-invite>复制邀请链接</button>
@@ -53,6 +55,7 @@ const { catalog } = Astro.props;
 
   <div id="battle-toast" class="battle-toast" role="status" aria-live="polite" hidden></div>
   <div id="battle-announcer" class="battle-sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div id="battle-effect-layer" class="battle-effect-layer" aria-hidden="true"></div>
 
   <main id="battle-root" class="battle-root">
     <section class="battle-loading hud-panel">

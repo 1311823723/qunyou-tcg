@@ -74,3 +74,19 @@ test("every table card has a 750px high-resolution preview", async () => {
     }
   }
 });
+
+test("body animation portraits are present and alpha-capable", async () => {
+  const expected = bodies.flatMap((body) => [
+    `${body.id}_front.webp`,
+    `${body.id}_mega.webp`,
+  ]).sort();
+  const portraitDir = new URL("public/battle-portraits/", root);
+  const files = (await readdir(portraitDir)).filter((file) => file.endsWith(".webp")).sort();
+  assert.deepEqual(files, expected);
+  for (const file of files) {
+    const metadata = await sharp(fileURLToPath(new URL(file, portraitDir))).metadata();
+    assert.equal(metadata.hasAlpha, true, `${file} alpha`);
+    assert.ok(metadata.height <= 1200, `${file} height should stay lightweight`);
+    assert.ok(metadata.width > 100 && metadata.height > 100, `${file} should not be empty`);
+  }
+});

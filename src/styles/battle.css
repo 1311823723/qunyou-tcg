@@ -202,11 +202,174 @@
 .battle-mini-card__cost { position: absolute; z-index: 3; right: 0.18rem; bottom: 0.18rem; max-width: calc(100% - 0.36rem); padding: 0.14rem 0.34rem; overflow: hidden; border: 1px solid rgba(255,217,138,0.56); border-radius: 999px; color: #fff0bd; background: rgba(7,8,13,0.9); font: 900 0.52rem/1.15 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 10px rgba(0,0,0,0.52); }
 .battle-mini-card.is-face-down { border-color: rgba(255,179,71,0.35); box-shadow: 0 4px 12px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,179,71,0.15); }
 .battle-mini-card.is-face-up { border-color: rgba(98,217,139,0.35); box-shadow: 0 4px 12px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(98,217,139,0.2); }
+#battle-app[data-animation-mode="full"] .battle-mini-card.is-face-up {
+  animation: battle-face-up-aura 3.8s ease-in-out infinite;
+}
+.battle-mini-card.is-effect-turn { z-index: 8; animation: battle-turn-card 0.9s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.battle-mini-card.is-effect-flip { z-index: 8; animation: battle-card-flip 0.62s cubic-bezier(0.25, 0.75, 0.2, 1); }
+.battle-mini-card.is-effect-skill { z-index: 8; animation: battle-skill-source 0.95s ease-out; }
+.battle-mini-card.is-effect-mega,
+.battle-mini-card.is-effect-mega-return { z-index: 8; animation: battle-mega-source 1.1s ease-out; }
+@keyframes battle-face-up-aura {
+  0%, 100% { box-shadow: 0 4px 12px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(98,217,139,0.18), 0 0 0 rgba(98,217,139,0); }
+  50% { box-shadow: 0 4px 12px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(98,217,139,0.38), 0 0 14px rgba(98,217,139,0.16); }
+}
+@keyframes battle-turn-card {
+  0% { transform: translateY(0) scale(1); filter: brightness(1); }
+  38% { transform: translateY(-0.7rem) scale(1.08); filter: brightness(1.35) saturate(1.18); }
+  100% { transform: translateY(0) scale(1); filter: none; }
+}
+@keyframes battle-card-flip {
+  0% { transform: perspective(700px) rotateY(0deg) scale(1); filter: brightness(1); }
+  45% { transform: perspective(700px) rotateY(88deg) scale(1.08); filter: brightness(1.6); }
+  55% { transform: perspective(700px) rotateY(92deg) scale(1.08); filter: brightness(1.6); }
+  100% { transform: perspective(700px) rotateY(180deg) scale(1); filter: none; }
+}
+@keyframes battle-skill-source {
+  0%, 100% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-0.45rem) scale(1.08); filter: brightness(1.45); box-shadow: 0 0 32px rgba(255,217,138,0.5); }
+}
+@keyframes battle-mega-source {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.1); filter: brightness(1.55) saturate(1.3); box-shadow: 0 0 42px rgba(216,183,92,0.62); }
+}
 .battle-mini-card.is-skill-declared { animation: battle-skill-declared 1.75s ease-out; border-color: rgba(255,217,138,0.9); box-shadow: 0 0 0 2px rgba(255,217,138,0.44), 0 0 28px rgba(255,217,138,0.34), var(--shadow-card); }
 @keyframes battle-skill-declared {
   0% { transform: translateY(-0.25rem) scale(1.035); filter: brightness(1.18) saturate(1.14); }
   55% { transform: translateY(-0.4rem) scale(1.055); }
   100% { transform: translateY(0) scale(1); filter: none; }
+}
+.battle-effect-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.battle-effect-layer.is-playing { opacity: 1; }
+.battle-cinematic { position: absolute; inset: 0; display: grid; place-items: center; isolation: isolate; }
+.battle-cinematic__shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 48%, transparent 0 17%, rgba(2,5,11,0.55) 58%, rgba(1,2,7,0.9) 100%),
+    linear-gradient(105deg, rgba(88,199,232,0.08), transparent 40%, rgba(216,183,92,0.08));
+  animation: battle-cinematic-shade 0.95s ease both;
+  backdrop-filter: blur(2px);
+}
+.battle-cinematic__portrait {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: -8vh;
+  width: min(46vw, 34rem);
+  max-height: 88vh;
+  object-fit: contain;
+  transform-origin: 50% 88%;
+  filter: drop-shadow(0 1.5rem 2.2rem rgba(0,0,0,0.72)) saturate(1.08);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0 78%, transparent 100%);
+  animation: battle-portrait-strike 0.98s cubic-bezier(0.18,0.8,0.18,1) both;
+}
+.battle-cinematic--turnStart .battle-cinematic__portrait { left: 54%; width: min(42vw, 29rem); }
+.battle-cinematic--characterSkill .battle-cinematic__portrait {
+  left: 42%;
+  width: min(48vw, 36rem);
+  transform-origin: 40% 80%;
+}
+.battle-cinematic__caption {
+  position: absolute;
+  z-index: 5;
+  right: clamp(6vw, 12vw, 13rem);
+  bottom: clamp(12vh, 18vh, 12rem);
+  display: grid;
+  justify-items: end;
+  text-align: right;
+  text-shadow: 0 0.3rem 1rem rgba(0,0,0,0.85);
+  animation: battle-caption-strike 0.9s cubic-bezier(0.2,0.8,0.2,1) both;
+}
+.battle-cinematic__caption small {
+  color: rgba(255,255,255,0.72);
+  font: 800 clamp(0.72rem, 1.2vw, 1rem) var(--font-body);
+  letter-spacing: 0.16em;
+}
+.battle-cinematic__caption strong {
+  color: #fff3c9;
+  font: 900 clamp(2.1rem, 6vw, 5.2rem)/0.95 var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.battle-cinematic__caption::after {
+  content: "";
+  width: min(26rem, 38vw);
+  height: 2px;
+  margin-top: 0.65rem;
+  background: linear-gradient(90deg, transparent, rgba(255,217,138,0.9));
+  box-shadow: 0 0 14px rgba(255,217,138,0.72);
+}
+.battle-cinematic__energy { position: absolute; z-index: 2; inset: 0; }
+.battle-cinematic__energy i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(54vw, 40rem);
+  aspect-ratio: 1;
+  border: 1px solid rgba(255,217,138,0.28);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.2);
+  animation: battle-energy-ring 0.95s ease-out both;
+}
+.battle-cinematic__energy i:nth-child(2) { animation-delay: 0.1s; }
+.battle-cinematic__energy i:nth-child(3) { animation-delay: 0.2s; }
+.battle-cinematic__flip-card {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: min(22vw, 12rem);
+  aspect-ratio: 5 / 7;
+  transform-style: preserve-3d;
+  animation: battle-cinematic-card-flip 1.08s cubic-bezier(0.2,0.72,0.16,1) both;
+}
+.battle-cinematic__flip-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(255,217,138,0.48);
+  border-radius: 12px;
+  object-fit: cover;
+  backface-visibility: hidden;
+  box-shadow: 0 1.2rem 3rem rgba(0,0,0,0.72), 0 0 2rem rgba(216,183,92,0.28);
+}
+.battle-cinematic__card-back { transform: rotateY(180deg); }
+@keyframes battle-cinematic-shade {
+  0%, 100% { opacity: 0; }
+  16%, 78% { opacity: 1; }
+}
+@keyframes battle-portrait-strike {
+  0% { opacity: 0; transform: translate(-50%, 12%) scale(0.82); filter: blur(8px) brightness(1.5); }
+  28% { opacity: 1; transform: translate(-50%, -2%) scale(1.06); filter: blur(0) brightness(1.2) saturate(1.12); }
+  72% { opacity: 1; transform: translate(-50%, -4%) scale(1.04); }
+  100% { opacity: 0; transform: translate(-50%, -8%) scale(1.1); }
+}
+@keyframes battle-caption-strike {
+  0% { opacity: 0; transform: translateX(4rem) skewX(-8deg); }
+  24%, 76% { opacity: 1; transform: translateX(0) skewX(-4deg); }
+  100% { opacity: 0; transform: translateX(-1.2rem) skewX(-4deg); }
+}
+@keyframes battle-energy-ring {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.18); }
+  30% { opacity: 0.75; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
+}
+@keyframes battle-cinematic-card-flip {
+  0% { opacity: 0; transform: translate(-50%, -45%) perspective(900px) rotateY(0deg) scale(0.65); }
+  20% { opacity: 1; }
+  62% { opacity: 1; transform: translate(-50%, -52%) perspective(900px) rotateY(180deg) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -58%) perspective(900px) rotateY(180deg) scale(1.18); }
 }
 .battle-center { padding: 0.55rem 0.65rem; border: 1px solid rgba(216,183,92,0.22); border-radius: 14px; background: radial-gradient(ellipse at 50% 0%, rgba(216,183,92,0.06), transparent 55%), rgba(8,9,16,0.9); }
 .battle-mega-condition { margin: 0.3rem 0 0; color: var(--text-muted); font-size: 0.55rem; line-height: 1.35; text-align: center; }
@@ -1667,6 +1830,40 @@ button.battle-log__entry:hover, button.battle-log__entry:focus-visible { color: 
 }
 
 @media (prefers-reduced-motion: reduce) {
+  #battle-app[data-animation-mode="compact"] .battle-mini-card.is-face-up,
+  .battle-mini-card.is-effect-turn,
+  .battle-mini-card.is-effect-flip,
+  .battle-mini-card.is-effect-skill,
+  .battle-mini-card.is-effect-mega,
+  .battle-mini-card.is-effect-mega-return {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+  .battle-effect-layer { display: none; }
+}
+
+@media (max-width: 680px) {
+  .battle-cinematic__shade { backdrop-filter: none; }
+  .battle-cinematic__portrait {
+    bottom: -2vh;
+    width: min(82vw, 27rem);
+    max-height: 72vh;
+    filter: drop-shadow(0 1rem 1.5rem rgba(0,0,0,0.72));
+  }
+  .battle-cinematic--turnStart .battle-cinematic__portrait,
+  .battle-cinematic--characterSkill .battle-cinematic__portrait {
+    left: 50%;
+    width: min(82vw, 27rem);
+  }
+  .battle-cinematic__caption {
+    right: 1rem;
+    bottom: 12vh;
+  }
+  .battle-cinematic__caption strong { font-size: clamp(1.8rem, 12vw, 3.2rem); }
+  .battle-cinematic__caption::after { width: min(68vw, 18rem); }
+  .battle-cinematic__energy i { width: 88vw; }
+  .battle-cinematic__energy i:nth-child(3) { display: none; }
+  .battle-cinematic__flip-card { width: min(38vw, 9.5rem); }
 }
 
 /* Desktop stepped arena: two command platforms converging on a compact shared lane. */
