@@ -266,8 +266,21 @@ const catalog = getBattleCatalog();
       </div>
       <p>${escapeHtml(card.text || "")}</p>
       ${card.megaCondition ? `<p><b>Mega 条件</b>：${escapeHtml(card.megaCondition)}</p>` : ""}
+      ${card.extraText ? `<p class="battle-custom-body-info__mega"><b>${escapeHtml(card.extraName || "Mega 后技能")}</b>：${escapeHtml(card.extraText)}</p>` : ""}
       <button type="button" class="battle-small-btn" data-custom-preview="${card.id}">查看本体大图</button>
     `;
+  }
+
+  function bindCustomPreviewButtons(container) {
+    container.querySelectorAll("[data-custom-preview]").forEach((button) => {
+      if (button.dataset.previewBound === "true") return;
+      button.dataset.previewBound = "true";
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        showCustomCardPreview(button.dataset.customPreview);
+      });
+    });
   }
 
   function refreshCustomBuilder(form) {
@@ -284,6 +297,7 @@ const catalog = getBattleCatalog();
     if (picked) picked.innerHTML = renderSelectedCharacters(deck.characterIds);
     const bodyInfo = builder.querySelector("[data-custom-body-info]");
     if (bodyInfo) bodyInfo.innerHTML = renderCustomBodyInfo(catalog.cards?.[deck.bodyId]);
+    bindCustomPreviewButtons(builder);
     saveCustomDeck(deck);
     renderDeckPreview(CUSTOM_DECK_ID);
   }
@@ -308,13 +322,7 @@ const catalog = getBattleCatalog();
   function bindCustomBuilderEvents(form, builder) {
     builder.querySelector("[data-custom-body]")?.addEventListener("change", () => refreshCustomBuilder(form));
     builder.querySelector("[data-custom-open-picker]")?.addEventListener("click", () => showCustomCharacterPicker(form, builder));
-    builder.querySelectorAll("[data-custom-preview]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        showCustomCardPreview(button.dataset.customPreview);
-      });
-    });
+    bindCustomPreviewButtons(builder);
   }
 
   function applyCustomFilters(container) {
@@ -398,13 +406,7 @@ const catalog = getBattleCatalog();
       });
     });
     modal.querySelectorAll("[data-custom-character]").forEach((input) => input.addEventListener("change", syncModal));
-    modal.querySelectorAll("[data-custom-preview]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        showCustomCardPreview(button.dataset.customPreview);
-      });
-    });
+    bindCustomPreviewButtons(modal);
     modal.querySelector("[data-custom-picker-done]")?.addEventListener("click", () => {
       const ids = [...modal.querySelectorAll("[data-custom-character]:checked")].map((input) => input.value).slice(0, 16);
       builder.dataset.characterIds = ids.join(",");

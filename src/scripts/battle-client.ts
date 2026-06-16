@@ -1475,8 +1475,21 @@ function renderCustomBodyInfo(card?: CatalogCard) {
     </div>
     <p>${escapeHtml(card.text)}</p>
     ${card.megaCondition ? `<p><b>Mega 条件</b>：${escapeHtml(card.megaCondition)}</p>` : ""}
+    ${card.extraText ? `<p class="battle-custom-body-info__mega"><b>${escapeHtml(card.extraName || "Mega 后技能")}</b>：${escapeHtml(card.extraText)}</p>` : ""}
     <button type="button" class="battle-small-btn" data-custom-preview="${card.id}">查看本体大图</button>
   `;
+}
+
+function bindCustomPreviewButtons(container: ParentNode) {
+  container.querySelectorAll<HTMLElement>("[data-custom-preview]").forEach((button) => {
+    if (button.dataset.previewBound === "true") return;
+    button.dataset.previewBound = "true";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showCustomCardPreview(button.dataset.customPreview || "");
+    });
+  });
 }
 
 function readLobbyCustomDeck(): CustomDeckConfig {
@@ -1493,13 +1506,7 @@ function bindCustomDeckBuilder(me: PlayerView) {
   const builder = root.querySelector<HTMLElement>("[data-custom-builder]");
   if (!builder || me.deckId !== CUSTOM_DECK_ID) return;
   builder.dataset.characterIds = readCustomDeck(me).characterIds.join(",");
-  builder.querySelectorAll<HTMLElement>("[data-custom-preview]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      showCustomCardPreview(button.dataset.customPreview || "");
-    });
-  });
+  bindCustomPreviewButtons(builder);
   if (me.ready) return;
   const sync = () => {
     const customDeck = readLobbyCustomDeck();
@@ -1512,6 +1519,7 @@ function bindCustomDeckBuilder(me: PlayerView) {
     if (picked) picked.innerHTML = renderSelectedCharacters(customDeck.characterIds);
     const bodyInfo = builder.querySelector<HTMLElement>("[data-custom-body-info]");
     if (bodyInfo) bodyInfo.innerHTML = renderCustomBodyInfo(catalog.cards[customDeck.bodyId]);
+    bindCustomPreviewButtons(builder);
     saveCustomDeck(customDeck);
     localStorage.setItem(PENDING_KEY, JSON.stringify({
       nickname: me.nickname,
@@ -1599,13 +1607,7 @@ function showCustomCharacterPicker(builder: HTMLElement, onDone: () => void) {
     });
   });
   dialogContent.querySelectorAll("[data-custom-character]").forEach((input) => input.addEventListener("change", syncPicker));
-  dialogContent.querySelectorAll<HTMLElement>("[data-custom-preview]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      showCustomCardPreview(button.dataset.customPreview || "");
-    });
-  });
+  bindCustomPreviewButtons(dialogContent);
   dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
   dialogContent.querySelector("[data-custom-picker-done]")?.addEventListener("click", () => {
     const ids = [...dialogContent.querySelectorAll<HTMLInputElement>("[data-custom-character]:checked")]
