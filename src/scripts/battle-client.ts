@@ -923,6 +923,7 @@ function rememberVisualEffect(event: VisualEffectEvent) {
 }
 
 function enqueueVisualEffect(event: VisualEffectEvent) {
+  if (event.effect === "characterFlip" && event.faceDown) return;
   if (seenEffectKeys.has(visualEffectKey(event))) return;
   if (!rememberVisualEffect(event)) return;
   if (effectiveAnimationMode() === "off") return;
@@ -1008,6 +1009,7 @@ function visualEffectSource(event: VisualEffectEvent) {
 async function playVisualEffect(event: VisualEffectEvent, generation: number) {
   const mode = effectiveAnimationMode();
   if (mode === "off") return;
+  if (event.effect === "characterFlip" && event.faceDown) return;
   const source = visualEffectSource(event);
   const sourceClass = event.effect === "turnStart"
     ? "is-effect-turn"

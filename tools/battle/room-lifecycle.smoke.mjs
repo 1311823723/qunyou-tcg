@@ -197,6 +197,27 @@ step("character flip visual effect synchronized");
 
 a.messages.length = 0;
 b.messages.length = 0;
+a.send("card:flip", { instanceId: ownerCharacter.instanceId });
+await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.players.find((player) => player.id === message.snapshot.you)
+    ?.characterSlots[0]?.faceDown === true,
+);
+assert.equal(a.messages.some((message) => message.type === "visualEffect" && message.effect === "characterFlip"), false);
+assert.equal(b.messages.some((message) => message.type === "visualEffect" && message.effect === "characterFlip"), false);
+step("character hide does not emit flip visual effect");
+
+a.messages.length = 0;
+b.messages.length = 0;
+a.send("card:flip", { instanceId: ownerCharacter.instanceId });
+await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.players.find((player) => player.id === message.snapshot.you)
+    ?.characterSlots[0]?.faceDown === false,
+);
+
+a.messages.length = 0;
+b.messages.length = 0;
 a.send("character:declareSkill", { instanceId: ownerCharacter.instanceId });
 const [skillEffectA, skillEffectB] = await Promise.all([
   a.waitFor((message) => message.type === "visualEffect" && message.effect === "characterSkill"),
