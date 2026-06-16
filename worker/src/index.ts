@@ -428,14 +428,16 @@ export class BattleRoom extends DurableObject<Env> {
           ownerId: player.id,
           slotIndex: located?.zone === "characterSlot" ? located.index : undefined,
         });
-        visualEffects.push({
-          effect: "characterFlip",
-          actorId: player.id,
-          ownerId: player.id,
-          ...(card.faceDown ? {} : { definitionId: card.definitionId }),
-          ...(located?.zone === "characterSlot" ? { slotIndex: located.index } : {}),
-          faceDown: Boolean(card.faceDown),
-        });
+        if (!card.faceDown) {
+          visualEffects.push({
+            effect: "characterFlip",
+            actorId: player.id,
+            ownerId: player.id,
+            definitionId: card.definitionId,
+            ...(located?.zone === "characterSlot" ? { slotIndex: located.index } : {}),
+            faceDown: false,
+          });
+        }
         return;
       }
       case "character:declareSkill": {

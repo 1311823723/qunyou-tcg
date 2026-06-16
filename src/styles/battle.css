@@ -206,7 +206,7 @@
   animation: battle-face-up-aura 3.8s ease-in-out infinite;
 }
 .battle-mini-card.is-effect-turn { z-index: 8; animation: battle-turn-card 0.9s cubic-bezier(0.2, 0.8, 0.2, 1); }
-.battle-mini-card.is-effect-flip { z-index: 8; animation: battle-card-flip 0.62s cubic-bezier(0.25, 0.75, 0.2, 1); }
+.battle-mini-card.is-effect-flip { z-index: 8; animation: battle-card-flip 0.48s cubic-bezier(0.25, 0.75, 0.2, 1); }
 .battle-mini-card.is-effect-skill { z-index: 8; animation: battle-skill-source 0.95s ease-out; }
 .battle-mini-card.is-effect-mega,
 .battle-mini-card.is-effect-mega-return { z-index: 8; animation: battle-mega-source 1.1s ease-out; }
@@ -259,6 +259,7 @@
   animation: battle-cinematic-shade 0.95s ease both;
   backdrop-filter: blur(2px);
 }
+.battle-cinematic--characterFlip .battle-cinematic__shade { animation-duration: 0.72s; }
 .battle-cinematic__portrait {
   position: absolute;
   z-index: 3;
@@ -273,6 +274,7 @@
   mask-image: linear-gradient(to bottom, #000 0 78%, transparent 100%);
   animation: battle-portrait-strike 0.98s cubic-bezier(0.18,0.8,0.18,1) both;
 }
+.battle-cinematic--characterFlip .battle-cinematic__portrait { animation-duration: 0.72s; }
 .battle-cinematic--turnStart .battle-cinematic__portrait { left: 54%; width: min(42vw, 29rem); }
 .battle-cinematic--characterSkill .battle-cinematic__portrait {
   left: 42%;
@@ -290,6 +292,7 @@
   text-shadow: 0 0.3rem 1rem rgba(0,0,0,0.85);
   animation: battle-caption-strike 0.9s cubic-bezier(0.2,0.8,0.2,1) both;
 }
+.battle-cinematic--characterFlip .battle-cinematic__caption { animation-duration: 0.7s; }
 .battle-cinematic__caption small {
   color: rgba(255,255,255,0.72);
   font: 800 clamp(0.72rem, 1.2vw, 1rem) var(--font-body);
@@ -321,6 +324,7 @@
   transform: translate(-50%, -50%) scale(0.2);
   animation: battle-energy-ring 0.95s ease-out both;
 }
+.battle-cinematic--characterFlip .battle-cinematic__energy i { animation-duration: 0.72s; }
 .battle-cinematic__energy i:nth-child(2) { animation-delay: 0.1s; }
 .battle-cinematic__energy i:nth-child(3) { animation-delay: 0.2s; }
 .battle-cinematic__flip-card {

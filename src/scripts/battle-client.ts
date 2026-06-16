@@ -921,15 +921,16 @@ function enqueueSnapshotVisualEffects(previous: Snapshot | undefined, next: Snap
       const previousSlot = before?.characterSlots[slotIndex];
       if (!previousSlot || "label" in previousSlot) return;
       if (previousSlot.faceDown === slot.faceDown) return;
+      if (slot.faceDown) return;
       enqueueVisualEffect({
         type: "visualEffect",
-        eventId: `character-flip-${next.revision}-${player.id}-${slotIndex}-${slot.faceDown ? "down" : "up"}`,
+        eventId: `character-flip-${next.revision}-${player.id}-${slotIndex}-up`,
         revision: next.revision,
         effect: "characterFlip",
         ownerId: player.id,
-        definitionId: slot.faceDown ? undefined : slot.definitionId,
+        definitionId: slot.definitionId,
         slotIndex,
-        faceDown: Boolean(slot.faceDown),
+        faceDown: false,
       });
     });
   }
@@ -1021,7 +1022,7 @@ async function playVisualEffect(event: VisualEffectEvent, generation: number) {
 
   announce(`${subtitle ? `${subtitle}，` : ""}${title}`);
   const duration = mode === "on"
-    ? event.effect === "bodyMega" ? 1180 : 980
+    ? event.effect === "bodyMega" ? 1180 : event.effect === "characterFlip" ? 720 : 980
     : 0;
   await new Promise<void>((resolve) => {
     effectResolve = resolve;
