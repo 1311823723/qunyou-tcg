@@ -1480,5 +1480,45 @@
     "skillName": "铁网封锁",
     "effectText": "令对手选择一项：弃置2张手牌，或展示所有手牌并让你获得一张。",
     "source": "洲"
+  },
+  {
+    "id": "char_079_xiaoka_visionary-painter",
+    "name": "异画师-小卡",
+    "cardType": "角色",
+    "deck": "",
+    "mainRole": "支援",
+    "tags": [
+      "转化",
+      "响应",
+      "支援"
+    ],
+    "cost": {
+      "type": "休整自身",
+      "text": "休整自身"
+    },
+    "timing": "当你需要使用或打出基本牌时",
+    "skillName": "即兴调色",
+    "effectText": "弃置1张手牌并声明一种基本牌名称，视为你使用或打出该基本牌。",
+    "source": "盟"
+  },
+  {
+    "id": "char_080_huihuan_visionary-painter",
+    "name": "异画师-灰焕",
+    "cardType": "角色",
+    "deck": "",
+    "mainRole": "支援",
+    "tags": [
+      "爆发",
+      "过牌",
+      "情报"
+    ],
+    "cost": {
+      "type": "休整",
+      "amount": 2
+    },
+    "timing": "出牌阶段",
+    "skillName": "悲喜三原色",
+    "effectText": "选择一项：本回合你下一次造成的伤害+1；摸1张手牌；观看对手手牌。",
+    "source": "盟"
   }
 ]

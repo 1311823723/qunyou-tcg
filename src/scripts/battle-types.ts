@@ -28,6 +28,11 @@ export type CatalogDeck = {
   blurb: string;
 };
 
+export type CustomDeckConfig = {
+  bodyId: string;
+  characterIds: string[];
+};
+
 export type Catalog = {
   cards: Record<string, CatalogCard>;
   decks: CatalogDeck[];
@@ -50,6 +55,7 @@ export type PlayerView = {
   id: string;
   nickname: string;
   deckId?: string;
+  customDeck?: CustomDeckConfig;
   ready: boolean;
   connected: boolean;
   health?: number;

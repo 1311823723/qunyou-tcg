@@ -32,6 +32,7 @@ import type {
   BattleLogTarget,
   CardInstance,
   ClientMessage,
+  CustomDeckConfig,
   InspectionResult,
   Marker,
   PlayerState,
@@ -42,6 +43,7 @@ import type {
 } from "./types";
 
 const ROOM_TTL_MS = 24 * 60 * 60 * 1000;
+const CUSTOM_DECK_ID = "custom";
 const allDecks = [decks, mizaiDeck, comboDeck, transDeck];
 const deckById = new Map(allDecks.map((deck) => [deck.id, deck]));
 const bodyById = new Map(bodies.map((body) => [body.id, body]));
@@ -89,6 +91,31 @@ function cleanText(value: unknown, max: number) {
   return String(value || "").trim().slice(0, max);
 }
 
+function parseCustomDeck(value: unknown): CustomDeckConfig | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Record<string, unknown>;
+  const bodyId = cleanText(raw.bodyId, 80);
+  const characterIds = Array.isArray(raw.characterIds)
+    ? raw.characterIds.map((id) => cleanText(id, 80)).filter(Boolean)
+    : [];
+  return { bodyId, characterIds };
+}
+
+function isValidCustomDeck(deck: CustomDeckConfig | undefined): deck is CustomDeckConfig {
+  if (!deck) return false;
+  if (!bodyById.has(deck.bodyId)) return false;
+  if (deck.characterIds.length !== 16) return false;
+  const unique = new Set(deck.characterIds);
+  if (unique.size !== 16) return false;
+  return deck.characterIds.every((id) => characterById.has(id));
+}
+
+function isLoadoutRequestValid(deckId: string, customDeck: CustomDeckConfig | undefined) {
+  return deckId === CUSTOM_DECK_ID
+    ? isValidCustomDeck(customDeck)
+    : deckById.has(deckId);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -109,12 +136,13 @@ export default {
       const nickname = cleanText(body.nickname, 20);
       const token = cleanText(body.token, 80);
       const deckId = cleanText(body.deckId, 80);
-      if (!nickname || !token || !deckById.has(deckId)) {
-        return json({ error: "昵称、身份令牌或预组无效。" }, { status: 400, headers });
+      const customDeck = parseCustomDeck(body.customDeck);
+      if (!nickname || !token || !isLoadoutRequestValid(deckId, customDeck)) {
+        return json({ error: "昵称、身份令牌或牌组无效。自组牌组需要 1 张本体和 16 张不重复角色。" }, { status: 400, headers });
       }
       const code = roomCode();
       const stub = env.BATTLE_ROOMS.getByName(code);
-      const result = await stub.createRoom(code, token, nickname, deckId);
+      const result = await stub.createRoom(code, token, nickname, deckId, customDeck);
       return json(result, { headers });
     }
 
@@ -128,11 +156,12 @@ export default {
       const nickname = cleanText(body.nickname, 20);
       const token = cleanText(body.token, 80);
       const deckId = cleanText(body.deckId, 80);
-      if (!nickname || !token || !deckById.has(deckId)) {
-        return json({ error: "昵称、身份令牌或预组无效。" }, { status: 400, headers });
+      const customDeck = parseCustomDeck(body.customDeck);
+      if (!nickname || !token || !isLoadoutRequestValid(deckId, customDeck)) {
+        return json({ error: "昵称、身份令牌或牌组无效。自组牌组需要 1 张本体和 16 张不重复角色。" }, { status: 400, headers });
       }
       const stub = env.BATTLE_ROOMS.getByName(joinMatch[1]);
-      const result = await stub.joinRoom(token, nickname, deckId);
+      const result = await stub.joinRoom(token, nickname, deckId, customDeck);
       return json(result.body, { status: result.status, headers });
     }
 
@@ -166,7 +195,7 @@ export class BattleRoom extends DurableObject<Env> {
     });
   }
 
-  async createRoom(code: string, token: string, nickname: string, deckId: string) {
+  async createRoom(code: string, token: string, nickname: string, deckId: string, customDeck?: CustomDeckConfig) {
     if (this.state) return { roomCode: this.state.roomCode };
     const now = Date.now();
     this.state = {
@@ -175,7 +204,7 @@ export class BattleRoom extends DurableObject<Env> {
       createdAt: now,
       lastActivityAt: now,
       started: false,
-      players: [this.newPlayer("p1", token, nickname, deckId)],
+      players: [this.newPlayer("p1", token, nickname, deckId, customDeck)],
       handDeck: [],
       handDiscard: [],
       resolving: [],
@@ -196,7 +225,7 @@ export class BattleRoom extends DurableObject<Env> {
     return { roomCode: code };
   }
 
-  async joinRoom(token: string, nickname: string, deckId: string) {
+  async joinRoom(token: string, nickname: string, deckId: string, customDeck?: CustomDeckConfig) {
     if (!this.state) {
       return { status: 404, body: { error: "房间不存在或已经过期。" } };
     }
@@ -205,7 +234,7 @@ export class BattleRoom extends DurableObject<Env> {
       if (this.state.players.length >= 2) {
         return { status: 409, body: { error: "房间已满，无法加入。" } };
       }
-      player = this.newPlayer("p2", token, nickname, deckId);
+      player = this.newPlayer("p2", token, nickname, deckId, customDeck);
       this.state.players.push(player);
       this.addLog(`${nickname} 加入了房间`, player.id, "system", { zone: "lobby", ownerId: player.id });
       this.state.revision += 1;
@@ -348,12 +377,13 @@ export class BattleRoom extends DurableObject<Env> {
     await this.ctx.storage.setAlarm(this.state.lastActivityAt + ROOM_TTL_MS);
   }
 
-  private newPlayer(id: string, token: string, nickname: string, deckId: string): PlayerState {
+  private newPlayer(id: string, token: string, nickname: string, deckId: string, customDeck?: CustomDeckConfig): PlayerState {
     return {
       id,
       token,
       nickname,
       deckId,
+      ...(deckId === CUSTOM_DECK_ID && customDeck ? { customDeck } : {}),
       ready: false,
       health: 7,
       megaProgress: 0,
@@ -375,6 +405,14 @@ export class BattleRoom extends DurableObject<Env> {
     return result.migrated;
   }
 
+  private playerLoadout(player: PlayerState): CustomDeckConfig | undefined {
+    if (player.deckId === CUSTOM_DECK_ID) {
+      return isValidCustomDeck(player.customDeck) ? player.customDeck : undefined;
+    }
+    const deck = deckById.get(player.deckId || "");
+    return deck ? { bodyId: deck.bodyId, characterIds: deck.characterIds } : undefined;
+  }
+
   private applyAction(
     player: PlayerState,
     message: ClientMessage,
@@ -387,9 +425,11 @@ export class BattleRoom extends DurableObject<Env> {
       case "player:selectDeck": {
         if (this.state.started || player.ready) throw new Error("当前不能更换预组。");
         const deckId = cleanText(payload.deckId, 80);
-        if (!deckById.has(deckId)) throw new Error("预组不存在。");
+        const customDeck = parseCustomDeck(payload.customDeck);
+        if (!isLoadoutRequestValid(deckId, customDeck)) throw new Error("牌组无效。自组牌组需要 1 张本体和 16 张不重复角色。");
         player.deckId = deckId;
-        this.addLog(`${player.nickname} 选择了预组`, player.id, "action", { zone: "player", ownerId: player.id });
+        player.customDeck = deckId === CUSTOM_DECK_ID ? customDeck : undefined;
+        this.addLog(`${player.nickname} 选择了${deckId === CUSTOM_DECK_ID ? "自组牌组" : "预组"}`, player.id, "action", { zone: "player", ownerId: player.id });
         return;
       }
       case "player:ready": {
@@ -399,7 +439,7 @@ export class BattleRoom extends DurableObject<Env> {
           zone: "player",
           ownerId: player.id,
         });
-        if (this.state.players.length === 2 && this.state.players.every((item) => item.ready && item.deckId)) {
+        if (this.state.players.length === 2 && this.state.players.every((item) => item.ready && this.playerLoadout(item))) {
           const first = this.startGame();
           visualEffects.push(this.turnStartEffect(first));
         }
@@ -630,8 +670,8 @@ export class BattleRoom extends DurableObject<Env> {
       this.state.logs = [];
     }
     for (const player of this.state.players) {
-      const deck = deckById.get(player.deckId || "");
-      if (!deck) throw new Error("预组数据不存在。");
+      const deck = this.playerLoadout(player);
+      if (!deck) throw new Error("牌组数据不存在。");
       const body = bodyById.get(deck.bodyId);
       player.health = body?.hp || 7;
       player.megaProgress = 0;
@@ -1044,6 +1084,7 @@ export class BattleRoom extends DurableObject<Env> {
         id: player.id,
         nickname: player.nickname,
         deckId: player.deckId,
+        ...(player.id === playerId && player.deckId === CUSTOM_DECK_ID && player.customDeck ? { customDeck: player.customDeck } : {}),
         ready: player.ready,
         connected: connected.has(player.id),
         health: player.health,
@@ -1242,8 +1283,8 @@ export class BattleRoom extends DurableObject<Env> {
   }
 
   private megaMax(player: PlayerState) {
-    const deck = deckById.get(player.deckId || "");
-    const body = bodyById.get(deck?.bodyId || "");
+    const bodyId = player.body?.definitionId || this.playerLoadout(player)?.bodyId;
+    const body = bodyById.get(bodyId || "");
     return body ? getExtraFormProgressMax(body) : undefined;
   }
 

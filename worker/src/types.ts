@@ -26,6 +26,11 @@ export interface Marker {
   card?: CardInstance;
 }
 
+export interface CustomDeckConfig {
+  bodyId: string;
+  characterIds: string[];
+}
+
 export type BattleLogKind = "action" | "inspection" | "system";
 
 export interface BattleLogTarget {
@@ -48,6 +53,7 @@ export interface PlayerState {
   token: string;
   nickname: string;
   deckId?: string;
+  customDeck?: CustomDeckConfig;
   ready: boolean;
   health: number;
   megaProgress: number;

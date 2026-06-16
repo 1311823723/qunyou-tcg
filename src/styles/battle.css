@@ -15,6 +15,22 @@
 .battle-form__status[hidden] { display: none; }
 .battle-form__status[data-state=success] { border-color: rgba(98,217,139,0.32); color: var(--accent-success); background: rgba(98,217,139,0.08); }
 .battle-form__status[data-state=error] { border-color: rgba(255,90,53,0.34); color: #ff9a87; background: rgba(255,90,53,0.09); }
+.battle-custom-builder { display: grid; gap: 0.7rem; padding: 0.8rem; border: 1px solid rgba(88,199,232,0.18); border-radius: 14px; background: rgba(0,0,0,0.2); }
+.battle-custom-builder[hidden] { display: none; }
+.battle-custom-builder__head { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; }
+.battle-custom-builder__head strong { color: var(--text-gold); font-size: 0.88rem; }
+.battle-custom-builder__head span { padding: 0.18rem 0.48rem; border-radius: 999px; color: var(--accent-info); background: rgba(88,199,232,0.1); font: 800 0.68rem var(--font-mono); }
+.battle-custom-builder__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(6.2rem, 1fr)); gap: 0.5rem; max-height: 22rem; overflow: auto; padding-right: 0.25rem; }
+.battle-custom-card { position: relative; display: grid; gap: 0.28rem; min-width: 0; padding: 0.45rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 11px; color: var(--text-secondary); background: rgba(255,255,255,0.035); cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s, background 0.15s; }
+.battle-custom-card input { position: absolute; opacity: 0; pointer-events: none; }
+.battle-custom-card img { width: 100%; aspect-ratio: 5 / 7; object-fit: cover; border-radius: 7px; box-shadow: var(--shadow-card); }
+.battle-custom-card span { overflow: hidden; color: var(--text-primary); font-size: 0.72rem; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+.battle-custom-card small { overflow: hidden; color: var(--text-muted); font-size: 0.58rem; text-overflow: ellipsis; white-space: nowrap; }
+.battle-custom-card:hover { transform: translateY(-1px); border-color: rgba(88,199,232,0.35); background: rgba(88,199,232,0.07); }
+.battle-custom-card.is-selected { border-color: rgba(216,183,92,0.78); background: rgba(216,183,92,0.09); box-shadow: 0 0 0 1px rgba(216,183,92,0.28), 0 0 22px rgba(216,183,92,0.13); }
+.battle-custom-card.is-selected::after { content: "已选"; position: absolute; top: 0.55rem; right: 0.55rem; padding: 0.08rem 0.35rem; border-radius: 999px; color: #100c05; background: var(--text-gold); font-size: 0.55rem; font-weight: 900; }
+.battle-custom-card:has(input:disabled):not(.is-selected) { opacity: 0.45; cursor: not-allowed; }
+.battle-custom-builder__hint { margin: 0; color: var(--text-muted); font-size: 0.72rem; line-height: 1.5; }
 .battle-entry__notes { margin-top: 2rem; }
 .battle-entry__features { display: grid; gap: 0.75rem; }
 @media (min-width: 700px) { .battle-entry__features { grid-template-columns: repeat(3, 1fr); } }

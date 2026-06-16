@@ -14,6 +14,7 @@ import type {
   Catalog,
   CatalogCard,
   CatalogDeck,
+  CustomDeckConfig,
   GameView,
   InspectionAction,
   MarkerView,
@@ -43,10 +44,15 @@ const dialog = requiredElement<HTMLDialogElement>("#battle-dialog");
 const dialogContent = requiredElement<HTMLElement>("#battle-dialog-content");
 const catalogNode = requiredElement<HTMLScriptElement>("#battle-catalog");
 const catalog = JSON.parse(catalogNode.textContent || "{}") as Catalog;
+const catalogCards = Object.values(catalog.cards || {});
+const bodyCatalogCards = catalogCards.filter((card) => card.kind === "body");
+const characterCatalogCards = catalogCards.filter((card) => card.kind === "character");
 
 const API_URL = getBattleApiUrl();
 const TOKEN_KEY = "qunyou-battle-token-v1";
 const PENDING_KEY = "qunyou-battle-pending-v1";
+const CUSTOM_DECK_ID = "custom";
+const CUSTOM_DECK_KEY = "qunyou-battle-custom-deck-v1";
 const COACH_KEY = "qunyou-battle-coach-v1";
 const TABLE_MODE_KEY = "qunyou-battle-table-mode-v1";
 const ANIMATION_MODE_KEY = "qunyou-battle-animation-mode-v1";
@@ -298,7 +304,7 @@ function getToken() {
 
 function getPending() {
   try {
-    return JSON.parse(localStorage.getItem(PENDING_KEY) || "{}") as { nickname?: string; deckId?: string };
+    return JSON.parse(localStorage.getItem(PENDING_KEY) || "{}") as { nickname?: string; deckId?: string; customDeck?: CustomDeckConfig };
   } catch {
     return {};
   }
@@ -306,6 +312,59 @@ function getPending() {
 
 function deckFor(player?: PlayerView) {
   return catalog.decks.find((item) => item.id === player?.deckId);
+}
+
+function defaultCustomDeck(): CustomDeckConfig {
+  return {
+    bodyId: bodyCatalogCards[0]?.id || "",
+    characterIds: characterCatalogCards.slice(0, 16).map((card) => card.id),
+  };
+}
+
+function normalizeCustomDeck(value: unknown): CustomDeckConfig {
+  const raw = value && typeof value === "object" ? value as Partial<CustomDeckConfig> : {};
+  const characterIds = Array.isArray(raw.characterIds)
+    ? raw.characterIds
+      .filter((id): id is string => typeof id === "string" && catalog.cards[id]?.kind === "character")
+      .filter((id, index, items) => items.indexOf(id) === index)
+      .slice(0, 16)
+    : [];
+  for (const card of characterCatalogCards) {
+    if (characterIds.length >= 16) break;
+    if (!characterIds.includes(card.id)) characterIds.push(card.id);
+  }
+  return {
+    bodyId: typeof raw.bodyId === "string" && catalog.cards[raw.bodyId]?.kind === "body"
+      ? raw.bodyId
+      : bodyCatalogCards[0]?.id || "",
+    characterIds,
+  };
+}
+
+function readCustomDeck(player?: PlayerView): CustomDeckConfig {
+  if (player?.customDeck) return normalizeCustomDeck(player.customDeck);
+  try {
+    return normalizeCustomDeck(JSON.parse(localStorage.getItem(CUSTOM_DECK_KEY) || "null"));
+  } catch {
+    return defaultCustomDeck();
+  }
+}
+
+function saveCustomDeck(deck: CustomDeckConfig) {
+  localStorage.setItem(CUSTOM_DECK_KEY, JSON.stringify(deck));
+}
+
+function isCustomDeckValid(deck: CustomDeckConfig) {
+  return catalog.cards[deck.bodyId]?.kind === "body"
+    && deck.characterIds.length === 16
+    && new Set(deck.characterIds).size === 16
+    && deck.characterIds.every((id) => catalog.cards[id]?.kind === "character");
+}
+
+function customDeckLabel(player?: PlayerView) {
+  const deck = readCustomDeck(player);
+  const body = catalog.cards[deck.bodyId];
+  return `自组牌组${body ? ` · ${body.name}` : ""}`;
 }
 
 function themeClasses(theme?: string) {
@@ -405,7 +464,12 @@ async function connect() {
     const response = await fetch(`${API_URL}/rooms/${roomCode}/join`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, nickname: pending.nickname, deckId: pending.deckId }),
+      body: JSON.stringify({
+        token,
+        nickname: pending.nickname,
+        deckId: pending.deckId,
+        ...(pending.deckId === CUSTOM_DECK_ID && pending.customDeck ? { customDeck: pending.customDeck } : {}),
+      }),
       signal: controller.signal,
     });
     const result = await response.json().catch(() => ({})) as { error?: string };
@@ -1246,7 +1310,8 @@ function startRestartCountdown() {
 
 function renderLobby(me: PlayerView, opponent?: PlayerView) {
   const myDeck = deckFor(me);
-  const bodyCard = myDeck ? catalog.cards[myDeck.bodyId] : undefined;
+  const myCustomDeck = readCustomDeck(me);
+  const bodyCard = me.deckId === CUSTOM_DECK_ID ? catalog.cards[myCustomDeck.bodyId] : myDeck ? catalog.cards[myDeck.bodyId] : undefined;
   const roomStatus = !opponent
     ? "等待另一名玩家加入"
     : opponent.ready && !me.ready
@@ -1280,14 +1345,23 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
       </div>
       <div class="battle-lobby__loadout">
         <div class="battle-deck-preview" id="battle-deck-preview">
-          ${renderDeckPreview(myDeck, bodyCard)}
+          ${renderDeckPreview(myDeck, bodyCard, me)}
         </div>
         <div class="battle-lobby__controls">
-          <label>我的预组
-            <select id="battle-deck-select" ${me.ready ? "disabled" : ""}>
+          <label>牌组类型
+            <select id="battle-deck-mode" ${me.ready ? "disabled" : ""}>
+              <option value="preset" ${me.deckId === CUSTOM_DECK_ID ? "" : "selected"}>预组牌组</option>
+              <option value="${CUSTOM_DECK_ID}" ${me.deckId === CUSTOM_DECK_ID ? "selected" : ""}>自选牌组</option>
+            </select>
+          </label>
+          <label data-preset-deck-field ${me.deckId === CUSTOM_DECK_ID ? "hidden" : ""}>我的预组
+            <select id="battle-deck-select" ${me.ready || me.deckId === CUSTOM_DECK_ID ? "disabled" : ""}>
               ${catalog.decks.map((deck) => `<option value="${deck.id}" ${deck.id === me.deckId ? "selected" : ""}>${escapeHtml(deck.name)} · ${escapeHtml(deck.archetype)}</option>`).join("")}
             </select>
           </label>
+          <div class="battle-custom-builder battle-custom-builder--lobby" data-custom-builder ${me.deckId === CUSTOM_DECK_ID ? "" : "hidden"}>
+            ${renderCustomDeckBuilder(myCustomDeck, me.ready)}
+          </div>
           <button class="btn ${me.ready ? "btn--secondary" : "btn--primary"}" data-command="player:ready" data-ready="${String(!me.ready)}">
             ${me.ready ? "取消准备" : "确认准备"}
           </button>
@@ -1296,9 +1370,29 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
       ${me.ready ? `<p class="battle-lobby__hint">当前已准备，预组已锁定。取消准备后可以重新选择。</p>` : ""}
     </section>
   `;
-  document.querySelector("#battle-deck-select")?.addEventListener("change", (event) => {
-    send("player:selectDeck", { deckId: (event.currentTarget as HTMLSelectElement).value });
+  document.querySelector("#battle-deck-mode")?.addEventListener("change", (event) => {
+    const mode = (event.currentTarget as HTMLSelectElement).value;
+    const deckId = mode === CUSTOM_DECK_ID
+      ? CUSTOM_DECK_ID
+      : (document.querySelector("#battle-deck-select") as HTMLSelectElement | null)?.value || catalog.decks[0]?.id || "";
+    const customDeck = deckId === CUSTOM_DECK_ID ? readLobbyCustomDeck() : undefined;
+    if (customDeck) saveCustomDeck(customDeck);
+    localStorage.setItem(PENDING_KEY, JSON.stringify({
+      nickname: me.nickname,
+      deckId,
+      ...(customDeck ? { customDeck } : {}),
+    }));
+    send("player:selectDeck", { deckId, ...(customDeck ? { customDeck } : {}) });
   });
+  document.querySelector("#battle-deck-select")?.addEventListener("change", (event) => {
+    const deckId = (event.currentTarget as HTMLSelectElement).value;
+    localStorage.setItem(PENDING_KEY, JSON.stringify({
+      nickname: me.nickname,
+      deckId,
+    }));
+    send("player:selectDeck", { deckId });
+  });
+  bindCustomDeckBuilder(me);
   document.querySelector("#lobby-copy-code")?.addEventListener("click", () => copyText(snapshot?.roomCode || roomCode));
   document.querySelector("#lobby-copy-link")?.addEventListener("click", () => {
     const inviteUrl = new URL("/play", location.origin);
@@ -1308,7 +1402,23 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
   bindActions();
 }
 
-function renderDeckPreview(deck?: CatalogDeck, body?: CatalogCard) {
+function renderDeckPreview(deck?: CatalogDeck, body?: CatalogCard, player?: PlayerView) {
+  if (player?.deckId === CUSTOM_DECK_ID) {
+    const customDeck = readCustomDeck(player);
+    const selectedNames = customDeck.characterIds
+      .map((id) => catalog.cards[id]?.name)
+      .filter(Boolean)
+      .slice(0, 4)
+      .join("、");
+    return `<article class="battle-deck-preview__card ${themeClasses("neutral")}">
+      ${body?.imagePath ? `<img src="${body.imagePath}" alt="" class="battle-deck-preview__art" loading="lazy" />` : ""}
+      <div>
+        <span class="battle-deck-preview__tag">自组牌组</span>
+        <strong>${escapeHtml(body?.name || "选择本体")}</strong>
+        <p>1 张本体 · ${customDeck.characterIds.length}/16 张角色${selectedNames ? ` · ${escapeHtml(selectedNames)}` : ""}</p>
+      </div>
+    </article>`;
+  }
   if (!deck) return `<p class="battle-deck-preview__empty">选择预组以预览本体与打法方向。</p>`;
   return `<article class="battle-deck-preview__card ${themeClasses(deck.theme)}">
     ${body?.imagePath ? `<img src="${body.imagePath}" alt="" class="battle-deck-preview__art" loading="lazy" />` : ""}
@@ -1320,12 +1430,79 @@ function renderDeckPreview(deck?: CatalogDeck, body?: CatalogCard) {
   </article>`;
 }
 
+function renderCustomDeckBuilder(deck: CustomDeckConfig, disabled: boolean) {
+  const selected = new Set(deck.characterIds);
+  return `
+    <div class="battle-custom-builder__head">
+      <strong>自组牌组</strong>
+      <span data-custom-count>${selected.size}/16 角色</span>
+    </div>
+    <label>本体卡
+      <select data-custom-body ${disabled ? "disabled" : ""}>
+        ${bodyCatalogCards.map((card) => `<option value="${card.id}" ${card.id === deck.bodyId ? "selected" : ""}>${escapeHtml(card.name)} · ${escapeHtml(card.subtitle)}</option>`).join("")}
+      </select>
+    </label>
+    <div class="battle-custom-builder__grid" aria-label="选择 16 张角色卡">
+      ${characterCatalogCards.map((card) => {
+        const checked = selected.has(card.id);
+        const locked = disabled || (!checked && selected.size >= 16);
+        return `<label class="battle-custom-card ${checked ? "is-selected" : ""}">
+          <input type="checkbox" value="${card.id}" data-custom-character ${checked ? "checked" : ""} ${locked ? "disabled" : ""} />
+          ${card.imagePath ? `<img src="${card.imagePath}" alt="" loading="lazy" />` : ""}
+          <span>${escapeHtml(card.name)}</span>
+          <small>${escapeHtml(card.subtitle)}</small>
+        </label>`;
+      }).join("")}
+    </div>
+    <p class="battle-custom-builder__hint" data-custom-hint>${selected.size === 16 ? "自组牌组已满足开局要求。" : `还需要选择 ${16 - selected.size} 张角色。`}</p>
+  `;
+}
+
+function readLobbyCustomDeck(): CustomDeckConfig {
+  const builder = root.querySelector<HTMLElement>("[data-custom-builder]");
+  const bodyId = (builder?.querySelector("[data-custom-body]") as HTMLSelectElement | null)?.value || bodyCatalogCards[0]?.id || "";
+  const characterIds = [...(builder?.querySelectorAll<HTMLInputElement>("[data-custom-character]:checked") || [])]
+    .map((input) => input.value)
+    .slice(0, 16);
+  return { bodyId, characterIds };
+}
+
+function bindCustomDeckBuilder(me: PlayerView) {
+  const builder = root.querySelector<HTMLElement>("[data-custom-builder]");
+  if (!builder || me.ready || me.deckId !== CUSTOM_DECK_ID) return;
+  const sync = () => {
+    const customDeck = readLobbyCustomDeck();
+    const selected = new Set(customDeck.characterIds);
+    builder.querySelector<HTMLElement>("[data-custom-count]")!.textContent = `${selected.size}/16 角色`;
+    builder.querySelector<HTMLElement>("[data-custom-hint]")!.textContent = selected.size === 16
+      ? "自组牌组已满足开局要求。"
+      : `还需要选择 ${16 - selected.size} 张角色。`;
+    builder.querySelectorAll<HTMLInputElement>("[data-custom-character]").forEach((input) => {
+      const selectedCard = input.checked;
+      input.disabled = !selectedCard && selected.size >= 16;
+      input.closest(".battle-custom-card")?.classList.toggle("is-selected", selectedCard);
+    });
+    saveCustomDeck(customDeck);
+    localStorage.setItem(PENDING_KEY, JSON.stringify({
+      nickname: me.nickname,
+      deckId: CUSTOM_DECK_ID,
+      customDeck,
+    }));
+    if (isCustomDeckValid(customDeck)) send("player:selectDeck", { deckId: CUSTOM_DECK_ID, customDeck });
+  };
+  builder.querySelector("[data-custom-body]")?.addEventListener("change", sync);
+  builder.querySelectorAll("[data-custom-character]").forEach((input) => input.addEventListener("change", sync));
+}
+
 function renderLobbySeat(player: PlayerView, isMe: boolean) {
   const deck = deckFor(player);
+  const deckText = player.deckId === CUSTOM_DECK_ID
+    ? (isMe ? customDeckLabel(player) : "自组牌组")
+    : deck ? `${escapeHtml(deck.name)} · ${escapeHtml(deck.archetype)}` : "尚未选择预组";
   return `<article class="battle-seat ${themeClasses(deck?.theme)} ${player.ready ? "is-ready" : ""}">
     <span class="battle-seat__status"><i class="${player.connected ? "is-online" : ""}"></i>${isMe ? "你的座位" : "对手座位"} · ${player.connected ? "在线" : "离线"}</span>
     <strong>${escapeHtml(player.nickname)}</strong>
-    <p>${deck ? `${escapeHtml(deck.name)} · ${escapeHtml(deck.archetype)}` : "尚未选择预组"}</p>
+    <p>${escapeHtml(deckText)}</p>
     <em>${player.ready ? "已准备" : "未准备"}</em>
   </article>`;
 }
@@ -1817,6 +1994,16 @@ function handleCommand(element: HTMLElement) {
     return;
   }
   if (command === "player:ready") {
+    if (element.dataset.ready === "true" && snapshot) {
+      const me = snapshot.players.find((player) => player.id === snapshot?.you);
+      if (me?.deckId === CUSTOM_DECK_ID) {
+        const customDeck = readLobbyCustomDeck();
+        if (!isCustomDeckValid(customDeck)) {
+          showError("自组牌组需要 1 张本体和 16 张不重复角色。");
+          return;
+        }
+      }
+    }
     send(command, { ready: element.dataset.ready === "true" });
   } else if (command === "card:draw-hand") {
     send("card:draw", { deck: "hand", count: 1 });
