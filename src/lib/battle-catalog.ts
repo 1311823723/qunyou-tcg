@@ -38,6 +38,11 @@ export interface BattleCatalogCard {
   megaCondition?: string;
   timing?: string;
   costText?: string;
+  mainRole?: string;
+  tags?: string[];
+  skillName?: string;
+  archetype?: string;
+  hp?: number;
 }
 
 export function getBattleCatalog() {
@@ -51,6 +56,9 @@ export function getBattleCatalog() {
       kind: "body",
       subtitle: `${body.archetype} · ${body.skillName}`,
       text: body.effectText,
+      skillName: body.skillName,
+      archetype: body.archetype,
+      hp: body.hp,
       imagePath: `/cards/bodies/${body.id}_front.webp`,
       highResImagePath: `/cards-hd/bodies/${body.id}_front.webp`,
       extraImagePath: `/cards/bodies/${body.id}_mega_back.webp`,
@@ -73,6 +81,9 @@ export function getBattleCatalog() {
       kind: "character",
       subtitle: `${card.mainRole} · ${card.skillName}`,
       text: card.effectText,
+      mainRole: card.mainRole,
+      tags: card.tags,
+      skillName: card.skillName,
       timing: card.timing,
       costText: formatCharacterCost(card.cost),
       imagePath: `/cards/characters/${card.id}.webp`,

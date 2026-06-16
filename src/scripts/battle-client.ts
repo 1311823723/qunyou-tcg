@@ -47,6 +47,9 @@ const catalog = JSON.parse(catalogNode.textContent || "{}") as Catalog;
 const catalogCards = Object.values(catalog.cards || {});
 const bodyCatalogCards = catalogCards.filter((card) => card.kind === "body");
 const characterCatalogCards = catalogCards.filter((card) => card.kind === "character");
+const customRoleFilters = ["", ...Array.from(new Set(characterCatalogCards
+  .map((card) => card.mainRole || card.subtitle.split(" · ")[0])
+  .filter(Boolean)))];
 
 const API_URL = getBattleApiUrl();
 const TOKEN_KEY = "qunyou-battle-token-v1";
@@ -224,6 +227,7 @@ dialog.addEventListener("click", (event) => {
 });
 dialog.addEventListener("close", () => {
   dialog.classList.remove("battle-dialog--art");
+  dialog.classList.remove("battle-dialog--custom-picker");
   const returnTarget = dialogReturnFocus;
   dialogReturnFocus = null;
   if (returnTarget?.isConnected) window.requestAnimationFrame(() => returnTarget.focus());
@@ -1432,6 +1436,7 @@ function renderDeckPreview(deck?: CatalogDeck, body?: CatalogCard, player?: Play
 
 function renderCustomDeckBuilder(deck: CustomDeckConfig, disabled: boolean) {
   const selected = new Set(deck.characterIds);
+  const selectedBody = catalog.cards[deck.bodyId] || bodyCatalogCards[0];
   return `
     <div class="battle-custom-builder__head">
       <strong>自组牌组</strong>
@@ -1442,34 +1447,60 @@ function renderCustomDeckBuilder(deck: CustomDeckConfig, disabled: boolean) {
         ${bodyCatalogCards.map((card) => `<option value="${card.id}" ${card.id === deck.bodyId ? "selected" : ""}>${escapeHtml(card.name)} · ${escapeHtml(card.subtitle)}</option>`).join("")}
       </select>
     </label>
-    <div class="battle-custom-builder__grid" aria-label="选择 16 张角色卡">
-      ${characterCatalogCards.map((card) => {
-        const checked = selected.has(card.id);
-        const locked = disabled || (!checked && selected.size >= 16);
-        return `<label class="battle-custom-card ${checked ? "is-selected" : ""}">
-          <input type="checkbox" value="${card.id}" data-custom-character ${checked ? "checked" : ""} ${locked ? "disabled" : ""} />
-          ${card.imagePath ? `<img src="${card.imagePath}" alt="" loading="lazy" />` : ""}
-          <span>${escapeHtml(card.name)}</span>
-          <small>${escapeHtml(card.subtitle)}</small>
-        </label>`;
-      }).join("")}
+    <article class="battle-custom-body-info" data-custom-body-info>
+      ${renderCustomBodyInfo(selectedBody)}
+    </article>
+    <div class="battle-custom-picked" data-custom-picked>
+      ${renderSelectedCharacters(deck.characterIds)}
     </div>
     <p class="battle-custom-builder__hint" data-custom-hint>${selected.size === 16 ? "自组牌组已满足开局要求。" : `还需要选择 ${16 - selected.size} 张角色。`}</p>
+    <button type="button" class="btn btn--secondary" data-custom-open-picker ${disabled ? "disabled" : ""}>选择角色卡</button>
+  `;
+}
+
+function renderSelectedCharacters(characterIds: string[]) {
+  if (!characterIds.length) return `<span class="battle-custom-picked__empty">尚未选择角色。</span>`;
+  return characterIds.map((id) => {
+    const card = catalog.cards[id];
+    return `<span class="battle-custom-picked__chip">${escapeHtml(card?.name || id)}</span>`;
+  }).join("");
+}
+
+function renderCustomBodyInfo(card?: CatalogCard) {
+  if (!card) return "<p>请选择本体卡。</p>";
+  return `
+    <div>
+      <strong>${escapeHtml(card.name)}</strong>
+      <span>${escapeHtml(card.subtitle)}${card.hp ? ` · 体力 ${card.hp}` : ""}</span>
+    </div>
+    <p>${escapeHtml(card.text)}</p>
+    ${card.megaCondition ? `<p><b>Mega 条件</b>：${escapeHtml(card.megaCondition)}</p>` : ""}
+    <button type="button" class="battle-small-btn" data-custom-preview="${card.id}">查看本体大图</button>
   `;
 }
 
 function readLobbyCustomDeck(): CustomDeckConfig {
   const builder = root.querySelector<HTMLElement>("[data-custom-builder]");
   const bodyId = (builder?.querySelector("[data-custom-body]") as HTMLSelectElement | null)?.value || bodyCatalogCards[0]?.id || "";
-  const characterIds = [...(builder?.querySelectorAll<HTMLInputElement>("[data-custom-character]:checked") || [])]
-    .map((input) => input.value)
+  const characterIds = (builder?.dataset.characterIds || "")
+    .split(",")
+    .filter((id) => catalog.cards[id]?.kind === "character")
     .slice(0, 16);
   return { bodyId, characterIds };
 }
 
 function bindCustomDeckBuilder(me: PlayerView) {
   const builder = root.querySelector<HTMLElement>("[data-custom-builder]");
-  if (!builder || me.ready || me.deckId !== CUSTOM_DECK_ID) return;
+  if (!builder || me.deckId !== CUSTOM_DECK_ID) return;
+  builder.dataset.characterIds = readCustomDeck(me).characterIds.join(",");
+  builder.querySelectorAll<HTMLElement>("[data-custom-preview]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showCustomCardPreview(button.dataset.customPreview || "");
+    });
+  });
+  if (me.ready) return;
   const sync = () => {
     const customDeck = readLobbyCustomDeck();
     const selected = new Set(customDeck.characterIds);
@@ -1477,11 +1508,10 @@ function bindCustomDeckBuilder(me: PlayerView) {
     builder.querySelector<HTMLElement>("[data-custom-hint]")!.textContent = selected.size === 16
       ? "自组牌组已满足开局要求。"
       : `还需要选择 ${16 - selected.size} 张角色。`;
-    builder.querySelectorAll<HTMLInputElement>("[data-custom-character]").forEach((input) => {
-      const selectedCard = input.checked;
-      input.disabled = !selectedCard && selected.size >= 16;
-      input.closest(".battle-custom-card")?.classList.toggle("is-selected", selectedCard);
-    });
+    const picked = builder.querySelector<HTMLElement>("[data-custom-picked]");
+    if (picked) picked.innerHTML = renderSelectedCharacters(customDeck.characterIds);
+    const bodyInfo = builder.querySelector<HTMLElement>("[data-custom-body-info]");
+    if (bodyInfo) bodyInfo.innerHTML = renderCustomBodyInfo(catalog.cards[customDeck.bodyId]);
     saveCustomDeck(customDeck);
     localStorage.setItem(PENDING_KEY, JSON.stringify({
       nickname: me.nickname,
@@ -1491,7 +1521,127 @@ function bindCustomDeckBuilder(me: PlayerView) {
     if (isCustomDeckValid(customDeck)) send("player:selectDeck", { deckId: CUSTOM_DECK_ID, customDeck });
   };
   builder.querySelector("[data-custom-body]")?.addEventListener("change", sync);
-  builder.querySelectorAll("[data-custom-character]").forEach((input) => input.addEventListener("change", sync));
+  builder.querySelector("[data-custom-open-picker]")?.addEventListener("click", () => showCustomCharacterPicker(builder, sync));
+}
+
+function applyCustomDeckFilters(container: HTMLElement) {
+  const query = (container.querySelector<HTMLInputElement>("[data-custom-search]")?.value || "").trim().toLowerCase();
+  const role = container.querySelector<HTMLElement>("[data-custom-role].is-active")?.dataset.customRole || "";
+  let visible = 0;
+  container.querySelectorAll<HTMLElement>("[data-custom-card]").forEach((card) => {
+    const matchesSearch = !query || (card.dataset.search || "").includes(query);
+    const matchesRole = !role || card.dataset.role === role;
+    const show = matchesSearch && matchesRole;
+    card.hidden = !show;
+    if (show) visible++;
+  });
+  const hint = container.querySelector<HTMLElement>("[data-custom-picker-hint]");
+  if (hint && visible === 0) hint.textContent = "没有匹配的角色牌，试试换个关键词或定位。";
+}
+
+function showCustomCharacterPicker(builder: HTMLElement, onDone: () => void) {
+  const deck = readLobbyCustomDeck();
+  const selected = new Set(deck.characterIds);
+  dialog.classList.add("battle-dialog--custom-picker");
+  dialogContent.innerHTML = `<div class="battle-card-menu battle-custom-picker">
+    <div class="battle-custom-picker__top">
+      <div>
+        <span>自选角色卡</span>
+        <h2>选择 16 张角色</h2>
+      </div>
+      <strong data-custom-picker-count>${selected.size}/16</strong>
+    </div>
+    <div class="battle-custom-tools">
+      <input type="search" placeholder="搜索名称、技能、效果…" data-custom-search autocomplete="off" />
+      <div class="battle-custom-filter" aria-label="按角色定位筛选">
+        ${customRoleFilters.map((role) => `<button type="button" class="battle-custom-filter__chip ${role ? "" : "is-active"}" data-custom-role="${escapeHtml(role)}">${role ? escapeHtml(role) : "全部"}</button>`).join("")}
+      </div>
+    </div>
+    <div class="battle-custom-builder__grid battle-custom-builder__grid--modal" aria-label="选择 16 张角色卡">
+      ${characterCatalogCards.map((card) => {
+        const checked = selected.has(card.id);
+        const role = card.mainRole || card.subtitle.split(" · ")[0] || "";
+        const search = `${card.name} ${card.subtitle} ${card.skillName || ""} ${card.text} ${(card.tags || []).join(" ")}`.toLowerCase();
+        return `<label class="battle-custom-card ${checked ? "is-selected" : ""}" data-custom-card data-role="${escapeHtml(role)}" data-search="${escapeHtml(search)}">
+          <input type="checkbox" value="${card.id}" data-custom-character ${checked ? "checked" : ""} />
+          ${card.imagePath ? `<img src="${card.imagePath}" alt="" loading="lazy" />` : ""}
+          <span>${escapeHtml(card.name)}</span>
+          <small>${escapeHtml(card.subtitle)}</small>
+          <button type="button" class="battle-custom-card__detail" data-custom-preview="${card.id}" aria-label="查看 ${escapeHtml(card.name)}">查看</button>
+          <div class="battle-custom-card__tip" role="tooltip">
+            <strong>${escapeHtml(card.skillName || card.subtitle || card.name)}</strong>
+            <span>${escapeHtml(card.costText || "")}${card.timing ? ` · ${escapeHtml(card.timing)}` : ""}</span>
+            <p>${escapeHtml(card.text || "")}</p>
+          </div>
+        </label>`;
+      }).join("")}
+    </div>
+    <p class="battle-custom-builder__hint" data-custom-picker-hint>点击卡牌选择或取消，鼠标悬停可查看技能。</p>
+    <div class="battle-card-menu__actions battle-card-menu__actions--row">
+      <button type="button" class="battle-small-btn" data-dialog-cancel>取消</button>
+      <button type="button" class="btn btn--primary" data-custom-picker-done>完成选择</button>
+    </div>
+  </div>`;
+  const syncPicker = () => {
+    const ids = [...dialogContent.querySelectorAll<HTMLInputElement>("[data-custom-character]:checked")].map((input) => input.value);
+    const picked = new Set(ids);
+    dialogContent.querySelector<HTMLElement>("[data-custom-picker-count]")!.textContent = `${picked.size}/16`;
+    dialogContent.querySelectorAll<HTMLInputElement>("[data-custom-character]").forEach((input) => {
+      input.disabled = !input.checked && picked.size >= 16;
+      input.closest(".battle-custom-card")?.classList.toggle("is-selected", input.checked);
+    });
+  };
+  dialogContent.querySelector("[data-custom-search]")?.addEventListener("input", () => applyCustomDeckFilters(dialogContent));
+  dialogContent.querySelectorAll<HTMLElement>("[data-custom-role]").forEach((button) => {
+    button.addEventListener("click", () => {
+      dialogContent.querySelectorAll("[data-custom-role]").forEach((chip) => chip.classList.toggle("is-active", chip === button));
+      applyCustomDeckFilters(dialogContent);
+    });
+  });
+  dialogContent.querySelectorAll("[data-custom-character]").forEach((input) => input.addEventListener("change", syncPicker));
+  dialogContent.querySelectorAll<HTMLElement>("[data-custom-preview]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showCustomCardPreview(button.dataset.customPreview || "");
+    });
+  });
+  dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
+  dialogContent.querySelector("[data-custom-picker-done]")?.addEventListener("click", () => {
+    const ids = [...dialogContent.querySelectorAll<HTMLInputElement>("[data-custom-character]:checked")]
+      .map((input) => input.value)
+      .slice(0, 16);
+    builder.dataset.characterIds = ids.join(",");
+    onDone();
+    dialog.close();
+  });
+  openBattleDialog();
+  syncPicker();
+}
+
+function showCustomCardPreview(cardId: string) {
+  const card = catalog.cards[cardId];
+  if (!card) return;
+  const art = [card.highResImagePath || card.imagePath, card.kind === "body" ? card.extraHighResImagePath || card.extraImagePath : ""]
+    .filter(Boolean)
+    .map((src) => `<img src="${escapeHtml(src || "")}" alt="" />`)
+    .join("");
+  dialogContent.innerHTML = `<div class="battle-card-menu battle-custom-preview">
+    <div class="battle-custom-preview__art">${art || "<span>暂无卡图</span>"}</div>
+    <div class="battle-custom-preview__text">
+      <span>${escapeHtml(card.subtitle)}</span>
+      <h2>${escapeHtml(card.name)}</h2>
+      ${card.costText || card.timing ? `<p><b>消耗/时机</b>：${escapeHtml([card.costText, card.timing].filter(Boolean).join(" · "))}</p>` : ""}
+      <p>${escapeHtml(card.text)}</p>
+      ${card.megaCondition ? `<p><b>Mega 条件</b>：${escapeHtml(card.megaCondition)}</p>` : ""}
+      ${card.extraText ? `<p><b>${escapeHtml(card.extraName || "额外形态")}</b>：${escapeHtml(card.extraText)}</p>` : ""}
+    </div>
+    <div class="battle-card-menu__actions battle-card-menu__actions--row">
+      <button type="button" class="battle-small-btn" data-dialog-cancel>关闭</button>
+    </div>
+  </div>`;
+  dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
+  openBattleDialog();
 }
 
 function renderLobbySeat(player: PlayerView, isMe: boolean) {

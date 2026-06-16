@@ -103,6 +103,7 @@ const catalog = getBattleCatalog();
   const allCards = Object.values(catalog.cards || {});
   const bodyCards = allCards.filter((card) => card.kind === "body");
   const characterCards = allCards.filter((card) => card.kind === "character");
+  const roleFilters = ["", ...Array.from(new Set(characterCards.map((card) => card.mainRole || card.subtitle?.split(" · ")[0]).filter(Boolean)))];
 
   function escapeHtml(value) {
     return String(value || "").replace(/[&<>"']/g, (char) => ({
@@ -140,8 +141,9 @@ const catalog = getBattleCatalog();
     const builder = form.querySelector("[data-custom-builder]");
     if (!(builder instanceof HTMLElement)) return defaultCustomDeck();
     const bodyId = builder.querySelector("[data-custom-body]")?.value || bodyCards[0]?.id || "";
-    const characterIds = [...builder.querySelectorAll("[data-custom-character]:checked")]
-      .map((input) => input.value)
+    const characterIds = (builder.dataset.characterIds || "")
+      .split(",")
+      .filter((id) => catalog.cards?.[id]?.kind === "character")
       .slice(0, 16);
     return { bodyId, characterIds };
   }
@@ -224,6 +226,8 @@ const catalog = getBattleCatalog();
   }
 
   function renderCustomBuilder(builder, deck) {
+    const selectedBody = catalog.cards?.[deck.bodyId] || bodyCards[0];
+    builder.dataset.characterIds = deck.characterIds.join(",");
     builder.innerHTML = `
       <div class="battle-custom-builder__head">
         <strong>自组牌组</strong>
@@ -234,18 +238,35 @@ const catalog = getBattleCatalog();
           ${bodyCards.map((card) => `<option value="${card.id}" ${card.id === deck.bodyId ? "selected" : ""}>${escapeHtml(card.name)} · ${escapeHtml(card.subtitle || "")}</option>`).join("")}
         </select>
       </label>
-      <div class="battle-custom-builder__grid" aria-label="选择 16 张角色卡">
-        ${characterCards.map((card) => {
-          const checked = deck.characterIds.includes(card.id);
-          return `<label class="battle-custom-card ${checked ? "is-selected" : ""}">
-            <input type="checkbox" value="${card.id}" data-custom-character ${checked ? "checked" : ""} />
-            ${card.imagePath ? `<img src="${card.imagePath}" alt="" loading="lazy" />` : ""}
-            <span>${escapeHtml(card.name)}</span>
-            <small>${escapeHtml(card.subtitle || "")}</small>
-          </label>`;
-        }).join("")}
+      <article class="battle-custom-body-info" data-custom-body-info>
+        ${renderCustomBodyInfo(selectedBody)}
+      </article>
+      <div class="battle-custom-picked" data-custom-picked>
+        ${renderSelectedCharacters(deck.characterIds)}
       </div>
       <p class="battle-custom-builder__hint" data-custom-hint>请选择 1 张本体和 16 张不重复角色。</p>
+      <button type="button" class="btn btn--secondary" data-custom-open-picker>选择角色卡</button>
+    `;
+  }
+
+  function renderSelectedCharacters(characterIds) {
+    if (!characterIds.length) return `<span class="battle-custom-picked__empty">尚未选择角色。</span>`;
+    return characterIds.map((id) => {
+      const card = catalog.cards?.[id];
+      return `<span class="battle-custom-picked__chip">${escapeHtml(card?.name || id)}</span>`;
+    }).join("");
+  }
+
+  function renderCustomBodyInfo(card) {
+    if (!card) return "<p>请选择本体卡。</p>";
+    return `
+      <div>
+        <strong>${escapeHtml(card.name)}</strong>
+        <span>${escapeHtml(card.subtitle || "")}${card.hp ? ` · 体力 ${card.hp}` : ""}</span>
+      </div>
+      <p>${escapeHtml(card.text || "")}</p>
+      ${card.megaCondition ? `<p><b>Mega 条件</b>：${escapeHtml(card.megaCondition)}</p>` : ""}
+      <button type="button" class="battle-small-btn" data-custom-preview="${card.id}">查看本体大图</button>
     `;
   }
 
@@ -258,11 +279,11 @@ const catalog = getBattleCatalog();
     builder.querySelector("[data-custom-hint]").textContent = deck.characterIds.length === 16
       ? "自组牌组已满足开局要求。"
       : `还需要选择 ${16 - deck.characterIds.length} 张角色。`;
-    builder.querySelectorAll("[data-custom-character]").forEach((input) => {
-      const label = input.closest(".battle-custom-card");
-      label?.classList.toggle("is-selected", input.checked);
-      input.disabled = !input.checked && selected.size >= 16;
-    });
+    builder.dataset.characterIds = deck.characterIds.join(",");
+    const picked = builder.querySelector("[data-custom-picked]");
+    if (picked) picked.innerHTML = renderSelectedCharacters(deck.characterIds);
+    const bodyInfo = builder.querySelector("[data-custom-body-info]");
+    if (bodyInfo) bodyInfo.innerHTML = renderCustomBodyInfo(catalog.cards?.[deck.bodyId]);
     saveCustomDeck(deck);
     renderDeckPreview(CUSTOM_DECK_ID);
   }
@@ -280,11 +301,154 @@ const catalog = getBattleCatalog();
     builder.hidden = !isCustom;
     if (!isCustom) return;
     renderCustomBuilder(builder, readCustomDeck());
-    builder.querySelector("[data-custom-body]")?.addEventListener("change", () => refreshCustomBuilder(form));
-    builder.querySelectorAll("[data-custom-character]").forEach((input) => {
-      input.addEventListener("change", () => refreshCustomBuilder(form));
-    });
+    bindCustomBuilderEvents(form, builder);
     refreshCustomBuilder(form);
+  }
+
+  function bindCustomBuilderEvents(form, builder) {
+    builder.querySelector("[data-custom-body]")?.addEventListener("change", () => refreshCustomBuilder(form));
+    builder.querySelector("[data-custom-open-picker]")?.addEventListener("click", () => showCustomCharacterPicker(form, builder));
+    builder.querySelectorAll("[data-custom-preview]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        showCustomCardPreview(button.dataset.customPreview);
+      });
+    });
+  }
+
+  function applyCustomFilters(container) {
+    const query = (container.querySelector("[data-custom-search]")?.value || "").trim().toLowerCase();
+    const role = container.querySelector("[data-custom-role].is-active")?.dataset.customRole || "";
+    let visible = 0;
+    container.querySelectorAll("[data-custom-card]").forEach((card) => {
+      const matchesSearch = !query || (card.dataset.search || "").includes(query);
+      const matchesRole = !role || card.dataset.role === role;
+      const show = matchesSearch && matchesRole;
+      card.hidden = !show;
+      if (show) visible++;
+    });
+    const hint = container.querySelector("[data-custom-picker-hint]");
+    if (hint && visible === 0) hint.textContent = "没有匹配的角色牌，试试换个关键词或定位。";
+  }
+
+  function showCustomCharacterPicker(form, builder) {
+    const deck = customDeckFromForm(form);
+    const selected = new Set(deck.characterIds);
+    const modal = document.createElement("div");
+    modal.className = "battle-custom-modal battle-custom-modal--picker";
+    modal.innerHTML = `
+      <div class="battle-custom-modal__backdrop" data-custom-modal-close></div>
+      <article class="battle-custom-modal__panel battle-custom-modal__panel--wide" role="dialog" aria-modal="true">
+        <div class="battle-custom-picker__top">
+          <div>
+            <span>自选角色卡</span>
+            <h2>选择 16 张角色</h2>
+          </div>
+          <strong data-custom-picker-count>${selected.size}/16</strong>
+          <button type="button" class="battle-custom-modal__close" data-custom-modal-close>关闭</button>
+        </div>
+        <div class="battle-custom-tools">
+          <input type="search" placeholder="搜索名称、技能、效果…" data-custom-search autocomplete="off" />
+          <div class="battle-custom-filter" aria-label="按角色定位筛选">
+            ${roleFilters.map((role) => `<button type="button" class="battle-custom-filter__chip ${role ? "" : "is-active"}" data-custom-role="${escapeHtml(role)}">${role ? escapeHtml(role) : "全部"}</button>`).join("")}
+          </div>
+        </div>
+        <div class="battle-custom-builder__grid battle-custom-builder__grid--modal" aria-label="选择 16 张角色卡">
+          ${characterCards.map((card) => {
+            const checked = selected.has(card.id);
+            const search = `${card.name || ""} ${card.subtitle || ""} ${card.skillName || ""} ${card.text || ""} ${(card.tags || []).join(" ")}`.toLowerCase();
+            const role = card.mainRole || card.subtitle?.split(" · ")[0] || "";
+            return `<label class="battle-custom-card ${checked ? "is-selected" : ""}" data-custom-card data-role="${escapeHtml(role)}" data-search="${escapeHtml(search)}">
+              <input type="checkbox" value="${card.id}" data-custom-character ${checked ? "checked" : ""} />
+              ${card.imagePath ? `<img src="${card.imagePath}" alt="" loading="lazy" />` : ""}
+              <span>${escapeHtml(card.name)}</span>
+              <small>${escapeHtml(card.subtitle || "")}</small>
+              <button type="button" class="battle-custom-card__detail" data-custom-preview="${card.id}" aria-label="查看 ${escapeHtml(card.name)}">查看</button>
+              <div class="battle-custom-card__tip" role="tooltip">
+                <strong>${escapeHtml(card.skillName || card.subtitle || card.name)}</strong>
+                <span>${escapeHtml(card.costText || "")}${card.timing ? ` · ${escapeHtml(card.timing)}` : ""}</span>
+                <p>${escapeHtml(card.text || "")}</p>
+              </div>
+            </label>`;
+          }).join("")}
+        </div>
+        <p class="battle-custom-builder__hint" data-custom-picker-hint>点击卡牌选择或取消，鼠标悬停可查看技能。</p>
+        <div class="battle-card-menu__actions battle-card-menu__actions--row">
+          <button type="button" class="battle-small-btn" data-custom-modal-close>取消</button>
+          <button type="button" class="btn btn--primary" data-custom-picker-done>完成选择</button>
+        </div>
+      </article>
+    `;
+    document.body.appendChild(modal);
+    const syncModal = () => {
+      const ids = [...modal.querySelectorAll("[data-custom-character]:checked")].map((input) => input.value);
+      const picked = new Set(ids);
+      modal.querySelector("[data-custom-picker-count]").textContent = `${picked.size}/16`;
+      modal.querySelectorAll("[data-custom-character]").forEach((input) => {
+        input.disabled = !input.checked && picked.size >= 16;
+        input.closest(".battle-custom-card")?.classList.toggle("is-selected", input.checked);
+      });
+    };
+    modal.querySelector("[data-custom-search]")?.addEventListener("input", () => applyCustomFilters(modal));
+    modal.querySelectorAll("[data-custom-role]").forEach((button) => {
+      button.addEventListener("click", () => {
+        modal.querySelectorAll("[data-custom-role]").forEach((chip) => chip.classList.toggle("is-active", chip === button));
+        applyCustomFilters(modal);
+      });
+    });
+    modal.querySelectorAll("[data-custom-character]").forEach((input) => input.addEventListener("change", syncModal));
+    modal.querySelectorAll("[data-custom-preview]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        showCustomCardPreview(button.dataset.customPreview);
+      });
+    });
+    modal.querySelector("[data-custom-picker-done]")?.addEventListener("click", () => {
+      const ids = [...modal.querySelectorAll("[data-custom-character]:checked")].map((input) => input.value).slice(0, 16);
+      builder.dataset.characterIds = ids.join(",");
+      refreshCustomBuilder(form);
+      modal.remove();
+    });
+    modal.querySelectorAll("[data-custom-modal-close]").forEach((button) => button.addEventListener("click", () => modal.remove()));
+    syncModal();
+  }
+
+  function showCustomCardPreview(cardId) {
+    const card = catalog.cards?.[cardId || ""];
+    if (!card) return;
+    const image = card.highResImagePath || card.imagePath || "";
+    const extraImage = card.kind === "body" ? (card.extraHighResImagePath || card.extraImagePath || "") : "";
+    const modal = document.createElement("div");
+    modal.className = "battle-custom-modal";
+    modal.innerHTML = `
+      <div class="battle-custom-modal__backdrop" data-custom-modal-close></div>
+      <article class="battle-custom-modal__panel" role="dialog" aria-modal="true">
+        <button type="button" class="battle-custom-modal__close" data-custom-modal-close>关闭</button>
+        <div class="battle-custom-modal__art">
+          ${image ? `<img src="${image}" alt="" />` : ""}
+          ${extraImage ? `<img src="${extraImage}" alt="" />` : ""}
+        </div>
+        <div class="battle-custom-modal__text">
+          <span>${escapeHtml(card.subtitle || "")}</span>
+          <h2>${escapeHtml(card.name)}</h2>
+          ${card.costText || card.timing ? `<p><b>消耗/时机</b>：${escapeHtml([card.costText, card.timing].filter(Boolean).join(" · "))}</p>` : ""}
+          <p>${escapeHtml(card.text || "")}</p>
+          ${card.megaCondition ? `<p><b>Mega 条件</b>：${escapeHtml(card.megaCondition)}</p>` : ""}
+          ${card.extraText ? `<p><b>${escapeHtml(card.extraName || "额外形态")}</b>：${escapeHtml(card.extraText)}</p>` : ""}
+        </div>
+      </article>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelectorAll("[data-custom-modal-close]").forEach((button) => {
+      button.addEventListener("click", () => modal.remove());
+    });
+    window.addEventListener("keydown", function closeOnEsc(event) {
+      if (event.key !== "Escape") return;
+      modal.remove();
+      window.removeEventListener("keydown", closeOnEsc);
+    });
   }
 
   function token() {

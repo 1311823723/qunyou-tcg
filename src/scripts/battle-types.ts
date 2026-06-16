@@ -17,6 +17,11 @@ export type CatalogCard = {
   megaCondition?: string;
   timing?: string;
   costText?: string;
+  mainRole?: string;
+  tags?: string[];
+  skillName?: string;
+  archetype?: string;
+  hp?: number;
 };
 
 export type CatalogDeck = {
