@@ -103,7 +103,7 @@ export type Snapshot = {
 
 export type InspectionAction = "handDeckTop" | "handDeckBottom" | "handDiscard" | "hand";
 
-export type AnimationMode = "full" | "compact" | "off";
+export type AnimationMode = "on" | "off";
 
 export type VisualEffectEvent = {
   type: "visualEffect";
