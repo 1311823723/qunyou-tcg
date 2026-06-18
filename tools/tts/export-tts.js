@@ -98,11 +98,11 @@ async function renderCards() {
       name: body.name,
       filePath: frontPath,
       relativeFile: relFromExport(frontPath),
-      extra: { megaName: body.extraForm?.name },
+      extra: { formName: body.extraForm?.name, formType: body.extraForm?.type },
     });
     rendered.bodyBacks.push({
-      id: `${body.id}:mega`,
-      name: body.extraForm?.name ?? `Mega ${body.name}`,
+      id: `${body.id}:${body.extraForm?.type ?? "extra"}`,
+      name: body.extraForm?.name ?? `额外形态 ${body.name}`,
       filePath: backPath,
       relativeFile: relFromExport(backPath),
     });
@@ -224,7 +224,7 @@ async function main() {
   const cards = await renderCards();
   if (cardsOnly) {
     console.log("TTS card render complete");
-    console.log(`  Bodies/Mega: ${cards.bodyFronts.length}`);
+    console.log(`  Bodies/extra forms: ${cards.bodyFronts.length}`);
     console.log(`  Characters: ${cards.characters.length}`);
     console.log(`  Hand cards: ${cards.hands.length}`);
     return;
@@ -242,7 +242,7 @@ async function main() {
     pairedBackCards: cards.bodyBacks,
     baseName: "bodies_megas",
     outDir: sheetsDir,
-    manifestType: "本体/Mega",
+    manifestType: "本体/额外形态",
   }));
 
   sheets.push(...await makeSheets({
@@ -298,7 +298,7 @@ async function main() {
 
   console.log("TTS export complete");
   console.log(`  Output: ${EXPORT_DIR}`);
-  console.log(`  Bodies/Mega double-sided: ${cards.bodyFronts.length}`);
+  console.log(`  Bodies/extra forms double-sided: ${cards.bodyFronts.length}`);
   console.log(`  Characters: ${cards.characters.length}`);
   console.log(`  Hand cards: ${cards.hands.length}`);
   console.log(`  Sheets: ${sheets.length}`);

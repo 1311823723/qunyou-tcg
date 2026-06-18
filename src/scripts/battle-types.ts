@@ -13,6 +13,9 @@ export type CatalogCard = {
   extraName?: string;
   extraSubtitle?: string;
   extraText?: string;
+  extraFormType?: string;
+  extraFormLabel?: string;
+  extraConditionLabel?: string;
   megaMax?: number;
   megaCondition?: string;
   timing?: string;

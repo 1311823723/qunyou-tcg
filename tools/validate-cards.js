@@ -21,7 +21,8 @@ const aggroDeck = readJSON("decks/aggro.deck.json");
 const mizaiDeck = readJSON("decks/mizai.deck.json");
 const comboDeck = readJSON("decks/combo.deck.json");
 const transDeck = readJSON("decks/trans.deck.json");
-const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck];
+const dispatchDeck = readJSON("decks/dispatch.deck.json");
+const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck, dispatchDeck];
 
 // Collect all card IDs
 const allIds = new Set();

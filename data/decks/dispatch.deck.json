@@ -1,0 +1,25 @@
+{
+  "id": "deck_dispatch_001",
+  "name": "执棋组",
+  "archetype": "调度流",
+  "bodyId": "body_dispatch_001",
+  "characterIds": [
+    "char_002_weixiaokele_assassin",
+    "char_007_baizi_ninja",
+    "char_055_xiaoapan_judge",
+    "char_033_weixiaokele_watcher",
+    "char_051_baizi_lobbyist",
+    "char_035_xiaoapan_silent-hunter",
+    "char_066_linglong_ninja",
+    "char_074_huihuan_nameless",
+    "char_065_dong_high-priest",
+    "char_047_miaosila_ironclad",
+    "char_081_aichitun_morphling",
+    "char_082_aichitun_embalmer",
+    "char_083_aichitun_detective",
+    "char_084_keke_watcher",
+    "char_085_aichitun_bodyguard",
+    "char_086_aichitun_sheriff"
+  ],
+  "notes": "通过明置角色洞察局势、整理角色牌堆并灵活换阵；Z招式就绪后可一次性重构己方阵容，争取决定性优势。"
+}

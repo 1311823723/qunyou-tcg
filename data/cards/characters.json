@@ -945,7 +945,7 @@
     },
     "timing": "出牌阶段",
     "skillName": "同归于尽",
-    "effectText": "弃置对手1张手牌。若弃置的是【杀】，再弃置1张。",
+    "effectText": "弃置对手1张手牌。若弃置的是黑色手牌，则继续，直至弃置的非黑色手牌，然后对对方造成一点伤害。",
     "source": "鹅"
   },
   {
@@ -1191,7 +1191,7 @@
       "type": "退场",
       "text": "退场自身"
     },
-    "timing": "当你使用锦囊牌后",
+    "timing": "当对方使用锦囊牌结算后",
     "skillName": "暗藏杀机",
     "effectText": "对对手本体造成1点伤害。",
     "source": "鹅"
@@ -1400,9 +1400,9 @@
       "type": "休整",
       "amount": 2
     },
-    "timing": "出牌阶段",
+    "timing": "对手明置角色牌时",
     "skillName": "静默潜袭",
-    "effectText": "选择对手角色区一张明置角色：将其休整。",
+    "effectText": "休整对手此次明置的角色牌。",
     "source": "洲"
   },
   {
@@ -1518,7 +1518,103 @@
     },
     "timing": "出牌阶段",
     "skillName": "悲喜三原色",
-    "effectText": "选择一项：本回合你下一次造成的伤害+1；摸1张手牌；观看对手手牌。",
+    "effectText": "选择一项：本回合你下一次造成的伤害+1；摸2张手牌；观看对手手牌 并获得一张。",
     "source": "盟"
+  },
+  {
+    "id": "char_081_aichitun_morphling",
+    "name": "变形鸭-爱吃豚侠",
+    "cardType": "角色",
+    "deck": "调度流",
+    "mainRole": "资源",
+    "tags": ["布阵", "补位"],
+    "cost": {
+      "type": "休整",
+      "amount": 1
+    },
+    "timing": "出牌阶段",
+    "skillName": "临时替身",
+    "effectText": "每回合限一次，你可以弃置1张手牌，从角色牌堆顶暗置上阵1张角色。",
+    "source": "鹅"
+  },
+  {
+    "id": "char_082_aichitun_embalmer",
+    "name": "入殓师-爱吃豚侠",
+    "cardType": "角色",
+    "deck": "调度流",
+    "mainRole": "资源",
+    "tags": ["退场", "补位"],
+    "cost": {
+      "type": "退场",
+      "text": "退场自身"
+    },
+    "timing": "当你的另一张角色退场后",
+    "skillName": "送葬布阵",
+    "effectText": "从角色牌堆顶依次暗置上阵2张角色。",
+    "source": "鹅"
+  },
+  {
+    "id": "char_083_aichitun_detective",
+    "name": "侦探-爱吃豚侠",
+    "cardType": "角色",
+    "deck": "调度流",
+    "mainRole": "伏击",
+    "tags": ["情报", "补牌"],
+    "cost": {
+      "type": "休整",
+      "amount": 1
+    },
+    "timing": "当对手通过明置角色发动技能后",
+    "skillName": "锁定嫌疑",
+    "effectText": "该技能结算后，你可以观看对手角色区内1张暗置角色，然后摸1张手牌。",
+    "source": "鹅"
+  },
+  {
+    "id": "char_084_keke_watcher",
+    "name": "观者-柯柯",
+    "cardType": "角色",
+    "deck": "调度流",
+    "mainRole": "支援",
+    "tags": ["布阵", "强化"],
+    "cost": {
+      "type": "休整自身",
+      "text": "休整自身"
+    },
+    "timing": "当你一回合内第二张角色上阵后",
+    "skillName": "预见阵型",
+    "effectText": "选择本回合上阵的1张角色并将其明置。该角色下一次发动技能时，若费用为【休整X】，则X减少1，最低为1；若费用为【休整自身】，则改为【休整1】。",
+    "source": "塔"
+  },
+  {
+    "id": "char_085_aichitun_bodyguard",
+    "name": "保镖-爱吃豚侠",
+    "cardType": "角色",
+    "deck": "调度流",
+    "mainRole": "防御",
+    "tags": ["保护", "响应"],
+    "cost": {
+      "type": "退场",
+      "text": "退场自身"
+    },
+    "timing": "当另一张己方角色将因对手的牌或技能休整、退场或移出游戏时",
+    "skillName": "舍身护卫",
+    "effectText": "防止该角色此次休整、退场或移出游戏。若该角色已明置，将其暗置。然后你摸1张手牌。",
+    "source": "鹅"
+  },
+  {
+    "id": "char_086_aichitun_sheriff",
+    "name": "警长-爱吃豚侠",
+    "cardType": "角色",
+    "deck": "调度流",
+    "mainRole": "强攻",
+    "tags": ["识破", "追击"],
+    "cost": {
+      "type": "休整",
+      "amount": 1
+    },
+    "timing": "出牌阶段",
+    "skillName": "当场执法",
+    "effectText": "若本回合对手明置过角色，则本回合你使用的下一张【杀】造成的伤害+1。",
+    "source": "鹅"
   }
 ]

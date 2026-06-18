@@ -6,6 +6,7 @@ import decks from "../../data/decks/aggro.deck.json";
 import mizaiDeck from "../../data/decks/mizai.deck.json";
 import comboDeck from "../../data/decks/combo.deck.json";
 import transDeck from "../../data/decks/trans.deck.json";
+import dispatchDeck from "../../data/decks/dispatch.deck.json";
 import { getExtraFormProgressMax } from "../../src/lib/body-progress";
 import { formatCharacterCost } from "../../src/lib/ui";
 import {
@@ -44,7 +45,7 @@ import type {
 
 const ROOM_TTL_MS = 24 * 60 * 60 * 1000;
 const CUSTOM_DECK_ID = "custom";
-const allDecks = [decks, mizaiDeck, comboDeck, transDeck];
+const allDecks = [decks, mizaiDeck, comboDeck, transDeck, dispatchDeck];
 const deckById = new Map(allDecks.map((deck) => [deck.id, deck]));
 const bodyById = new Map(bodies.map((body) => [body.id, body]));
 const characterById = new Map(characters.map((card) => [card.id, card]));
@@ -550,7 +551,10 @@ export class BattleRoom extends DurableObject<Env> {
         this.requireStarted();
         const max = this.megaMax(player);
         player.megaProgress = this.clamp(payload.value, 0, max ?? 99);
-        this.addLog(`${player.nickname} 将 Mega 能量调整为 ${player.megaProgress}${max ? `/${max}` : ""}`, player.id, "action", {
+        const bodyId = player.body?.definitionId || this.playerLoadout(player)?.bodyId;
+        const body = bodyById.get(bodyId || "");
+        const formLabel = body?.extraForm?.type === "z-move" ? "Z招式" : "Mega";
+        this.addLog(`${player.nickname} 将${formLabel}进度调整为 ${player.megaProgress}${max ? `/${max}` : ""}`, player.id, "action", {
           zone: "mega",
           ownerId: player.id,
         });

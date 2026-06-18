@@ -3,6 +3,7 @@ export interface DeckGuide {
   flow: string[];
   priorities: string[];
   mega: string;
+  extraFormLabel?: string;
   risk: string;
 }
 
@@ -50,6 +51,18 @@ export const deckGuides: Record<string, DeckGuide> = {
     ],
     mega: "Mega 后每回合最多触发两次临时补位，且以此法上阵的角色首次发动【休整X】技能时费用降低1，最低为0；【休整自身】与【退场】费用不受影响。",
     risk: "角色区已满或角色牌堆为空时无法触发补位。先安排休整腾出位置，不要为了转化而转化。",
+  },
+  deck_dispatch_001: {
+    title: "洞察换阵路线",
+    flow: ["明置角色", "整理角色牌堆", "主动补位", "累计 6 次明置", "Z招式重构阵容"],
+    priorities: [
+      "利用明置对手角色的技能触发【洞察全局】，提前安排下一批上阵角色。",
+      "通过休整自身、补位与退场联动保持角色区流动，避免四个角色位长期锁死。",
+      "Z招式就绪后先整理角色牌堆，再根据当前局势选择需要洗回的角色。",
+    ],
+    mega: "Z招式每局限发动一次。它不会替换【洞察全局】，而是在出牌阶段一次性刷新阵容，并让一张新角色获得【休整X】减费。",
+    extraFormLabel: "Z招式节点",
+    risk: "本体与Z招式都不直接造成伤害，需要保留【杀】和强攻角色完成收尾。换阵前还要确认角色牌堆数量足够。",
   },
 };
 

@@ -1,7 +1,7 @@
-import { allBodies, allCharacters, allHandCards, resolveBodyCard } from "./cards";
+import { EXTRA_FORM_CONDITION_LABELS, EXTRA_FORM_LABELS, allBodies, allCharacters, allHandCards, resolveBodyCard } from "./cards";
 import { allDecks } from "./decks";
 import { getArchetypeBlurb } from "./archetypes";
-import { getCharacterArt } from "./card-art";
+import { getBodyArt, getCharacterArt } from "./card-art";
 import { formatCharacterCost } from "./ui";
 
 const ARCHETYPE_THEME_SLUG: Record<string, string> = {
@@ -9,6 +9,7 @@ const ARCHETYPE_THEME_SLUG: Record<string, string> = {
   "密裁": "mizai",
   "锦囊流": "combo",
   "拟态流": "trans",
+  "调度流": "dispatch",
 };
 
 export interface BattleCatalogCard {
@@ -34,6 +35,9 @@ export interface BattleCatalogCard {
   extraSubtitle?: string;
   /** Mega 效果文本 */
   extraText?: string;
+  extraFormType?: string;
+  extraFormLabel?: string;
+  extraConditionLabel?: string;
   megaMax?: number;
   megaCondition?: string;
   timing?: string;
@@ -50,6 +54,7 @@ export function getBattleCatalog() {
 
   for (const rawBody of allBodies) {
     const body = resolveBodyCard(rawBody);
+    const art = getBodyArt(body.id);
     cards[body.id] = {
       id: body.id,
       name: body.name,
@@ -63,11 +68,14 @@ export function getBattleCatalog() {
       highResImagePath: `/cards-hd/bodies/${body.id}_front.webp`,
       extraImagePath: `/cards/bodies/${body.id}_mega_back.webp`,
       extraHighResImagePath: `/cards-hd/bodies/${body.id}_mega_back.webp`,
-      portraitPath: `/battle-portraits/${body.id}_front.webp`,
-      extraPortraitPath: `/battle-portraits/${body.id}_mega.webp`,
+      portraitPath: art?.front ? `/battle-portraits/${body.id}_front.webp` : undefined,
+      extraPortraitPath: art?.extra ? `/battle-portraits/${body.id}_mega.webp` : undefined,
       extraName: body.extraForm?.name,
       extraSubtitle: body.extraForm ? `${body.archetype} · ${body.extraForm.skillName}` : undefined,
       extraText: body.extraForm?.effectText,
+      extraFormType: body.extraForm?.type,
+      extraFormLabel: body.extraForm ? EXTRA_FORM_LABELS[body.extraForm.type] : undefined,
+      extraConditionLabel: body.extraForm ? EXTRA_FORM_CONDITION_LABELS[body.extraForm.type] : undefined,
       megaMax: body.extraFormProgressMax,
       megaCondition: body.extraForm?.condition,
     };

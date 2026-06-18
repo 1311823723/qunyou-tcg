@@ -835,6 +835,13 @@ strong { color: var(--text-gold); font-weight: 800; }
   --deck-deep: rgba(12, 33, 54, 0.9);
   --deck-glow: rgba(88, 199, 232, 0.2);
 }
+.deck-theme--dispatch {
+  --deck-accent: #e0b45c;
+  --deck-accent-2: #6fd8c4;
+  --deck-soft: #f3d99b;
+  --deck-deep: rgba(48, 35, 17, 0.92);
+  --deck-glow: rgba(224, 180, 92, 0.2);
+}
 .deck-theme--neutral {
   --deck-accent: #c4bbd4;
   --deck-accent-2: #827a99;
@@ -974,4 +981,3 @@ strong { color: var(--text-gold); font-weight: 800; }
   .tcg-char { min-height: 0; }
   .hud-panel { border-radius: 18px; }
 }
-

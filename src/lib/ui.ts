@@ -24,6 +24,7 @@ const ARCHETYPE_THEME: Record<string, string> = {
   "密裁": "mizai",
   "锦囊流": "combo",
   "拟态流": "trans",
+  "调度流": "dispatch",
 };
 
 export function archetypeThemeClass(archetype: string): string {

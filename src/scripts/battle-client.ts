@@ -1,5 +1,23 @@
 import { getBattleApiUrl } from "../lib/battle-api";
-import { escapeHtml, handCardHighResImagePath, handCardImagePath, suitSymbol } from "./battle-format";
+import { escapeHtml, handCardImagePath, suitSymbol } from "./battle-format";
+import {
+  bindHighResImage,
+  renderCardArtDialog,
+  renderCardArtPreview,
+  renderCardDetailBody,
+  resolveCardDetail,
+  type BodyDetailForm,
+  type CardDetailMode,
+} from "./battle-card-detail";
+import {
+  autoFillCharacters,
+  customCardSearchText,
+  customRoleFilters,
+  customTagFilters,
+  matchesCustomFilters,
+  renderSelectedCharacterTray,
+  type CustomDeckFilters,
+} from "./battle-custom-deck";
 import { normalizeBattleSnapshot } from "./battle-state.mjs";
 import {
   battleLogRegionId,
@@ -47,9 +65,8 @@ const catalog = JSON.parse(catalogNode.textContent || "{}") as Catalog;
 const catalogCards = Object.values(catalog.cards || {});
 const bodyCatalogCards = catalogCards.filter((card) => card.kind === "body");
 const characterCatalogCards = catalogCards.filter((card) => card.kind === "character");
-const customRoleFilters = ["", ...Array.from(new Set(characterCatalogCards
-  .map((card) => card.mainRole || card.subtitle.split(" · ")[0])
-  .filter(Boolean)))];
+const customRoleFilterOptions = customRoleFilters(characterCatalogCards);
+const customTagFilterOptions = customTagFilters(characterCatalogCards);
 
 const API_URL = getBattleApiUrl();
 const TOKEN_KEY = "qunyou-battle-token-v1";
@@ -1101,7 +1118,7 @@ async function playVisualEffect(event: VisualEffectEvent, generation: number) {
         ? definition?.subtitle.split(" · ").at(-1) || "技能发动"
         : event.faceDown
           ? "回归常态"
-          : "MEGA";
+          : definition?.extraFormLabel || "额外形态";
   const subtitle = event.effect === "characterSkill"
     ? definition?.name || "角色技能"
     : event.effect === "bodyMega"
@@ -1442,28 +1459,21 @@ function renderCustomDeckBuilder(deck: CustomDeckConfig, disabled: boolean) {
       <strong>自组牌组</strong>
       <span data-custom-count>${selected.size}/16 角色</span>
     </div>
-    <label>本体卡
-      <select data-custom-body ${disabled ? "disabled" : ""}>
-        ${bodyCatalogCards.map((card) => `<option value="${card.id}" ${card.id === deck.bodyId ? "selected" : ""}>${escapeHtml(card.name)} · ${escapeHtml(card.subtitle)}</option>`).join("")}
-      </select>
-    </label>
+    <div class="battle-custom-body-select" data-custom-body-select aria-label="选择本体卡">
+      ${bodyCatalogCards.map((card) => `<button type="button" class="battle-custom-body-choice ${card.id === deck.bodyId ? "is-selected" : ""}" data-custom-body-option="${card.id}" ${disabled ? "disabled" : ""}>
+        ${card.imagePath ? `<img src="${escapeHtml(card.imagePath)}" alt="" />` : ""}
+        <span><strong>${escapeHtml(card.name)}</strong><small>${escapeHtml(card.archetype || card.subtitle)}</small></span>
+      </button>`).join("")}
+    </div>
     <article class="battle-custom-body-info" data-custom-body-info>
       ${renderCustomBodyInfo(selectedBody)}
     </article>
     <div class="battle-custom-picked" data-custom-picked>
-      ${renderSelectedCharacters(deck.characterIds)}
+      ${renderSelectedCharacterTray(catalog.cards, deck.characterIds)}
     </div>
     <p class="battle-custom-builder__hint" data-custom-hint>${selected.size === 16 ? "自组牌组已满足开局要求。" : `还需要选择 ${16 - selected.size} 张角色。`}</p>
     <button type="button" class="btn btn--secondary" data-custom-open-picker ${disabled ? "disabled" : ""}>选择角色卡</button>
   `;
-}
-
-function renderSelectedCharacters(characterIds: string[]) {
-  if (!characterIds.length) return `<span class="battle-custom-picked__empty">尚未选择角色。</span>`;
-  return characterIds.map((id) => {
-    const card = catalog.cards[id];
-    return `<span class="battle-custom-picked__chip">${escapeHtml(card?.name || id)}</span>`;
-  }).join("");
 }
 
 function renderCustomBodyInfo(card?: CatalogCard) {
@@ -1474,9 +1484,9 @@ function renderCustomBodyInfo(card?: CatalogCard) {
       <span>${escapeHtml(card.subtitle)}${card.hp ? ` · 体力 ${card.hp}` : ""}</span>
     </div>
     <p>${escapeHtml(card.text)}</p>
-    ${card.megaCondition ? `<p><b>Mega 条件</b>：${escapeHtml(card.megaCondition)}</p>` : ""}
-    ${card.extraText ? `<p class="battle-custom-body-info__mega"><b>${escapeHtml(card.extraName || "Mega 后技能")}</b>：${escapeHtml(card.extraText)}</p>` : ""}
-    <button type="button" class="battle-small-btn" data-custom-preview="${card.id}">查看本体大图</button>
+    ${card.megaCondition ? `<p><b>${escapeHtml(card.extraConditionLabel || "额外形态条件")}</b>：${escapeHtml(card.megaCondition)}</p>` : ""}
+    ${card.extraText ? `<p class="battle-custom-body-info__mega"><b>${escapeHtml(card.extraName || card.extraFormLabel || "额外形态")}</b>：${escapeHtml(card.extraText)}</p>` : ""}
+    <button type="button" class="battle-small-btn" data-custom-preview="${card.id}">查看本体详情</button>
   `;
 }
 
@@ -1487,14 +1497,14 @@ function bindCustomPreviewButtons(container: ParentNode) {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      showCustomCardPreview(button.dataset.customPreview || "");
+      showCustomCardPreview(button.dataset.customPreview || "", button);
     });
   });
 }
 
 function readLobbyCustomDeck(): CustomDeckConfig {
   const builder = root.querySelector<HTMLElement>("[data-custom-builder]");
-  const bodyId = (builder?.querySelector("[data-custom-body]") as HTMLSelectElement | null)?.value || bodyCatalogCards[0]?.id || "";
+  const bodyId = builder?.dataset.bodyId || bodyCatalogCards[0]?.id || "";
   const characterIds = (builder?.dataset.characterIds || "")
     .split(",")
     .filter((id) => catalog.cards[id]?.kind === "character")
@@ -1505,7 +1515,9 @@ function readLobbyCustomDeck(): CustomDeckConfig {
 function bindCustomDeckBuilder(me: PlayerView) {
   const builder = root.querySelector<HTMLElement>("[data-custom-builder]");
   if (!builder || me.deckId !== CUSTOM_DECK_ID) return;
-  builder.dataset.characterIds = readCustomDeck(me).characterIds.join(",");
+  const initialDeck = readCustomDeck(me);
+  builder.dataset.bodyId = initialDeck.bodyId;
+  builder.dataset.characterIds = initialDeck.characterIds.join(",");
   bindCustomPreviewButtons(builder);
   if (me.ready) return;
   const sync = () => {
@@ -1516,9 +1528,12 @@ function bindCustomDeckBuilder(me: PlayerView) {
       ? "自组牌组已满足开局要求。"
       : `还需要选择 ${16 - selected.size} 张角色。`;
     const picked = builder.querySelector<HTMLElement>("[data-custom-picked]");
-    if (picked) picked.innerHTML = renderSelectedCharacters(customDeck.characterIds);
+    if (picked) picked.innerHTML = renderSelectedCharacterTray(catalog.cards, customDeck.characterIds);
     const bodyInfo = builder.querySelector<HTMLElement>("[data-custom-body-info]");
     if (bodyInfo) bodyInfo.innerHTML = renderCustomBodyInfo(catalog.cards[customDeck.bodyId]);
+    builder.querySelectorAll<HTMLElement>("[data-custom-body-option]").forEach((button) => {
+      button.classList.toggle("is-selected", button.dataset.customBodyOption === customDeck.bodyId);
+    });
     bindCustomPreviewButtons(builder);
     saveCustomDeck(customDeck);
     localStorage.setItem(PENDING_KEY, JSON.stringify({
@@ -1528,28 +1543,42 @@ function bindCustomDeckBuilder(me: PlayerView) {
     }));
     if (isCustomDeckValid(customDeck)) send("player:selectDeck", { deckId: CUSTOM_DECK_ID, customDeck });
   };
-  builder.querySelector("[data-custom-body]")?.addEventListener("change", sync);
+  builder.querySelectorAll<HTMLElement>("[data-custom-body-option]").forEach((button) => {
+    button.addEventListener("click", () => {
+      builder.dataset.bodyId = button.dataset.customBodyOption || "";
+      sync();
+    });
+  });
   builder.querySelector("[data-custom-open-picker]")?.addEventListener("click", () => showCustomCharacterPicker(builder, sync));
 }
 
-function applyCustomDeckFilters(container: HTMLElement) {
-  const query = (container.querySelector<HTMLInputElement>("[data-custom-search]")?.value || "").trim().toLowerCase();
-  const role = container.querySelector<HTMLElement>("[data-custom-role].is-active")?.dataset.customRole || "";
+function readCustomDeckFilters(container: HTMLElement): CustomDeckFilters {
+  return {
+    query: (container.querySelector<HTMLInputElement>("[data-custom-search]")?.value || "").trim().toLowerCase(),
+    role: container.querySelector<HTMLElement>("[data-custom-role].is-active")?.dataset.customRole || "",
+    tag: container.querySelector<HTMLElement>("[data-custom-tag].is-active")?.dataset.customTag || "",
+    selectedOnly: Boolean(container.querySelector<HTMLInputElement>("[data-custom-selected-only]")?.checked),
+  };
+}
+
+function applyCustomDeckFilters(container: HTMLElement, selected: Set<string>) {
+  const filters = readCustomDeckFilters(container);
   let visible = 0;
   container.querySelectorAll<HTMLElement>("[data-custom-card]").forEach((card) => {
-    const matchesSearch = !query || (card.dataset.search || "").includes(query);
-    const matchesRole = !role || card.dataset.role === role;
-    const show = matchesSearch && matchesRole;
+    const definition = catalog.cards[card.dataset.cardId || ""];
+    const show = Boolean(definition && matchesCustomFilters(definition, filters, selected));
     card.hidden = !show;
     if (show) visible++;
   });
+  const visibleCount = container.querySelector<HTMLElement>("[data-custom-visible-count]");
+  if (visibleCount) visibleCount.textContent = `${visible} 张结果`;
   const hint = container.querySelector<HTMLElement>("[data-custom-picker-hint]");
-  if (hint && visible === 0) hint.textContent = "没有匹配的角色牌，试试换个关键词或定位。";
+  if (hint) hint.textContent = visible === 0 ? "没有匹配的角色牌，请调整搜索或筛选。" : "点击卡牌选择；查看按钮可打开技能与高清卡图。";
 }
 
 function showCustomCharacterPicker(builder: HTMLElement, onDone: () => void) {
   const deck = readLobbyCustomDeck();
-  const selected = new Set(deck.characterIds);
+  let draftIds = [...deck.characterIds];
   dialog.classList.add("battle-dialog--custom-picker");
   dialogContent.innerHTML = `<div class="battle-card-menu battle-custom-picker">
     <div class="battle-custom-picker__top">
@@ -1557,20 +1586,28 @@ function showCustomCharacterPicker(builder: HTMLElement, onDone: () => void) {
         <span>自选角色卡</span>
         <h2>选择 16 张角色</h2>
       </div>
-      <strong data-custom-picker-count>${selected.size}/16</strong>
+      <div class="battle-custom-picker__metrics"><span data-custom-visible-count>${characterCatalogCards.length} 张结果</span><strong data-custom-picker-count>${draftIds.length}/16</strong></div>
     </div>
+    <div class="battle-custom-picked battle-custom-picked--tray" data-custom-picker-selected aria-label="已选角色"></div>
     <div class="battle-custom-tools">
-      <input type="search" placeholder="搜索名称、技能、效果…" data-custom-search autocomplete="off" />
+      <input type="search" placeholder="搜索名称、群友、技能或效果…" data-custom-search autocomplete="off" />
       <div class="battle-custom-filter" aria-label="按角色定位筛选">
-        ${customRoleFilters.map((role) => `<button type="button" class="battle-custom-filter__chip ${role ? "" : "is-active"}" data-custom-role="${escapeHtml(role)}">${role ? escapeHtml(role) : "全部"}</button>`).join("")}
+        ${customRoleFilterOptions.map((role) => `<button type="button" class="battle-custom-filter__chip ${role ? "" : "is-active"}" data-custom-role="${escapeHtml(role)}">${role ? escapeHtml(role) : "全部定位"}</button>`).join("")}
+      </div>
+      <details class="battle-custom-tags"><summary>机制标签</summary><div class="battle-custom-filter" aria-label="按机制标签筛选">
+        ${customTagFilterOptions.map((tag) => `<button type="button" class="battle-custom-filter__chip ${tag ? "" : "is-active"}" data-custom-tag="${escapeHtml(tag)}">${tag ? escapeHtml(tag) : "全部标签"}</button>`).join("")}
+      </div></details>
+      <div class="battle-custom-picker__tools">
+        <label class="battle-custom-toggle"><input type="checkbox" data-custom-selected-only /> 仅看已选</label>
+        <button type="button" class="battle-small-btn" data-custom-clear>清空已选</button>
+        <button type="button" class="battle-small-btn battle-small-btn--accent" data-custom-autofill>自动补齐</button>
       </div>
     </div>
     <div class="battle-custom-builder__grid battle-custom-builder__grid--modal" aria-label="选择 16 张角色卡">
       ${characterCatalogCards.map((card) => {
-        const checked = selected.has(card.id);
+        const checked = draftIds.includes(card.id);
         const role = card.mainRole || card.subtitle.split(" · ")[0] || "";
-        const search = `${card.name} ${card.subtitle} ${card.skillName || ""} ${card.text} ${(card.tags || []).join(" ")}`.toLowerCase();
-        return `<label class="battle-custom-card ${checked ? "is-selected" : ""}" data-custom-card data-role="${escapeHtml(role)}" data-search="${escapeHtml(search)}">
+        return `<label class="battle-custom-card ${checked ? "is-selected" : ""}" data-custom-card data-card-id="${card.id}" data-role="${escapeHtml(role)}" data-search="${escapeHtml(customCardSearchText(card))}">
           <input type="checkbox" value="${card.id}" data-custom-character ${checked ? "checked" : ""} />
           ${card.imagePath ? `<img src="${card.imagePath}" alt="" loading="lazy" />` : ""}
           <span>${escapeHtml(card.name)}</span>
@@ -1591,29 +1628,53 @@ function showCustomCharacterPicker(builder: HTMLElement, onDone: () => void) {
     </div>
   </div>`;
   const syncPicker = () => {
-    const ids = [...dialogContent.querySelectorAll<HTMLInputElement>("[data-custom-character]:checked")].map((input) => input.value);
-    const picked = new Set(ids);
+    const picked = new Set(draftIds);
     dialogContent.querySelector<HTMLElement>("[data-custom-picker-count]")!.textContent = `${picked.size}/16`;
     dialogContent.querySelectorAll<HTMLInputElement>("[data-custom-character]").forEach((input) => {
+      input.checked = picked.has(input.value);
       input.disabled = !input.checked && picked.size >= 16;
       input.closest(".battle-custom-card")?.classList.toggle("is-selected", input.checked);
     });
+    dialogContent.querySelector<HTMLElement>("[data-custom-picker-selected]")!.innerHTML = renderSelectedCharacterTray(catalog.cards, draftIds, true);
+    const clear = dialogContent.querySelector<HTMLButtonElement>("[data-custom-clear]");
+    const autoFill = dialogContent.querySelector<HTMLButtonElement>("[data-custom-autofill]");
+    if (clear) clear.disabled = picked.size === 0;
+    if (autoFill) autoFill.disabled = picked.size >= 16;
+    applyCustomDeckFilters(dialogContent, picked);
   };
-  dialogContent.querySelector("[data-custom-search]")?.addEventListener("input", () => applyCustomDeckFilters(dialogContent));
+  dialogContent.querySelector("[data-custom-search]")?.addEventListener("input", syncPicker);
   dialogContent.querySelectorAll<HTMLElement>("[data-custom-role]").forEach((button) => {
     button.addEventListener("click", () => {
       dialogContent.querySelectorAll("[data-custom-role]").forEach((chip) => chip.classList.toggle("is-active", chip === button));
-      applyCustomDeckFilters(dialogContent);
+      syncPicker();
     });
   });
-  dialogContent.querySelectorAll("[data-custom-character]").forEach((input) => input.addEventListener("change", syncPicker));
+  dialogContent.querySelectorAll<HTMLElement>("[data-custom-tag]").forEach((button) => {
+    button.addEventListener("click", () => {
+      dialogContent.querySelectorAll("[data-custom-tag]").forEach((chip) => chip.classList.toggle("is-active", chip === button));
+      syncPicker();
+    });
+  });
+  dialogContent.querySelector("[data-custom-selected-only]")?.addEventListener("change", syncPicker);
+  dialogContent.querySelectorAll<HTMLInputElement>("[data-custom-character]").forEach((input) => input.addEventListener("change", () => {
+    draftIds = input.checked ? [...draftIds, input.value].slice(0, 16) : draftIds.filter((id) => id !== input.value);
+    syncPicker();
+  }));
+  dialogContent.querySelector("[data-custom-picker-selected]")?.addEventListener("click", (event) => {
+    const button = (event.target as Element).closest<HTMLElement>("[data-custom-remove]");
+    if (!button) return;
+    draftIds = draftIds.filter((id) => id !== button.dataset.customRemove);
+    syncPicker();
+  });
+  dialogContent.querySelector("[data-custom-clear]")?.addEventListener("click", () => { draftIds = []; syncPicker(); });
+  dialogContent.querySelector("[data-custom-autofill]")?.addEventListener("click", () => {
+    draftIds = autoFillCharacters(characterCatalogCards, draftIds, readCustomDeckFilters(dialogContent));
+    syncPicker();
+  });
   bindCustomPreviewButtons(dialogContent);
   dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
   dialogContent.querySelector("[data-custom-picker-done]")?.addEventListener("click", () => {
-    const ids = [...dialogContent.querySelectorAll<HTMLInputElement>("[data-custom-character]:checked")]
-      .map((input) => input.value)
-      .slice(0, 16);
-    builder.dataset.characterIds = ids.join(",");
+    builder.dataset.characterIds = draftIds.slice(0, 16).join(",");
     onDone();
     dialog.close();
   });
@@ -1621,29 +1682,42 @@ function showCustomCharacterPicker(builder: HTMLElement, onDone: () => void) {
   syncPicker();
 }
 
-function showCustomCardPreview(cardId: string) {
+function showCustomCardPreview(cardId: string, returnTarget?: HTMLElement) {
   const card = catalog.cards[cardId];
   if (!card) return;
-  const art = [card.highResImagePath || card.imagePath, card.kind === "body" ? card.extraHighResImagePath || card.extraImagePath : ""]
-    .filter(Boolean)
-    .map((src) => `<img src="${escapeHtml(src || "")}" alt="" />`)
-    .join("");
-  dialogContent.innerHTML = `<div class="battle-card-menu battle-custom-preview">
-    <div class="battle-custom-preview__art">${art || "<span>暂无卡图</span>"}</div>
-    <div class="battle-custom-preview__text">
-      <span>${escapeHtml(card.subtitle)}</span>
-      <h2>${escapeHtml(card.name)}</h2>
-      ${card.costText || card.timing ? `<p><b>消耗/时机</b>：${escapeHtml([card.costText, card.timing].filter(Boolean).join(" · "))}</p>` : ""}
-      <p>${escapeHtml(card.text)}</p>
-      ${card.megaCondition ? `<p><b>Mega 条件</b>：${escapeHtml(card.megaCondition)}</p>` : ""}
-      ${card.extraText ? `<p><b>${escapeHtml(card.extraName || "额外形态")}</b>：${escapeHtml(card.extraText)}</p>` : ""}
-    </div>
-    <div class="battle-card-menu__actions battle-card-menu__actions--row">
-      <button type="button" class="battle-small-btn" data-dialog-cancel>关闭</button>
-    </div>
-  </div>`;
-  dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
-  openBattleDialog();
+  const picker = dialog.open ? dialogContent.querySelector<HTMLElement>(".battle-custom-picker") : null;
+  const host = document.createElement("div");
+  const isOverlay = Boolean(picker);
+  if (picker) {
+    host.className = "battle-card-detail-overlay";
+    picker.appendChild(host);
+  } else {
+    dialogContent.innerHTML = "";
+    dialogContent.appendChild(host);
+  }
+  const close = () => {
+    if (isOverlay) host.remove();
+    else dialog.close();
+    if (returnTarget?.isConnected) window.requestAnimationFrame(() => returnTarget.focus());
+  };
+  const renderPreview = (mode: CardDetailMode = "detail", form: BodyDetailForm = "normal") => {
+    const view = resolveCardDetail({ definition: card, visible: true, initialForm: form }, form);
+    host.innerHTML = mode === "art"
+      ? `${renderCardArtDialog(view)}<button type="button" class="battle-dialog__close battle-card-detail-overlay__close" data-preview-close aria-label="关闭">×</button>`
+      : `<div class="battle-card-menu battle-card-menu--rich battle-custom-preview">
+          <div class="battle-card-detail">${renderCardArtPreview(view)}${renderCardDetailBody(view)}</div>
+          <div class="battle-card-menu__actions battle-card-menu__actions--row"><button type="button" class="battle-small-btn" data-preview-close>关闭</button></div>
+        </div>`;
+    host.querySelector("[data-preview-close]")?.addEventListener("click", close);
+    host.querySelector("[data-card-art-zoom]")?.addEventListener("click", () => renderPreview("art", form));
+    host.querySelector("[data-card-detail-back]")?.addEventListener("click", () => renderPreview("detail", form));
+    host.querySelectorAll<HTMLElement>("[data-card-form]").forEach((button) => {
+      button.addEventListener("click", () => renderPreview("detail", button.dataset.cardForm as BodyDetailForm));
+    });
+    bindHighResImage(host);
+  };
+  renderPreview();
+  if (!dialog.open) openBattleDialog(returnTarget);
 }
 
 function renderLobbySeat(player: PlayerView, isMe: boolean) {
@@ -1665,6 +1739,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
   const handCount = player.handCount ?? player.hand.length;
   const max = body?.megaMax;
   const megaText = max ? `${player.megaProgress || 0}/${max}` : String(player.megaProgress || 0);
+  const extraFormLabel = body?.extraFormLabel || "额外形态";
   const turnClass = snapshot?.game.currentPlayerId === player.id ? " battle-player--active-turn" : "";
   return `
     <section id="battle-player-${isMe ? "self" : "opponent"}" class="battle-player ${themeClasses(deck?.theme)} ${isMe ? "battle-player--self" : "battle-player--opponent"}${turnClass}" data-side="${isMe ? "self" : "opponent"}" data-player-id="${player.id}">
@@ -1676,7 +1751,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
         </div>
         <div class="battle-counters">
           ${renderCounter("体力", player.health || 0, "health:set", player.id, true)}
-          ${renderCounter("Mega", megaText, "megaProgress:set", player.id, isMe, max)}
+          ${renderCounter(extraFormLabel, megaText, "megaProgress:set", player.id, isMe, max)}
         </div>
       </header>
       <div class="battle-player__field">
@@ -1684,7 +1759,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
           <span class="battle-zone-label">本体</span>
           ${renderCard(player.body, { owner: player, zone: "body", interactive: isMe, flipped: player.bodyFlipped, size: "field" })}
           ${isMe ? `<button class="battle-small-btn" data-command="body:flip">翻转本体</button>` : ""}
-          ${body?.megaCondition ? `<p class="battle-mega-condition" title="${escapeHtml(body.megaCondition)}"><strong>Mega 条件</strong>${escapeHtml(body.megaCondition)}</p>` : ""}
+          ${body?.megaCondition ? `<p class="battle-mega-condition" title="${escapeHtml(body.megaCondition)}"><strong>${escapeHtml(body.extraConditionLabel || "额外形态条件")}</strong>${escapeHtml(body.megaCondition)}</p>` : ""}
         </div>
         <div class="battle-character-slots">
           <span class="battle-zone-label battle-zone-label--row">角色区</span>
@@ -1720,7 +1795,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
 
 function renderCounter(label: string, value: string | number, command: string, playerId: string, editable: boolean, max?: number) {
   const numeric = typeof value === "number" ? value : Number(String(value).split("/")[0]);
-  const ready = label === "Mega" && max !== undefined && numeric >= max;
+  const ready = max !== undefined && numeric >= max;
   return `<div class="battle-counter ${ready ? "is-ready" : ""}">
     <span>${label}</span><strong>${value}</strong>
     ${editable ? `<div class="battle-counter__actions">
@@ -1809,7 +1884,7 @@ function renderCenterBody(player: PlayerView, isMe: boolean) {
       size: "field",
     })}
     <strong>${escapeHtml(body?.name || player.nickname)}</strong>
-    ${body?.megaCondition ? `<p title="${escapeHtml(body.megaCondition)}"><b>Mega</b>${escapeHtml(body.megaCondition)}</p>` : ""}
+    ${body?.megaCondition ? `<p title="${escapeHtml(body.megaCondition)}"><b>${escapeHtml(body.extraFormLabel || "额外形态")}</b>${escapeHtml(body.megaCondition)}</p>` : ""}
     ${isMe ? `<button class="battle-small-btn" data-command="body:flip">翻转本体</button>` : ""}
   </aside>`;
 }
@@ -2310,106 +2385,16 @@ function showConfirmDialog(message: string, onConfirm: () => void) {
   openBattleDialog();
 }
 
-type CardDialogMode = "detail" | "art";
-
-type CardDialogView = {
-  card?: CardView;
-  definition?: CatalogCard;
-  displayName: string;
-  displaySubtitle: string;
-  displayText: string;
-  imagePath?: string;
-  highResImagePath?: string;
-  roleTag: string;
-  faceStatus: string;
-  titleHtml: string;
-  kind?: string;
-};
-
-function resolveCardDialogView(instanceId: string, ownerId: string): CardDialogView {
+function resolveCardDialogView(instanceId: string, ownerId: string, form?: BodyDetailForm) {
   const card = findVisibleCard(instanceId);
   const definition = cardDefinition(card);
-  let displayName = definition?.name || "";
-  let displaySubtitle = definition?.subtitle || "";
-  let displayText = definition?.text || "";
-  let imagePath = definition?.imagePath;
-  let highResImagePath = definition?.highResImagePath;
-  if (definition?.kind === "body") {
-    const owner = snapshot?.players.find((p) => p.id === ownerId);
-    if (owner?.bodyFlipped && definition.extraName) {
-      displayName = definition.extraName;
-      displaySubtitle = definition.extraSubtitle || definition.subtitle;
-      displayText = definition.extraText || definition.text;
-      imagePath = definition.extraImagePath || imagePath;
-      highResImagePath = definition.extraHighResImagePath || highResImagePath;
-    }
-  }
-  if (definition?.kind === "hand" && card) {
-    imagePath = handCardImagePath(definition.id, card.suit, card.rank) || imagePath;
-    highResImagePath = handCardHighResImagePath(definition.id, card.suit, card.rank) || highResImagePath;
-  }
-  const parts = displayName.includes("-") ? displayName.split("-") : ["", displayName];
-  const roleTag = definition?.kind === "character" ? definition.subtitle.split(" · ")[0] : "";
-  const isFaceDown = card?.faceDown ?? false;
-  const faceStatus = definition?.kind === "character"
-    ? (isFaceDown ? `<span class="battle-tag battle-tag--facedown">暗置</span>` : `<span class="battle-tag battle-tag--faceup">已明置</span>`)
-    : "";
-  const titleHtml = definition
-    ? `${parts[0] ? `<span class="battle-card-detail__role">${escapeHtml(parts[0])}</span>` : ""}${escapeHtml(parts[1] || displayName)}`
-    : "暗置卡牌";
-  return {
+  const owner = snapshot?.players.find((player) => player.id === ownerId);
+  return resolveCardDetail({
     card,
     definition,
-    displayName,
-    displaySubtitle,
-    displayText,
-    imagePath,
-    highResImagePath,
-    roleTag,
-    faceStatus,
-    titleHtml,
-    kind: definition?.kind,
-  };
-}
-
-function renderCardArtPreview(view: CardDialogView) {
-  if (view.imagePath) {
-    return `<button type="button" class="battle-card-detail__art-button" data-card-art-zoom aria-label="放大查看 ${escapeHtml(view.displayName || "卡牌")}">
-      <img class="battle-card-detail__art" src="${view.imagePath}" alt="" />
-      <span>点击查看大图</span>
-    </button>`;
-  }
-  return `<div class="battle-card-detail__placeholder battle-card-detail__placeholder--back">
-    <span>${view.definition?.kind === "hand" ? "牌" : "暗"}</span>
-    <small>${view.definition ? "暂无卡图" : "身份未知"}</small>
-  </div>`;
-}
-
-function renderCardArtDialog(view: CardDialogView) {
-  const art = view.imagePath
-    ? `<div class="battle-card-zoom__image-stack">
-        <img class="battle-card-zoom__image battle-card-zoom__image--placeholder" src="${view.imagePath}" alt="" />
-        ${view.highResImagePath
-          ? `<img class="battle-card-zoom__image battle-card-zoom__image--hd" src="${view.highResImagePath}" alt="" data-card-hd-image />`
-          : ""}
-        ${view.highResImagePath ? `<span class="battle-card-zoom__loading" data-card-hd-loading>正在加载高清卡图…</span>` : ""}
-      </div>`
-    : `<div class="battle-card-zoom__back"><span>暗置</span><small>身份未知</small></div>`;
-  dialogContent.innerHTML = `
-    <div class="battle-card-menu battle-card-menu--art">
-      <div class="battle-card-zoom">
-        <div class="battle-card-zoom__topline">
-          <button type="button" class="battle-small-btn" data-card-detail-back>返回详情</button>
-          <div>
-            <h2>${view.definition ? escapeHtml(view.displayName) : "暗置卡牌"}</h2>
-            <p>${view.definition ? escapeHtml(view.displaySubtitle) : "无权限查看牌面"}</p>
-          </div>
-          ${view.faceStatus}
-        </div>
-        <div class="battle-card-zoom__stage">${art}</div>
-      </div>
-    </div>
-  `;
+    visible: Boolean(definition),
+    initialForm: form || (definition?.kind === "body" && owner?.bodyFlipped ? "mega" : "normal"),
+  }, form);
 }
 
 function openCardMenu(element: HTMLElement) {
@@ -2420,41 +2405,30 @@ function openCardMenu(element: HTMLElement) {
   openBattleDialog(element);
 }
 
-function renderCardDialog(instanceId: string, ownerId: string, zone: string, mode: CardDialogMode) {
-  const view = resolveCardDialogView(instanceId, ownerId);
+function renderCardDialog(instanceId: string, ownerId: string, zone: string, mode: CardDetailMode, form?: BodyDetailForm) {
+  const view = resolveCardDialogView(instanceId, ownerId, form);
   const definition = view.definition;
   dialog.classList.toggle("battle-dialog--art", mode === "art");
   if (mode === "art") {
-    renderCardArtDialog(view);
-    bindCardMenuActions(instanceId, ownerId, zone, definition?.kind);
+    dialogContent.innerHTML = renderCardArtDialog(view);
+    bindCardMenuActions(instanceId, ownerId, zone, definition?.kind, view.form);
     return;
   }
   dialogContent.innerHTML = `
     <div class="battle-card-menu battle-card-menu--rich">
       <div class="battle-card-detail">
         ${renderCardArtPreview(view)}
-        <div class="battle-card-detail__body">
-          <h2>${view.titleHtml}</h2>
-          ${view.roleTag ? `<span class="battle-tag">${escapeHtml(view.roleTag)}</span>` : ""} ${view.faceStatus}
-          ${definition?.kind === "character" ? `<div class="battle-card-detail__rules">
-            <span><b>技能消耗</b>${escapeHtml(definition.costText || "无")}</span>
-            <span><b>发动时机</b>${escapeHtml(definition.timing || "未注明")}</span>
-          </div>` : ""}
-          ${definition?.kind === "body" && definition.megaCondition ? `<div class="battle-card-detail__rules">
-            <span><b>Mega 条件</b>${escapeHtml(definition.megaCondition)}</span>
-          </div>` : ""}
-          ${definition ? `<p class="battle-card-detail__subtitle">${escapeHtml(view.displaySubtitle)}</p><p class="battle-card-detail__text">${escapeHtml(view.displayText)}</p>` : `<p>这张卡牌为暗置状态，可以通过卡牌效果查看。</p>`}
-        </div>
+        ${renderCardDetailBody(view)}
       </div>
       <div class="battle-card-menu__sections">
         ${moveButtonSections(instanceId, ownerId, zone, definition?.kind)}
       </div>
     </div>
   `;
-  bindCardMenuActions(instanceId, ownerId, zone, definition?.kind);
+  bindCardMenuActions(instanceId, ownerId, zone, definition?.kind, view.form);
 }
 
-function bindCardMenuActions(instanceId: string, ownerId: string, zone: string, kind?: string) {
+function bindCardMenuActions(instanceId: string, ownerId: string, zone: string, kind?: string, form: BodyDetailForm = "normal") {
   const actions = cardActionDescriptors(instanceId, ownerId, zone, kind);
   dialogContent.querySelectorAll<HTMLElement>("[data-card-action]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -2463,24 +2437,15 @@ function bindCardMenuActions(instanceId: string, ownerId: string, zone: string, 
     });
   });
   dialogContent.querySelector<HTMLElement>("[data-card-art-zoom]")?.addEventListener("click", () => {
-    renderCardDialog(instanceId, ownerId, zone, "art");
+    renderCardDialog(instanceId, ownerId, zone, "art", form);
   });
   dialogContent.querySelector<HTMLElement>("[data-card-detail-back]")?.addEventListener("click", () => {
-    renderCardDialog(instanceId, ownerId, zone, "detail");
+    renderCardDialog(instanceId, ownerId, zone, "detail", form);
   });
-  const highResImage = dialogContent.querySelector<HTMLImageElement>("[data-card-hd-image]");
-  const highResLoading = dialogContent.querySelector<HTMLElement>("[data-card-hd-loading]");
-  if (highResImage) {
-    const markLoaded = () => {
-      highResImage.classList.add("is-loaded");
-      if (highResLoading) highResLoading.hidden = true;
-    };
-    if (highResImage.complete && highResImage.naturalWidth > 0) markLoaded();
-    else highResImage.addEventListener("load", markLoaded, { once: true });
-    highResImage.addEventListener("error", () => {
-      if (highResLoading) highResLoading.textContent = "高清图加载失败，已显示普通卡图";
-    }, { once: true });
-  }
+  dialogContent.querySelectorAll<HTMLElement>("[data-card-form]").forEach((button) => {
+    button.addEventListener("click", () => renderCardDialog(instanceId, ownerId, zone, "detail", button.dataset.cardForm as BodyDetailForm));
+  });
+  bindHighResImage(dialogContent);
 }
 
 function cardActionDescriptors(instanceId: string, ownerId: string, zone: string, kind?: string) {

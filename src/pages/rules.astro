@@ -8,7 +8,7 @@ const setupStats = [
   ["1", "本体", "公开核心角色"],
   ["16", "角色牌", "暗置与技能来源"],
   ["52", "共用手牌", "杀、闪与锦囊"],
-  ["5+4", "起手", "手牌 + 角色牌"],
+  ["5+2", "起手", "手牌 + 上阵角色"],
 ];
 ---
 <Layout title="规则">
@@ -51,7 +51,7 @@ const setupStats = [
       <div class="grid md:grid-cols-3 gap-3">
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-role-defend);">
           <span class="text-sm font-bold" style="color: var(--color-role-defend);">摸牌阶段</span>
-          <p class="skill-text mt-2">从共用手牌牌堆摸 2 张手牌；若角色区未满，从角色牌堆顶暗置上阵 1 张至编号最小的空位。</p>
+          <p class="skill-text mt-2">从共用手牌牌堆摸 2 张手牌；此阶段不上阵角色。</p>
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-aggro);">
           <span class="text-sm font-bold" style="color: var(--color-aggro);">出牌阶段</span>
@@ -59,7 +59,7 @@ const setupStats = [
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-role-resource);">
           <span class="text-sm font-bold" style="color: var(--color-role-resource);">布阵阶段</span>
-          <p class="skill-text mt-2">可主动明置角色（不发动）。角色区最多 4 张。</p>
+          <p class="skill-text mt-2">阶段开始时可从角色牌堆顶暗置上阵至多 2 张；之后可主动明置角色（不发动）。角色区最多 4 张。</p>
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--text-muted);">
           <span class="text-sm font-bold" style="color: var(--text-muted);">弃牌阶段</span>
@@ -91,7 +91,7 @@ const setupStats = [
       <p class="skill-text">额外形态写在<strong>本体牌的背面</strong>，满足发动条件后翻面激活。发动条件<strong>写在本体牌正面</strong>。每张本体最多拥有一种额外形态。</p>
       <div style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
         <p class="skill-text"><strong>Mega：</strong>满足发动条件后翻至背面，获得强化技能，<strong>永久生效，不会翻回正面</strong>。</p>
-        <p class="skill-text"><strong>Z招式：</strong>满足发动条件后翻面发动，结算后翻回正面，<strong>每局限一次</strong>。</p>
+        <p class="skill-text"><strong>Z招式：</strong>满足累计条件后翻面就绪，保留原本体技能并获得一次性主动Z招式；发动后保持翻面并放置「Z已使用」标记。</p>
         <p class="skill-text"><strong>极巨化：</strong>未来待定，设计方向是限时强化，持续结束后翻回正面。<strong>钛晶化</strong>等其他模式暂未确定。</p>
       </div>
     </section>
@@ -101,8 +101,8 @@ const setupStats = [
       <ol class="space-y-2 pl-5 skill-text" style="list-style: decimal;">
         <li>双方公开本体牌（正面朝上）；本体体力以本体牌标注为准。</li>
         <li>洗混各自 16 张角色牌组与共用 52 张手牌牌堆。</li>
-        <li>各摸 5 张手牌、4 张角色牌；决定先后手。</li>
-        <li>先手暗置至多 1 张角色，后手至多 2 张；先手开始第一回合。</li>
+        <li>双方各摸 5 张手牌，并从各自角色牌堆顶暗置上阵 2 张角色。</li>
+        <li>决定先后手；先手开始第一回合。</li>
       </ol>
     </section>
 

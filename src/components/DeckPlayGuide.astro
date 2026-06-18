@@ -28,7 +28,7 @@ const { guide } = Astro.props;
       </ol>
     </div>
     <div class="deck-guide__panel deck-guide__panel--accent">
-      <h3>Mega 节点</h3>
+      <h3>{guide.extraFormLabel ?? "Mega 节点"}</h3>
       <p>{guide.mega}</p>
       <h3>风险处理</h3>
       <p>{guide.risk}</p>

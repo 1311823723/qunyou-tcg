@@ -58,6 +58,20 @@
     "char_062_guamao_morphling": "guamao-morphling",
     "char_079_xiaoka_visionary-painter": "xiaoka-visionary-painter-v1",
     "char_046_fengyaojing_watcher": "fengyaojing-watcher-v1",
-    "char_048_xiaoka_high-priest": "xiaoka-high-priest-v1"
+    "char_048_xiaoka_high-priest": "xiaoka-high-priest-v1",
+    "char_019_dong_defect-robot": "dong-defect-robot-v1",
+    "char_050_dong_bomber": "dong-bomber-v1",
+    "char_065_dong_high-priest": "dong-high-priest-v1",
+    "char_069_dong_sheriff": "dong-sheriff-v1",
+    "char_059_dong_justice": "dong-justice-v1",
+    "char_063_dong_assassin": "dong-assassin-v1",
+    "char_017_huihuan_defect-robot": "huihuan-defect-robot-v1",
+    "char_056_huihuan_watcher": "huihuan-watcher-v1",
+    "char_064_huihuan_pelican": "huihuan-pelican-v1",
+    "char_068_huihuan_bird-eater": "huihuan-bird-eater-v1",
+    "char_070_huihuan_silent-hunter": "huihuan-silent-hunter-v1",
+    "char_074_huihuan_nameless": "huihuan-nameless-v1",
+    "char_078_huihuan_deep-blue": "huihuan-deep-blue-v1",
+    "char_080_huihuan_visionary-painter": "huihuan-visionary-painter-v1"
   }
 }

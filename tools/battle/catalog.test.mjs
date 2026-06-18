@@ -7,8 +7,9 @@ import sharp from "sharp";
 const root = new URL("../../", import.meta.url);
 const bodies = JSON.parse(await readFile(new URL("data/cards/bodies.json", root), "utf8"));
 const handCards = JSON.parse(await readFile(new URL("data/cards/hand_cards.json", root), "utf8"));
+const cardArt = JSON.parse(await readFile(new URL("data/card-art.json", root), "utf8"));
 const workerConfig = JSON.parse(await readFile(new URL("worker/wrangler.jsonc", root), "utf8"));
-const deckFiles = ["aggro", "mizai", "combo", "trans"];
+const deckFiles = ["aggro", "mizai", "combo", "trans", "dispatch"];
 const decks = await Promise.all(deckFiles.map(async (slug) =>
   JSON.parse(await readFile(new URL(`data/decks/${slug}.deck.json`, root), "utf8")),
 ));
@@ -31,16 +32,17 @@ test("every online deck has one body and sixteen characters", () => {
   }
 });
 
-test("current body cards expose the expected Mega progress maxima", () => {
+test("current body cards expose the expected extra-form progress maxima", () => {
   assert.deepEqual(Object.fromEntries(bodies.map((body) => [body.id, progressMax(body)])), {
     body_aggro_001: 6,
     body_mizai_001: 4,
     body_combo_001: 6,
     body_trans_001: 4,
+    body_dispatch_001: 6,
   });
 });
 
-test("online card source data exposes Mega conditions and character costs", () => {
+test("online card source data exposes extra-form conditions and character costs", () => {
   assert.ok(bodies.every((body) => body.extraForm?.condition));
   assert.ok(characters.every((card) => {
     if (!card.timing || !card.cost?.type) return false;
@@ -75,10 +77,10 @@ test("every table card has a 750px high-resolution preview", async () => {
   }
 });
 
-test("body animation portraits are present and alpha-capable", async () => {
-  const expected = bodies.flatMap((body) => [
-    `${body.id}_front.webp`,
-    `${body.id}_mega.webp`,
+test("configured body animation portraits are present and alpha-capable", async () => {
+  const expected = Object.keys(cardArt.bodies).flatMap((bodyId) => [
+    `${bodyId}_front.webp`,
+    `${bodyId}_mega.webp`,
   ]).sort();
   const portraitDir = new URL("public/battle-portraits/", root);
   const files = (await readdir(portraitDir)).filter((file) => file.endsWith(".webp")).sort();

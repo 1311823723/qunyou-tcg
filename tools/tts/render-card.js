@@ -115,13 +115,22 @@ function verticalText(text, x, y, fontSize, options = {}) {
   )).join("");
 }
 
-function splitTitledName(name, fallbackName = "") {
+function extraFormLabel(type) {
+  return {
+    mega: "Mega",
+    "z-move": "Z招式",
+    terastal: "钛晶化",
+    dynamax: "极巨化",
+  }[type] ?? "额外形态";
+}
+
+function splitTitledName(name, fallbackName = "", fallbackTitle = "额外形态") {
   const clean = String(name ?? "").replace(/^Mega\s+/i, "");
   const idx = clean.indexOf("-");
   if (idx > 0) {
     return { title: clean.slice(0, idx), name: clean.slice(idx + 1) };
   }
-  return { title: "Mega", name: clean || fallbackName };
+  return { title: fallbackTitle, name: clean || fallbackName };
 }
 
 function hpBadgeSvg(hp, cx, cy, options = {}) {
@@ -239,8 +248,8 @@ function renderBodyFront(card) {
       <text x="650" y="103" text-anchor="middle" font-size="23" font-weight="900" fill="#f4f0e8">本体</text>
     </g>
     ${hpBadgeSvg(card.hp, 103, 102, { accent: "#ead28a", numberColor: "#ffd98a" })}
-    <text x="658" y="270" text-anchor="middle" writing-mode="tb" font-size="${card.name.length > 4 ? 41 : 48}" font-weight="900" fill="#ffffff" stroke="#17100a" stroke-width="5" paint-order="stroke">${escapeXml(card.name)}</text>
-    <text x="618" y="138" text-anchor="middle" writing-mode="tb" font-size="22" font-weight="900" fill="#ffe59a">${escapeXml(card.archetype)}</text>
+    ${verticalText(card.name, 658, 250, card.name.length > 4 ? 40 : 46, { fill: "#ffffff", stroke: "#17100a", strokeWidth: 5, gap: card.name.length > 4 ? 44 : 54 })}
+    ${verticalText(card.archetype, 618, 128, 22, { fill: "#ffe59a", gap: 26 })}
     <g transform="translate(54 644)">${tagsSvg(tags, 0, 0, { fill: "rgba(0,0,0,0.38)", stroke: "rgba(255,255,255,0.34)", max: 5 })}</g>
     <g filter="url(#shadow)">
       <path d="M52 706 H698 L674 992 H76 Z" fill="url(#textParchment)" stroke="#ffffff" stroke-opacity="0.62" stroke-width="2"/>
@@ -248,7 +257,7 @@ function renderBodyFront(card) {
       <rect x="76" y="738" width="188" height="44" rx="7" fill="${accent}"/>
       <text x="170" y="769" text-anchor="middle" font-size="23" font-weight="900" fill="#ffffff">${escapeXml(card.skillName)}</text>
       ${fitTextBlock(card.effectText, 84, 818, 574, 100, 27, 17, { fill: "#25201b", weight: 700, lineRatio: 1.30 })}
-      ${card.extraForm?.condition ? fitTextBlock(`Mega 条件：${card.extraForm.condition}`, 84, 945, 584, 40, 18, 15, { fill: "#7b5318", weight: 900, lineRatio: 1.20 }) : ""}
+      ${card.extraForm?.condition ? fitTextBlock(`${extraFormLabel(card.extraForm.type)}条件：${card.extraForm.condition}`, 84, 945, 584, 40, 18, 15, { fill: "#7b5318", weight: 900, lineRatio: 1.20 }) : ""}
     </g>
     <text x="375" y="1014" text-anchor="middle" font-size="15" font-weight="700" fill="#b8ad96">${escapeXml(card.id)}</text>
   `;
@@ -258,28 +267,29 @@ function renderBodyFront(card) {
 function renderBodyMega(card) {
   const extra = card.extraForm;
   const tags = card.affinityTags ?? [];
-  const megaDisplayName = splitTitledName(extra.name, card.name);
+  const formLabel = extraFormLabel(extra.type);
+  const megaDisplayName = splitTitledName(extra.name, card.name, formLabel);
   const inner = `
-    ${artStage("Mega 原画预留", "mega", { x: 28, y: 28, width: 694, height: 964, accent: "#d8b75c", imageDataUri: card.__ttsMegaArt })}
+    ${artStage(`${formLabel}原画预留`, "mega", { x: 28, y: 28, width: 694, height: 964, accent: "#d8b75c", imageDataUri: card.__ttsMegaArt })}
     <path d="M42 56 C120 20, 190 32, 246 78 L206 126 C154 88, 98 98, 48 132 Z" fill="rgba(216,183,92,0.24)" stroke="#d8b75c" stroke-width="4"/>
-    <text x="136" y="91" text-anchor="middle" font-size="30" font-weight="900" fill="#fff0a6">MEGA</text>
+    <text x="136" y="91" text-anchor="middle" font-size="30" font-weight="900" fill="#fff0a6">${escapeXml(formLabel)}</text>
     ${hpBadgeSvg(card.hp, 103, 162, {
       accent: "#d8b75c",
       numberColor: "#fff0a6",
       circleFill: "#1c1308",
       innerCircle: false,
     })}
-    <text x="670" y="230" text-anchor="middle" writing-mode="tb" font-size="${megaDisplayName.name.length > 4 ? 35 : 42}" font-weight="900" fill="#fff8cf" stroke="#1b1005" stroke-width="5" paint-order="stroke">${escapeXml(megaDisplayName.name)}</text>
-    <text x="626" y="210" text-anchor="middle" writing-mode="tb" font-size="${megaDisplayName.title.length > 4 ? 24 : 28}" font-weight="900" fill="#d8b75c" stroke="#1b1005" stroke-width="3" paint-order="stroke">${escapeXml(megaDisplayName.title)}</text>
-    <text x="586" y="120" text-anchor="middle" writing-mode="tb" font-size="20" font-weight="900" fill="#d8b75c">${escapeXml(card.archetype)}</text>
+    ${verticalText(megaDisplayName.name, 670, 216, megaDisplayName.name.length > 4 ? 34 : 40, { fill: "#fff8cf", stroke: "#1b1005", strokeWidth: 5, gap: megaDisplayName.name.length > 4 ? 40 : 50 })}
+    ${verticalText(megaDisplayName.title, 626, 188, megaDisplayName.title.length > 4 ? 23 : 27, { fill: "#d8b75c", stroke: "#1b1005", strokeWidth: 3, gap: megaDisplayName.title.length > 4 ? 28 : 34 })}
+    ${verticalText(card.archetype, 586, 116, 20, { fill: "#d8b75c", gap: 24 })}
     <g transform="translate(54 642)">${tagsSvg(tags, 0, 0, { fill: "rgba(31,18,3,0.54)", stroke: "rgba(216,183,92,0.50)", color: "#fff3c4", max: 5 })}</g>
     <g filter="url(#shadow)">
       <path d="M46 704 H704 L676 992 H74 Z" fill="rgba(23,14,8,0.72)" stroke="#d8b75c" stroke-opacity="0.68" stroke-width="3"/>
-      <rect x="78" y="732" width="244" height="46" rx="7" fill="#d8b75c"/>
-      <text x="200" y="765" text-anchor="middle" font-size="24" font-weight="900" fill="#221506">${escapeXml(extra.skillName)}</text>
+      <rect x="78" y="732" width="430" height="46" rx="7" fill="#d8b75c"/>
+      <text x="293" y="765" text-anchor="middle" font-size="24" font-weight="900" fill="#221506">${escapeXml(extra.skillName)}</text>
       ${fitTextBlock(extra.effectText, 84, 812, 578, 162, 26, 16, { fill: "#fff8e8", weight: 700, lineRatio: 1.26 })}
     </g>
-    <text x="375" y="1014" text-anchor="middle" font-size="15" font-weight="800" fill="#bca15d">${escapeXml(card.id)} · mega back</text>
+    <text x="375" y="1014" text-anchor="middle" font-size="15" font-weight="800" fill="#bca15d">${escapeXml(card.id)} · ${escapeXml(extra.type)} back</text>
   `;
   return cardShell(inner, { accent: "#d8b75c", secondary: "#4d2d66", variant: "mega", paper: "#f4ecd5" });
 }
