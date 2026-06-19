@@ -842,6 +842,27 @@ strong { color: var(--text-gold); font-weight: 800; }
   --deck-deep: rgba(48, 35, 17, 0.92);
   --deck-glow: rgba(224, 180, 92, 0.2);
 }
+.deck-theme--blood {
+  --deck-accent: #ef596f;
+  --deck-accent-2: #8b6ee8;
+  --deck-soft: #f5a4b1;
+  --deck-deep: rgba(55, 15, 27, 0.92);
+  --deck-glow: rgba(239, 89, 111, 0.22);
+}
+.deck-theme--ambush {
+  --deck-accent: #8b72e6;
+  --deck-accent-2: #35c3a0;
+  --deck-soft: #c3b8f5;
+  --deck-deep: rgba(24, 18, 51, 0.93);
+  --deck-glow: rgba(139, 114, 230, 0.22);
+}
+.deck-theme--defense {
+  --deck-accent: #55b8db;
+  --deck-accent-2: #e6c75b;
+  --deck-soft: #a7ddec;
+  --deck-deep: rgba(15, 38, 52, 0.93);
+  --deck-glow: rgba(85, 184, 219, 0.2);
+}
 .deck-theme--neutral {
   --deck-accent: #c4bbd4;
   --deck-accent-2: #827a99;

@@ -1,0 +1,25 @@
+{
+  "id": "deck_defense_001",
+  "name": "不落组",
+  "archetype": "防御流",
+  "bodyId": "body_defense_001",
+  "characterIds": [
+    "char_016_baizi_gravy",
+    "char_023_arthur_falcon",
+    "char_025_baizi_high-priest",
+    "char_085_aichitun_bodyguard",
+    "char_109_qindi_bodyguard",
+    "char_110_pangpanghali_canadian",
+    "char_111_horus-lupercal_adventurer",
+    "char_112_miaosila_locksmith",
+    "char_113_miaosila_celebrity",
+    "char_114_zongzi_bodyguard",
+    "char_115_player_mimic",
+    "char_116_tutu_vigilante",
+    "char_117_daidaishou_medium",
+    "char_118_qindi_birdwatcher",
+    "char_119_pangpanghali_politician",
+    "char_120_player_astral"
+  ],
+  "notes": "通过【闪】、减伤和伤害防止积累资源，保护己方角色并反制对手技能；Z招式就绪后可抵御一次致命伤害并回复体力。"
+}

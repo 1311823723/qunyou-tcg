@@ -25,6 +25,9 @@ const ARCHETYPE_THEME: Record<string, string> = {
   "锦囊流": "combo",
   "拟态流": "trans",
   "调度流": "dispatch",
+  "卖血流": "blood",
+  "伏击流": "ambush",
+  "防御流": "defense",
 };
 
 export function archetypeThemeClass(archetype: string): string {

@@ -3,6 +3,9 @@ import mizaiDeck from "../../data/decks/mizai.deck.json";
 import comboDeck from "../../data/decks/combo.deck.json";
 import transDeck from "../../data/decks/trans.deck.json";
 import dispatchDeck from "../../data/decks/dispatch.deck.json";
+import bloodDeck from "../../data/decks/blood.deck.json";
+import ambushDeck from "../../data/decks/ambush.deck.json";
+import defenseDeck from "../../data/decks/defense.deck.json";
 import { getBodyById, getCharactersByIds } from "./cards";
 import type { BodyCard, CharacterCard } from "./cards";
 
@@ -27,6 +30,9 @@ export const allDecks: DeckData[] = [
   comboDeck as DeckData,
   transDeck as DeckData,
   dispatchDeck as DeckData,
+  bloodDeck as DeckData,
+  ambushDeck as DeckData,
+  defenseDeck as DeckData,
 ];
 
 export function resolveDeck(deck: DeckData): ResolvedDeck {

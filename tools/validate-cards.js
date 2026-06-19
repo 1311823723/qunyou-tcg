@@ -22,7 +22,10 @@ const mizaiDeck = readJSON("decks/mizai.deck.json");
 const comboDeck = readJSON("decks/combo.deck.json");
 const transDeck = readJSON("decks/trans.deck.json");
 const dispatchDeck = readJSON("decks/dispatch.deck.json");
-const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck, dispatchDeck];
+const bloodDeck = readJSON("decks/blood.deck.json");
+const ambushDeck = readJSON("decks/ambush.deck.json");
+const defenseDeck = readJSON("decks/defense.deck.json");
+const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck, dispatchDeck, bloodDeck, ambushDeck, defenseDeck];
 
 // Collect all card IDs
 const allIds = new Set();
