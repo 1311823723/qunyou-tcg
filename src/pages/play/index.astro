@@ -130,6 +130,10 @@ const featuredTheme = featuredDeck?.theme === "aggro" ? "deck-theme" : `deck-the
     return { deckId: catalog.decks?.[0]?.id || "" };
   }
 
+  function handshakeLoadout() {
+    return { deckId: catalog.decks?.[0]?.id || "" };
+  }
+
   const rememberedNickname = String((readPending() as { nickname?: string }).nickname || "");
   nicknameInputs.forEach((input) => {
     input.value = rememberedNickname;
@@ -193,7 +197,7 @@ const featuredTheme = featuredDeck?.theme === "aggro" ? "deck-theme" : `deck-the
       const response = await fetch(`${API_URL}/rooms`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ nickname, ...loadout, token: token() }),
+        body: JSON.stringify({ nickname, ...handshakeLoadout(), token: token() }),
         signal: controller.signal,
       });
       const result = await response.json().catch(() => ({})) as { roomCode?: string; error?: string };

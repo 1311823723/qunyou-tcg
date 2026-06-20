@@ -331,6 +331,30 @@ function getPending() {
   }
 }
 
+function pendingLoadout() {
+  const pending = getPending();
+  if (pending.deckId === CUSTOM_DECK_ID && pending.customDeck && isCustomDeckValid(pending.customDeck)) {
+    return { deckId: CUSTOM_DECK_ID, customDeck: normalizeCustomDeck(pending.customDeck) };
+  }
+  if (catalog.decks.some((deck) => deck.id === pending.deckId)) return { deckId: pending.deckId as string };
+  return { deckId: catalog.decks[0]?.id || "" };
+}
+
+function handshakeLoadout() {
+  return { deckId: catalog.decks[0]?.id || "" };
+}
+
+function restorePendingLoadout(state: Snapshot) {
+  const me = state.players.find((player) => player.id === state.you);
+  if (!me || state.game.started || me.ready || hasPendingLock("player:selectDeck")) return;
+  const desired = pendingLoadout();
+  const sameCustomDeck = desired.deckId === CUSTOM_DECK_ID
+    && me.deckId === CUSTOM_DECK_ID
+    && JSON.stringify(normalizeCustomDeck(me.customDeck)) === JSON.stringify(desired.customDeck);
+  if (me.deckId === desired.deckId && (desired.deckId !== CUSTOM_DECK_ID || sameCustomDeck)) return;
+  send("player:selectDeck", desired);
+}
+
 function deckFor(player?: PlayerView) {
   return catalog.decks.find((item) => item.id === player?.deckId);
 }
@@ -478,6 +502,7 @@ async function connect() {
   setConnectionState("连接中", "connecting");
   if (!snapshot) renderConnecting("正在确认房间与玩家座位。");
   const token = getToken();
+  const initialLoadout = handshakeLoadout();
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 10000);
 
@@ -488,8 +513,7 @@ async function connect() {
       body: JSON.stringify({
         token,
         nickname: pending.nickname,
-        deckId: pending.deckId,
-        ...(pending.deckId === CUSTOM_DECK_ID && pending.customDeck ? { customDeck: pending.customDeck } : {}),
+        ...initialLoadout,
       }),
       signal: controller.signal,
     });
@@ -541,6 +565,7 @@ async function connect() {
       settleConfirmedActions();
       setConnectionState(`已同步 · r${nextSnapshot.revision}`, "open");
       render();
+      restorePendingLoadout(nextSnapshot);
       preloadBodyPortraits();
       flushVisualEffects();
       if (restarted) showToast("牌局已重新开始");
