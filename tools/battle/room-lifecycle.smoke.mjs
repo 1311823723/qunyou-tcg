@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
+import { readdir, readFile } from "node:fs/promises";
 
 const base = process.env.BATTLE_BASE || "http://127.0.0.1:8787";
+const root = new URL("../../", import.meta.url);
+const deckFiles = (await readdir(new URL("data/decks/", root)))
+  .filter((file) => file.endsWith(".deck.json"))
+  .sort();
+const presets = await Promise.all(deckFiles.map(async (file) =>
+  JSON.parse(await readFile(new URL(`data/decks/${file}`, root), "utf8")),
+));
 const owner = { nickname: "生命周期测试A", token: `owner-${crypto.randomUUID()}`, deckId: "deck_aggro_001" };
 const guest = { nickname: "生命周期测试B", token: `guest-${crypto.randomUUID()}`, deckId: "deck_mizai_001" };
 const step = (label) => console.log(`[battle-smoke] ${label}`);
@@ -86,6 +94,32 @@ await Promise.all([
   a.waitFor((message) => message.type === "snapshot"),
   b.waitFor((message) => message.type === "snapshot"),
 ]);
+
+for (const deck of presets) {
+  a.messages.length = 0;
+  const actionId = a.send("player:selectDeck", { deckId: deck.id });
+  await Promise.all([
+    a.waitFor((message) => message.type === "actionAck" && message.actionId === actionId),
+    a.waitFor((message) =>
+      message.type === "snapshot"
+      && message.snapshot.players.find((player) => player.id === message.snapshot.you)?.deckId === deck.id,
+    ),
+  ]);
+}
+const customDeck = {
+  bodyId: presets[0].bodyId,
+  characterIds: presets[0].characterIds,
+};
+a.messages.length = 0;
+const customActionId = a.send("player:selectDeck", { deckId: "custom", customDeck });
+await Promise.all([
+  a.waitFor((message) => message.type === "actionAck" && message.actionId === customActionId),
+  a.waitFor((message) =>
+    message.type === "snapshot"
+    && message.snapshot.players.find((player) => player.id === message.snapshot.you)?.deckId === "custom",
+  ),
+]);
+step(`all ${presets.length} presets and the custom deck accepted`);
 
 const readyActionId = a.send("player:ready", { ready: true });
 const readyAck = await a.waitFor((message) =>

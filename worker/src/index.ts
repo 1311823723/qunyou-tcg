@@ -2,15 +2,8 @@ import { DurableObject } from "cloudflare:workers";
 import bodies from "../../data/cards/bodies.json";
 import characters from "../../data/cards/characters.json";
 import handCards from "../../data/cards/hand_cards.json";
-import decks from "../../data/decks/aggro.deck.json";
-import mizaiDeck from "../../data/decks/mizai.deck.json";
-import comboDeck from "../../data/decks/combo.deck.json";
-import transDeck from "../../data/decks/trans.deck.json";
-import dispatchDeck from "../../data/decks/dispatch.deck.json";
-import bloodDeck from "../../data/decks/blood.deck.json";
-import ambushDeck from "../../data/decks/ambush.deck.json";
-import defenseDeck from "../../data/decks/defense.deck.json";
 import { getExtraFormProgressMax } from "../../src/lib/body-progress";
+import { allDecks } from "../../src/lib/decks";
 import { formatCharacterCost } from "../../src/lib/ui";
 import {
   consumeInspectionGrant,
@@ -48,7 +41,6 @@ import type {
 
 const ROOM_TTL_MS = 24 * 60 * 60 * 1000;
 const CUSTOM_DECK_ID = "custom";
-const allDecks = [decks, mizaiDeck, comboDeck, transDeck, dispatchDeck, bloodDeck, ambushDeck, defenseDeck];
 const deckById = new Map(allDecks.map((deck) => [deck.id, deck]));
 const bodyById = new Map(bodies.map((body) => [body.id, body]));
 const characterById = new Map(characters.map((card) => [card.id, card]));
