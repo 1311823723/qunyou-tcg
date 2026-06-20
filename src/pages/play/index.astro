@@ -3,70 +3,68 @@ import Layout from "../../components/Layout.astro";
 import { getBattleCatalog } from "../../lib/battle-catalog";
 
 const catalog = getBattleCatalog();
+const featuredDeck = catalog.decks[0];
+const featuredBody = featuredDeck ? catalog.cards[featuredDeck.bodyId] : undefined;
+const featuredTheme = featuredDeck?.theme === "aggro" ? "deck-theme" : `deck-theme deck-theme--${featuredDeck?.theme || "neutral"}`;
 ---
 <Layout title="在线对战" description="创建或加入群友杀 TCG 1v1 手动牌桌。">
   <div class="page-wrap battle-entry">
     <section class="battle-entry__hero">
       <div class="battle-entry__hero-copy">
         <span class="battle-entry__eyebrow"><i></i> 在线对战</span>
-        <h1>创建或加入<br /><strong>1v1 对战房间</strong></h1>
-        <p>输入昵称并选择预组即可开始。房间支持实时同步、隐藏信息保护和同一浏览器断线恢复。</p>
-        <div class="battle-entry__status-row" aria-label="对战服务信息">
-          <span><i class="is-live"></i> 对战服务可用</span>
+        <h1>开一桌，<br /><strong>和群友直接开打</strong></h1>
+        <p>不用注册。创建房间或输入邀请码，进入准备室后再选择阵容。</p>
+        <div class="battle-entry__status-row" aria-label="对战功能">
           <span>无需注册</span>
-          <span>支持移动端</span>
+          <span>断线可恢复</span>
+          <span>隐藏信息保护</span>
         </div>
       </div>
-      <div class="battle-entry__preview hud-panel" id="battle-entry-preview" aria-live="polite"></div>
+      {featuredDeck && (
+        <aside class="battle-entry__preview" aria-label="牌组示例">
+          <article class={`battle-deck-preview__card ${featuredTheme}`}>
+            {featuredBody?.imagePath && <img src={featuredBody.imagePath} alt={`${featuredBody.name}卡面`} class="battle-deck-preview__art" />}
+            <div>
+              <span class="battle-deck-preview__tag">牌组示例 · {featuredDeck.archetype}</span>
+              <strong>{featuredDeck.name}</strong>
+              <p>{featuredDeck.blurb || featuredBody?.subtitle}</p>
+            </div>
+          </article>
+        </aside>
+      )}
     </section>
+
+    <div id="battle-invite-banner" class="battle-entry__invite-banner" role="status" hidden>
+      <span>收到对战邀请</span>
+      <strong>你正在加入房间 <b data-invited-room>------</b></strong>
+      <p>填写昵称即可进入准备室。</p>
+    </div>
 
     <div class="battle-entry__grid" aria-label="开始在线对战">
       <section class="hud-panel battle-entry__panel battle-entry__panel--primary">
         <div class="battle-entry__panel-heading">
           <span class="battle-entry__step">01</span>
-          <div><span>新建房间</span><h2>创建对战房间</h2></div>
+          <div><span>我来开房</span><h2>创建新房间</h2></div>
         </div>
+        <p class="battle-entry__panel-copy">生成一条邀请链接，发给对手后在准备室选阵容。</p>
         <form id="create-room-form" class="battle-form">
           <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="你的昵称" /></label>
-          <label>牌组类型
-            <select name="deckMode" data-deck-mode>
-              <option value="preset">预组牌组</option>
-              <option value="custom">自选牌组</option>
-            </select>
-          </label>
-          <label data-preset-deck-field>预组
-            <select name="deckId" required data-deck-select>
-              {catalog.decks.map((deck) => <option value={deck.id}>{deck.name} · {deck.archetype}</option>)}
-            </select>
-          </label>
-          <div class="battle-custom-builder" data-custom-builder hidden></div>
           <button class="btn btn--primary battle-entry__submit" type="submit"><span>创建房间</span><b>→</b></button>
           <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
         </form>
       </section>
 
-      <section class="hud-panel battle-entry__panel battle-entry__panel--join">
+      <section class="hud-panel battle-entry__panel battle-entry__panel--join" data-join-panel>
         <div class="battle-entry__panel-heading">
           <span class="battle-entry__step">02</span>
-          <div><span>已有房间码</span><h2>加入对战房间</h2></div>
+          <div><span>已有邀请</span><h2>加入对战房间</h2></div>
         </div>
+        <p class="battle-entry__panel-copy">输入 6 位房间码，或直接打开对手发来的邀请链接。</p>
         <form id="join-room-form" class="battle-form">
-          <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="你的昵称" /></label>
           <label>房间码
-            <input name="roomCode" class="battle-room-input" minlength="6" maxlength="6" required autocomplete="off" placeholder="6 位码" inputmode="text" autocapitalize="characters" spellcheck="false" />
+            <input name="roomCode" class="battle-room-input" minlength="6" maxlength="6" required autocomplete="off" placeholder="6 位房间码" inputmode="text" autocapitalize="characters" spellcheck="false" />
           </label>
-          <label>牌组类型
-            <select name="deckMode" data-deck-mode>
-              <option value="preset">预组牌组</option>
-              <option value="custom">自选牌组</option>
-            </select>
-          </label>
-          <label data-preset-deck-field>预组
-            <select name="deckId" required data-deck-select>
-              {catalog.decks.map((deck) => <option value={deck.id}>{deck.name} · {deck.archetype}</option>)}
-            </select>
-          </label>
-          <div class="battle-custom-builder" data-custom-builder hidden></div>
+          <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="你的昵称" /></label>
           <button class="btn btn--secondary battle-entry__submit" type="submit"><span>加入房间</span><b>→</b></button>
           <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
         </form>
@@ -75,13 +73,13 @@ const catalog = getBattleCatalog();
 
     <section class="battle-entry__notes">
       <div class="battle-entry__notes-heading">
-        <span class="battle-entry__eyebrow"><i></i> 使用说明</span>
-        <h2>开始对战前</h2>
+        <span class="battle-entry__eyebrow"><i></i> 开局前须知</span>
+        <h2>牌桌同步状态，<br />规则由双方结算</h2>
       </div>
       <div class="battle-entry__features">
-        <article><span>01</span><strong>规则判定</strong><p>系统同步牌桌状态，不自动判断技能、费用、伤害或胜负。</p></article>
-        <article><span>02</span><strong>隐藏信息</strong><p>手牌和暗置角色仅对拥有者可见，查看操作会记录在日志中。</p></article>
-        <article><span>03</span><strong>房间恢复</strong><p>刷新或短暂断线后，同一浏览器会自动恢复原座位。</p></article>
+        <article><span>01</span><strong>手动判定</strong><p>系统不自动判断技能、费用、伤害或胜负。</p></article>
+        <article><span>02</span><strong>隐藏信息</strong><p>手牌和暗置角色仅对拥有者可见，查看会记入日志。</p></article>
+        <article><span>03</span><strong>房间恢复</strong><p>刷新或短暂断线后，同一浏览器会自动认回座位。</p></article>
       </div>
     </section>
   </div>
@@ -91,414 +89,70 @@ const catalog = getBattleCatalog();
 
 <script>
   import { getBattleApiUrl } from "../../lib/battle-api";
-  import { bindHighResImage, renderCardArtDialog, renderCardArtPreview, renderCardDetailBody, resolveCardDetail } from "../../scripts/battle-card-detail";
-  import { autoFillCharacters, customCardSearchText, customRoleFilters, customTagFilters, matchesCustomFilters, renderSelectedCharacterTray } from "../../scripts/battle-custom-deck";
 
   const API_URL = getBattleApiUrl();
   const TOKEN_KEY = "qunyou-battle-token-v1";
-  const catalog = JSON.parse(document.querySelector("#battle-entry-catalog")?.textContent || "{}");
-  const invitedRoomCode = new URLSearchParams(location.search).get("room")?.trim().toUpperCase();
-  const joinRoomInput = document.querySelector("#join-room-form input[name='roomCode']");
-  const preview = document.querySelector("#battle-entry-preview");
+  const PENDING_KEY = "qunyou-battle-pending-v1";
   const CUSTOM_DECK_ID = "custom";
-  const CUSTOM_DECK_KEY = "qunyou-battle-custom-deck-v1";
-  const allCards = Object.values(catalog.cards || {});
-  const bodyCards = allCards.filter((card) => card.kind === "body");
-  const characterCards = allCards.filter((card) => card.kind === "character");
-  const roleFilters = customRoleFilters(characterCards);
-  const tagFilters = customTagFilters(characterCards);
+  const catalog = JSON.parse(document.querySelector("#battle-entry-catalog")?.textContent || "{}") as {
+    cards?: Record<string, { kind?: string }>;
+    decks?: Array<{ id: string }>;
+  };
+  const nicknameInputs = [...document.querySelectorAll<HTMLInputElement>('.battle-form input[name="nickname"]')];
+  const joinRoomInput = document.querySelector<HTMLInputElement>('#join-room-form input[name="roomCode"]');
+  const invitedRoomCode = new URLSearchParams(location.search).get("room")?.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) || "";
 
-  function escapeHtml(value) {
-    return String(value || "").replace(/[&<>"']/g, (char) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      "\"": "&quot;",
-      "'": "&#39;",
-    }[char]));
-  }
-
-  function defaultCustomDeck() {
-    return {
-      bodyId: bodyCards[0]?.id || "",
-      characterIds: characterCards.slice(0, 16).map((card) => card.id),
-    };
-  }
-
-  function readCustomDeck() {
+  function readPending() {
     try {
-      const saved = JSON.parse(localStorage.getItem(CUSTOM_DECK_KEY) || "null");
-      if (saved?.bodyId && Array.isArray(saved.characterIds)) {
-        return {
-          bodyId: String(saved.bodyId),
-          characterIds: saved.characterIds.map(String).filter((id) => catalog.cards?.[id]?.kind === "character").slice(0, 16),
-        };
-      }
+      const value = JSON.parse(localStorage.getItem(PENDING_KEY) || "null");
+      return value && typeof value === "object" ? value : {};
     } catch {
-      // Ignore broken local state.
+      return {};
     }
-    return defaultCustomDeck();
   }
 
-  function customDeckFromForm(form) {
-    const builder = form.querySelector("[data-custom-builder]");
-    if (!(builder instanceof HTMLElement)) return defaultCustomDeck();
-    const bodyId = builder.dataset.bodyId || bodyCards[0]?.id || "";
-    const characterIds = (builder.dataset.characterIds || "")
-      .split(",")
-      .filter((id) => catalog.cards?.[id]?.kind === "character")
-      .slice(0, 16);
-    return { bodyId, characterIds };
-  }
-
-  function saveCustomDeck(deck) {
-    localStorage.setItem(CUSTOM_DECK_KEY, JSON.stringify(deck));
-  }
-
-  function isCustomDeckValid(deck) {
-    return Boolean(catalog.cards?.[deck.bodyId])
+  function validCustomDeck(value: unknown) {
+    if (!value || typeof value !== "object") return false;
+    const deck = value as { bodyId?: string; characterIds?: unknown[] };
+    return catalog.cards?.[deck.bodyId || ""]?.kind === "body"
+      && Array.isArray(deck.characterIds)
       && deck.characterIds.length === 16
       && new Set(deck.characterIds).size === 16
-      && deck.characterIds.every((id) => catalog.cards?.[id]?.kind === "character");
+      && deck.characterIds.every((id) => typeof id === "string" && catalog.cards?.[id]?.kind === "character");
   }
 
-  if (invitedRoomCode && joinRoomInput instanceof HTMLInputElement) {
+  function bootstrapLoadout() {
+    const pending = readPending() as { deckId?: string; customDeck?: unknown };
+    if (pending.deckId === CUSTOM_DECK_ID && validCustomDeck(pending.customDeck)) {
+      return { deckId: CUSTOM_DECK_ID, customDeck: pending.customDeck };
+    }
+    if (catalog.decks?.some((deck) => deck.id === pending.deckId)) return { deckId: pending.deckId };
+    return { deckId: catalog.decks?.[0]?.id || "" };
+  }
+
+  const rememberedNickname = String((readPending() as { nickname?: string }).nickname || "");
+  nicknameInputs.forEach((input) => {
+    input.value = rememberedNickname;
+    input.addEventListener("input", () => {
+      nicknameInputs.forEach((peer) => {
+        if (peer !== input) peer.value = input.value;
+      });
+    });
+  });
+
+  if (invitedRoomCode.length === 6 && joinRoomInput) {
     joinRoomInput.value = invitedRoomCode;
-    document.querySelector("#join-room-form input[name='nickname']")?.focus();
+    document.querySelector<HTMLElement>("[data-join-panel]")?.classList.add("is-invited");
+    const banner = document.querySelector<HTMLElement>("#battle-invite-banner");
+    if (banner) banner.hidden = false;
+    const code = banner?.querySelector<HTMLElement>("[data-invited-room]");
+    if (code) code.textContent = invitedRoomCode;
+    document.querySelector<HTMLInputElement>('#join-room-form input[name="nickname"]')?.focus();
   }
 
-  joinRoomInput?.addEventListener("input", (event) => {
-    const input = event.currentTarget;
-    if (!(input instanceof HTMLInputElement)) return;
-    input.value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  joinRoomInput?.addEventListener("input", () => {
+    joinRoomInput.value = joinRoomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
   });
-
-  function renderDeckPreview(deckId) {
-    if (!preview) return;
-    if (deckId === CUSTOM_DECK_ID) {
-      const customDeck = readCustomDeck();
-      const body = catalog.cards?.[customDeck.bodyId];
-      const selectedNames = customDeck.characterIds
-        .map((id) => catalog.cards?.[id]?.name)
-        .filter(Boolean)
-        .slice(0, 3)
-        .join("、");
-      preview.innerHTML = `<article class="battle-deck-preview__card deck-theme deck-theme--neutral">
-        ${body?.imagePath ? `<img src="${body.imagePath}" alt="" class="battle-deck-preview__art" loading="lazy" />` : ""}
-        <div>
-          <span class="battle-deck-preview__tag">自组牌组</span>
-          <strong>${escapeHtml(body?.name || "选择本体")}</strong>
-          <p>1 张本体 · ${customDeck.characterIds.length}/16 张角色${selectedNames ? ` · ${escapeHtml(selectedNames)}` : ""}</p>
-        </div>
-      </article>`;
-      return;
-    }
-    const deck = catalog.decks?.find((item) => item.id === deckId);
-    const body = deck ? catalog.cards?.[deck.bodyId] : undefined;
-    if (!deck) {
-      preview.innerHTML = "";
-      return;
-    }
-    const theme = deck.theme === "aggro" ? "deck-theme" : `deck-theme deck-theme--${deck.theme}`;
-    preview.innerHTML = `<article class="battle-deck-preview__card ${theme}">
-      ${body?.imagePath ? `<img src="${body.imagePath}" alt="" class="battle-deck-preview__art" loading="lazy" />` : ""}
-      <div>
-        <span class="battle-deck-preview__tag">${deck.archetype}</span>
-        <strong>${deck.name}</strong>
-        <p>${deck.blurb || body?.subtitle || ""}</p>
-      </div>
-    </article>`;
-  }
-
-  document.querySelectorAll(".battle-form").forEach((form) => {
-    updateCustomBuilder(form);
-    renderDeckPreview(selectedDeckId(form));
-    form.querySelector("[data-deck-mode]")?.addEventListener("change", () => {
-      updateCustomBuilder(form);
-      renderDeckPreview(selectedDeckId(form));
-    });
-    form.querySelector("[data-deck-select]")?.addEventListener("change", () => {
-      renderDeckPreview(selectedDeckId(form));
-    });
-  });
-
-  function selectedDeckId(form) {
-    const mode = form?.querySelector("[data-deck-mode]")?.value;
-    if (mode === CUSTOM_DECK_ID) return CUSTOM_DECK_ID;
-    return form?.querySelector("[data-deck-select]")?.value || catalog.decks?.[0]?.id || "";
-  }
-
-  function renderCustomBuilder(builder, deck) {
-    const selectedBody = catalog.cards?.[deck.bodyId] || bodyCards[0];
-    builder.dataset.bodyId = deck.bodyId;
-    builder.dataset.characterIds = deck.characterIds.join(",");
-    builder.innerHTML = `
-      <div class="battle-custom-builder__head">
-        <strong>自组牌组</strong>
-        <span data-custom-count>${deck.characterIds.length}/16 角色</span>
-      </div>
-      <div class="battle-custom-body-select" data-custom-body-select aria-label="选择本体卡">
-        ${bodyCards.map((card) => `<button type="button" class="battle-custom-body-choice ${card.id === deck.bodyId ? "is-selected" : ""}" data-custom-body-option="${card.id}">
-          ${card.imagePath ? `<img src="${escapeHtml(card.imagePath)}" alt="" />` : ""}
-          <span><strong>${escapeHtml(card.name)}</strong><small>${escapeHtml(card.archetype || card.subtitle || "")}</small></span>
-        </button>`).join("")}
-      </div>
-      <article class="battle-custom-body-info" data-custom-body-info>
-        ${renderCustomBodyInfo(selectedBody)}
-      </article>
-      <div class="battle-custom-picked" data-custom-picked>
-        ${renderSelectedCharacterTray(catalog.cards, deck.characterIds)}
-      </div>
-      <p class="battle-custom-builder__hint" data-custom-hint>请选择 1 张本体和 16 张不重复角色。</p>
-      <button type="button" class="btn btn--secondary" data-custom-open-picker>选择角色卡</button>
-    `;
-  }
-
-  function renderCustomBodyInfo(card) {
-    if (!card) return "<p>请选择本体卡。</p>";
-    return `
-      <div>
-        <strong>${escapeHtml(card.name)}</strong>
-        <span>${escapeHtml(card.subtitle || "")}${card.hp ? ` · 体力 ${card.hp}` : ""}</span>
-      </div>
-      <p>${escapeHtml(card.text || "")}</p>
-      ${card.megaCondition ? `<p><b>${escapeHtml(card.extraConditionLabel || "额外形态条件")}</b>：${escapeHtml(card.megaCondition)}</p>` : ""}
-      ${card.extraText ? `<p class="battle-custom-body-info__mega"><b>${escapeHtml(card.extraName || card.extraFormLabel || "额外形态")}</b>：${escapeHtml(card.extraText)}</p>` : ""}
-      <button type="button" class="battle-small-btn" data-custom-preview="${card.id}">查看本体详情</button>
-    `;
-  }
-
-  function bindCustomPreviewButtons(container) {
-    container.querySelectorAll("[data-custom-preview]").forEach((button) => {
-      if (button.dataset.previewBound === "true") return;
-      button.dataset.previewBound = "true";
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        showCustomCardPreview(button.dataset.customPreview, button);
-      });
-    });
-  }
-
-  function refreshCustomBuilder(form) {
-    const builder = form?.querySelector("[data-custom-builder]");
-    if (!(builder instanceof HTMLElement)) return;
-    const deck = customDeckFromForm(form);
-    const selected = new Set(deck.characterIds);
-    builder.querySelector("[data-custom-count]").textContent = `${deck.characterIds.length}/16 角色`;
-    builder.querySelector("[data-custom-hint]").textContent = deck.characterIds.length === 16
-      ? "自组牌组已满足开局要求。"
-      : `还需要选择 ${16 - deck.characterIds.length} 张角色。`;
-    builder.dataset.characterIds = deck.characterIds.join(",");
-    const picked = builder.querySelector("[data-custom-picked]");
-    if (picked) picked.innerHTML = renderSelectedCharacterTray(catalog.cards, deck.characterIds);
-    const bodyInfo = builder.querySelector("[data-custom-body-info]");
-    if (bodyInfo) bodyInfo.innerHTML = renderCustomBodyInfo(catalog.cards?.[deck.bodyId]);
-    builder.querySelectorAll("[data-custom-body-option]").forEach((button) => {
-      button.classList.toggle("is-selected", button.dataset.customBodyOption === deck.bodyId);
-    });
-    bindCustomPreviewButtons(builder);
-    saveCustomDeck(deck);
-    renderDeckPreview(CUSTOM_DECK_ID);
-  }
-
-  function updateCustomBuilder(form) {
-    if (!(form instanceof HTMLFormElement)) return;
-    const mode = form.querySelector("[data-deck-mode]");
-    const select = form.querySelector("[data-deck-select]");
-    const presetField = form.querySelector("[data-preset-deck-field]");
-    const builder = form.querySelector("[data-custom-builder]");
-    if (!(mode instanceof HTMLSelectElement) || !(select instanceof HTMLSelectElement) || !(builder instanceof HTMLElement)) return;
-    const isCustom = mode.value === CUSTOM_DECK_ID;
-    if (presetField instanceof HTMLElement) presetField.hidden = isCustom;
-    select.disabled = isCustom;
-    builder.hidden = !isCustom;
-    if (!isCustom) return;
-    renderCustomBuilder(builder, readCustomDeck());
-    bindCustomBuilderEvents(form, builder);
-    refreshCustomBuilder(form);
-  }
-
-  function bindCustomBuilderEvents(form, builder) {
-    builder.querySelectorAll("[data-custom-body-option]").forEach((button) => {
-      button.addEventListener("click", () => {
-        builder.dataset.bodyId = button.dataset.customBodyOption || "";
-        refreshCustomBuilder(form);
-      });
-    });
-    builder.querySelector("[data-custom-open-picker]")?.addEventListener("click", () => showCustomCharacterPicker(form, builder));
-    bindCustomPreviewButtons(builder);
-  }
-
-  function readCustomFilters(container) {
-    return {
-      query: (container.querySelector("[data-custom-search]")?.value || "").trim().toLowerCase(),
-      role: container.querySelector("[data-custom-role].is-active")?.dataset.customRole || "",
-      tag: container.querySelector("[data-custom-tag].is-active")?.dataset.customTag || "",
-      selectedOnly: Boolean(container.querySelector("[data-custom-selected-only]")?.checked),
-    };
-  }
-
-  function applyCustomFilters(container, selected) {
-    const filters = readCustomFilters(container);
-    let visible = 0;
-    container.querySelectorAll("[data-custom-card]").forEach((card) => {
-      const definition = catalog.cards?.[card.dataset.cardId || ""];
-      const show = Boolean(definition && matchesCustomFilters(definition, filters, selected));
-      card.hidden = !show;
-      if (show) visible++;
-    });
-    const visibleCount = container.querySelector("[data-custom-visible-count]");
-    if (visibleCount) visibleCount.textContent = `${visible} 张结果`;
-    const hint = container.querySelector("[data-custom-picker-hint]");
-    if (hint) hint.textContent = visible === 0 ? "没有匹配的角色牌，请调整搜索或筛选。" : "点击卡牌选择；查看按钮可打开技能与高清卡图。";
-  }
-
-  function showCustomCharacterPicker(form, builder) {
-    const deck = customDeckFromForm(form);
-    let draftIds = [...deck.characterIds];
-    const modal = document.createElement("div");
-    modal.className = "battle-custom-modal battle-custom-modal--picker";
-    modal.innerHTML = `
-      <div class="battle-custom-modal__backdrop" data-custom-modal-close></div>
-      <article class="battle-custom-modal__panel battle-custom-modal__panel--wide" role="dialog" aria-modal="true">
-        <div class="battle-custom-picker__top">
-          <div>
-            <span>自选角色卡</span>
-            <h2>选择 16 张角色</h2>
-          </div>
-          <div class="battle-custom-picker__metrics"><span data-custom-visible-count>${characterCards.length} 张结果</span><strong data-custom-picker-count>${draftIds.length}/16</strong></div>
-          <button type="button" class="battle-custom-modal__close" data-custom-modal-close>关闭</button>
-        </div>
-        <div class="battle-custom-picked battle-custom-picked--tray" data-custom-picker-selected aria-label="已选角色"></div>
-        <div class="battle-custom-tools">
-          <input type="search" placeholder="搜索名称、群友、技能或效果…" data-custom-search autocomplete="off" />
-          <div class="battle-custom-filter" aria-label="按角色定位筛选">
-            ${roleFilters.map((role) => `<button type="button" class="battle-custom-filter__chip ${role ? "" : "is-active"}" data-custom-role="${escapeHtml(role)}">${role ? escapeHtml(role) : "全部定位"}</button>`).join("")}
-          </div>
-          <details class="battle-custom-tags"><summary>机制标签</summary><div class="battle-custom-filter" aria-label="按机制标签筛选">
-            ${tagFilters.map((tag) => `<button type="button" class="battle-custom-filter__chip ${tag ? "" : "is-active"}" data-custom-tag="${escapeHtml(tag)}">${tag ? escapeHtml(tag) : "全部标签"}</button>`).join("")}
-          </div></details>
-          <div class="battle-custom-picker__tools">
-            <label class="battle-custom-toggle"><input type="checkbox" data-custom-selected-only /> 仅看已选</label>
-            <button type="button" class="battle-small-btn" data-custom-clear>清空已选</button>
-            <button type="button" class="battle-small-btn battle-small-btn--accent" data-custom-autofill>自动补齐</button>
-          </div>
-        </div>
-        <div class="battle-custom-builder__grid battle-custom-builder__grid--modal" aria-label="选择 16 张角色卡">
-          ${characterCards.map((card) => {
-            const checked = draftIds.includes(card.id);
-            const role = card.mainRole || card.subtitle?.split(" · ")[0] || "";
-            return `<label class="battle-custom-card ${checked ? "is-selected" : ""}" data-custom-card data-card-id="${card.id}" data-role="${escapeHtml(role)}" data-search="${escapeHtml(customCardSearchText(card))}">
-              <input type="checkbox" value="${card.id}" data-custom-character ${checked ? "checked" : ""} />
-              ${card.imagePath ? `<img src="${card.imagePath}" alt="" loading="lazy" />` : ""}
-              <span>${escapeHtml(card.name)}</span>
-              <small>${escapeHtml(card.subtitle || "")}</small>
-              <button type="button" class="battle-custom-card__detail" data-custom-preview="${card.id}" aria-label="查看 ${escapeHtml(card.name)}">查看</button>
-              <div class="battle-custom-card__tip" role="tooltip">
-                <strong>${escapeHtml(card.skillName || card.subtitle || card.name)}</strong>
-                <span>${escapeHtml(card.costText || "")}${card.timing ? ` · ${escapeHtml(card.timing)}` : ""}</span>
-                <p>${escapeHtml(card.text || "")}</p>
-              </div>
-            </label>`;
-          }).join("")}
-        </div>
-        <p class="battle-custom-builder__hint" data-custom-picker-hint>点击卡牌选择或取消，鼠标悬停可查看技能。</p>
-        <div class="battle-card-menu__actions battle-card-menu__actions--row">
-          <button type="button" class="battle-small-btn" data-custom-modal-close>取消</button>
-          <button type="button" class="btn btn--primary" data-custom-picker-done>完成选择</button>
-        </div>
-      </article>
-    `;
-    document.body.appendChild(modal);
-    const syncModal = () => {
-      const picked = new Set(draftIds);
-      modal.querySelector("[data-custom-picker-count]").textContent = `${picked.size}/16`;
-      modal.querySelectorAll("[data-custom-character]").forEach((input) => {
-        input.checked = picked.has(input.value);
-        input.disabled = !input.checked && picked.size >= 16;
-        input.closest(".battle-custom-card")?.classList.toggle("is-selected", input.checked);
-      });
-      modal.querySelector("[data-custom-picker-selected]").innerHTML = renderSelectedCharacterTray(catalog.cards, draftIds, true);
-      modal.querySelector("[data-custom-clear]").disabled = picked.size === 0;
-      modal.querySelector("[data-custom-autofill]").disabled = picked.size >= 16;
-      applyCustomFilters(modal, picked);
-    };
-    modal.querySelector("[data-custom-search]")?.addEventListener("input", syncModal);
-    modal.querySelectorAll("[data-custom-role]").forEach((button) => {
-      button.addEventListener("click", () => {
-        modal.querySelectorAll("[data-custom-role]").forEach((chip) => chip.classList.toggle("is-active", chip === button));
-        syncModal();
-      });
-    });
-    modal.querySelectorAll("[data-custom-tag]").forEach((button) => {
-      button.addEventListener("click", () => {
-        modal.querySelectorAll("[data-custom-tag]").forEach((chip) => chip.classList.toggle("is-active", chip === button));
-        syncModal();
-      });
-    });
-    modal.querySelector("[data-custom-selected-only]")?.addEventListener("change", syncModal);
-    modal.querySelectorAll("[data-custom-character]").forEach((input) => input.addEventListener("change", () => {
-      draftIds = input.checked ? [...draftIds, input.value].slice(0, 16) : draftIds.filter((id) => id !== input.value);
-      syncModal();
-    }));
-    modal.querySelector("[data-custom-picker-selected]")?.addEventListener("click", (event) => {
-      const button = event.target.closest?.("[data-custom-remove]");
-      if (!button) return;
-      draftIds = draftIds.filter((id) => id !== button.dataset.customRemove);
-      syncModal();
-    });
-    modal.querySelector("[data-custom-clear]")?.addEventListener("click", () => { draftIds = []; syncModal(); });
-    modal.querySelector("[data-custom-autofill]")?.addEventListener("click", () => {
-      draftIds = autoFillCharacters(characterCards, draftIds, readCustomFilters(modal));
-      syncModal();
-    });
-    bindCustomPreviewButtons(modal);
-    modal.querySelector("[data-custom-picker-done]")?.addEventListener("click", () => {
-      builder.dataset.characterIds = draftIds.slice(0, 16).join(",");
-      refreshCustomBuilder(form);
-      modal.remove();
-    });
-    modal.querySelectorAll("[data-custom-modal-close]").forEach((button) => button.addEventListener("click", () => modal.remove()));
-    syncModal();
-  }
-
-  function showCustomCardPreview(cardId, returnTarget) {
-    const card = catalog.cards?.[cardId || ""];
-    if (!card) return;
-    const modal = document.createElement("div");
-    modal.className = "battle-custom-modal";
-    modal.innerHTML = `
-      <div class="battle-custom-modal__backdrop" data-custom-modal-close></div>
-      <article class="battle-custom-modal__panel" role="dialog" aria-modal="true">
-        <button type="button" class="battle-custom-modal__close" data-custom-modal-close>关闭</button>
-        <div data-custom-preview-content></div>
-      </article>
-    `;
-    document.body.appendChild(modal);
-    const content = modal.querySelector("[data-custom-preview-content]");
-    const close = () => {
-      modal.remove();
-      if (returnTarget?.isConnected) requestAnimationFrame(() => returnTarget.focus());
-    };
-    const renderPreview = (mode = "detail", form = "normal") => {
-      const view = resolveCardDetail({ definition: card, visible: true, initialForm: form }, form);
-      content.innerHTML = mode === "art"
-        ? renderCardArtDialog(view)
-        : `<div class="battle-card-menu battle-card-menu--rich battle-custom-preview"><div class="battle-card-detail">${renderCardArtPreview(view)}${renderCardDetailBody(view)}</div></div>`;
-      content.querySelector("[data-card-art-zoom]")?.addEventListener("click", () => renderPreview("art", form));
-      content.querySelector("[data-card-detail-back]")?.addEventListener("click", () => renderPreview("detail", form));
-      content.querySelectorAll("[data-card-form]").forEach((button) => button.addEventListener("click", () => renderPreview("detail", button.dataset.cardForm)));
-      bindHighResImage(content);
-    };
-    modal.querySelectorAll("[data-custom-modal-close]").forEach((button) => button.addEventListener("click", close));
-    renderPreview();
-    window.addEventListener("keydown", function closeOnEsc(event) {
-      if (event.key !== "Escape") return;
-      close();
-      window.removeEventListener("keydown", closeOnEsc);
-    });
-  }
 
   function token() {
     const saved = localStorage.getItem(TOKEN_KEY);
@@ -510,86 +164,71 @@ const catalog = getBattleCatalog();
     return created;
   }
 
-  function values(form) {
-    return Object.fromEntries(new FormData(form).entries());
-  }
-
-  function setFormStatus(form, message, state = "info") {
-    const element = form.querySelector("[data-form-status]");
-    if (!(element instanceof HTMLElement)) return;
+  function setFormStatus(form: HTMLFormElement, message: string, state = "info") {
+    const element = form.querySelector<HTMLElement>("[data-form-status]");
+    if (!element) return;
     element.textContent = message;
     element.dataset.state = state;
     element.hidden = !message;
   }
 
-  document.querySelector("#create-room-form")?.addEventListener("submit", async (event) => {
+  function savePending(nickname: string, loadout: ReturnType<typeof bootstrapLoadout>) {
+    localStorage.setItem(PENDING_KEY, JSON.stringify({ nickname, ...loadout }));
+  }
+
+  document.querySelector<HTMLFormElement>("#create-room-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
-    const button = form.querySelector("button");
-    const originalLabel = button.textContent;
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    const nickname = String(new FormData(form).get("nickname") || "").trim();
+    const loadout = bootstrapLoadout();
+    if (!button) return;
+    const originalLabel = button.innerHTML;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 10000);
     button.disabled = true;
     button.textContent = "正在创建…";
-    setFormStatus(form, "正在连接对战服务器并创建房间，请稍候。", "loading");
+    setFormStatus(form, "正在连接对战服务器并创建房间。", "loading");
     try {
-      const payload = values(form);
-      payload.deckId = selectedDeckId(form);
-      delete payload.deckMode;
-      const customDeck = payload.deckId === CUSTOM_DECK_ID ? customDeckFromForm(form) : undefined;
-      if (customDeck && !isCustomDeckValid(customDeck)) throw new Error("自组牌组需要 1 张本体和 16 张不重复角色。");
       const response = await fetch(`${API_URL}/rooms`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...payload, ...(customDeck ? { customDeck } : {}), token: token() }),
+        body: JSON.stringify({ nickname, ...loadout, token: token() }),
         signal: controller.signal,
       });
-      const result = await response.json().catch(() => ({}));
+      const result = await response.json().catch(() => ({})) as { roomCode?: string; error?: string };
       if (!response.ok) throw new Error(result.error || `创建房间失败（${response.status}）`);
       if (!result.roomCode) throw new Error("服务器未返回房间码，请稍后重试。");
-      localStorage.setItem("qunyou-battle-pending-v1", JSON.stringify({
-        nickname: payload.nickname,
-        deckId: payload.deckId,
-        ...(customDeck ? { customDeck } : {}),
-      }));
-      setFormStatus(form, `房间 ${result.roomCode} 创建成功，正在进入…`, "success");
+      savePending(nickname, loadout);
+      setFormStatus(form, `房间 ${result.roomCode} 已创建，正在进入准备室。`, "success");
       location.href = `/play/room?code=${result.roomCode}`;
     } catch (error) {
       const message = error instanceof DOMException && error.name === "AbortError"
-        ? "创建房间超时。当前网络可能无法连接对战服务，请切换网络后重试。"
+        ? "创建房间超时。请检查网络后重试。"
         : error instanceof TypeError
-          ? "无法连接对战服务器。请检查网络后重试；若网页能打开但仍失败，请把此提示反馈给维护者。"
+          ? "无法连接对战服务器。请检查网络后重试。"
           : error instanceof Error ? error.message : "创建房间失败，请稍后重试。";
       setFormStatus(form, message, "error");
       button.disabled = false;
-      button.textContent = originalLabel;
+      button.innerHTML = originalLabel;
     } finally {
       window.clearTimeout(timeout);
     }
   });
 
-  document.querySelector("#join-room-form")?.addEventListener("submit", (event) => {
+  document.querySelector<HTMLFormElement>("#join-room-form")?.addEventListener("submit", (event) => {
     event.preventDefault();
     const form = event.currentTarget;
-    const payload = values(form);
-    payload.deckId = selectedDeckId(form);
-    delete payload.deckMode;
-    const code = String(payload.roomCode).trim().toUpperCase();
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const nickname = String(payload.nickname || "").trim();
+    const code = String(payload.roomCode || "").trim().toUpperCase();
     if (!/^[A-Z0-9]{6}$/.test(code)) {
       setFormStatus(form, "请输入 6 位房间码（字母或数字）。", "error");
       return;
     }
-    const customDeck = payload.deckId === CUSTOM_DECK_ID ? customDeckFromForm(form) : undefined;
-    if (customDeck && !isCustomDeckValid(customDeck)) {
-      setFormStatus(form, "自组牌组需要 1 张本体和 16 张不重复角色。", "error");
-      return;
-    }
-    setFormStatus(form, "资料已保存，正在进入房间…", "loading");
-    localStorage.setItem("qunyou-battle-pending-v1", JSON.stringify({
-      nickname: payload.nickname,
-      deckId: payload.deckId,
-      ...(customDeck ? { customDeck } : {}),
-    }));
+    const loadout = bootstrapLoadout();
+    setFormStatus(form, "资料已保存，正在进入准备室。", "loading");
+    savePending(nickname, loadout);
     location.href = `/play/room?code=${code}`;
   });
 </script>

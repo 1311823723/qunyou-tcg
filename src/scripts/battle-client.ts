@@ -1207,6 +1207,7 @@ function preloadBodyPortraits() {
 
 function render() {
   if (!snapshot) return;
+  app.dataset.phase = snapshot.game.started ? "game" : "lobby";
   syncRoomControls(snapshot.game.started && !snapshot.pendingRestart);
   window.clearInterval(restartCountdownTimer);
   const preserved = captureUIState();
@@ -1333,6 +1334,7 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
   const myDeck = deckFor(me);
   const myCustomDeck = readCustomDeck(me);
   const bodyCard = me.deckId === CUSTOM_DECK_ID ? catalog.cards[myCustomDeck.bodyId] : myDeck ? catalog.cards[myDeck.bodyId] : undefined;
+  const activeStep = !opponent ? "invite" : !me.ready ? "loadout" : "ready";
   const roomStatus = !opponent
     ? "等待另一名玩家加入"
     : opponent.ready && !me.ready
@@ -1341,54 +1343,84 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
         ? "你已准备，等待对手确认"
         : "双方确认准备后自动开始";
   root.innerHTML = `
-    <section class="battle-lobby hud-panel ${themeClasses(myDeck?.theme)}">
-      <div class="battle-lobby__heading">
+    <section class="battle-lobby ${themeClasses(myDeck?.theme)}">
+      <header class="battle-lobby__heading">
         <div>
+          <span class="battle-kicker">MATCH READY ROOM</span>
+          <h1>对战准备室</h1>
+        </div>
+        <div class="battle-lobby__headline-status">
           <span class="battle-lobby__status"><i class="${opponent ? "is-online" : ""}"></i>${opponent ? "2 / 2 玩家已加入" : "1 / 2 玩家已加入"}</span>
-          <h1>对战房间</h1>
+          <p>${roomStatus}</p>
         </div>
-        <p>${roomStatus}</p>
-      </div>
-      <div class="battle-invite">
-        <div>
-          <span class="battle-invite__label">房间码</span>
-          <strong class="battle-room-display">${escapeHtml(snapshot?.roomCode || roomCode)}</strong>
+      </header>
+
+      <nav class="battle-lobby__progress" aria-label="开局准备进度">
+        ${renderLobbyProgressStep("01", "邀请对手", opponent ? "对手已加入" : "等待对手", activeStep === "invite", Boolean(opponent))}
+        ${renderLobbyProgressStep("02", "选择阵容", myDeck?.name || customDeckLabel(me), activeStep === "loadout", true)}
+        ${renderLobbyProgressStep("03", "确认准备", me.ready ? "已准备" : "待确认", activeStep === "ready", me.ready)}
+      </nav>
+
+      <section class="battle-lobby__step battle-lobby__step--invite ${activeStep === "invite" ? "is-active" : ""}">
+        <header class="battle-lobby__step-heading">
+          <span>01</span><div><strong>邀请对手</strong><p>复制链接发给群友，等待时也可以先选阵容。</p></div>
+        </header>
+        <div class="battle-invite">
+          <div>
+            <span class="battle-invite__label">房间码</span>
+            <strong class="battle-room-display">${escapeHtml(snapshot?.roomCode || roomCode)}</strong>
+          </div>
+          <div class="battle-invite__actions">
+            <button type="button" class="battle-small-btn" id="lobby-copy-code">复制房间码</button>
+            <button type="button" class="btn btn--primary" id="lobby-copy-link">复制邀请链接</button>
+          </div>
         </div>
-        <div class="battle-invite__actions">
-          <button type="button" class="battle-small-btn" id="lobby-copy-code">复制房间码</button>
-          <button type="button" class="battle-small-btn" id="lobby-copy-link">复制邀请链接</button>
+        <div class="battle-lobby__seats">
+          ${renderLobbySeat(me, true)}
+          <div class="battle-lobby__versus"><span>1V1</span><i></i></div>
+          ${opponent ? renderLobbySeat(opponent, false) : `<article class="battle-seat battle-seat--empty"><span class="battle-seat__status"><i></i> 对手座位</span><strong>等待加入</strong><p>对手打开邀请链接后会出现在这里。</p><em>尚未加入</em></article>`}
         </div>
-      </div>
-      <div class="battle-lobby__seats">
-        ${renderLobbySeat(me, true)}
-        <div class="battle-lobby__versus"><span>1V1</span><i></i></div>
-        ${opponent ? renderLobbySeat(opponent, false) : `<article class="battle-seat battle-seat--empty"><span class="battle-seat__status"><i></i> 对手座位</span><strong>等待加入</strong><p>将房间码或邀请链接发送给另一名玩家。</p><em>尚未加入</em></article>`}
-      </div>
-      <div class="battle-lobby__loadout">
-        <div class="battle-deck-preview" id="battle-deck-preview">
-          ${renderDeckPreview(myDeck, bodyCard, me)}
+      </section>
+
+      <section class="battle-lobby__step battle-lobby__step--loadout ${activeStep === "loadout" ? "is-active" : ""}">
+        <header class="battle-lobby__step-heading">
+          <span>02</span><div><strong>选择阵容</strong><p>准备前可随时切换预组，或打开编辑器配置自选牌组。</p></div>
+        </header>
+        <div class="battle-lobby__loadout">
+          <div class="battle-deck-preview" id="battle-deck-preview">
+            ${renderDeckPreview(myDeck, bodyCard, me)}
+          </div>
+          <div class="battle-lobby__controls">
+            <label>牌组类型
+              <select id="battle-deck-mode" ${me.ready ? "disabled" : ""}>
+                <option value="preset" ${me.deckId === CUSTOM_DECK_ID ? "" : "selected"}>预组牌组</option>
+                <option value="${CUSTOM_DECK_ID}" ${me.deckId === CUSTOM_DECK_ID ? "selected" : ""}>自选牌组</option>
+              </select>
+            </label>
+            <label data-preset-deck-field ${me.deckId === CUSTOM_DECK_ID ? "hidden" : ""}>我的预组
+              <select id="battle-deck-select" ${me.ready || me.deckId === CUSTOM_DECK_ID ? "disabled" : ""}>
+                ${catalog.decks.map((deck) => `<option value="${deck.id}" ${deck.id === me.deckId ? "selected" : ""}>${escapeHtml(deck.name)} · ${escapeHtml(deck.archetype)}</option>`).join("")}
+              </select>
+            </label>
+            ${me.deckId === CUSTOM_DECK_ID ? renderCustomDeckSummary(myCustomDeck, me.ready) : ""}
+          </div>
         </div>
-        <div class="battle-lobby__controls">
-          <label>牌组类型
-            <select id="battle-deck-mode" ${me.ready ? "disabled" : ""}>
-              <option value="preset" ${me.deckId === CUSTOM_DECK_ID ? "" : "selected"}>预组牌组</option>
-              <option value="${CUSTOM_DECK_ID}" ${me.deckId === CUSTOM_DECK_ID ? "selected" : ""}>自选牌组</option>
-            </select>
-          </label>
-          <label data-preset-deck-field ${me.deckId === CUSTOM_DECK_ID ? "hidden" : ""}>我的预组
-            <select id="battle-deck-select" ${me.ready || me.deckId === CUSTOM_DECK_ID ? "disabled" : ""}>
-              ${catalog.decks.map((deck) => `<option value="${deck.id}" ${deck.id === me.deckId ? "selected" : ""}>${escapeHtml(deck.name)} · ${escapeHtml(deck.archetype)}</option>`).join("")}
-            </select>
-          </label>
-          <div class="battle-custom-builder battle-custom-builder--lobby" data-custom-builder ${me.deckId === CUSTOM_DECK_ID ? "" : "hidden"}>
-            ${renderCustomDeckBuilder(myCustomDeck, me.ready)}
+      </section>
+
+      <section class="battle-lobby__step battle-lobby__step--ready ${activeStep === "ready" ? "is-active" : ""}">
+        <header class="battle-lobby__step-heading">
+          <span>03</span><div><strong>确认准备</strong><p>准备后阵容会锁定；双方都确认时自动开局。</p></div>
+        </header>
+        <div class="battle-lobby__ready-bar">
+          <div class="battle-lobby__ready-states">
+            ${renderReadyState("你", me)}
+            ${opponent ? renderReadyState("对手", opponent) : `<span><i></i><b>对手</b><em>尚未加入</em></span>`}
           </div>
           <button class="btn ${me.ready ? "btn--secondary" : "btn--primary"}" data-command="player:ready" data-ready="${String(!me.ready)}">
-            ${me.ready ? "取消准备" : "确认准备"}
+            ${me.ready ? "取消准备并修改阵容" : "确认阵容并准备"}
           </button>
         </div>
-      </div>
-      ${me.ready ? `<p class="battle-lobby__hint">当前已准备，预组已锁定。取消准备后可以重新选择。</p>` : ""}
+      </section>
     </section>
   `;
   document.querySelector("#battle-deck-mode")?.addEventListener("change", (event) => {
@@ -1396,7 +1428,7 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
     const deckId = mode === CUSTOM_DECK_ID
       ? CUSTOM_DECK_ID
       : (document.querySelector("#battle-deck-select") as HTMLSelectElement | null)?.value || catalog.decks[0]?.id || "";
-    const customDeck = deckId === CUSTOM_DECK_ID ? readLobbyCustomDeck() : undefined;
+    const customDeck = deckId === CUSTOM_DECK_ID ? readCustomDeck(me) : undefined;
     if (customDeck) saveCustomDeck(customDeck);
     localStorage.setItem(PENDING_KEY, JSON.stringify({
       nickname: me.nickname,
@@ -1413,7 +1445,7 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
     }));
     send("player:selectDeck", { deckId });
   });
-  bindCustomDeckBuilder(me);
+  document.querySelector("[data-custom-open-editor]")?.addEventListener("click", () => showCustomDeckEditor(me));
   document.querySelector("#lobby-copy-code")?.addEventListener("click", () => copyText(snapshot?.roomCode || roomCode));
   document.querySelector("#lobby-copy-link")?.addEventListener("click", () => {
     const inviteUrl = new URL("/play", location.origin);
@@ -1421,6 +1453,16 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
     copyText(inviteUrl.toString());
   });
   bindActions();
+}
+
+function renderLobbyProgressStep(number: string, label: string, status: string, active: boolean, complete: boolean) {
+  return `<span class="${active ? "is-active" : ""} ${complete ? "is-complete" : ""}">
+    <b>${complete ? "✓" : number}</b><i><strong>${label}</strong><small>${escapeHtml(status)}</small></i>
+  </span>`;
+}
+
+function renderReadyState(label: string, player: PlayerView) {
+  return `<span class="${player.ready ? "is-ready" : ""}"><i></i><b>${label}</b><em>${player.ready ? "已准备" : "未准备"}</em></span>`;
 }
 
 function renderDeckPreview(deck?: CatalogDeck, body?: CatalogCard, player?: PlayerView) {
@@ -1451,29 +1493,22 @@ function renderDeckPreview(deck?: CatalogDeck, body?: CatalogCard, player?: Play
   </article>`;
 }
 
-function renderCustomDeckBuilder(deck: CustomDeckConfig, disabled: boolean) {
-  const selected = new Set(deck.characterIds);
-  const selectedBody = catalog.cards[deck.bodyId] || bodyCatalogCards[0];
-  return `
-    <div class="battle-custom-builder__head">
-      <strong>自组牌组</strong>
-      <span data-custom-count>${selected.size}/16 角色</span>
+function renderCustomDeckSummary(deck: CustomDeckConfig, disabled: boolean) {
+  const body = catalog.cards[deck.bodyId] || bodyCatalogCards[0];
+  const selectedNames = deck.characterIds
+    .map((id) => catalog.cards[id]?.name)
+    .filter(Boolean)
+    .slice(0, 4)
+    .join("、");
+  return `<article class="battle-custom-summary">
+    ${body?.imagePath ? `<img src="${escapeHtml(body.imagePath)}" alt="${escapeHtml(body.name)}卡面" />` : ""}
+    <div>
+      <span>当前自选阵容</span>
+      <strong>${escapeHtml(body?.name || "未选本体")}</strong>
+      <p>${deck.characterIds.length}/16 张角色${selectedNames ? ` · ${escapeHtml(selectedNames)}` : ""}</p>
     </div>
-    <div class="battle-custom-body-select" data-custom-body-select aria-label="选择本体卡">
-      ${bodyCatalogCards.map((card) => `<button type="button" class="battle-custom-body-choice ${card.id === deck.bodyId ? "is-selected" : ""}" data-custom-body-option="${card.id}" ${disabled ? "disabled" : ""}>
-        ${card.imagePath ? `<img src="${escapeHtml(card.imagePath)}" alt="" />` : ""}
-        <span><strong>${escapeHtml(card.name)}</strong><small>${escapeHtml(card.archetype || card.subtitle)}</small></span>
-      </button>`).join("")}
-    </div>
-    <article class="battle-custom-body-info" data-custom-body-info>
-      ${renderCustomBodyInfo(selectedBody)}
-    </article>
-    <div class="battle-custom-picked" data-custom-picked>
-      ${renderSelectedCharacterTray(catalog.cards, deck.characterIds)}
-    </div>
-    <p class="battle-custom-builder__hint" data-custom-hint>${selected.size === 16 ? "自组牌组已满足开局要求。" : `还需要选择 ${16 - selected.size} 张角色。`}</p>
-    <button type="button" class="btn btn--secondary" data-custom-open-picker ${disabled ? "disabled" : ""}>选择角色卡</button>
-  `;
+    <button type="button" class="battle-small-btn battle-small-btn--accent" data-custom-open-editor ${disabled ? "disabled" : ""}>${disabled ? "阵容已锁定" : "编辑自选牌组"}</button>
+  </article>`;
 }
 
 function renderCustomBodyInfo(card?: CatalogCard) {
@@ -1502,56 +1537,6 @@ function bindCustomPreviewButtons(container: ParentNode) {
   });
 }
 
-function readLobbyCustomDeck(): CustomDeckConfig {
-  const builder = root.querySelector<HTMLElement>("[data-custom-builder]");
-  const bodyId = builder?.dataset.bodyId || bodyCatalogCards[0]?.id || "";
-  const characterIds = (builder?.dataset.characterIds || "")
-    .split(",")
-    .filter((id) => catalog.cards[id]?.kind === "character")
-    .slice(0, 16);
-  return { bodyId, characterIds };
-}
-
-function bindCustomDeckBuilder(me: PlayerView) {
-  const builder = root.querySelector<HTMLElement>("[data-custom-builder]");
-  if (!builder || me.deckId !== CUSTOM_DECK_ID) return;
-  const initialDeck = readCustomDeck(me);
-  builder.dataset.bodyId = initialDeck.bodyId;
-  builder.dataset.characterIds = initialDeck.characterIds.join(",");
-  bindCustomPreviewButtons(builder);
-  if (me.ready) return;
-  const sync = () => {
-    const customDeck = readLobbyCustomDeck();
-    const selected = new Set(customDeck.characterIds);
-    builder.querySelector<HTMLElement>("[data-custom-count]")!.textContent = `${selected.size}/16 角色`;
-    builder.querySelector<HTMLElement>("[data-custom-hint]")!.textContent = selected.size === 16
-      ? "自组牌组已满足开局要求。"
-      : `还需要选择 ${16 - selected.size} 张角色。`;
-    const picked = builder.querySelector<HTMLElement>("[data-custom-picked]");
-    if (picked) picked.innerHTML = renderSelectedCharacterTray(catalog.cards, customDeck.characterIds);
-    const bodyInfo = builder.querySelector<HTMLElement>("[data-custom-body-info]");
-    if (bodyInfo) bodyInfo.innerHTML = renderCustomBodyInfo(catalog.cards[customDeck.bodyId]);
-    builder.querySelectorAll<HTMLElement>("[data-custom-body-option]").forEach((button) => {
-      button.classList.toggle("is-selected", button.dataset.customBodyOption === customDeck.bodyId);
-    });
-    bindCustomPreviewButtons(builder);
-    saveCustomDeck(customDeck);
-    localStorage.setItem(PENDING_KEY, JSON.stringify({
-      nickname: me.nickname,
-      deckId: CUSTOM_DECK_ID,
-      customDeck,
-    }));
-    if (isCustomDeckValid(customDeck)) send("player:selectDeck", { deckId: CUSTOM_DECK_ID, customDeck });
-  };
-  builder.querySelectorAll<HTMLElement>("[data-custom-body-option]").forEach((button) => {
-    button.addEventListener("click", () => {
-      builder.dataset.bodyId = button.dataset.customBodyOption || "";
-      sync();
-    });
-  });
-  builder.querySelector("[data-custom-open-picker]")?.addEventListener("click", () => showCustomCharacterPicker(builder, sync));
-}
-
 function readCustomDeckFilters(container: HTMLElement): CustomDeckFilters {
   return {
     query: (container.querySelector<HTMLInputElement>("[data-custom-search]")?.value || "").trim().toLowerCase(),
@@ -1576,18 +1561,30 @@ function applyCustomDeckFilters(container: HTMLElement, selected: Set<string>) {
   if (hint) hint.textContent = visible === 0 ? "没有匹配的角色牌，请调整搜索或筛选。" : "点击卡牌选择；查看按钮可打开技能与高清卡图。";
 }
 
-function showCustomCharacterPicker(builder: HTMLElement, onDone: () => void) {
-  const deck = readLobbyCustomDeck();
+function showCustomDeckEditor(me: PlayerView) {
+  const deck = readCustomDeck(me);
+  let draftBodyId = deck.bodyId;
   let draftIds = [...deck.characterIds];
   dialog.classList.add("battle-dialog--custom-picker");
   dialogContent.innerHTML = `<div class="battle-card-menu battle-custom-picker">
     <div class="battle-custom-picker__top">
       <div>
-        <span>自选角色卡</span>
-        <h2>选择 16 张角色</h2>
+        <span>自选牌组编辑器</span>
+        <h2>选择本体与 16 张角色</h2>
       </div>
       <div class="battle-custom-picker__metrics"><span data-custom-visible-count>${characterCatalogCards.length} 张结果</span><strong data-custom-picker-count>${draftIds.length}/16</strong></div>
     </div>
+    <section class="battle-custom-editor__body">
+      <div class="battle-custom-editor__section-title"><strong>选择本体</strong><span>本体决定牌组的核心玩法</span></div>
+      <div class="battle-custom-body-select" data-custom-body-select aria-label="选择本体卡">
+        ${bodyCatalogCards.map((card) => `<button type="button" class="battle-custom-body-choice ${card.id === draftBodyId ? "is-selected" : ""}" data-custom-body-option="${card.id}">
+          ${card.imagePath ? `<img src="${escapeHtml(card.imagePath)}" alt="${escapeHtml(card.name)}卡面" />` : ""}
+          <span><strong>${escapeHtml(card.name)}</strong><small>${escapeHtml(card.archetype || card.subtitle)}</small></span>
+        </button>`).join("")}
+      </div>
+      <article class="battle-custom-body-info" data-custom-body-info>${renderCustomBodyInfo(catalog.cards[draftBodyId])}</article>
+    </section>
+    <div class="battle-custom-editor__section-title"><strong>选择角色</strong><span>需要 16 张不重复角色</span></div>
     <div class="battle-custom-picked battle-custom-picked--tray" data-custom-picker-selected aria-label="已选角色"></div>
     <div class="battle-custom-tools">
       <input type="search" placeholder="搜索名称、群友、技能或效果…" data-custom-search autocomplete="off" />
@@ -1624,7 +1621,7 @@ function showCustomCharacterPicker(builder: HTMLElement, onDone: () => void) {
     <p class="battle-custom-builder__hint" data-custom-picker-hint>点击卡牌选择或取消，鼠标悬停可查看技能。</p>
     <div class="battle-card-menu__actions battle-card-menu__actions--row">
       <button type="button" class="battle-small-btn" data-dialog-cancel>取消</button>
-      <button type="button" class="btn btn--primary" data-custom-picker-done>完成选择</button>
+      <button type="button" class="btn btn--primary" data-custom-picker-done>保存自选牌组</button>
     </div>
   </div>`;
   const syncPicker = () => {
@@ -1638,10 +1635,26 @@ function showCustomCharacterPicker(builder: HTMLElement, onDone: () => void) {
     dialogContent.querySelector<HTMLElement>("[data-custom-picker-selected]")!.innerHTML = renderSelectedCharacterTray(catalog.cards, draftIds, true);
     const clear = dialogContent.querySelector<HTMLButtonElement>("[data-custom-clear]");
     const autoFill = dialogContent.querySelector<HTMLButtonElement>("[data-custom-autofill]");
+    const done = dialogContent.querySelector<HTMLButtonElement>("[data-custom-picker-done]");
     if (clear) clear.disabled = picked.size === 0;
     if (autoFill) autoFill.disabled = picked.size >= 16;
+    if (done) done.disabled = picked.size !== 16 || !catalog.cards[draftBodyId];
+    dialogContent.querySelectorAll<HTMLElement>("[data-custom-body-option]").forEach((button) => {
+      button.classList.toggle("is-selected", button.dataset.customBodyOption === draftBodyId);
+    });
+    const bodyInfo = dialogContent.querySelector<HTMLElement>("[data-custom-body-info]");
+    if (bodyInfo) {
+      bodyInfo.innerHTML = renderCustomBodyInfo(catalog.cards[draftBodyId]);
+      bindCustomPreviewButtons(bodyInfo);
+    }
     applyCustomDeckFilters(dialogContent, picked);
   };
+  dialogContent.querySelectorAll<HTMLElement>("[data-custom-body-option]").forEach((button) => {
+    button.addEventListener("click", () => {
+      draftBodyId = button.dataset.customBodyOption || draftBodyId;
+      syncPicker();
+    });
+  });
   dialogContent.querySelector("[data-custom-search]")?.addEventListener("input", syncPicker);
   dialogContent.querySelectorAll<HTMLElement>("[data-custom-role]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1674,8 +1687,11 @@ function showCustomCharacterPicker(builder: HTMLElement, onDone: () => void) {
   bindCustomPreviewButtons(dialogContent);
   dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
   dialogContent.querySelector("[data-custom-picker-done]")?.addEventListener("click", () => {
-    builder.dataset.characterIds = draftIds.slice(0, 16).join(",");
-    onDone();
+    const customDeck = { bodyId: draftBodyId, characterIds: draftIds.slice(0, 16) };
+    if (!isCustomDeckValid(customDeck)) return;
+    saveCustomDeck(customDeck);
+    localStorage.setItem(PENDING_KEY, JSON.stringify({ nickname: me.nickname, deckId: CUSTOM_DECK_ID, customDeck }));
+    send("player:selectDeck", { deckId: CUSTOM_DECK_ID, customDeck });
     dialog.close();
   });
   openBattleDialog();
@@ -2224,7 +2240,7 @@ function handleCommand(element: HTMLElement) {
     if (element.dataset.ready === "true" && snapshot) {
       const me = snapshot.players.find((player) => player.id === snapshot?.you);
       if (me?.deckId === CUSTOM_DECK_ID) {
-        const customDeck = readLobbyCustomDeck();
+        const customDeck = readCustomDeck(me);
         if (!isCustomDeckValid(customDeck)) {
           showError("自组牌组需要 1 张本体和 16 张不重复角色。");
           return;

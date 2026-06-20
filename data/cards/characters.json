@@ -5,10 +5,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "伏击",
-    "tags": [
-      "博弈",
-      "反制"
-    ],
+    "tags": ["博弈","伤害"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -24,10 +21,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "控制",
-    "tags": [
-      "博弈",
-      "情报"
-    ],
+    "tags": ["情报","明置"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -43,11 +37,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "强攻",
-    "tags": [
-      "卖血",
-      "压制",
-      "明置发动"
-    ],
+    "tags": ["伤害","卖血"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -64,10 +54,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "控制",
-    "tags": [
-      "压制",
-      "干扰"
-    ],
+    "tags": ["角色控制","伤害"],
     "cost": {
       "type": "休整",
       "amount": 2
@@ -83,10 +70,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "强攻",
-    "tags": [
-      "爆发",
-      "弃牌"
-    ],
+    "tags": ["手牌控制","伤害"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -102,10 +86,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "伏击",
-    "tags": [
-      "忍者",
-      "暗杀"
-    ],
+    "tags": ["必中","回收"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -121,10 +102,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "控制",
-    "tags": [
-      "忍者",
-      "情报"
-    ],
+    "tags": ["明置","伤害"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -140,10 +118,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "强攻",
-    "tags": [
-      "暗杀",
-      "必中"
-    ],
+    "tags": ["伤害","必中"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -159,11 +134,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "强攻",
-    "tags": [
-      "暗杀",
-      "必中",
-      "连环"
-    ],
+    "tags": ["伤害","连击"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -179,10 +150,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "控制",
-    "tags": [
-      "炸弹",
-      "延迟"
-    ],
+    "tags": ["标记","角色控制"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -198,11 +166,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "强攻",
-    "tags": [
-      "爆发",
-      "AOE",
-      "卖血"
-    ],
+    "tags": ["伤害","退场"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -218,10 +182,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "资源",
-    "tags": [
-      "回收",
-      "干扰"
-    ],
+    "tags": ["回收","角色控制"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -237,10 +198,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "支援",
-    "tags": [
-      "复制",
-      "应变"
-    ],
+    "tags": ["复制","转化"],
     "cost": {
       "type": "休整",
       "amount": 0
@@ -256,10 +214,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "控制",
-    "tags": [
-      "干扰",
-      "补牌"
-    ],
+    "tags": ["手牌控制","摸牌"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -275,9 +230,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "强攻",
-    "tags": [
-      "爆发"
-    ],
+    "tags": ["强化","伤害"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -293,10 +246,7 @@
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "防御",
-    "tags": [
-      "伏击",
-      "响应"
-    ],
+    "tags": ["响应","转化"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -312,9 +262,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "防御",
-    "tags": [
-      "充能球"
-    ],
+    "tags": ["标记","减伤"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -330,9 +278,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "强攻",
-    "tags": [
-      "充能球"
-    ],
+    "tags": ["标记","伤害"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -348,9 +294,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "资源",
-    "tags": [
-      "充能球"
-    ],
+    "tags": ["标记","摸牌"],
     "cost": {
       "type": "休整",
       "amount": 2
@@ -366,10 +310,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "强攻",
-    "tags": [
-      "卖血",
-      "爆发"
-    ],
+    "tags": ["卖血","强化"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -385,10 +326,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "强攻",
-    "tags": [
-      "献祭",
-      "资源"
-    ],
+    "tags": ["手牌控制","伤害"],
     "cost": {
       "type": "休整",
       "amount": 2
@@ -404,10 +342,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "强攻",
-    "tags": [
-      "吸血",
-      "续航"
-    ],
+    "tags": ["回复","伤害"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
@@ -423,10 +358,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "防御",
-    "tags": [
-      "响应",
-      "反制"
-    ],
+    "tags": ["响应","手牌控制"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -442,9 +374,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "防御",
-    "tags": [
-      "护盾"
-    ],
+    "tags": ["减伤","保护"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -460,10 +390,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "防御",
-    "tags": [
-      "回复",
-      "保护"
-    ],
+    "tags": ["减伤","摸牌"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -479,10 +406,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "资源",
-    "tags": [
-      "过牌",
-      "检索"
-    ],
+    "tags": ["检索","牌堆操作"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -498,10 +422,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "资源",
-    "tags": [
-      "回收",
-      "退场"
-    ],
+    "tags": ["回收","退场"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -517,10 +438,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "资源",
-    "tags": [
-      "抽牌",
-      "退场"
-    ],
+    "tags": ["摸牌","退场"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -536,10 +454,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "控制",
-    "tags": [
-      "中毒",
-      "延迟"
-    ],
+    "tags": ["标记","角色控制"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -555,10 +470,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "控制",
-    "tags": [
-      "情报",
-      "干扰"
-    ],
+    "tags": ["情报","手牌控制"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -574,10 +486,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "控制",
-    "tags": [
-      "预知",
-      "牌库"
-    ],
+    "tags": ["牌堆操作","情报"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -593,10 +502,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "支援",
-    "tags": [
-      "连击",
-      "补牌"
-    ],
+    "tags": ["回收","连击"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -612,10 +518,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "支援",
-    "tags": [
-      "切换",
-      "增强"
-    ],
+    "tags": ["强化","转化"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
@@ -631,10 +534,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "伏击",
-    "tags": [
-      "复仇",
-      "响应"
-    ],
+    "tags": ["响应","伤害"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -650,10 +550,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "伏击",
-    "tags": [
-      "陷阱",
-      "响应"
-    ],
+    "tags": ["响应","反制"],
     "cost": {
       "type": "休整",
       "amount": 2
@@ -669,10 +566,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "控制",
-    "tags": [
-      "情报",
-      "压制"
-    ],
+    "tags": ["情报","强化"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -688,10 +582,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "资源",
-    "tags": [
-      "检索",
-      "连击"
-    ],
+    "tags": ["检索","伤害"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -707,10 +598,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "强攻",
-    "tags": [
-      "爆发",
-      "连杀"
-    ],
+    "tags": ["连击","退场"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -726,10 +614,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "控制",
-    "tags": [
-      "博弈",
-      "压制"
-    ],
+    "tags": ["博弈","角色控制"],
     "cost": {
       "type": "休整",
       "amount": 2
@@ -745,10 +630,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "控制",
-    "tags": [
-      "情报",
-      "博弈"
-    ],
+    "tags": ["博弈","情报"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
@@ -764,10 +646,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "资源",
-    "tags": [
-      "预知",
-      "牌库"
-    ],
+    "tags": ["牌堆操作","情报"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -783,10 +662,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "支援",
-    "tags": [
-      "过牌",
-      "检索"
-    ],
+    "tags": ["检索","牌堆操作"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -802,10 +678,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "防御",
-    "tags": [
-      "响应",
-      "反制"
-    ],
+    "tags": ["响应","手牌控制"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -821,10 +694,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "控制",
-    "tags": [
-      "情报",
-      "审讯"
-    ],
+    "tags": ["情报","手牌控制"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -840,10 +710,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "伏击",
-    "tags": [
-      "暗杀",
-      "响应"
-    ],
+    "tags": ["响应","手牌控制"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -859,10 +726,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "资源",
-    "tags": [
-      "预知",
-      "牌库"
-    ],
+    "tags": ["牌堆操作","情报"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -878,10 +742,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "强攻",
-    "tags": [
-      "爆发",
-      "必中"
-    ],
+    "tags": ["强化","必中"],
     "cost": {
       "type": "休整",
       "amount": 2
@@ -897,10 +758,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "防御",
-    "tags": [
-      "情报",
-      "保护"
-    ],
+    "tags": ["情报","摸牌"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -916,10 +774,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "资源",
-    "tags": [
-      "抽牌",
-      "退场"
-    ],
+    "tags": ["摸牌","退场"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -935,10 +790,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "强攻",
-    "tags": [
-      "弃牌",
-      "爆发"
-    ],
+    "tags": ["手牌控制","伤害"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -954,10 +806,7 @@
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "支援",
-    "tags": [
-      "博弈",
-      "资源"
-    ],
+    "tags": ["博弈","摸牌"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -973,10 +822,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "强攻",
-    "tags": [
-      "破防",
-      "续航"
-    ],
+    "tags": ["强化","回复"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -992,10 +838,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "强攻",
-    "tags": [
-      "连杀",
-      "配合"
-    ],
+    "tags": ["连击","角色控制"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
@@ -1011,10 +854,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "资源",
-    "tags": [
-      "预知",
-      "牌堆操作"
-    ],
+    "tags": ["牌堆操作","情报"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1031,10 +871,7 @@
     "cardType": "角色",
     "deck": "拟态流",
     "mainRole": "控制",
-    "tags": [
-      "博弈",
-      "拟态"
-    ],
+    "tags": ["博弈","转化"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
@@ -1050,10 +887,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "资源",
-    "tags": [
-      "检索",
-      "锦囊"
-    ],
+    "tags": ["检索","锦囊"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1069,10 +903,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "资源",
-    "tags": [
-      "回收",
-      "锦囊"
-    ],
+    "tags": ["回收","锦囊"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
@@ -1088,10 +919,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "支援",
-    "tags": [
-      "强化",
-      "锦囊"
-    ],
+    "tags": ["强化","锦囊"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1107,10 +935,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "支援",
-    "tags": [
-      "连携",
-      "锦囊"
-    ],
+    "tags": ["牌堆操作","锦囊"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
@@ -1126,10 +951,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "支援",
-    "tags": [
-      "牌堆操作",
-      "重置"
-    ],
+    "tags": ["牌堆操作","换牌"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1145,10 +967,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "资源",
-    "tags": [
-      "预知",
-      "过牌"
-    ],
+    "tags": ["牌堆操作","摸牌"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1164,10 +983,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "支援",
-    "tags": [
-      "复制",
-      "锦囊"
-    ],
+    "tags": ["复制","锦囊"],
     "cost": {
       "type": "休整",
       "amount": 2
@@ -1183,10 +999,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "伏击",
-    "tags": [
-      "锦囊",
-      "伤害"
-    ],
+    "tags": ["响应","伤害"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -1202,10 +1015,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "伏击",
-    "tags": [
-      "干扰",
-      "锦囊"
-    ],
+    "tags": ["反制","锦囊"],
     "cost": {
       "type": "休整",
       "amount": 2
@@ -1221,10 +1031,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "防御",
-    "tags": [
-      "回复",
-      "续航"
-    ],
+    "tags": ["回复"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
@@ -1240,10 +1047,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "伏击",
-    "tags": [
-      "响应",
-      "补牌"
-    ],
+    "tags": ["响应","摸牌"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1259,10 +1063,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "资源",
-    "tags": [
-      "过牌",
-      "连锁"
-    ],
+    "tags": ["换牌","锦囊"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1278,10 +1079,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "资源",
-    "tags": [
-      "回收",
-      "锦囊"
-    ],
+    "tags": ["回收","锦囊"],
     "cost": {
       "type": "休整",
       "amount": 3
@@ -1297,10 +1095,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "控制",
-    "tags": [
-      "情报",
-      "限制"
-    ],
+    "tags": ["情报","响应"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1316,10 +1111,7 @@
     "cardType": "角色",
     "deck": "锦囊流",
     "mainRole": "支援",
-    "tags": [
-      "强化",
-      "锦囊"
-    ],
+    "tags": ["强化","锦囊"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1335,10 +1127,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "强攻",
-    "tags": [
-      "突破",
-      "压制"
-    ],
+    "tags": ["情报"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1354,10 +1143,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "控制",
-    "tags": [
-      "情报",
-      "封锁"
-    ],
+    "tags": ["情报","手牌控制"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1373,10 +1159,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "防御",
-    "tags": [
-      "医疗",
-      "续航"
-    ],
+    "tags": ["回复"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
@@ -1392,10 +1175,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "伏击",
-    "tags": [
-      "暗杀",
-      "压制"
-    ],
+    "tags": ["响应","角色控制"],
     "cost": {
       "type": "休整",
       "amount": 2
@@ -1411,10 +1191,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "强攻",
-    "tags": [
-      "爆发",
-      "卖血"
-    ],
+    "tags": ["伤害","必中"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1430,10 +1207,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "控制",
-    "tags": [
-      "情报",
-      "盗窃"
-    ],
+    "tags": ["情报","手牌控制"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1449,10 +1223,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "控制",
-    "tags": [
-      "压制",
-      "干扰"
-    ],
+    "tags": ["角色控制"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -1468,10 +1239,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "控制",
-    "tags": [
-      "封锁",
-      "压制"
-    ],
+    "tags": ["手牌控制","博弈"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1487,11 +1255,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "支援",
-    "tags": [
-      "转化",
-      "响应",
-      "支援"
-    ],
+    "tags": ["转化","响应"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
@@ -1507,11 +1271,7 @@
     "cardType": "角色",
     "deck": "",
     "mainRole": "支援",
-    "tags": [
-      "爆发",
-      "过牌",
-      "情报"
-    ],
+    "tags": ["强化","摸牌"],
     "cost": {
       "type": "休整",
       "amount": 2
@@ -1527,7 +1287,7 @@
     "cardType": "角色",
     "deck": "调度流",
     "mainRole": "资源",
-    "tags": ["布阵", "补位"],
+    "tags": ["布阵"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1543,7 +1303,7 @@
     "cardType": "角色",
     "deck": "调度流",
     "mainRole": "资源",
-    "tags": ["退场", "补位"],
+    "tags": ["布阵","退场"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -1559,7 +1319,7 @@
     "cardType": "角色",
     "deck": "调度流",
     "mainRole": "伏击",
-    "tags": ["情报", "补牌"],
+    "tags": ["响应","情报"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1575,7 +1335,7 @@
     "cardType": "角色",
     "deck": "调度流",
     "mainRole": "支援",
-    "tags": ["布阵", "强化"],
+    "tags": ["布阵","强化"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
@@ -1591,7 +1351,7 @@
     "cardType": "角色",
     "deck": "调度流",
     "mainRole": "防御",
-    "tags": ["保护", "响应"],
+    "tags": ["保护","响应"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
@@ -1607,7 +1367,7 @@
     "cardType": "角色",
     "deck": "调度流",
     "mainRole": "强攻",
-    "tags": ["识破", "追击"],
+    "tags": ["明置","强化"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1623,7 +1383,7 @@
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "强攻",
-    "tags": ["受伤", "反击"],
+    "tags": ["响应","伤害"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "当你受到伤害后",
     "skillName": "正义回击",
@@ -1636,7 +1396,7 @@
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "强攻",
-    "tags": ["残血", "终结"],
+    "tags": ["卖血","回复"],
     "cost": { "type": "退场", "text": "退场自身" },
     "timing": "当你一回合内第二次体力减少后",
     "skillName": "终局名单",
@@ -1649,7 +1409,7 @@
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "资源",
-    "tags": ["判定", "过滤"],
+    "tags": ["判定","换牌"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "判定结算后",
     "skillName": "遗言取证",
@@ -1662,7 +1422,7 @@
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "资源",
-    "tags": ["换牌", "续航"],
+    "tags": ["换牌","摸牌"],
     "cost": { "type": "休整自身", "text": "休整自身" },
     "timing": "当你受到伤害后",
     "skillName": "灵魂换流",
@@ -1675,7 +1435,7 @@
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "资源",
-    "tags": ["弃牌", "掠夺"],
+    "tags": ["手牌控制","回复"],
     "cost": { "type": "休整", "amount": 2 },
     "timing": "对手因你的技能弃置手牌后",
     "skillName": "血肉盛宴",
@@ -1688,7 +1448,7 @@
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "控制",
-    "tags": ["黑色判定", "扣牌"],
+    "tags": ["判定","手牌控制"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "当你的判定结果为黑色后",
     "skillName": "黑箱扣押",
@@ -1701,7 +1461,7 @@
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "控制",
-    "tags": ["受伤", "手牌上限"],
+    "tags": ["卖血","手牌控制"],
     "cost": { "type": "退场", "text": "退场自身" },
     "timing": "当对手对你的本体造成伤害后",
     "skillName": "舆论封口",
@@ -1714,7 +1474,7 @@
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "支援",
-    "tags": ["改判", "换牌"],
+    "tags": ["判定","换牌"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "判定牌展示后",
     "skillName": "星轨改判",
@@ -1727,7 +1487,7 @@
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "支援",
-    "tags": ["回复", "判定", "卖血"],
+    "tags": ["判定","卖血"],
     "cost": { "type": "休整自身", "text": "休整自身" },
     "timing": "当你回复体力后",
     "skillName": "共命占卜",
@@ -1740,7 +1500,7 @@
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "支援",
-    "tags": ["判定", "选择"],
+    "tags": ["判定","博弈"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "判定结算后",
     "skillName": "二次表决",
@@ -1753,7 +1513,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
-    "tags": ["回复反制", "续航"],
+    "tags": ["响应","回复"],
     "cost": { "type": "退场", "text": "退场自身" },
     "timing": "当对手回复体力时",
     "skillName": "吞食生机",
@@ -1766,7 +1526,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
-    "tags": ["技能反制", "响应"],
+    "tags": ["响应","反制"],
     "cost": { "type": "退场", "text": "退场自身" },
     "timing": "当对手一回合内发动第二个角色技能时",
     "skillName": "禁声令",
@@ -1779,7 +1539,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
-    "tags": ["反侦察", "调包"],
+    "tags": ["反制","布阵"],
     "cost": { "type": "休整自身", "text": "休整自身" },
     "timing": "当对手将观看己方暗置角色时",
     "skillName": "无影调包",
@@ -1792,7 +1552,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
-    "tags": ["布阵", "压制"],
+    "tags": ["响应","角色控制"],
     "cost": { "type": "休整自身", "text": "休整自身" },
     "timing": "当对手布阵阶段上阵第二张角色后",
     "skillName": "定点爆破",
@@ -1805,7 +1565,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
-    "tags": ["明置", "干扰"],
+    "tags": ["响应","明置"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "当对手暗置角色明置并发动技能后",
     "skillName": "窃面",
@@ -1818,7 +1578,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
-    "tags": ["弃牌保护", "响应"],
+    "tags": ["响应","保护"],
     "cost": { "type": "休整自身", "text": "休整自身" },
     "timing": "当对手的牌或技能令你弃置手牌后",
     "skillName": "反向泄密",
@@ -1831,7 +1591,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
-    "tags": ["额外摸牌", "反制"],
+    "tags": ["响应","手牌控制"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "当对手在摸牌阶段外摸牌后",
     "skillName": "赃物退回",
@@ -1844,7 +1604,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
-    "tags": ["杀", "强制命中"],
+    "tags": ["响应","必中"],
     "cost": { "type": "退场", "text": "退场自身" },
     "timing": "当对手使用【闪】响应你的【杀】时",
     "skillName": "凌空绝杀",
@@ -1857,7 +1617,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
-    "tags": ["高费惩罚", "暗杀"],
+    "tags": ["响应","退场"],
     "cost": { "type": "退场", "text": "退场自身" },
     "timing": "当对手发动费用为【休整2】或更高的角色技能时",
     "skillName": "专业灭口",
@@ -1870,7 +1630,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
-    "tags": ["弃牌", "掠夺"],
+    "tags": ["响应","手牌控制"],
     "cost": { "type": "休整", "amount": 2 },
     "timing": "对手弃置手牌后",
     "skillName": "尸骸盛宴",
@@ -1883,7 +1643,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "支援",
-    "tags": ["补位", "筛选", "伏击"],
+    "tags": ["布阵","检索"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "当己方角色从角色牌堆顶暗置上阵后",
     "skillName": "陷阱调试",
@@ -1896,7 +1656,7 @@
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "支援",
-    "tags": ["布阵", "角色牌堆"],
+    "tags": ["布阵","牌堆操作"],
     "cost": { "type": "休整自身", "text": "休整自身" },
     "timing": "布阵阶段开始时",
     "skillName": "高处侦察",
@@ -1909,7 +1669,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "防御",
-    "tags": ["舍身", "减伤", "回复"],
+    "tags": ["减伤","回复"],
     "cost": { "type": "退场", "text": "退场自身" },
     "timing": "当你将受到伤害时",
     "skillName": "双重人墙",
@@ -1922,7 +1682,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "防御",
-    "tags": ["杀反制", "空手博弈"],
+    "tags": ["响应","反制"],
     "cost": { "type": "休整", "amount": 2 },
     "timing": "当你的本体成为【杀】的目标时",
     "skillName": "空手求生",
@@ -1935,7 +1695,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "防御",
-    "tags": ["非杀伤害", "减伤"],
+    "tags": ["响应","减伤"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "当你将受到非【杀】造成的伤害时",
     "skillName": "险地经验",
@@ -1948,7 +1708,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "防御",
-    "tags": ["手牌保护", "响应"],
+    "tags": ["响应","保护"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "当对手的牌或技能将令你失去手牌时",
     "skillName": "私人物证",
@@ -1961,7 +1721,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "防御",
-    "tags": ["闪", "预置响应"],
+    "tags": ["转化","响应"],
     "cost": { "type": "休整自身", "text": "休整自身" },
     "timing": "出牌阶段",
     "skillName": "舆论替身",
@@ -1974,7 +1734,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "防御",
-    "tags": ["角色保护", "技能反制"],
+    "tags": ["响应","反制"],
     "cost": { "type": "复合", "text": "同等费用" },
     "timing": "当另一张己方角色成为对手角色技能的目标时",
     "skillName": "对等护卫",
@@ -1987,7 +1747,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "防御",
-    "tags": ["博弈", "响应"],
+    "tags": ["响应","博弈"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "当你的本体成为【杀】的目标时",
     "skillName": "真假难辨",
@@ -2000,7 +1760,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "防御",
-    "tags": ["防守反制", "封技"],
+    "tags": ["反制","角色控制"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "己方效果防止或减少伤害后",
     "skillName": "警戒反击",
@@ -2013,7 +1773,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "防御",
-    "tags": ["角色循环", "防御"],
+    "tags": ["回收","布阵"],
     "cost": { "type": "休整自身", "text": "休整自身" },
     "timing": "当另一张己方防御角色因支付费用而休整后",
     "skillName": "亡者归队",
@@ -2026,7 +1786,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "防御",
-    "tags": ["判定", "减伤"],
+    "tags": ["判定","减伤"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "当你的本体成为手牌的目标时",
     "skillName": "高空预警",
@@ -2039,7 +1799,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "支援",
-    "tags": ["协商", "减伤"],
+    "tags": ["减伤","博弈"],
     "cost": { "type": "休整", "amount": 1 },
     "timing": "出牌阶段",
     "skillName": "停战提案",
@@ -2052,7 +1812,7 @@
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "支援",
-    "tags": ["情报", "侦察"],
+    "tags": ["情报","明置"],
     "cost": { "type": "休整自身", "text": "休整自身" },
     "timing": "准备阶段",
     "skillName": "灵体出窍",

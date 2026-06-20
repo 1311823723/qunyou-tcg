@@ -17,6 +17,7 @@ let errors = [];
 const bodies = readJSON("cards/bodies.json");
 const characters = readJSON("cards/characters.json");
 const handCards = readJSON("cards/hand_cards.json");
+const tagTaxonomy = readJSON("tag-taxonomy.json");
 const aggroDeck = readJSON("decks/aggro.deck.json");
 const mizaiDeck = readJSON("decks/mizai.deck.json");
 const comboDeck = readJSON("decks/combo.deck.json");
@@ -46,6 +47,7 @@ const bodyIds = new Set(bodies.map((b) => b.id));
 const characterIds = new Set(characters.map((c) => c.id));
 const validCostTypes = new Set(["休整", "退场", "无", "复合", "休整自身"]);
 const validMainRoles = new Set(["强攻", "防御", "资源", "控制", "支援", "伏击"]);
+const validCharacterTags = new Set(tagTaxonomy.tags);
 
 function hasDuplicateValues(values) {
   const seen = new Set();
@@ -163,6 +165,18 @@ for (const char of characters) {
   }
   if (!Array.isArray(char.tags)) {
     errors.push(`Character "${char.id}" tags must be an array`);
+  } else {
+    if (char.tags.length > tagTaxonomy.maxTagsPerCharacter) {
+      errors.push(`Character "${char.id}" has ${char.tags.length} tags, max is ${tagTaxonomy.maxTagsPerCharacter}`);
+    }
+    for (const tag of char.tags) {
+      if (!validCharacterTags.has(tag)) {
+        errors.push(`Character "${char.id}" has non-canonical tag: ${tag}`);
+      }
+    }
+    for (const duplicatedTag of hasDuplicateValues(char.tags)) {
+      errors.push(`Character "${char.id}" has duplicate tag: ${duplicatedTag}`);
+    }
   }
   if (char.cost?.type && !validCostTypes.has(char.cost.type)) {
     errors.push(`Character "${char.id}" has invalid cost.type: ${char.cost.type}`);
