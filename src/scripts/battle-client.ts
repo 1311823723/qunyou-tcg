@@ -1918,7 +1918,7 @@ function renderProgressCounter(label: string, value: string | number, command: s
   const isMega = label === "Mega";
   const isZMove = label === "Z招式";
   const iconType = isMega ? "mega" : isZMove ? "z-move" : "mega"; // 默认使用 mega
-  const iconShape = isMega ? "crystal" : isZMove ? "crystal" : "crystal"; // 都使用 crystal 命名
+  const iconPrefix = isMega ? "mega-crystal" : isZMove ? "z-crystal" : "mega-crystal";
 
   // 生成就绪提示文本，使用传入的 label（即 extraFormLabel）
   const readyText = ready ? `可 ${label}` : "";
@@ -1936,21 +1936,22 @@ function renderProgressCounter(label: string, value: string | number, command: s
     if (ready) {
       // 就绪状态：所有节点都是就绪状态
       iconState = "ready";
+      pulseClass = "battle-counter__progress-icon--pulse";
     } else if (i < numeric) {
       // 已完成的节点：根据当前进度状态着色
       iconState = stateClass === "is-low" ? "low" : stateClass === "is-medium" ? "medium" : "high";
     } else if (i === numeric) {
       // 当前节点
       iconState = stateClass === "is-low" ? "low" : stateClass === "is-medium" ? "medium" : "high";
-      pulseClass = stateClass === "is-low" ? "battle-counter__progress-icon--pulse" : "";
+      pulseClass = stateClass === "is-high" ? "battle-counter__progress-icon--pulse" : "";
     } else {
       // 未完成节点
       iconState = "empty";
     }
 
     const iconPath = iconState === "empty"
-      ? `/battle-icons/${iconType}/${iconShape}-low.png`
-      : `/battle-icons/${iconType}/${iconShape}-${iconState}.png`;
+      ? `/battle-icons/${iconType}/${iconPrefix}-low.png`
+      : `/battle-icons/${iconType}/${iconPrefix}-${iconState}.png`;
 
     return `<img src="${iconPath}" alt="" aria-hidden="true" class="battle-counter__progress-icon battle-counter__progress-icon--${iconState} ${pulseClass}" />`;
   }).join("");

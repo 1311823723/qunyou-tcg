@@ -23,6 +23,10 @@
     "body_ambush_001": {
       "front": "xiaoapan-body",
       "extra": "xiaoapan-body-z-move"
+    },
+    "body_blood_001": {
+      "front": "fengyaojing-body",
+      "extra": "fengyaojing-body-z-move"
     }
   },
   "characters": {
