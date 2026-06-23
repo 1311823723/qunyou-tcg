@@ -766,6 +766,7 @@
 .battle-center { padding: 0.55rem 0.65rem; border: 1px solid rgba(216,183,92,0.22); border-radius: 14px; background: radial-gradient(ellipse at 50% 0%, rgba(216,183,92,0.06), transparent 55%), rgba(8,9,16,0.9); }
 .battle-mega-condition { margin: 0.3rem 0 0; color: var(--text-muted); font-size: 0.55rem; line-height: 1.35; text-align: center; }
 .battle-mega-condition strong { display: block; margin-bottom: 0.08rem; color: #c8a8ff; font-size: 0.5rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.battle-card-detail__body { min-width: 0; }
 .battle-card-detail__rules { display: grid; gap: 0.35rem; margin: 0.65rem 0; }
 .battle-card-detail__tabs { display: inline-flex; gap: 0.25rem; margin-bottom: 0.7rem; padding: 0.2rem; border: 1px solid rgba(216,183,92,0.18); border-radius: 999px; background: rgba(0,0,0,0.22); }
 .battle-card-detail__tabs button { min-height: 2rem; padding: 0.25rem 0.7rem; border: 0; border-radius: 999px; color: var(--text-muted); background: transparent; font: 900 0.66rem var(--font-body); cursor: pointer; }
