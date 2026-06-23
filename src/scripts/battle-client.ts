@@ -1977,6 +1977,9 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
   const max = body?.megaMax;
   const megaText = max ? `${player.megaProgress || 0}/${max}` : String(player.megaProgress || 0);
   const extraFormLabel = body?.extraFormLabel || "额外形态";
+  const extraFormType = body?.extraFormType || "";
+  const isMega = extraFormType === "mega";
+  const isZMove = extraFormType === "z-move";
   const turnClass = snapshot?.game.currentPlayerId === player.id ? " battle-player--active-turn" : "";
   return `
     <section id="battle-player-${isMe ? "self" : "opponent"}" class="battle-player ${themeClasses(deck?.theme)} ${isMe ? "battle-player--self" : "battle-player--opponent"}${turnClass}" data-side="${isMe ? "self" : "opponent"}" data-player-id="${player.id}">

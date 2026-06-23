@@ -373,7 +373,10 @@ function renderBack(type) {
 
 async function writeSvgAsPng(svg, outPath) {
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  await sharp(Buffer.from(svg)).png().toFile(outPath);
+  const next = await sharp(Buffer.from(svg)).png().toBuffer();
+  if (fs.existsSync(outPath) && fs.readFileSync(outPath).equals(next)) return false;
+  fs.writeFileSync(outPath, next);
+  return true;
 }
 
 module.exports = {

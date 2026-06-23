@@ -40,8 +40,28 @@ function cleanExportDir() {
 
 function cleanCardExportDir() {
   const cardsDir = path.join(EXPORT_DIR, "cards");
-  fs.rmSync(cardsDir, { recursive: true, force: true });
   fs.mkdirSync(cardsDir, { recursive: true });
+}
+
+function pruneCardExportDir(cards) {
+  const expected = {
+    bodies: new Set([
+      ...cards.bodyFronts.map((card) => path.resolve(card.filePath)),
+      ...cards.bodyBacks.map((card) => path.resolve(card.filePath)),
+    ]),
+    characters: new Set(cards.characters.map((card) => path.resolve(card.filePath))),
+    hand_cards: new Set(cards.hands.map((card) => path.resolve(card.filePath))),
+  };
+
+  for (const [subDir, expectedFiles] of Object.entries(expected)) {
+    const dir = path.join(EXPORT_DIR, "cards", subDir);
+    if (!fs.existsSync(dir)) continue;
+    for (const filename of fs.readdirSync(dir)) {
+      if (!filename.endsWith(".png")) continue;
+      const filePath = path.resolve(dir, filename);
+      if (!expectedFiles.has(filePath)) fs.unlinkSync(filePath);
+    }
+  }
 }
 
 function readDecks() {
@@ -236,6 +256,7 @@ async function main() {
   else cleanExportDir();
 
   const cards = await renderCards();
+  if (cardsOnly) pruneCardExportDir(cards);
   if (cardsOnly) {
     console.log("TTS card render complete");
     console.log(`  Bodies/extra forms: ${cards.bodyFronts.length}`);

@@ -22,10 +22,22 @@ const OUTPUTS = [
 
 async function optimizeCard(srcPath, destPath, { width, quality, smartSubsample }) {
   fs.mkdirSync(path.dirname(destPath), { recursive: true });
-  await sharp(srcPath)
+  const next = await sharp(srcPath)
     .resize(width)
     .webp({ quality, smartSubsample })
-    .toFile(destPath);
+    .toBuffer();
+  if (fs.existsSync(destPath) && fs.readFileSync(destPath).equals(next)) return false;
+  fs.writeFileSync(destPath, next);
+  return true;
+}
+
+function pruneOutputDir(destDir, expectedFiles) {
+  if (!fs.existsSync(destDir)) return;
+  for (const filename of fs.readdirSync(destDir)) {
+    if (!filename.endsWith(".webp")) continue;
+    const filePath = path.resolve(destDir, filename);
+    if (!expectedFiles.has(filePath)) fs.unlinkSync(filePath);
+  }
 }
 
 async function processDir(subDir) {
@@ -39,7 +51,6 @@ async function processDir(subDir) {
   const results = [];
   for (const output of OUTPUTS) {
     const destDir = path.join(output.root, subDir);
-    fs.rmSync(destDir, { recursive: true, force: true });
     fs.mkdirSync(destDir, { recursive: true });
   }
 
@@ -54,6 +65,14 @@ async function processDir(subDir) {
     } catch (err) {
       console.error(`  Failed: ${file} — ${err.message}`);
     }
+  }
+
+  for (const output of OUTPUTS) {
+    const destDir = path.join(output.root, subDir);
+    const expected = new Set(files.map((file) => (
+      path.resolve(destDir, file.replace(/\.png$/, ".webp"))
+    )));
+    pruneOutputDir(destDir, expected);
   }
 
   return results;
