@@ -1988,7 +1988,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
         </div>
         <div class="battle-counters">
           ${renderCounter("体力", player.health || 0, "health:set", player.id, true, 7, "hp")}
-          ${renderCounter(extraFormLabel, megaText, "megaProgress:set", player.id, isMe, max, "progress")}
+          ${renderCounter(extraFormLabel, megaText, "megaProgress:set", player.id, isMe, max, "progress", isMega ? (player.megaUsed || false) : isZMove ? (player.zMoveUsed || false) : false)}
         </div>
       </header>
       <div class="battle-player__field">
@@ -2030,9 +2030,9 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
   `;
 }
 
-function renderCounter(label: string, value: string | number, command: string, playerId: string, editable: boolean, max?: number, type: "hp" | "progress" = "hp") {
+function renderCounter(label: string, value: string | number, command: string, playerId: string, editable: boolean, max?: number, type: "hp" | "progress" = "hp", isUsed?: boolean) {
   if (type === "progress") {
-    return renderProgressCounter(label, value, command, playerId, editable, max);
+    return renderProgressCounter(label, value, command, playerId, editable, max, isUsed);
   }
   return renderHpCounter(label, value, command, playerId, editable, max);
 }
@@ -2081,7 +2081,7 @@ function renderHpCounter(label: string, value: string | number, command: string,
   </div>`;
 }
 
-function renderProgressCounter(label: string, value: string | number, command: string, playerId: string, editable: boolean, max?: number) {
+function renderProgressCounter(label: string, value: string | number, command: string, playerId: string, editable: boolean, max?: number, isUsed?: boolean) {
   const numeric = typeof value === "number" ? value : Number(String(value).split("/")[0]);
   const maxProgress = max || 6;
   const percent = maxProgress > 0 ? (numeric / maxProgress) * 100 : 0;
@@ -2111,8 +2111,10 @@ function renderProgressCounter(label: string, value: string | number, command: s
   const iconType = isMega ? "mega" : isZMove ? "z-move" : "mega"; // 默认使用 mega
   const iconPrefix = isMega ? "mega-crystal" : isZMove ? "z-crystal" : "mega-crystal";
 
-  // 生成就绪提示文本，使用传入的 label（即 extraFormLabel）
-  const readyText = ready ? `可 ${label}` : "";
+  // 激活命令和标签
+  const activateCommand = isMega ? "mega:activate" : isZMove ? "zmove:activate" : "";
+  const activateLabel = isMega ? "Mega 化" : isZMove ? "Z 招式" : "";
+  const usedLabel = isMega ? "已 Mega" : isZMove ? "已使用" : "";
 
   // SVG progress ring calculations
   const radius = 20;
@@ -2149,18 +2151,39 @@ function renderProgressCounter(label: string, value: string | number, command: s
 
   return `<div class="battle-counter ${stateClass} battle-counter--${iconType}">
     <span>${label}</span>
-    <div class="battle-counter__progress-ring">
-      <svg viewBox="0 0 44 44">
-        <circle class="ring-bg" cx="22" cy="22" r="${radius}" />
-        <circle class="ring-fill ${stateClass}" cx="22" cy="22" r="${radius}"
-                stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" />
-      </svg>
-      <span class="battle-counter__progress-value">${numeric}/${maxProgress}</span>
-    </div>
-    <div class="battle-counter__progress-icons">
-      ${milestones}
-    </div>
-    ${ready ? `<div class="battle-counter__ready-text">${escapeHtml(readyText)}</div>` : ""}
+
+    ${ready && !isUsed ? `
+      <!-- 就绪状态：显示放大的满能量图标 -->
+      <div class="battle-counter__ready-display">
+        <img src="/battle-icons/${iconType}/${iconPrefix}-ready.png" alt="" class="battle-counter__ready-icon" />
+        <span class="battle-counter__ready-value">${numeric}/${maxProgress}</span>
+      </div>
+    ` : `
+      <!-- 正常状态：显示进度环和图标 -->
+      <div class="battle-counter__progress-ring">
+        <svg viewBox="0 0 44 44">
+          <circle class="ring-bg" cx="22" cy="22" r="${radius}" />
+          <circle class="ring-fill ${stateClass}" cx="22" cy="22" r="${radius}"
+                  stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" />
+        </svg>
+        <span class="battle-counter__progress-value">${numeric}/${maxProgress}</span>
+      </div>
+      <div class="battle-counter__progress-icons">
+        ${milestones}
+      </div>
+    `}
+
+    ${ready && editable ? `
+      <!-- 激活按钮 -->
+      <button type="button"
+              class="battle-counter__activate-btn ${isUsed ? "is-used" : ""}"
+              data-command="${isUsed ? "" : activateCommand}"
+              data-player="${playerId}"
+              ${isUsed ? "disabled" : ""}>
+        ${isUsed ? usedLabel : activateLabel}
+      </button>
+    ` : ""}
+
     ${editable ? `<div class="battle-counter__actions">
       <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric - 1}" aria-label="${label}减一">−</button>
       <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric + 1}" aria-label="${label}加一">＋</button>
@@ -2619,6 +2642,8 @@ function handleCommand(element: HTMLElement) {
       value: Number(element.dataset.value),
       playerId: element.dataset.player,
     });
+  } else if (command === "mega:activate" || command === "zmove:activate") {
+    send(command, { playerId: element.dataset.player });
   } else if (command === "deck:shuffle") {
     send(command, { deck: element.dataset.deck });
   } else if (command === "deck:recycleDiscard") {

@@ -71,6 +71,8 @@ export type PlayerView = {
   connected: boolean;
   health?: number;
   megaProgress?: number;
+  megaUsed?: boolean;
+  zMoveUsed?: boolean;
   bodyFlipped?: boolean;
   body?: CardView;
   hand: CardView[];

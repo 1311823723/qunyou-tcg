@@ -57,6 +57,8 @@ export interface PlayerState {
   ready: boolean;
   health: number;
   megaProgress: number;
+  megaUsed?: boolean;
+  zMoveUsed?: boolean;
   bodyFlipped: boolean;
   body?: CardInstance;
   hand: CardInstance[];

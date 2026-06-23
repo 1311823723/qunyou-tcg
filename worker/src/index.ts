@@ -555,6 +555,40 @@ export class BattleRoom extends DurableObject<Env> {
         });
         return;
       }
+      case "mega:activate": {
+        this.requireStarted();
+        const megaMax = this.megaMax(player);
+        if (!megaMax || player.megaProgress < megaMax) {
+          throw new Error("Mega 进度未满，无法激活。");
+        }
+        if (player.megaUsed) {
+          throw new Error("Mega 已使用。");
+        }
+        player.megaUsed = true;
+        player.bodyFlipped = true;
+        this.addLog(`${player.nickname} 激活了 Mega！`, player.id, "action", {
+          zone: "body",
+          ownerId: player.id,
+        });
+        return;
+      }
+      case "zmove:activate": {
+        this.requireStarted();
+        const zMax = this.megaMax(player);
+        if (!zMax || player.megaProgress < zMax) {
+          throw new Error("Z 招式进度未满，无法激活。");
+        }
+        if (player.zMoveUsed) {
+          throw new Error("Z 招式已使用。");
+        }
+        player.zMoveUsed = true;
+        player.bodyFlipped = true;
+        this.addLog(`${player.nickname} 激活了 Z 招式！`, player.id, "action", {
+          zone: "body",
+          ownerId: player.id,
+        });
+        return;
+      }
       case "marker:create": {
         this.requireStarted();
         const index = this.clamp(payload.slotIndex, 0, 3);
@@ -674,6 +708,8 @@ export class BattleRoom extends DurableObject<Env> {
       const body = bodyById.get(deck.bodyId);
       player.health = body?.hp || 7;
       player.megaProgress = 0;
+      player.megaUsed = false;
+      player.zMoveUsed = false;
       player.bodyFlipped = false;
       player.body = {
         instanceId: crypto.randomUUID(),
@@ -1088,6 +1124,8 @@ export class BattleRoom extends DurableObject<Env> {
         connected: connected.has(player.id),
         health: player.health,
         megaProgress: player.megaProgress,
+        megaUsed: player.megaUsed || false,
+        zMoveUsed: player.zMoveUsed || false,
         bodyFlipped: player.bodyFlipped,
         body: player.body ? this.cardView(player.body, true) : undefined,
         hand: player.id === playerId
