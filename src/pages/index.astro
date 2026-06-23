@@ -42,22 +42,10 @@ const collections = [
           一个围绕群友整活与高压爆发设计的 1v1 对战卡牌游戏。
         </p>
         <div class="hero-actions">
-          <a href="/play" class="btn btn--primary btn--glow">
-            <span class="btn__icon">⚔️</span>
-            <span>在线对战</span>
-          </a>
-          <a href="/rules" class="btn btn--secondary">
-            <span class="btn__icon">📖</span>
-            <span>查看规则</span>
-          </a>
-          <a href="/cards" class="btn btn--ghost">
-            <span class="btn__icon">🃏</span>
-            <span>浏览全卡</span>
-          </a>
-          <a href="/decks" class="btn btn--ghost">
-            <span class="btn__icon">📦</span>
-            <span>查看预组</span>
-          </a>
+          <a href="/play" class="btn btn--primary btn--glow">在线对战</a>
+          <a href="/rules" class="btn btn--secondary">查看规则</a>
+          <a href="/cards" class="btn btn--ghost">浏览全卡</a>
+          <a href="/decks" class="btn btn--ghost">查看预组</a>
         </div>
       </div>
       <HeroCardShowcase />
@@ -65,10 +53,7 @@ const collections = [
   </section>
 
   <section class="page-wrap py-4">
-    <h2 class="section-heading">
-      <span class="section-heading__icon">⚡</span>
-      核心机制链路
-    </h2>
+    <h2 class="section-heading">核心机制链路</h2>
     <div class="mechanic-flow">
       {mechanics.map((m, i) => (
         <div
@@ -90,10 +75,7 @@ const collections = [
   </section>
 
   <section class="page-wrap py-4">
-    <h2 class="section-heading">
-      <span class="section-heading__icon">🎯</span>
-      新手快速开始
-    </h2>
+    <h2 class="section-heading">新手快速开始</h2>
     <div class="grid md:grid-cols-3 gap-4">
       <div class="hud-panel scroll-reveal" style="padding: 1.25rem; border-top: 2px solid var(--color-role-defend);">
         <div class="flex items-center gap-3 mb-3">
@@ -123,10 +105,7 @@ const collections = [
   </section>
 
   <section class="page-wrap py-4">
-    <h2 class="section-heading">
-      <span class="section-heading__icon">🃏</span>
-      卡牌收藏册
-    </h2>
+    <h2 class="section-heading">卡牌收藏册</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {collections.map((item, i) => (
         <a
@@ -146,10 +125,7 @@ const collections = [
 
   {allDecks.length > 0 && (
     <section class="page-wrap pb-12">
-      <h2 class="section-heading">
-        <span class="section-heading__icon">📦</span>
-        预组卡组 ({allDecks.length} 套)
-      </h2>
+      <h2 class="section-heading">预组卡组 ({allDecks.length} 套)</h2>
       <div class="deck-spotlight-grid">
         {allDecks.map((d, i) => {
           const dkKeywords = getArchetypeKeywords(d.archetype);
