@@ -1,4 +1,5 @@
 import { getBattleApiUrl } from "../lib/battle-api";
+import { deckGuides } from "../lib/deck-guides";
 import { escapeHtml, handCardImagePath, suitSymbol } from "./battle-format";
 import {
   bindHighResImage,
