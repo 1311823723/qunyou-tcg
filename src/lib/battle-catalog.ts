@@ -127,13 +127,37 @@ export function getBattleCatalog() {
 
   return {
     cards,
-    decks: allDecks.map((deck) => ({
-      id: deck.id,
-      name: deck.name,
-      archetype: deck.archetype,
-      bodyId: deck.bodyId,
-      theme: ARCHETYPE_THEME_SLUG[deck.archetype] ?? "neutral",
-      blurb: getArchetypeBlurb(deck.archetype),
-    })),
+    decks: allDecks.map((deck) => {
+      // 计算角色定位分布
+      const roleDistribution: Record<string, number> = {};
+      const tagDistribution: Record<string, number> = {};
+
+      for (const charId of deck.characterIds) {
+        const charCard = cards[charId];
+        if (charCard) {
+          // 统计定位
+          const role = charCard.mainRole || "";
+          if (role) {
+            roleDistribution[role] = (roleDistribution[role] || 0) + 1;
+          }
+          // 统计标签
+          for (const tag of charCard.tags || []) {
+            tagDistribution[tag] = (tagDistribution[tag] || 0) + 1;
+          }
+        }
+      }
+
+      return {
+        id: deck.id,
+        name: deck.name,
+        archetype: deck.archetype,
+        bodyId: deck.bodyId,
+        theme: ARCHETYPE_THEME_SLUG[deck.archetype] ?? "neutral",
+        blurb: getArchetypeBlurb(deck.archetype),
+        characterIds: deck.characterIds,
+        roleDistribution,
+        tagDistribution,
+      };
+    }),
   };
 }

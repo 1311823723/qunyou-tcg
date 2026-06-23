@@ -92,6 +92,46 @@
 .battle-custom-modal__text h2, .battle-custom-picker__top h2 { margin: 0.15rem 0 0.55rem; color: var(--text-gold); }
 .battle-custom-modal__text p { color: var(--text-secondary); line-height: 1.68; }
 .battle-custom-picker { display: grid; gap: 0.75rem; }
+
+/* 预组详情弹窗样式 */
+.battle-dialog--deck-detail .battle-card-menu {
+  width: min(100%, 56rem);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.battle-deck-detail { display: grid; gap: 1.25rem; }
+.battle-deck-detail__header { display: grid; grid-template-columns: auto 1fr; gap: 1.25rem; align-items: start; }
+.battle-deck-detail__art { width: 6rem; border-radius: 10px; box-shadow: var(--shadow-card); }
+.battle-deck-detail__tag { display: inline-block; margin-bottom: 0.35rem; padding: 0.2rem 0.5rem; border-radius: 999px; color: var(--deck-soft, var(--text-gold)); background: rgba(255,255,255,0.08); font-size: 0.68rem; font-weight: 900; }
+.battle-deck-detail__header h2 { margin: 0 0 0.5rem; color: var(--text-gold); font-size: 1.3rem; }
+.battle-deck-detail__header p { margin: 0; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6; }
+.battle-deck-detail__body-info { padding: 1rem; border: 1px solid rgba(216,183,92,0.2); border-radius: 12px; background: rgba(216,183,92,0.05); }
+.battle-deck-detail__body-info h3 { margin: 0 0 0.75rem; color: var(--text-gold); font-size: 0.9rem; }
+.battle-deck-detail__body-card { display: grid; gap: 0.35rem; }
+.battle-deck-detail__body-card strong { color: var(--text-primary); font-size: 1rem; }
+.battle-deck-detail__body-card span { color: var(--text-muted); font-size: 0.78rem; }
+.battle-deck-detail__body-card p { margin: 0.25rem 0 0; color: var(--text-secondary); font-size: 0.82rem; line-height: 1.6; }
+.battle-deck-detail__section { display: grid; gap: 0.75rem; }
+.battle-deck-detail__section h3 { margin: 0; color: var(--text-gold); font-size: 0.9rem; font-weight: 900; }
+.battle-deck-detail__characters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
+.battle-deck-detail__character { display: grid; gap: 0.25rem; padding: 0.5rem; border: 1px solid var(--border-soft); border-radius: 8px; text-align: center; background: rgba(0,0,0,0.2); }
+.battle-deck-detail__character img { width: 100%; aspect-ratio: 5/7; object-fit: cover; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.battle-deck-detail__character strong { color: var(--text-primary); font-size: 0.72rem; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.battle-deck-detail__character small { color: var(--text-muted); font-size: 0.62rem; }
+.battle-deck-detail__stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.battle-deck-detail__tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.battle-deck-detail__list { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.4rem; }
+.battle-deck-detail__list li { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+.battle-deck-detail__list strong { color: var(--text-primary); font-weight: 800; }
+.battle-deck-detail__list span { color: var(--text-muted); }
+.battle-deck-detail__actions { display: flex; justify-content: flex-end; padding-top: 0.5rem; border-top: 1px solid var(--border-soft); }
+.battle-deck-preview__actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+@media (max-width: 680px) {
+  .battle-deck-detail__header { grid-template-columns: 1fr; text-align: center; }
+  .battle-deck-detail__art { margin: 0 auto; width: 5rem; }
+  .battle-deck-detail__characters { grid-template-columns: repeat(2, 1fr); }
+  .battle-deck-detail__stats { grid-template-columns: 1fr; }
+}
 .battle-card-detail-overlay { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; overflow: auto; padding: 1rem; border-radius: inherit; background: rgba(5,7,13,0.94); backdrop-filter: blur(10px); }
 .battle-card-detail-overlay > .battle-card-menu { width: min(100%, 48rem); padding: 1rem; border: 1px solid var(--border-panel); border-radius: 16px; background: #111522; box-shadow: var(--shadow-panel); }
 .battle-card-detail-overlay__close { z-index: 32; }

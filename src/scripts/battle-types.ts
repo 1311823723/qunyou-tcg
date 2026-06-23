@@ -34,6 +34,9 @@ export type CatalogDeck = {
   bodyId: string;
   theme: string;
   blurb: string;
+  characterIds: string[];
+  roleDistribution: Record<string, number>;
+  tagDistribution: Record<string, number>;
 };
 
 export type CustomDeckConfig = {

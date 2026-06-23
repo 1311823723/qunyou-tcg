@@ -1515,7 +1515,157 @@ function renderDeckPreview(deck?: CatalogDeck, body?: CatalogCard, player?: Play
       <strong>${escapeHtml(deck.name)}</strong>
       <p>${escapeHtml(deck.blurb || body?.subtitle || "")}</p>
     </div>
+    <div class="battle-deck-preview__actions">
+      <button type="button" class="battle-small-btn" data-deck-detail="${deck.id}">查看详情</button>
+    </div>
   </article>`;
+}
+
+function showDeckDetail(deckId: string) {
+  const deck = catalog.decks.find(d => d.id === deckId);
+  if (!deck) return;
+
+  const body = catalog.cards[deck.bodyId];
+  const content = renderDeckDetailContent(deck, body);
+
+  dialogContent.innerHTML = content;
+  dialog.classList.add("battle-dialog--deck-detail");
+  openBattleDialog();
+
+  // 绑定关闭按钮
+  dialogContent.querySelector("[data-deck-detail-close]")?.addEventListener("click", () => {
+    dialog.close();
+  });
+}
+
+function renderDeckDetailContent(deck: CatalogDeck, body?: CatalogCard) {
+  // 获取攻略数据
+  const guide = deckGuides[deck.id];
+
+  // 渲染角色列表
+  const charactersHtml = deck.characterIds.map((charId) => {
+    const charCard = catalog.cards[charId];
+    if (!charCard) return "";
+    return `<div class="battle-deck-detail__character">
+      ${charCard.imagePath ? `<img src="${charCard.imagePath}" alt="" loading="lazy" />` : ""}
+      <strong>${escapeHtml(charCard.name)}</strong>
+      <small>${escapeHtml(charCard.mainRole || "")}</small>
+    </div>`;
+  }).join("");
+
+  // 渲染定位分布
+  const roleOrder = ["强攻", "防御", "资源", "控制", "支援", "伏击"];
+  const roleDistributionHtml = roleOrder
+    .filter(role => deck.roleDistribution[role])
+    .map(role => `<span class="battle-tag">${escapeHtml(role)}: ${deck.roleDistribution[role]}</span>`)
+    .join("");
+
+  // 渲染标签分布（按数量排序，取前8个）
+  const sortedTags = Object.entries(deck.tagDistribution)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 8);
+  const tagDistributionHtml = sortedTags
+    .map(([tag, count]) => `<span class="battle-tag battle-tag--muted">${escapeHtml(tag)}: ${count}</span>`)
+    .join("");
+
+  // 渲染核心角色
+  const coreCardsHtml = guide?.coreCards?.map((cardId) => {
+    const card = catalog.cards[cardId];
+    if (!card) return "";
+    return `<li>
+      <strong>${escapeHtml(card.name)}</strong>
+      <span>— ${escapeHtml(card.skillName || card.subtitle)}</span>
+    </li>`;
+  }).join("") || "";
+
+  // 渲染可替换角色
+  const replaceableCardsHtml = guide?.replaceableCards?.map((cardId) => {
+    const card = catalog.cards[cardId];
+    if (!card) return "";
+    return `<li>
+      <strong>${escapeHtml(card.name)}</strong>
+      <span>— ${escapeHtml(card.skillName || card.subtitle)}</span>
+    </li>`;
+  }).join("") || "";
+
+  // 渲染替换建议
+  const replaceSuggestionsHtml = guide?.replaceSuggestions?.map((suggestion) => {
+    const card = catalog.cards[suggestion.card];
+    if (!card) return "";
+    return `<li>
+      <strong>${escapeHtml(card.name)}</strong>
+      <span>— ${escapeHtml(suggestion.reason)}</span>
+    </li>`;
+  }).join("") || "";
+
+  return `<div class="battle-deck-detail">
+    <div class="battle-deck-detail__header">
+      ${body?.imagePath ? `<img src="${body.imagePath}" alt="${escapeHtml(body.name)}卡面" class="battle-deck-detail__art" />` : ""}
+      <div>
+        <span class="battle-deck-detail__tag">${escapeHtml(deck.archetype)}</span>
+        <h2>${escapeHtml(deck.name)}</h2>
+        <p>${escapeHtml(deck.blurb || body?.subtitle || "")}</p>
+      </div>
+    </div>
+
+    ${body ? `<div class="battle-deck-detail__body-info">
+      <h3>本体信息</h3>
+      <div class="battle-deck-detail__body-card">
+        <strong>${escapeHtml(body.name)}</strong>
+        <span>${escapeHtml(body.subtitle)}${body.hp ? ` · 体力 ${body.hp}` : ""}</span>
+        <p>${escapeHtml(body.text)}</p>
+        ${body.megaCondition ? `<p><b>${escapeHtml(body.extraConditionLabel || "额外形态条件")}</b>：${escapeHtml(body.megaCondition)}</p>` : ""}
+        ${body.extraText ? `<p><b>${escapeHtml(body.extraName || body.extraFormLabel || "额外形态")}</b>：${escapeHtml(body.extraText)}</p>` : ""}
+      </div>
+    </div>` : ""}
+
+    <div class="battle-deck-detail__section">
+      <h3>角色牌（${deck.characterIds.length} 张）</h3>
+      <div class="battle-deck-detail__characters">
+        ${charactersHtml}
+      </div>
+    </div>
+
+    <div class="battle-deck-detail__stats">
+      <div class="battle-deck-detail__section">
+        <h3>定位分布</h3>
+        <div class="battle-deck-detail__tags">
+          ${roleDistributionHtml || "<span class='battle-tag'>无数据</span>"}
+        </div>
+      </div>
+      <div class="battle-deck-detail__section">
+        <h3>标签分布</h3>
+        <div class="battle-deck-detail__tags">
+          ${tagDistributionHtml || "<span class='battle-tag'>无数据</span>"}
+        </div>
+      </div>
+    </div>
+
+    ${coreCardsHtml ? `<div class="battle-deck-detail__section">
+      <h3>核心角色</h3>
+      <ul class="battle-deck-detail__list">
+        ${coreCardsHtml}
+      </ul>
+    </div>` : ""}
+
+    ${replaceableCardsHtml ? `<div class="battle-deck-detail__section">
+      <h3>可替换角色</h3>
+      <ul class="battle-deck-detail__list">
+        ${replaceableCardsHtml}
+      </ul>
+    </div>` : ""}
+
+    ${replaceSuggestionsHtml ? `<div class="battle-deck-detail__section">
+      <h3>替换建议</h3>
+      <ul class="battle-deck-detail__list">
+        ${replaceSuggestionsHtml}
+      </ul>
+    </div>` : ""}
+
+    <div class="battle-deck-detail__actions">
+      <button type="button" class="battle-small-btn" data-deck-detail-close>关闭</button>
+    </div>
+  </div>`;
 }
 
 function renderCustomDeckSummary(deck: CustomDeckConfig, disabled: boolean) {
@@ -2200,6 +2350,13 @@ function bindActions() {
         value,
         playerId: element.dataset.player,
       }));
+    });
+  });
+  root.querySelectorAll<HTMLElement>("[data-deck-detail]").forEach((element) => {
+    element.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showDeckDetail(element.dataset.deckDetail || "");
     });
   });
   root.querySelectorAll<HTMLElement>("[data-card]").forEach((element) => {
