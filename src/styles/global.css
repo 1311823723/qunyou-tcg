@@ -24,11 +24,23 @@
   --color-role-control: #b377ff;
   --color-role-support: #ffd45f;
   --color-role-ambush: #ff7ab8;
+  --color-neon-blue: #00d4ff;
+  --color-neon-purple: #b44dff;
+  --color-neon-pink: #ff4da6;
+  --color-neon-green: #00ff88;
+  --color-cyber-dark: #0a0e1a;
+  --color-cyber-grid: rgba(0, 212, 255, 0.05);
   --font-display: "Orbitron", "Noto Sans SC", system-ui, sans-serif;
   --font-body: "Noto Sans SC", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --radius-card: 18px;
   --shadow-card: 0 18px 52px rgba(0, 0, 0, 0.46);
+  --glow-neon-blue: 0 0 20px rgba(0, 212, 255, 0.5);
+  --glow-neon-purple: 0 0 20px rgba(180, 77, 255, 0.5);
+  --glow-neon-pink: 0 0 20px rgba(255, 77, 166, 0.5);
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
 }
 
 :root {
@@ -52,6 +64,10 @@
   --accent-mega-purple: #9d6cff;
   --accent-info: #58c7e8;
   --accent-success: #62d98b;
+  --accent-neon-blue: #00d4ff;
+  --accent-neon-purple: #b44dff;
+  --accent-neon-pink: #ff4da6;
+  --accent-neon-green: #00ff88;
   --role-attack: #ff5748;
   --role-defend: #4db9ff;
   --role-resource: #56d986;
@@ -63,6 +79,7 @@
   --border-card: rgba(214, 190, 255, 0.18);
   --border-gold: rgba(255, 217, 138, 0.34);
   --border-aggro: rgba(255, 90, 53, 0.36);
+  --border-neon: rgba(0, 212, 255, 0.3);
   --radius-xs: 6px;
   --radius-sm: 10px;
   --radius-md: 14px;
@@ -74,6 +91,13 @@
   --glow-mega: 0 0 42px rgba(216, 183, 92, 0.24);
   --glow-purple: 0 0 38px rgba(157, 108, 255, 0.22);
   --glow-info: 0 0 32px rgba(88, 199, 232, 0.18);
+  --glow-neon-blue: 0 0 20px rgba(0, 212, 255, 0.5);
+  --glow-neon-purple: 0 0 20px rgba(180, 77, 255, 0.5);
+  --glow-neon-pink: 0 0 20px rgba(255, 77, 166, 0.5);
+  --glow-neon-green: 0 0 20px rgba(0, 255, 136, 0.5);
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
 }
 
 * { box-sizing: border-box; }
@@ -101,6 +125,8 @@ strong { color: var(--text-gold); font-weight: 800; }
     radial-gradient(circle at 18% -8%, rgba(157, 108, 255, 0.26), transparent 34rem),
     radial-gradient(circle at 82% 14%, rgba(88, 199, 232, 0.13), transparent 28rem),
     radial-gradient(circle at 86% 72%, rgba(255, 90, 53, 0.14), transparent 31rem),
+    radial-gradient(ellipse at 20% 50%, rgba(0, 212, 255, 0.08), transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(180, 77, 255, 0.06), transparent 40%),
     linear-gradient(180deg, #0c0c18 0%, #070711 54%, #08070e 100%);
 }
 .site-bg::before {
@@ -109,9 +135,9 @@ strong { color: var(--text-gold); font-weight: 800; }
   inset: 0;
   opacity: 0.4;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.024) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.024) 1px, transparent 1px);
-  background-size: 52px 52px;
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
   mask-image: linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0.2));
 }
 .site-bg::after {
@@ -394,14 +420,32 @@ strong { color: var(--text-gold); font-weight: 800; }
 .card-frame::before {
   content: "";
   position: absolute;
-  inset: 0;
-  z-index: -1;
+  inset: -1px;
   border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--card-accent) 50%, transparent),
+    transparent 30%,
+    transparent 70%,
+    color-mix(in srgb, var(--card-accent) 30%, transparent)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
   pointer-events: none;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,0.11), transparent 22%, transparent 74%, color-mix(in srgb, var(--card-accent) 16%, transparent)),
-    linear-gradient(90deg, color-mix(in srgb, var(--card-accent) 72%, transparent), transparent 42%);
-  opacity: 0.68;
+}
+.card-frame:hover::before {
+  opacity: 1;
+}
+.card-frame:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: var(--card-accent);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 30px color-mix(in srgb, var(--card-accent) 30%, transparent);
 }
 .card-frame::after {
   content: "";
@@ -1085,4 +1129,346 @@ strong { color: var(--text-gold); font-weight: 800; }
   .hero-showcase { min-height: 340px; max-width: 310px; }
   .tcg-char { min-height: 0; }
   .hud-panel { border-radius: 18px; }
+}
+
+/* ============================================
+   页面过渡动画
+   ============================================ */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-wrap > section,
+.page-wrap > .hero-section {
+  animation: page-enter 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.page-wrap > section:nth-child(1) { animation-delay: 0.1s; }
+.page-wrap > section:nth-child(2) { animation-delay: 0.2s; }
+.page-wrap > section:nth-child(3) { animation-delay: 0.3s; }
+.page-wrap > section:nth-child(4) { animation-delay: 0.4s; }
+.page-wrap > section:nth-child(5) { animation-delay: 0.5s; }
+.page-wrap > section:nth-child(6) { animation-delay: 0.6s; }
+
+/* ============================================
+   滚动触发动画
+   ============================================ */
+@keyframes scroll-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(30px) scale(0.95);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scroll-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* ============================================
+   按钮增强效果
+   ============================================ */
+.btn {
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+}
+
+.btn:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease;
+}
+
+.btn--glow {
+  box-shadow: 0 0 20px color-mix(in srgb, var(--btn-color, var(--accent-aggro)) 30%, transparent);
+}
+
+.btn--glow:hover {
+  box-shadow: 0 0 30px color-mix(in srgb, var(--btn-color, var(--accent-aggro)) 50%, transparent);
+}
+
+.btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.5rem;
+}
+
+/* ============================================
+   标题增强效果
+   ============================================ */
+.section-heading {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1.25rem;
+  color: var(--text-gold);
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2.8vw, 1.55rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.section-heading::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  min-width: 2rem;
+  background: linear-gradient(90deg, rgba(255, 217, 138, 0.32), transparent);
+}
+
+.section-heading__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  background: rgba(255, 217, 138, 0.1);
+  font-size: 1.2rem;
+}
+
+/* ============================================
+   Hero 区域增强
+   ============================================ */
+.hero-title__main {
+  display: block;
+  background: linear-gradient(135deg, #ffd98a, #ff8a4c, #ff5a35);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+}
+
+.hero-title__sub {
+  display: block;
+  color: var(--text-gold);
+  text-shadow:
+    0 0 40px rgba(255, 90, 53, 0.5),
+    0 0 80px rgba(255, 90, 53, 0.3);
+}
+
+/* ============================================
+   链接下划线动画
+   ============================================ */
+a:not(.btn):not(.card-frame):not(.collection-card):not(.deck-spotlight):not(.nav-link)::after {
+  content: "";
+  display: block;
+  width: 0;
+  height: 2px;
+  background: var(--accent-neon-blue);
+  transition: width var(--transition-normal);
+}
+
+a:not(.btn):not(.card-frame):not(.collection-card):not(.deck-spotlight):not(.nav-link):hover::after {
+  width: 100%;
+}
+
+/* ============================================
+   标签增强效果
+   ============================================ */
+.tag-pill {
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.tag-pill:hover {
+  transform: scale(1.05);
+}
+
+/* ============================================
+   卡牌画廊增强
+   ============================================ */
+.card-gallery {
+  display: grid;
+  gap: 1rem;
+}
+
+.card-gallery--chars {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+@media (min-width: 640px) {
+  .card-gallery--chars {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .card-gallery--chars {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+/* ============================================
+   预组卡片增强
+   ============================================ */
+.deck-spotlight {
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+}
+
+.deck-spotlight::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--deck-accent, var(--accent-aggro)),
+    transparent
+  );
+  opacity: 0.5;
+  animation: deck-top-glow 2s infinite;
+}
+
+@keyframes deck-top-glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.deck-spotlight:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 30px color-mix(in srgb, var(--deck-accent, var(--accent-aggro)) 20%, transparent);
+}
+
+.deck-spotlight__glow {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--deck-accent, var(--accent-aggro)) 10%, transparent),
+    transparent 50%
+  );
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  pointer-events: none;
+}
+
+.deck-spotlight:hover .deck-spotlight__glow {
+  opacity: 1;
+}
+
+/* ============================================
+   毛玻璃效果增强
+   ============================================ */
+.hud-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(145deg, rgba(24, 29, 48, 0.78), rgba(13, 15, 27, 0.78));
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(16px);
+  transition: all var(--transition-normal);
+}
+
+.hud-panel:hover {
+  border-color: rgba(0, 212, 255, 0.2);
+  box-shadow:
+    var(--shadow-panel),
+    0 0 20px rgba(0, 212, 255, 0.1);
+}
+
+.hud-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255,255,255,0.09), transparent 24%, transparent 78%, rgba(255, 217, 138, 0.045));
+}
+
+.hud-panel > * {
+  position: relative;
+}
+
+/* ============================================
+   滚动条增强
+   ============================================ */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.2);
+  border-radius: 999px;
+  border: 2px solid var(--bg-deep);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.4);
+}
+
+/* ============================================
+   选中文本增强
+   ============================================ */
+::selection {
+  color: #180806;
+  background: var(--accent-neon-blue);
+}
+
+/* ============================================
+   焦点状态增强
+   ============================================ */
+:focus-visible {
+  outline: 2px solid var(--accent-neon-blue);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   按钮悬停光效
+   ============================================ */
+.btn::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transform: translateX(-100%) rotate(45deg);
+  transition: transform 0.6s ease;
+}
+
+.btn:hover::after {
+  transform: translateX(100%) rotate(45deg);
 }

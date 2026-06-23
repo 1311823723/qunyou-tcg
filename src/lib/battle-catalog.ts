@@ -15,6 +15,17 @@ const ARCHETYPE_THEME_SLUG: Record<string, string> = {
   "防御流": "defense",
 };
 
+const EXTRA_FORM_FILE_SLUGS: Record<string, string> = {
+  mega: "mega",
+  "z-move": "z_move",
+  terastal: "terastal",
+  dynamax: "dynamax",
+};
+
+function getExtraFormFileSlug(type?: string) {
+  return type ? (EXTRA_FORM_FILE_SLUGS[type] ?? "extra") : "extra";
+}
+
 export interface BattleCatalogCard {
   id: string;
   name: string;
@@ -31,12 +42,12 @@ export interface BattleCatalogCard {
   extraHighResImagePath?: string;
   /** 战斗演出人物图或独立原画 */
   portraitPath?: string;
-  /** Mega 战斗演出人物图 */
+  /** 额外形态战斗演出人物图 */
   extraPortraitPath?: string;
   extraName?: string;
-  /** Mega 技能描述 */
+  /** 额外形态技能描述 */
   extraSubtitle?: string;
-  /** Mega 效果文本 */
+  /** 额外形态效果文本 */
   extraText?: string;
   extraFormType?: string;
   extraFormLabel?: string;
@@ -58,6 +69,7 @@ export function getBattleCatalog() {
   for (const rawBody of allBodies) {
     const body = resolveBodyCard(rawBody);
     const art = getBodyArt(body.id);
+    const extraFormFileSlug = getExtraFormFileSlug(body.extraForm?.type);
     cards[body.id] = {
       id: body.id,
       name: body.name,
@@ -69,8 +81,8 @@ export function getBattleCatalog() {
       hp: body.hp,
       imagePath: `/cards/bodies/${body.id}_front.webp`,
       highResImagePath: `/cards-hd/bodies/${body.id}_front.webp`,
-      extraImagePath: `/cards/bodies/${body.id}_mega_back.webp`,
-      extraHighResImagePath: `/cards-hd/bodies/${body.id}_mega_back.webp`,
+      extraImagePath: `/cards/bodies/${body.id}_${extraFormFileSlug}_back.webp`,
+      extraHighResImagePath: `/cards-hd/bodies/${body.id}_${extraFormFileSlug}_back.webp`,
       portraitPath: art?.front ? `/battle-portraits/${body.id}_front.webp` : undefined,
       extraPortraitPath: art?.extra ? `/battle-portraits/${body.id}_mega.webp` : undefined,
       extraName: body.extraForm?.name,

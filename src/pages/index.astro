@@ -24,16 +24,40 @@ const collections = [
 ---
 <Layout title="首页" description="群友杀 TCG — 本体承伤，角色暗置上阵，休整发动技能，额外形态翻面爆发反打。">
   <section class="hero-section page-wrap">
+    <div class="hero-particles" id="hero-particles" aria-hidden="true"></div>
     <div class="hero-grid">
-      <div>
-        <p class="hero-eyebrow">v0.2 Demo · Tactical Card Archive</p>
-        <h1 class="hero-title"><span>群友杀</span> TCG</h1>
-        <p class="hero-sub">本体承伤，角色暗置上阵，休整发动技能，翻面激活额外形态。一个围绕群友整活与高压爆发设计的 1v1 对战卡牌游戏。</p>
+      <div class="hero-content">
+        <p class="hero-eyebrow">
+          <span class="hero-eyebrow__badge">v0.2 Demo</span>
+          <span class="hero-eyebrow__divider">·</span>
+          <span>Tactical Card Archive</span>
+        </p>
+        <h1 class="hero-title">
+          <span class="hero-title__main">群友杀</span>
+          <span class="hero-title__sub">TCG</span>
+        </h1>
+        <p class="hero-sub">
+          本体承伤，角色暗置上阵，休整发动技能，翻面激活额外形态。
+          <br />
+          一个围绕群友整活与高压爆发设计的 1v1 对战卡牌游戏。
+        </p>
         <div class="hero-actions">
-          <a href="/play" class="btn btn--primary">在线对战</a>
-          <a href="/rules" class="btn btn--secondary">查看规则</a>
-          <a href="/cards" class="btn btn--ghost">浏览全卡</a>
-          <a href="/decks" class="btn btn--ghost">查看预组</a>
+          <a href="/play" class="btn btn--primary btn--glow">
+            <span class="btn__icon">⚔️</span>
+            <span>在线对战</span>
+          </a>
+          <a href="/rules" class="btn btn--secondary">
+            <span class="btn__icon">📖</span>
+            <span>查看规则</span>
+          </a>
+          <a href="/cards" class="btn btn--ghost">
+            <span class="btn__icon">🃏</span>
+            <span>浏览全卡</span>
+          </a>
+          <a href="/decks" class="btn btn--ghost">
+            <span class="btn__icon">📦</span>
+            <span>查看预组</span>
+          </a>
         </div>
       </div>
       <HeroCardShowcase />
@@ -41,22 +65,37 @@ const collections = [
   </section>
 
   <section class="page-wrap py-4">
-    <h2 class="section-heading">核心机制链路</h2>
+    <h2 class="section-heading">
+      <span class="section-heading__icon">⚡</span>
+      核心机制链路
+    </h2>
     <div class="mechanic-flow">
-      {mechanics.map((m) => (
-        <div class="mechanic-tile" style={`--tile-color: ${m.color}; border-top-color: ${m.color}`}>
-          <div class="mechanic-tile__icon">{m.icon}</div>
+      {mechanics.map((m, i) => (
+        <div
+          class="mechanic-tile scroll-reveal"
+          style={`--tile-color: ${m.color}; border-top-color: ${m.color}; animation-delay: ${i * 0.1}s`}
+        >
+          <div class="mechanic-tile__icon">
+            <span class="mechanic-tile__number">{m.icon}</span>
+            <span class="mechanic-tile__glow" aria-hidden="true"></span>
+          </div>
           <div class="mechanic-tile__title">{m.title}</div>
           <p class="mechanic-tile__desc">{m.desc}</p>
+          {i < mechanics.length - 1 && (
+            <div class="mechanic-tile__arrow" aria-hidden="true">→</div>
+          )}
         </div>
       ))}
     </div>
   </section>
 
   <section class="page-wrap py-4">
-    <h2 class="section-heading">新手快速开始</h2>
+    <h2 class="section-heading">
+      <span class="section-heading__icon">🎯</span>
+      新手快速开始
+    </h2>
     <div class="grid md:grid-cols-3 gap-4">
-      <div class="hud-panel" style="padding: 1.25rem; border-top: 2px solid var(--color-role-defend);">
+      <div class="hud-panel scroll-reveal" style="padding: 1.25rem; border-top: 2px solid var(--color-role-defend);">
         <div class="flex items-center gap-3 mb-3">
           <span class="stat-hud__value" style="font-size: 1.5rem; color: var(--color-role-defend);">01</span>
           <span class="font-bold" style="color: var(--color-role-defend);">先看规则</span>
@@ -64,7 +103,7 @@ const collections = [
         <p class="skill-text">花 5 分钟了解基本玩法：本体承伤、角色暗置、休整发动、翻面激活额外形态。</p>
         <a href="/rules" class="btn btn--ghost mt-3">查看规则 →</a>
       </div>
-      <div class="hud-panel" style="padding: 1.25rem; border-top: 2px solid var(--color-text-highlight);">
+      <div class="hud-panel scroll-reveal" style="padding: 1.25rem; border-top: 2px solid var(--color-text-highlight);">
         <div class="flex items-center gap-3 mb-3">
           <span class="stat-hud__value" style="font-size: 1.5rem; color: var(--color-text-highlight);">02</span>
           <span class="font-bold" style="color: var(--color-text-highlight);">选一套预组</span>
@@ -72,7 +111,7 @@ const collections = [
         <p class="skill-text">推荐从「上头组」开始：简单直接，找杀→强化→压血，适合新手理解核心循环。</p>
         <a href="/decks/aggro" class="btn btn--ghost mt-3">查看上头组 →</a>
       </div>
-      <div class="hud-panel" style="padding: 1.25rem; border-top: 2px solid var(--color-aggro);">
+      <div class="hud-panel scroll-reveal" style="padding: 1.25rem; border-top: 2px solid var(--color-aggro);">
         <div class="flex items-center gap-3 mb-3">
           <span class="stat-hud__value" style="font-size: 1.5rem; color: var(--color-aggro);">03</span>
           <span class="font-bold" style="color: var(--color-aggro);">开始对战</span>
@@ -84,10 +123,17 @@ const collections = [
   </section>
 
   <section class="page-wrap py-4">
-    <h2 class="section-heading">卡牌收藏册</h2>
+    <h2 class="section-heading">
+      <span class="section-heading__icon">🃏</span>
+      卡牌收藏册
+    </h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {collections.map((item) => (
-        <a href={item.href} class="collection-card" style={`--collection-color: ${item.color}`}>
+      {collections.map((item, i) => (
+        <a
+          href={item.href}
+          class="collection-card scroll-reveal"
+          style={`--collection-color: ${item.color}; animation-delay: ${i * 0.1}s`}
+        >
           <div class="collection-card__count">{item.count}</div>
           <div class="collection-card__label">{item.label}</div>
           <p class="collection-card__desc">{item.desc}</p>
@@ -100,14 +146,22 @@ const collections = [
 
   {allDecks.length > 0 && (
     <section class="page-wrap pb-12">
-      <h2 class="section-heading">预组卡组 ({allDecks.length} 套)</h2>
+      <h2 class="section-heading">
+        <span class="section-heading__icon">📦</span>
+        预组卡组 ({allDecks.length} 套)
+      </h2>
       <div class="deck-spotlight-grid">
-        {allDecks.map((d) => {
+        {allDecks.map((d, i) => {
           const dkKeywords = getArchetypeKeywords(d.archetype);
           const dkSlug = d.id.replace(/^deck_/, "").replace(/_\d+$/, "");
           return (
-            <a href={`/decks/${dkSlug}`} class={`deck-spotlight ${archetypeThemeClass(d.archetype)}`}>
-              <div>
+            <a
+              href={`/decks/${dkSlug}`}
+              class={`deck-spotlight scroll-reveal ${archetypeThemeClass(d.archetype)}`}
+              style={`animation-delay: ${i * 0.1}s`}
+            >
+              <div class="deck-spotlight__content">
+                <div class="deck-spotlight__badge">{d.archetype}</div>
                 <div class="deck-hero__title" style="font-size: clamp(1.6rem, 4vw, 2.4rem);">{d.name}</div>
                 <div class="deck-hero__archetype">{d.archetype}</div>
                 <div class="flex flex-wrap gap-1 mt-3">
@@ -115,7 +169,10 @@ const collections = [
                 </div>
                 {d.notes && <p class="deck-hero__blurb" style="margin-top: 0.75rem; font-size: 0.9rem;">{d.notes}</p>}
               </div>
-              <span class="btn btn--primary">查看攻略 →</span>
+              <div class="deck-spotlight__action">
+                <span class="btn btn--primary btn--sm">查看攻略 →</span>
+              </div>
+              <div class="deck-spotlight__glow" aria-hidden="true"></div>
             </a>
           );
         })}

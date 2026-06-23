@@ -60,6 +60,15 @@ function handPhysicalId(card, entry) {
   return `${card.id}_${suit}_${String(entry.rank).toLowerCase()}`;
 }
 
+function extraFormFileSlug(type) {
+  return {
+    mega: "mega",
+    "z-move": "z_move",
+    terastal: "terastal",
+    dynamax: "dynamax",
+  }[type] ?? "extra";
+}
+
 function artDataUri(filename) {
   if (!filename) return undefined;
   const artFilename = path.extname(filename) ? filename : `${filename}.png`;
@@ -90,7 +99,12 @@ async function renderCards() {
       __ttsMegaArt: artDataUri(art?.extra),
     };
     const frontPath = path.join(EXPORT_DIR, "cards", "bodies", `${body.id}_front.png`);
-    const backPath = path.join(EXPORT_DIR, "cards", "bodies", `${body.id}_mega_back.png`);
+    const backPath = path.join(
+      EXPORT_DIR,
+      "cards",
+      "bodies",
+      `${body.id}_${extraFormFileSlug(body.extraForm?.type)}_back.png`,
+    );
     await writeSvgAsPng(renderBodyFront(bodyForRender), frontPath);
     await writeSvgAsPng(renderBodyMega(bodyForRender), backPath);
     rendered.bodyFronts.push({

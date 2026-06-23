@@ -54,6 +54,10 @@ function isActive(href: string) {
     </header>
     <main><slot /></main>
     <script>
+      import { initScrollObserver } from "../scripts/scroll-observer";
+      import { initParticles } from "../scripts/particles";
+
+      // 导航菜单切换
       const toggle = document.getElementById("nav-toggle");
       const drawer = document.getElementById("nav-drawer");
       if (toggle && drawer) {
@@ -68,6 +72,18 @@ function isActive(href: string) {
           });
         });
       }
+
+      // 初始化滚动动画
+      initScrollObserver();
+
+      // 初始化粒子效果
+      initParticles("hero-particles", {
+        count: 50,
+        color: "0, 212, 255",
+        speed: 0.3,
+        size: 1.5,
+        opacity: 0.3,
+      });
     </script>
   </body>
 </html>
