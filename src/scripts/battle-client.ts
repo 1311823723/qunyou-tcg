@@ -1537,6 +1537,46 @@ function showDeckDetail(deckId: string) {
   dialogContent.querySelector("[data-deck-detail-close]")?.addEventListener("click", () => {
     dialog.close();
   });
+
+  // 绑定查看大图按钮
+  dialogContent.querySelectorAll<HTMLElement>("[data-card-art-zoom]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const cardId = button.dataset.cardId || "";
+      const card = catalog.cards[cardId];
+      if (!card) return;
+
+      // 创建临时的 CardDetailView 对象
+      const view = {
+        definition: card,
+        form: "normal" as const,
+        displayName: card.name,
+        displaySubtitle: card.subtitle,
+        displayText: card.text,
+        imagePath: card.imagePath,
+        highResImagePath: card.highResImagePath,
+        titleHtml: card.name,
+        roleTag: card.mainRole || "",
+        faceStatus: "",
+      };
+
+      // 渲染大图对话框
+      const artContent = renderCardArtDialog(view);
+      dialogContent.innerHTML = artContent;
+      dialog.classList.remove("battle-dialog--deck-detail");
+      dialog.classList.add("battle-dialog--art");
+
+      // 绑定返回按钮
+      dialogContent.querySelector("[data-card-detail-back]")?.addEventListener("click", () => {
+        // 重新渲染预组详情
+        showDeckDetail(deckId);
+      });
+
+      // 绑定高清图片加载
+      bindHighResImage(dialogContent);
+    });
+  });
 }
 
 function renderDeckDetailContent(deck: CatalogDeck, body?: CatalogCard) {
@@ -1548,7 +1588,7 @@ function renderDeckDetailContent(deck: CatalogDeck, body?: CatalogCard) {
     const charCard = catalog.cards[charId];
     if (!charCard) return "";
     return `<div class="battle-deck-detail__character">
-      ${charCard.imagePath ? `<img src="${charCard.imagePath}" alt="" loading="lazy" />` : ""}
+      ${charCard.imagePath ? `<button type="button" class="battle-deck-detail__art-button" data-card-art-zoom data-card-id="${charId}" aria-label="查看 ${escapeHtml(charCard.name)} 大图"><img src="${charCard.imagePath}" alt="" loading="lazy" /><span>点击查看大图</span></button>` : ""}
       <strong>${escapeHtml(charCard.name)}</strong>
       <small>${escapeHtml(charCard.mainRole || "")}</small>
     </div>`;
@@ -1601,7 +1641,7 @@ function renderDeckDetailContent(deck: CatalogDeck, body?: CatalogCard) {
 
   return `<div class="battle-deck-detail">
     <div class="battle-deck-detail__header">
-      ${body?.imagePath ? `<img src="${body.imagePath}" alt="${escapeHtml(body.name)}卡面" class="battle-deck-detail__art" />` : ""}
+      ${body?.imagePath ? `<button type="button" class="battle-deck-detail__art-button" data-card-art-zoom data-card-id="${deck.bodyId}" aria-label="查看 ${escapeHtml(body.name)} 大图"><img src="${body.imagePath}" alt="${escapeHtml(body.name)}卡面" class="battle-deck-detail__art" /><span>点击查看大图</span></button>` : ""}
       <div>
         <span class="battle-deck-detail__tag">${escapeHtml(deck.archetype)}</span>
         <h2>${escapeHtml(deck.name)}</h2>

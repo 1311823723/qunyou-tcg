@@ -115,7 +115,10 @@
 .battle-deck-detail__section h3 { margin: 0; color: var(--text-gold); font-size: 0.9rem; font-weight: 900; }
 .battle-deck-detail__characters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
 .battle-deck-detail__character { display: grid; gap: 0.25rem; padding: 0.5rem; border: 1px solid var(--border-soft); border-radius: 8px; text-align: center; background: rgba(0,0,0,0.2); }
-.battle-deck-detail__character img { width: 100%; aspect-ratio: 5/7; object-fit: cover; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.battle-deck-detail__art-button { position: relative; display: block; width: 100%; padding: 0; border: 0; border-radius: 6px; background: transparent; cursor: zoom-in; overflow: hidden; }
+.battle-deck-detail__art-button img { display: block; width: 100%; aspect-ratio: 5/7; object-fit: cover; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.battle-deck-detail__art-button span { position: absolute; bottom: 0; left: 0; right: 0; padding: 0.25rem 0.5rem; background: rgba(0,0,0,0.75); color: var(--text-gold); font-size: 0.6rem; font-weight: 800; text-align: center; opacity: 0; transform: translateY(100%); transition: opacity 0.2s ease, transform 0.2s ease; }
+.battle-deck-detail__art-button:hover span { opacity: 1; transform: translateY(0); }
 .battle-deck-detail__character strong { color: var(--text-primary); font-size: 0.72rem; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .battle-deck-detail__character small { color: var(--text-muted); font-size: 0.62rem; }
 .battle-deck-detail__stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
