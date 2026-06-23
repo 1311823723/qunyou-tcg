@@ -28,14 +28,17 @@ const handProbabilities = allHandCards.map((card) => {
   <div class="page-wrap">
     <PageHeader title="手牌牌堆" subtitle={`${allHandCards.length} 种 · 共 ${total} 张 · 双方共用的攻防资源池。`} badge="SHARED DECK" />
 
-    <div class="hud-panel mb-8" style="padding: 1rem 1.2rem;">
+    <div class="hud-panel mb-8 scroll-reveal" style="padding: 1rem 1.2rem;">
       <div class="text-xs mb-3" style="color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 0.12em;">SUIT DISTRIBUTION</div>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {ALL_SUITS.map((suit) => {
+        {ALL_SUITS.map((suit, i) => {
           const count = suitDist[suit] || 0;
           const red = suit === "红桃" || suit === "方块";
           return (
-            <div class="text-center p-3 rounded-xl" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-soft);">
+            <div
+              class="text-center p-3 rounded-xl scroll-reveal"
+              style={`background: rgba(0,0,0,0.25); border: 1px solid var(--border-soft); animation-delay: ${i * 0.1}s`}
+            >
               <span class="text-2xl font-mono font-bold" style={red ? "color:#ff8888" : "color: var(--text-secondary)"}>{SUIT_SYMBOLS[suit]}</span>
               <div class="dist-bar mt-2"><div class="dist-bar__fill" style={`width:${(count/total)*100}%;background:${red?"#e06060":"#7080a0"}`}></div></div>
               <span class="text-xs font-mono mt-2 inline-block" style="color: var(--text-muted);">{suit} · {count}</span>
@@ -45,7 +48,7 @@ const handProbabilities = allHandCards.map((card) => {
       </div>
     </div>
 
-    <div class="hud-panel mb-8" style="padding: 1rem 1.2rem;">
+    <div class="hud-panel mb-8 scroll-reveal" style="padding: 1rem 1.2rem;">
       <div class="text-xs mb-3" style="color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 0.12em;">牌堆概率计算器</div>
       <p class="skill-text mb-4">计算在共用 {total} 张手牌牌堆中，各牌的摸取概率。</p>
       <div class="overflow-x-auto">
@@ -76,19 +79,27 @@ const handProbabilities = allHandCards.map((card) => {
     </div>
 
     {basics.length > 0 && (
-      <section class="mb-10">
+      <section class="mb-10 scroll-reveal">
         <h2 class="section-heading" style="font-size: 1rem;">基础牌</h2>
         <div class="card-gallery card-gallery--hand">
-          {basics.map((c) => <HandCard card={c} />)}
+          {basics.map((c, i) => (
+            <div class="scroll-reveal" style={`animation-delay: ${i * 0.1}s`}>
+              <HandCard card={c} />
+            </div>
+          ))}
         </div>
       </section>
     )}
 
     {tricks.length > 0 && (
-      <section>
+      <section class="scroll-reveal">
         <h2 class="section-heading" style="font-size: 1rem;">锦囊牌</h2>
         <div class="card-gallery card-gallery--hand">
-          {tricks.map((c) => <HandCard card={c} />)}
+          {tricks.map((c, i) => (
+            <div class="scroll-reveal" style={`animation-delay: ${i * 0.1}s`}>
+              <HandCard card={c} />
+            </div>
+          ))}
         </div>
       </section>
     )}

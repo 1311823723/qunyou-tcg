@@ -9,11 +9,15 @@ import { archetypeThemeClass } from "../../lib/ui";
   <div class="page-wrap">
     <PageHeader title="预组卡组" subtitle="Preconstructed Decks · 构筑好的 16 张角色 + 本体（含额外形态）。" badge="DECKS" />
     <div class="deck-spotlight-grid">
-      {allDecks.map((deck) => {
+      {allDecks.map((deck, i) => {
         const resolved = resolveDeck(deck);
         const kw = getArchetypeKeywords(deck.archetype);
         return (
-          <a href={`/decks/${getDeckSlug(deck)}`} class={`deck-spotlight ${archetypeThemeClass(deck.archetype)}`}>
+          <a
+            href={`/decks/${getDeckSlug(deck)}`}
+            class={`deck-spotlight scroll-reveal ${archetypeThemeClass(deck.archetype)}`}
+            style={`animation-delay: ${i * 0.1}s`}
+          >
             <div>
               <h2 class="deck-hero__title" style="font-size: clamp(1.55rem, 4vw, 2.4rem);">{deck.name}</h2>
               <div class="deck-hero__archetype">{deck.archetype}</div>

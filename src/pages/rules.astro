@@ -15,10 +15,13 @@ const setupStats = [
   <div class="page-wrap max-w-4xl">
     <PageHeader title="游戏规则" subtitle="玩家上手指南 · 本体承伤、角色暗置、休整发动、翻面激活额外形态。" badge="玩家必读" />
 
-    <section class="hud-panel mb-8" style="padding: 1.25rem;">
+    <section class="hud-panel mb-8 scroll-reveal" style="padding: 1.25rem;">
       <div class="grid md:grid-cols-[1.2fr_1fr] gap-5 items-center">
         <div>
-          <h2 class="section-heading" style="font-size: 1.1rem; margin-bottom: 0.75rem;">胜利目标</h2>
+          <h2 class="section-heading" style="font-size: 1.1rem; margin-bottom: 0.75rem;">
+            <span class="section-heading__icon">🎯</span>
+            胜利目标
+          </h2>
           <p class="skill-text">
             每名玩家选择一张<strong>本体牌</strong>，搭配 16 张<strong>角色牌</strong>。双方共用 52 张<strong>手牌牌堆</strong>攻防；将对方本体体力降至 0 即获胜。
           </p>
@@ -38,8 +41,11 @@ const setupStats = [
       </div>
     </section>
 
-    <section class="mb-8">
-      <h2 class="section-heading" style="font-size: 1.15rem;">回合流程</h2>
+    <section class="mb-8 scroll-reveal">
+      <h2 class="section-heading" style="font-size: 1.15rem;">
+        <span class="section-heading__icon">🔄</span>
+        回合流程
+      </h2>
       <div class="rules-phase-grid mb-4">
         {phases.map((phase, i) => (
           <div class="rules-phase">
@@ -72,8 +78,11 @@ const setupStats = [
       </div>
     </section>
 
-    <section class="mb-8">
-      <h2 class="section-heading" style="font-size: 1.15rem;">休整 vs 退场</h2>
+    <section class="mb-8 scroll-reveal">
+      <h2 class="section-heading" style="font-size: 1.15rem;">
+        <span class="section-heading__icon">⚔️</span>
+        休整 vs 退场
+      </h2>
       <div class="rules-compare">
         <div class="hud-panel" style="padding: 1.1rem; border-top: 2px solid var(--color-text-highlight);">
           <h3 class="font-bold" style="color: var(--color-text-highlight);">休整</h3>
@@ -86,8 +95,11 @@ const setupStats = [
       </div>
     </section>
 
-    <section class="rules-mega-highlight mb-8">
-      <h2 class="section-heading" style="font-size: 1.15rem; margin-bottom: 0.75rem;">额外形态（翻面）</h2>
+    <section class="rules-mega-highlight mb-8 scroll-reveal">
+      <h2 class="section-heading" style="font-size: 1.15rem; margin-bottom: 0.75rem;">
+        <span class="section-heading__icon">✨</span>
+        额外形态（翻面）
+      </h2>
       <p class="skill-text">额外形态写在<strong>本体牌的背面</strong>，满足发动条件后翻面激活。发动条件<strong>写在本体牌正面</strong>。每张本体最多拥有一种额外形态。</p>
       <div style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
         <p class="skill-text"><strong>Mega：</strong>满足发动条件后翻至背面，获得强化技能，<strong>永久生效，不会翻回正面</strong>。</p>
@@ -96,8 +108,11 @@ const setupStats = [
       </div>
     </section>
 
-    <section class="mb-8">
-      <h2 class="section-heading" style="font-size: 1.15rem;">开局流程</h2>
+    <section class="mb-8 scroll-reveal">
+      <h2 class="section-heading" style="font-size: 1.15rem;">
+        <span class="section-heading__icon">🚀</span>
+        开局流程
+      </h2>
       <ol class="space-y-2 pl-5 skill-text" style="list-style: decimal;">
         <li>双方公开本体牌（正面朝上）；本体体力以本体牌标注为准。</li>
         <li>洗混各自 16 张角色牌组与共用 52 张手牌牌堆。</li>
@@ -106,12 +121,27 @@ const setupStats = [
       </ol>
     </section>
 
-    <section>
-      <h2 class="section-heading" style="font-size: 1.15rem;">特殊机制</h2>
+    <section class="scroll-reveal">
+      <h2 class="section-heading" style="font-size: 1.15rem;">
+        <span class="section-heading__icon">⚡</span>
+        特殊机制
+      </h2>
       <div class="grid md:grid-cols-3 gap-3">
-        <div class="mechanic-tile" style="--tile-color: var(--color-aggro);"><div class="mechanic-tile__icon">BOMB</div><h3 class="mechanic-tile__title">炸弹标记</h3><p class="mechanic-tile__desc">不占角色牌身份但占角色位；对手可休整 1 移除。</p></div>
-        <div class="mechanic-tile" style="--tile-color: var(--color-role-defend);"><div class="mechanic-tile__icon">OUT</div><h3 class="mechanic-tile__title">移出游戏</h3><p class="mechanic-tile__desc">暂时移出所有区域，指定时机后归位。</p></div>
-        <div class="mechanic-tile" style="--tile-color: var(--color-mega-purple);"><div class="mechanic-tile__icon">COPY</div><h3 class="mechanic-tile__title">技能复制</h3><p class="mechanic-tile__desc">复制已明置对手角色技能至回合结束，费用时机自行满足。</p></div>
+        <div class="mechanic-tile" style="--tile-color: var(--color-aggro);">
+          <div class="mechanic-tile__icon">BOMB</div>
+          <h3 class="mechanic-tile__title">炸弹标记</h3>
+          <p class="mechanic-tile__desc">不占角色牌身份但占角色位；对手可休整 1 移除。</p>
+        </div>
+        <div class="mechanic-tile" style="--tile-color: var(--color-role-defend);">
+          <div class="mechanic-tile__icon">OUT</div>
+          <h3 class="mechanic-tile__title">移出游戏</h3>
+          <p class="mechanic-tile__desc">暂时移出所有区域，指定时机后归位。</p>
+        </div>
+        <div class="mechanic-tile" style="--tile-color: var(--color-mega-purple);">
+          <div class="mechanic-tile__icon">COPY</div>
+          <h3 class="mechanic-tile__title">技能复制</h3>
+          <p class="mechanic-tile__desc">复制已明置对手角色技能至回合结束，费用时机自行满足。</p>
+        </div>
       </div>
     </section>
   </div>

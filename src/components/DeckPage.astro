@@ -34,20 +34,23 @@ const selfRestCount = resolved.characters.filter((card) => card.cost.type === "�
 ---
 <Layout title={deck.name}>
   <div class={`page-wrap ${archetypeThemeClass(deck.archetype)}`}>
-    <header class="deck-hero">
+    <header class="deck-hero scroll-reveal">
       <div class="tag-pill tag-pill--deck mb-3">PRECONSTRUCTED DECK</div>
       <h1 class="deck-hero__title">{deck.name}</h1>
       <div class="deck-hero__archetype">{deck.archetype}</div>
       {blurb && <p class="deck-hero__blurb">{blurb}</p>}
-      {risk && <p class="deck-hero__risk">风险：{risk}</p>}
+      {risk && <p class="deck-hero__risk">⚠️ 风险：{risk}</p>}
       <div class="flex flex-wrap gap-1 mt-4">
         {keywords.map((keyword) => <span class="tag-pill tag-pill--deck">{keyword}</span>)}
       </div>
       {deck.notes && <p class="deck-hero__blurb" style="font-size: 0.88rem; margin-top: 1rem; opacity: 0.9;">{deck.notes}</p>}
     </header>
 
-    <section class="mb-10">
-      <h2 class="section-heading" style="font-size: 1.1rem;">本体 · Z招式</h2>
+    <section class="mb-10 scroll-reveal">
+      <h2 class="section-heading" style="font-size: 1.1rem;">
+        <span class="section-heading__icon">👑</span>
+        本体 · Z招式
+      </h2>
       <p class="skill-text mb-4" style="max-width: 36rem;">点击本体卡下方按钮翻面查看Z招式。达成条件后翻面进入Z就绪状态，每局限发动一次。</p>
       <div class="max-w-md">{resolved.body && <BodyCard body={resolved.body} />}</div>
     </section>
@@ -112,7 +115,7 @@ const selfRestCount = resolved.characters.filter((card) => card.cost.type === "�
       </section>
     )}
 
-    <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10 scroll-reveal">
       <div class="stat-hud__item">
         <div class="stat-hud__value" style="color: var(--color-role-attack)">{resolved.body?.hp ?? "?"}</div>
         <div class="stat-hud__label">本体体力</div>
@@ -131,9 +134,12 @@ const selfRestCount = resolved.characters.filter((card) => card.cost.type === "�
       </div>
     </section>
 
-    <section class="grid md:grid-cols-2 gap-4 mb-10">
+    <section class="grid md:grid-cols-2 gap-4 mb-10 scroll-reveal">
       <div class="hud-panel" style="padding: 1.1rem;">
-        <h3 class="font-bold text-sm mb-3" style="color: var(--color-text-highlight);">主定位分布</h3>
+        <h3 class="font-bold text-sm mb-3" style="color: var(--color-text-highlight);">
+          <span class="section-heading__icon" style="width: 1.5rem; height: 1.5rem; font-size: 0.9rem;">📊</span>
+          主定位分布
+        </h3>
         <div class="space-y-2">
           {sortedRoleDist.map(([role, count]) => (
             <div class="flex items-center gap-2">
@@ -147,11 +153,17 @@ const selfRestCount = resolved.characters.filter((card) => card.cost.type === "�
         </div>
       </div>
       <div class="hud-panel" style="padding: 1.1rem;">
-        <h3 class="font-bold text-sm mb-3" style="color: var(--color-text-highlight);">标签分布</h3>
+        <h3 class="font-bold text-sm mb-3" style="color: var(--color-text-highlight);">
+          <span class="section-heading__icon" style="width: 1.5rem; height: 1.5rem; font-size: 0.9rem;">🏷️</span>
+          标签分布
+        </h3>
         <div class="flex flex-wrap gap-1">
           {sortedTagDist.map(([tag, count]) => <span class="tag-pill tag-pill--mech">{tag} ×{count}</span>)}
         </div>
-        <h3 class="font-bold text-sm mt-5 mb-2" style="color: var(--color-text-highlight);">休整费用分布</h3>
+        <h3 class="font-bold text-sm mt-5 mb-2" style="color: var(--color-text-highlight);">
+          <span class="section-heading__icon" style="width: 1.5rem; height: 1.5rem; font-size: 0.9rem;">💰</span>
+          休整费用分布
+        </h3>
         <div class="flex flex-wrap gap-2">
           {Object.entries(restDist).sort(([a], [b]) => Number(a) - Number(b)).map(([amount, count]) => (
             <span class="tag-pill tag-pill--deck">休整 {amount} ×{count}</span>
@@ -161,9 +173,16 @@ const selfRestCount = resolved.characters.filter((card) => card.cost.type === "�
       </div>
     </section>
 
-    <h2 class="section-heading">完整角色牌 · {resolved.characters.length}</h2>
+    <h2 class="section-heading scroll-reveal">
+      <span class="section-heading__icon">🃏</span>
+      完整角色牌 · {resolved.characters.length}
+    </h2>
     <div class="card-gallery card-gallery--chars">
-      {resolved.characters.map((character) => <CharacterCard character={character} />)}
+      {resolved.characters.map((character, i) => (
+        <div class="scroll-reveal" style={`animation-delay: ${Math.min(i * 0.05, 1)}s`}>
+          <CharacterCard character={character} />
+        </div>
+      ))}
     </div>
   </div>
 </Layout>

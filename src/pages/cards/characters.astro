@@ -11,7 +11,7 @@ const allLabel = "全部";
 <Layout title="角色牌">
   <div class="page-wrap" id="characters-page">
     <PageHeader title="角色牌" subtitle={`${allCharacters.length} 张 · 竖版 TCG 卡面`} />
-    <div class="filter-panel">
+    <div class="filter-panel scroll-reveal">
       <input
         type="search"
         placeholder="搜索名称、技能…"
@@ -44,8 +44,17 @@ const allLabel = "全部";
       <p>没有匹配的角色牌，试试调整筛选条件</p>
     </div>
     <div class="card-gallery card-gallery--chars" id="card-gallery">
-      {allCharacters.map((c) => (
-        <div class="filter-card" data-role={c.mainRole} data-tags={c.tags.join(",")} data-name={c.name} data-skill={c.skillName} data-effect={c.effectText} data-id={c.id}>
+      {allCharacters.map((c, i) => (
+        <div
+          class="filter-card scroll-reveal"
+          data-role={c.mainRole}
+          data-tags={c.tags.join(",")}
+          data-name={c.name}
+          data-skill={c.skillName}
+          data-effect={c.effectText}
+          data-id={c.id}
+          style={`animation-delay: ${Math.min(i * 0.03, 1)}s`}
+        >
           <CharacterCard character={c} showDeck />
         </div>
       ))}

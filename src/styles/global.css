@@ -559,7 +559,32 @@ strong { color: var(--text-gold); font-weight: 800; }
   min-height: 0;
   aspect-ratio: 5 / 7;
   flex-direction: column;
+  position: relative;
 }
+
+/* 角色卡牌发光边框 */
+.tcg-char::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--card-accent) 60%, transparent),
+    transparent 40%,
+    transparent 60%,
+    color-mix(in srgb, var(--card-accent) 40%, transparent)
+  );
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.tcg-char:hover::after {
+  opacity: 0.7;
+}
+
 .tcg-card__full-art {
   position: absolute;
   inset: 0;
@@ -601,8 +626,36 @@ strong { color: var(--text-gold); font-weight: 800; }
   min-height: 3.55rem;
   padding: 0.72rem 0.82rem 0.56rem;
   border-bottom: 1px solid var(--border-soft);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--card-accent) 20%, rgba(5, 6, 12, 0.62)), rgba(5, 6, 12, 0.28));
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--card-accent) 20%, rgba(5, 6, 12, 0.62)),
+    rgba(5, 6, 12, 0.28)
+  );
   backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 头部光线效果 */
+.tcg-char__head::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--card-accent) 50%, transparent),
+    transparent
+  );
+  animation: card-head-glow 3s infinite;
+}
+
+@keyframes card-head-glow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
 }
 .tcg-char__profession { margin-bottom: 0.16rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; }
 .tcg-char__name { margin: 0; color: var(--text-primary); font-size: 1rem; font-weight: 900; line-height: 1.2; }
@@ -710,6 +763,29 @@ strong { color: var(--text-gold); font-weight: 800; }
     inset 0 1px 0 rgba(255,255,255,0.07),
     inset 0 0 0 1px rgba(0,0,0,0.28),
     0 10px 28px rgba(0,0,0,0.18);
+  position: relative;
+}
+
+/* 技能区域光线效果 */
+.tcg-char__skill::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(0, 212, 255, 0.3),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.tcg-char:hover .tcg-char__skill::before {
+  opacity: 1;
 }
 .tcg-char__skill-name { margin-bottom: 0.32rem; color: var(--text-gold); font-size: 0.82rem; font-weight: 900; line-height: 1.25; }
 .tcg-char__skill-text,
@@ -724,7 +800,36 @@ strong { color: var(--text-gold); font-weight: 800; }
 .tcg-char--compact .tcg-char__meta { grid-template-columns: 1fr; }
 .tcg-char--compact .tcg-char__skill-text { display: -webkit-box; overflow: hidden; font-size: 0.76rem; line-height: 1.56; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
 
-.tcg-body { border-color: rgba(255, 217, 138, 0.34); background: linear-gradient(160deg, #211827, #15111f 48%, #080912); max-width: 400px; margin-inline: auto; }
+.tcg-body {
+  border-color: rgba(255, 217, 138, 0.34);
+  background: linear-gradient(160deg, #211827, #15111f 48%, #080912);
+  max-width: 400px;
+  margin-inline: auto;
+  position: relative;
+}
+
+/* 本体牌发光边框 */
+.tcg-body::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(216, 183, 92, 0.5),
+    transparent 30%,
+    transparent 70%,
+    rgba(216, 183, 92, 0.3)
+  );
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.tcg-body:hover::after {
+  opacity: 0.6;
+}
 .tcg-body--compact { max-width: none; }
 .tcg-body--compact { min-height: 260px; }
 .tcg-body__banner {
@@ -744,7 +849,36 @@ strong { color: var(--text-gold); font-weight: 800; }
 .tcg-body__type--extra { color: var(--accent-mega-purple); }
 .tcg-body__name { margin: 0.28rem 0 0; color: var(--text-gold); font-family: var(--font-display); font-size: clamp(1.35rem, 4vw, 1.72rem); font-weight: 900; line-height: 1.1; text-shadow: 0 0 24px rgba(255, 90, 53, 0.24); }
 .tcg-body__name--extra { color: #ffe9aa; text-shadow: 0 0 24px rgba(157, 108, 255, 0.32); }
-.tcg-body__hp { min-width: 4.7rem; padding: 0.52rem 0.75rem; text-align: center; border: 1px solid rgba(255,87,72,0.42); border-radius: 16px; background: rgba(255,87,72,0.13); box-shadow: inset 0 0 22px rgba(255,87,72,0.08), 0 0 18px rgba(255,87,72,0.14); }
+.tcg-body__hp {
+  min-width: 4.7rem;
+  padding: 0.52rem 0.75rem;
+  text-align: center;
+  border: 1px solid rgba(255,87,72,0.42);
+  border-radius: 16px;
+  background: rgba(255,87,72,0.13);
+  box-shadow: inset 0 0 22px rgba(255,87,72,0.08), 0 0 18px rgba(255,87,72,0.14);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 体力值脉冲动画 */
+.tcg-body__hp::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle,
+    rgba(255, 87, 72, 0.3),
+    transparent 70%
+  );
+  animation: hp-pulse 2s infinite;
+}
+
+@keyframes hp-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
 .tcg-body__hp--extra { border-color: rgba(157,108,255,0.42); background: rgba(157,108,255,0.13); box-shadow: inset 0 0 22px rgba(157,108,255,0.08), 0 0 18px rgba(157,108,255,0.14); }
 .tcg-body__hp-val { color: #ff7669; font-family: var(--font-display); font-size: 2.15rem; font-weight: 900; line-height: 1; }
 .tcg-body__hp-label { margin-top: 0.22rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.58rem; font-weight: 900; letter-spacing: 0.18em; }
