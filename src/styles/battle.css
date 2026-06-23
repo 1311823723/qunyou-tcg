@@ -190,9 +190,259 @@
 .battle-counter > span { display: block; color: var(--text-muted); font: 700 0.55rem var(--font-mono); text-transform: uppercase; }
 .battle-counter > strong { display: block; color: var(--text-gold); font: 900 0.95rem var(--font-display); }
 .battle-counter__actions { display: flex; justify-content: center; gap: 0.25rem; margin-top: 0.2rem; }
-.battle-counter__actions button { min-width: 1.75rem; min-height: 1.75rem; border: 0; border-radius: 6px; color: var(--text-secondary); background: rgba(255,255,255,0.08); font-size: 0.85rem; font-weight: 900; cursor: pointer; }
-.battle-counter.is-ready { border-color: var(--accent-mega); box-shadow: 0 0 16px rgba(216,183,92,0.18); }
-.battle-counter.is-ready::after { content: "可 Mega"; display: block; margin-top: 0.1rem; color: var(--accent-mega); font-size: 0.52rem; font-weight: 900; }
+.battle-counter__actions button { min-width: 1.75rem; min-height: 1.75rem; border: 0; border-radius: 6px; color: var(--text-secondary); background: rgba(255,255,255,0.08); font-size: 0.85rem; font-weight: 900; cursor: pointer; transition: all 0.15s ease; }
+.battle-counter__actions button:hover { background: rgba(255,255,255,0.15); color: var(--text-primary); transform: scale(1.05); }
+.battle-counter__actions button:active { transform: scale(0.95); }
+
+/* HP Crystal Icons Styles */
+.battle-counter__hp-icons {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  margin: 0.35rem 0 0.15rem;
+  flex-wrap: nowrap;
+}
+.battle-counter__hp-icon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.battle-counter__hp-icon--high {
+  filter: drop-shadow(0 0 3px rgba(86,217,134,0.5));
+}
+.battle-counter__hp-icon--medium {
+  filter: drop-shadow(0 0 3px rgba(255,212,95,0.5));
+}
+.battle-counter__hp-icon--low {
+  filter: drop-shadow(0 0 3px rgba(255,87,72,0.5));
+}
+.battle-counter__hp-icon--pulse {
+  animation: crystal-pulse 1.5s infinite;
+}
+.battle-counter__hp-icon--empty {
+  opacity: 0.4;
+  filter: grayscale(0.5);
+}
+.battle-counter__hp-value {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-top: 0.1rem;
+}
+.battle-counter__hp-current {
+  color: var(--text-gold);
+  font: 900 1.1rem var(--font-display);
+  text-shadow: 0 0 12px rgba(255,217,138,0.3);
+}
+.battle-counter__hp-max {
+  color: var(--text-muted);
+  font: 700 0.65rem var(--font-mono);
+}
+.battle-counter__hp-change {
+  position: absolute;
+  top: -0.5rem;
+  right: 0;
+  font: 900 0.75rem var(--font-display);
+  animation: hp-change-float 1s ease-out forwards;
+  pointer-events: none;
+}
+.battle-counter__hp-change--damage {
+  color: #ff5748;
+  text-shadow: 0 0 8px rgba(255,87,72,0.6);
+}
+.battle-counter__hp-change--heal {
+  color: #56d986;
+  text-shadow: 0 0 8px rgba(86,217,134,0.6);
+}
+
+/* Progress Ring Styles */
+.battle-counter__progress-ring {
+  width: 52px;
+  height: 52px;
+  margin: 0.25rem auto;
+  position: relative;
+}
+.battle-counter__progress-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.battle-counter__progress-ring circle {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.4s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s ease, filter 0.4s ease;
+}
+.battle-counter__progress-ring .ring-bg {
+  stroke: rgba(255,255,255,0.08);
+}
+/* 进度环状态：低/中/高/就绪 */
+.battle-counter__progress-ring .ring-fill {
+  stroke: rgba(255,255,255,0.2);
+  filter: none;
+}
+.battle-counter__progress-ring .ring-fill.is-low {
+  stroke: rgba(255,255,255,0.25);
+  filter: drop-shadow(0 0 2px rgba(255,255,255,0.1));
+}
+.battle-counter__progress-ring .ring-fill.is-medium {
+  stroke: var(--accent-mega-purple);
+  filter: drop-shadow(0 0 4px rgba(157,108,255,0.4));
+}
+.battle-counter__progress-ring .ring-fill.is-high {
+  stroke: var(--accent-mega);
+  filter: drop-shadow(0 0 5px rgba(216,183,92,0.5));
+  animation: ring-high-pulse 2s infinite;
+}
+.battle-counter__progress-ring .ring-fill.is-ready {
+  stroke: var(--accent-mega);
+  filter: drop-shadow(0 0 6px rgba(216,183,92,0.6));
+  animation: ring-pulse 1.5s infinite;
+}
+.battle-counter__progress-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-gold);
+  font: 900 0.85rem var(--font-display);
+  text-shadow: 0 0 8px rgba(255,217,138,0.3);
+}
+.battle-counter__progress-icons {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin: 0.3rem 0 0.15rem;
+}
+.battle-counter__progress-icon {
+  width: 12px;
+  height: 12px;
+  object-fit: contain;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+/* Mega 晶核样式 */
+.battle-counter--mega .battle-counter__progress-icon--low {
+  filter: drop-shadow(0 0 2px rgba(120,120,120,0.4));
+}
+.battle-counter--mega .battle-counter__progress-icon--medium {
+  filter: drop-shadow(0 0 3px rgba(157,108,255,0.5));
+}
+.battle-counter--mega .battle-counter__progress-icon--high {
+  filter: drop-shadow(0 0 3px rgba(216,183,92,0.5));
+}
+.battle-counter--mega .battle-counter__progress-icon--ready {
+  filter: drop-shadow(0 0 4px rgba(255,217,138,0.6));
+}
+/* Z招式棱片样式 */
+.battle-counter--z-move .battle-counter__progress-icon--low {
+  filter: drop-shadow(0 0 2px rgba(100,100,100,0.4));
+}
+.battle-counter--z-move .battle-counter__progress-icon--medium {
+  filter: drop-shadow(0 0 3px rgba(180,130,255,0.5));
+}
+.battle-counter--z-move .battle-counter__progress-icon--high {
+  filter: drop-shadow(0 0 3px rgba(216,183,92,0.5));
+}
+.battle-counter--z-move .battle-counter__progress-icon--ready {
+  filter: drop-shadow(0 0 4px rgba(255,230,150,0.6));
+}
+.battle-counter__progress-icon--empty {
+  opacity: 0.3;
+  filter: grayscale(0.7);
+}
+.battle-counter__progress-icon--pulse {
+  animation: progress-icon-pulse 1.5s infinite;
+}
+
+/* 进度计数器状态 */
+.battle-counter.is-low {
+  border-color: rgba(255,255,255,0.1);
+}
+.battle-counter.is-medium {
+  border-color: rgba(157,108,255,0.3);
+}
+.battle-counter.is-high {
+  border-color: rgba(216,183,92,0.3);
+  box-shadow: 0 0 12px rgba(216,183,92,0.1);
+}
+.battle-counter.is-ready {
+  border-color: var(--accent-mega);
+  box-shadow: 0 0 20px rgba(216,183,92,0.25), inset 0 0 20px rgba(216,183,92,0.05);
+  animation: counter-ready-glow 2s infinite;
+}
+
+/* 就绪提示文本 */
+.battle-counter__ready-text {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--accent-mega);
+  font: 900 0.6rem var(--font-display);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 8px rgba(216,183,92,0.5);
+}
+
+/* Low HP State */
+.battle-counter.is-low-hp {
+  border-color: rgba(255,87,72,0.5);
+  box-shadow: 0 0 16px rgba(255,87,72,0.2), inset 0 0 16px rgba(255,87,72,0.05);
+  animation: counter-low-hp-pulse 1.5s infinite;
+}
+
+/* Animations */
+@keyframes hp-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes hp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+@keyframes hp-change-float {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-1.5rem); opacity: 0; }
+}
+@keyframes crystal-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 3px rgba(255,87,72,0.5)); }
+  50% { transform: scale(1.1); filter: drop-shadow(0 0 6px rgba(255,87,72,0.7)); }
+}
+@keyframes progress-icon-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+}
+@keyframes ring-pulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(216,183,92,0.6)); }
+  50% { filter: drop-shadow(0 0 12px rgba(216,183,92,0.9)); }
+}
+@keyframes ring-high-pulse {
+  0%, 100% { filter: drop-shadow(0 0 5px rgba(216,183,92,0.5)); }
+  50% { filter: drop-shadow(0 0 8px rgba(216,183,92,0.7)); }
+}
+@keyframes milestone-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+}
+@keyframes milestone-pulse-low {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+}
+@keyframes milestone-pulse-medium {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}
+@keyframes milestone-pulse-high {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+}
+@keyframes counter-ready-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(216,183,92,0.25), inset 0 0 20px rgba(216,183,92,0.05); }
+  50% { box-shadow: 0 0 30px rgba(216,183,92,0.4), inset 0 0 30px rgba(216,183,92,0.1); }
+}
+@keyframes counter-low-hp-pulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(255,87,72,0.2), inset 0 0 16px rgba(255,87,72,0.05); }
+  50% { box-shadow: 0 0 24px rgba(255,87,72,0.35), inset 0 0 24px rgba(255,87,72,0.1); }
+}
 .battle-player__field { display: grid; grid-template-columns: minmax(5.5rem, 0.42fr) minmax(17rem, 3fr) minmax(9rem, 0.9fr); gap: 0.5rem; align-items: stretch; }
 .battle-body-zone, .battle-side-zones, .battle-character-slots { display: grid; gap: 0.35rem; }
 .battle-body-zone { align-content: start; justify-items: center; }
@@ -1762,6 +2012,34 @@ button.battle-log__entry:hover, button.battle-log__entry:focus-visible { color: 
     min-width: 1.45rem;
     min-height: 1.4rem;
     font-size: 0.68rem;
+  }
+  #battle-app[data-table-mode="compact"] .battle-counter__hp-icons {
+    gap: 1px;
+    margin: 0.2rem 0 0.1rem;
+  }
+  #battle-app[data-table-mode="compact"] .battle-counter__hp-icon {
+    width: 11px;
+    height: 11px;
+  }
+  #battle-app[data-table-mode="compact"] .battle-counter__progress-ring {
+    width: 40px;
+    height: 40px;
+    margin: 0.15rem auto;
+  }
+  #battle-app[data-table-mode="compact"] .battle-counter__progress-value {
+    font-size: 0.7rem;
+  }
+  #battle-app[data-table-mode="compact"] .battle-counter__progress-icons {
+    gap: 2px;
+    margin: 0.2rem 0 0.1rem;
+  }
+  #battle-app[data-table-mode="compact"] .battle-counter__progress-icon {
+    width: 10px;
+    height: 10px;
+  }
+  #battle-app[data-table-mode="compact"] .battle-counter__milestone {
+    width: 6px;
+    height: 6px;
   }
   #battle-app[data-table-mode="compact"] .battle-player__field {
     grid-template-columns: 4.7rem minmax(20rem, 1fr) minmax(14rem, 16rem);

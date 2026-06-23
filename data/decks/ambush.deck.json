@@ -8,18 +8,18 @@
     "char_035_xiaoapan_silent-hunter",
     "char_045_guamao_assassin",
     "char_074_huihuan_nameless",
+    "char_075_baizi_weilong",
+    "char_087_qindi_vigilante",
+    "char_089_kabishou_canadian",
     "char_097_horus-lupercal_bird-eater",
     "char_098_qindi_silencer",
-    "char_099_kabishou_invisible-duck",
     "char_100_miaosila_demolitionist",
     "char_101_pangpanghali_identity-thief",
-    "char_102_miaosila_dodo",
-    "char_103_zongzi_snitch",
     "char_104_player_falcon",
     "char_105_tutu_professional",
     "char_106_qindi_vulture",
     "char_107_daidaishou_engineer",
     "char_108_tutu_birdwatcher"
   ],
-  "notes": "以暗置角色响应对手行动，伏击角色支付费用后由本体持续补位；Z招式可在关键回合重新调用退场区伏击。"
+  "notes": "以暗置角色响应对手行动，伏击角色支付费用后由本体持续补位；新增威龙和秦帝提供主动进攻能力，卡比兽补充资源；Z招式可在关键回合重新调用退场区伏击。"
 }

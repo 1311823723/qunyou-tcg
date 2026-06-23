@@ -424,6 +424,90 @@ strong { color: var(--text-gold); font-weight: 800; }
 .card-frame[data-kind=hand] { --card-accent: var(--role-defend); }
 .card-frame[data-kind=trick] { --card-accent: var(--accent-mega-purple); }
 
+/* Card Compare Panel */
+.card-compare-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: linear-gradient(180deg, rgba(17, 20, 34, 0.98), rgba(8, 10, 18, 0.98));
+  border-top: 1px solid var(--border-panel);
+  box-shadow: 0 -24px 80px rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+  backdrop-filter: blur(20px);
+}
+.card-compare-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.card-compare-slots {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+}
+.card-compare-slot {
+  flex: 1;
+  max-width: 300px;
+  min-height: 80px;
+  border: 1px dashed var(--border-panel);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+}
+.card-compare-add {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.card-compare-add:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+.card-compare-vs {
+  color: var(--text-gold);
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+.card-compare-card {
+  text-align: center;
+}
+.card-compare-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+.card-compare-remove:hover {
+  background: rgba(255, 87, 72, 0.2);
+  color: #ff5748;
+}
+.card-compare-result {
+  margin-top: 1rem;
+  max-width: 600px;
+  margin-inline: auto;
+}
+.card-compare-table {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 .tcg-char {
   container-type: inline-size;
   display: flex;

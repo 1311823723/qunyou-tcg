@@ -7,6 +7,7 @@ import { allCharacters, MAIN_ROLES, ALL_TAGS } from "../../lib/cards";
 const roleLabel = "定位";
 const allLabel = "全部";
 ---
+
 <Layout title="角色牌">
   <div class="page-wrap" id="characters-page">
     <PageHeader title="角色牌" subtitle={`${allCharacters.length} 张 · 竖版 TCG 卡面`} />
@@ -44,15 +45,36 @@ const allLabel = "全部";
     </div>
     <div class="card-gallery card-gallery--chars" id="card-gallery">
       {allCharacters.map((c) => (
-        <div class="filter-card" data-role={c.mainRole} data-tags={c.tags.join(",")} data-name={c.name} data-skill={c.skillName} data-effect={c.effectText}>
+        <div class="filter-card" data-role={c.mainRole} data-tags={c.tags.join(",")} data-name={c.name} data-skill={c.skillName} data-effect={c.effectText} data-id={c.id}>
           <CharacterCard character={c} showDeck />
         </div>
       ))}
     </div>
   </div>
+
+  <div id="card-compare-panel" class="card-compare-panel" style="display: none;">
+    <div class="card-compare-header">
+      <h3 class="font-bold text-sm" style="color: var(--color-text-highlight);">卡牌对比</h3>
+      <button type="button" id="card-compare-close" class="text-xs" style="color: var(--text-muted);">关闭</button>
+    </div>
+    <div class="card-compare-slots">
+      <div class="card-compare-slot" id="compare-slot-1">
+        <button type="button" class="card-compare-add" data-slot="1">+ 添加卡牌</button>
+      </div>
+      <div class="card-compare-vs">VS</div>
+      <div class="card-compare-slot" id="compare-slot-2">
+        <button type="button" class="card-compare-add" data-slot="2">+ 添加卡牌</button>
+      </div>
+    </div>
+    <div id="card-compare-result" class="card-compare-result"></div>
+  </div>
 </Layout>
 
 <script>
+  // Card compare functionality
+  const compareSlots: { [key: string]: any } = { "1": null, "2": null };
+  let activeSlot: string | null = null;
+
   function getFilters() {
     const params = new URLSearchParams(window.location.search);
     return {
@@ -145,4 +167,160 @@ const allLabel = "全部";
 
   // Initial filter from URL
   applyFilters();
+
+  // Card compare functionality
+  function openComparePanel() {
+    const panel = document.getElementById("card-compare-panel");
+    if (panel) panel.style.display = "block";
+  }
+
+  function closeComparePanel() {
+    const panel = document.getElementById("card-compare-panel");
+    if (panel) panel.style.display = "none";
+    activeSlot = null;
+  }
+
+  function selectCardForCompare(cardId: string, slot: string) {
+    const card = document.querySelector(`[data-id="${cardId}"]`);
+    if (!card) return;
+
+    const name = card.getAttribute("data-name") || "";
+    const role = card.getAttribute("data-role") || "";
+    const skill = card.getAttribute("data-skill") || "";
+    const effect = card.getAttribute("data-effect") || "";
+
+    compareSlots[slot] = { id: cardId, name, role, skill, effect };
+    updateCompareSlot(slot);
+    updateCompareResult();
+  }
+
+  function updateCompareSlot(slot: string) {
+    const slotEl = document.getElementById(`compare-slot-${slot}`);
+    if (!slotEl) return;
+
+    const card = compareSlots[slot];
+    if (card) {
+      slotEl.innerHTML = `
+        <div class="card-compare-card">
+          <div class="font-bold text-sm">${card.name}</div>
+          <div class="text-xs" style="color: var(--text-muted);">${card.role}</div>
+          <div class="text-xs mt-1" style="color: var(--text-gold);">${card.skill}</div>
+          <button type="button" class="card-compare-remove" data-slot="${slot}" style="font-size: 0.6rem; color: var(--text-muted); margin-top: 0.25rem;">移除</button>
+        </div>
+      `;
+
+      // Add remove button event
+      const removeBtn = slotEl.querySelector(".card-compare-remove");
+      if (removeBtn) {
+        removeBtn.addEventListener("click", () => {
+          compareSlots[slot] = null;
+          updateCompareSlot(slot);
+          updateCompareResult();
+        });
+      }
+    } else {
+      slotEl.innerHTML = `<button type="button" class="card-compare-add" data-slot="${slot}">+ 添加卡牌</button>`;
+      const addBtn = slotEl.querySelector(".card-compare-add");
+      if (addBtn) {
+        addBtn.addEventListener("click", () => {
+          activeSlot = slot;
+          // Highlight cards for selection
+          document.querySelectorAll(".filter-card").forEach((c) => {
+            (c as HTMLElement).style.cursor = "pointer";
+            (c as HTMLElement).style.outline = "2px solid var(--color-text-highlight)";
+          });
+        });
+      }
+    }
+  }
+
+  function updateCompareResult() {
+    const resultEl = document.getElementById("card-compare-result");
+    if (!resultEl) return;
+
+    const card1 = compareSlots["1"];
+    const card2 = compareSlots["2"];
+
+    if (!card1 || !card2) {
+      resultEl.innerHTML = "";
+      return;
+    }
+
+    resultEl.innerHTML = `
+      <div class="card-compare-table">
+        <table class="w-full text-sm">
+          <thead>
+            <tr style="background: rgba(0,0,0,0.3);">
+              <th class="text-left p-2" style="color: var(--text-muted); font-size: 0.7rem;">属性</th>
+              <th class="text-center p-2" style="color: var(--text-muted); font-size: 0.7rem;">${card1.name}</th>
+              <th class="text-center p-2" style="color: var(--text-muted); font-size: 0.7rem;">${card2.name}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="p-2 font-bold" style="color: var(--text-primary);">定位</td>
+              <td class="p-2 text-center">${card1.role}</td>
+              <td class="p-2 text-center">${card2.role}</td>
+            </tr>
+            <tr style="background: rgba(0,0,0,0.15);">
+              <td class="p-2 font-bold" style="color: var(--text-primary);">技能名</td>
+              <td class="p-2 text-center" style="color: var(--text-gold);">${card1.skill}</td>
+              <td class="p-2 text-center" style="color: var(--text-gold);">${card2.skill}</td>
+            </tr>
+            <tr>
+              <td class="p-2 font-bold" style="color: var(--text-primary);">效果</td>
+              <td class="p-2 text-center" style="font-size: 0.75rem;">${card1.effect}</td>
+              <td class="p-2 text-center" style="font-size: 0.75rem;">${card2.effect}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  // Initialize compare slots
+  updateCompareSlot("1");
+  updateCompareSlot("2");
+
+  // Add click handlers for compare buttons
+  document.querySelectorAll(".card-compare-add").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeSlot = (btn as HTMLElement).dataset.slot || "1";
+      document.querySelectorAll(".filter-card").forEach((c) => {
+        (c as HTMLElement).style.cursor = "pointer";
+        (c as HTMLElement).style.outline = "2px solid var(--color-text-highlight)";
+      });
+    });
+  });
+
+  // Add click handlers for cards to select for comparison
+  document.querySelectorAll(".filter-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      if (!activeSlot) return;
+
+      const el = card as HTMLElement;
+      const cardId = el.dataset.id;
+      if (cardId) {
+        selectCardForCompare(cardId, activeSlot);
+        activeSlot = null;
+
+        // Remove highlight
+        document.querySelectorAll(".filter-card").forEach((c) => {
+          (c as HTMLElement).style.cursor = "";
+          (c as HTMLElement).style.outline = "";
+        });
+      }
+    });
+  });
+
+  // Close compare panel
+  const closeBtn = document.getElementById("card-compare-close");
+  if (closeBtn) {
+    closeBtn.addEventListener("click", closeComparePanel);
+  }
+
+  // Open compare panel when any compare button is clicked
+  document.querySelectorAll(".card-compare-add").forEach((btn) => {
+    btn.addEventListener("click", openComparePanel);
+  });
 </script>

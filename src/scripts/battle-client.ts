@@ -1741,6 +1741,11 @@ function showCustomCardPreview(cardId: string, returnTarget?: HTMLElement) {
     else dialog.close();
     if (returnTarget?.isConnected) window.requestAnimationFrame(() => returnTarget.focus());
   };
+  if (isOverlay) {
+    host.addEventListener("click", (event) => {
+      if (event.target === host) close();
+    });
+  }
   const renderPreview = (mode: CardDetailMode = "detail", form: BodyDetailForm = "normal") => {
     const view = resolveCardDetail({ definition: card, visible: true, initialForm: form }, form);
     host.innerHTML = mode === "art"
@@ -1791,8 +1796,8 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
           ${snapshot?.game.currentPlayerId === player.id ? `<span class="battle-turn-badge">${isMe && isMyTurn ? "你的回合" : "当前回合"}</span>` : ""}
         </div>
         <div class="battle-counters">
-          ${renderCounter("体力", player.health || 0, "health:set", player.id, true)}
-          ${renderCounter(extraFormLabel, megaText, "megaProgress:set", player.id, isMe, max)}
+          ${renderCounter("体力", player.health || 0, "health:set", player.id, true, 7, "hp")}
+          ${renderCounter(extraFormLabel, megaText, "megaProgress:set", player.id, isMe, max, "progress")}
         </div>
       </header>
       <div class="battle-player__field">
@@ -1834,11 +1839,136 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
   `;
 }
 
-function renderCounter(label: string, value: string | number, command: string, playerId: string, editable: boolean, max?: number) {
+function renderCounter(label: string, value: string | number, command: string, playerId: string, editable: boolean, max?: number, type: "hp" | "progress" = "hp") {
+  if (type === "progress") {
+    return renderProgressCounter(label, value, command, playerId, editable, max);
+  }
+  return renderHpCounter(label, value, command, playerId, editable, max);
+}
+
+function renderHpCounter(label: string, value: string | number, command: string, playerId: string, editable: boolean, max?: number) {
+  const numericRaw = typeof value === "number" ? value : Number(String(value).split("/")[0]);
+  const maxHp = max || 7;
+  // clamp numeric to 0..maxHp
+  const numeric = Math.max(0, Math.min(maxHp, numericRaw));
+  const percent = maxHp > 0 ? (numeric / maxHp) * 100 : 0;
+  // 严格按 <25% 判断低血量，25%-50% 为中血量，>50% 为高血量
+  const isLow = percent < 25;
+  const isMedium = percent >= 25 && percent <= 50;
+  const isHigh = percent > 50;
+
+  const counterClass = isLow ? "is-low-hp" : "";
+
+  // 生成命晶图标
+  const crystals = [];
+  for (let i = 0; i < maxHp; i++) {
+    if (i < numeric) {
+      // 剩余命晶：根据血量百分比选择图标
+      const iconClass = isLow ? "battle-counter__hp-icon--low" : isMedium ? "battle-counter__hp-icon--medium" : "battle-counter__hp-icon--high";
+      const pulseClass = isLow ? "battle-counter__hp-icon--pulse" : "";
+      crystals.push(`<img src="/battle-icons/health/health-crystal-${isLow ? 'low' : isMedium ? 'medium' : 'high'}.png" alt="" aria-hidden="true" class="battle-counter__hp-icon ${iconClass} ${pulseClass}" />`);
+    } else {
+      // 已损失命晶
+      crystals.push(`<img src="/battle-icons/health/health-crystal-empty.png" alt="" aria-hidden="true" class="battle-counter__hp-icon battle-counter__hp-icon--empty" />`);
+    }
+  }
+
+  return `<div class="battle-counter ${counterClass}" aria-label="${label} ${numeric} / ${maxHp}">
+    <span>${label}</span>
+    <div class="battle-counter__hp-icons">
+      ${crystals.join("")}
+    </div>
+    <div class="battle-counter__hp-value">
+      <span class="battle-counter__hp-current">${numeric}</span>
+      <span class="battle-counter__hp-max">/ ${maxHp}</span>
+    </div>
+    ${editable ? `<div class="battle-counter__actions">
+      <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric - 1}" aria-label="${label}减一">−</button>
+      <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric + 1}" aria-label="${label}加一">＋</button>
+      <button type="button" data-counter-set="${command}" data-player="${playerId}" data-current="${numeric}" data-label="${label}">设置</button>
+    </div>` : ""}
+  </div>`;
+}
+
+function renderProgressCounter(label: string, value: string | number, command: string, playerId: string, editable: boolean, max?: number) {
   const numeric = typeof value === "number" ? value : Number(String(value).split("/")[0]);
-  const ready = max !== undefined && numeric >= max;
-  return `<div class="battle-counter ${ready ? "is-ready" : ""}">
-    <span>${label}</span><strong>${value}</strong>
+  const maxProgress = max || 6;
+  const percent = maxProgress > 0 ? (numeric / maxProgress) * 100 : 0;
+  const ready = numeric >= maxProgress;
+
+  // 根据进度百分比确定状态
+  // 低进度：0 或低于 33%
+  // 中进度：33% 到 66%
+  // 高进度：66% 到未满
+  // 就绪：>= maxProgress
+  let stateClass: string;
+  if (ready) {
+    stateClass = "is-ready";
+  } else if (percent >= 66) {
+    stateClass = "is-high";
+  } else if (percent >= 33) {
+    stateClass = "is-medium";
+  } else {
+    stateClass = "is-low";
+  }
+
+  // 根据额外形态类型确定图标类型
+  // Mega: 菱形能量晶核
+  // Z招式: 星形棱片
+  const isMega = label === "Mega";
+  const isZMove = label === "Z招式";
+  const iconType = isMega ? "mega" : isZMove ? "z-move" : "mega"; // 默认使用 mega
+  const iconShape = isMega ? "crystal" : isZMove ? "crystal" : "crystal"; // 都使用 crystal 命名
+
+  // 生成就绪提示文本，使用传入的 label（即 extraFormLabel）
+  const readyText = ready ? `可 ${label}` : "";
+
+  // SVG progress ring calculations
+  const radius = 20;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percent / 100) * circumference;
+
+  // Generate milestones，使用图标替代普通节点
+  const milestones = Array.from({ length: maxProgress }, (_, i) => {
+    let iconState = "";
+    let pulseClass = "";
+
+    if (ready) {
+      // 就绪状态：所有节点都是就绪状态
+      iconState = "ready";
+    } else if (i < numeric) {
+      // 已完成的节点：根据当前进度状态着色
+      iconState = stateClass === "is-low" ? "low" : stateClass === "is-medium" ? "medium" : "high";
+    } else if (i === numeric) {
+      // 当前节点
+      iconState = stateClass === "is-low" ? "low" : stateClass === "is-medium" ? "medium" : "high";
+      pulseClass = stateClass === "is-low" ? "battle-counter__progress-icon--pulse" : "";
+    } else {
+      // 未完成节点
+      iconState = "empty";
+    }
+
+    const iconPath = iconState === "empty"
+      ? `/battle-icons/${iconType}/${iconShape}-low.png`
+      : `/battle-icons/${iconType}/${iconShape}-${iconState}.png`;
+
+    return `<img src="${iconPath}" alt="" aria-hidden="true" class="battle-counter__progress-icon battle-counter__progress-icon--${iconState} ${pulseClass}" />`;
+  }).join("");
+
+  return `<div class="battle-counter ${stateClass} battle-counter--${iconType}">
+    <span>${label}</span>
+    <div class="battle-counter__progress-ring">
+      <svg viewBox="0 0 44 44">
+        <circle class="ring-bg" cx="22" cy="22" r="${radius}" />
+        <circle class="ring-fill ${stateClass}" cx="22" cy="22" r="${radius}"
+                stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" />
+      </svg>
+      <span class="battle-counter__progress-value">${numeric}/${maxProgress}</span>
+    </div>
+    <div class="battle-counter__progress-icons">
+      ${milestones}
+    </div>
+    ${ready ? `<div class="battle-counter__ready-text">${escapeHtml(readyText)}</div>` : ""}
     ${editable ? `<div class="battle-counter__actions">
       <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric - 1}" aria-label="${label}减一">−</button>
       <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric + 1}" aria-label="${label}加一">＋</button>

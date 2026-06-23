@@ -311,8 +311,8 @@ function renderCharacter(card) {
     <text x="76" y="104" text-anchor="middle" font-size="29" font-weight="900" fill="#fff0a6">${escapeXml(card.mainRole.slice(0, 1))}</text>
     ${prefix ? verticalText(prefix, 76, 206, 25, { fill: roleTrimColor, stroke: "#160b09", strokeWidth: 4, gap: 36 }) : ""}
     ${verticalText(suffix, 76, prefix ? 396 : 248, suffix.length > 4 ? 36 : 42, { fill: "#ffffff", stroke: roleDarkColor, strokeWidth: 5, gap: suffix.length > 4 ? 46 : 58 })}
-    <rect x="48" y="846" width="56" height="86" fill="rgba(255,255,255,0.08)" stroke="${roleTrimColor}" stroke-opacity="0.68"/>
-    ${verticalText(card.deck || "通用", 77, 876, 17, { fill: roleTrimColor, gap: 21 })}
+    <rect x="55" y="868" width="42" height="48" rx="3" fill="rgba(255,255,255,0.08)" stroke="${roleTrimColor}" stroke-opacity="0.68"/>
+    ${verticalText(card.source || "通用", 76, 896, 17, { fill: roleTrimColor, gap: 20 })}
     <text x="676" y="104" text-anchor="middle" writing-mode="tb" font-size="24" font-weight="900" fill="${roleTrimColor}" stroke="#0b0b12" stroke-width="4" paint-order="stroke">${escapeXml(card.mainRole)}</text>
     <g transform="translate(150 678)">${tagsSvg(card.tags, 0, 0, { fill: "rgba(0,0,0,0.45)", stroke: "rgba(255,255,255,0.32)", max: 4 })}</g>
     <g filter="url(#shadow)">

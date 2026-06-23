@@ -15,6 +15,14 @@
     "body_aggro_001": {
       "front": "weixiao-body",
       "extra": "weixiao-body-mega"
+    },
+    "body_dispatch_001": {
+      "front": "aichitun-body",
+      "extra": "aichitun-body-z-move"
+    },
+    "body_ambush_001": {
+      "front": "xiaoapan-body",
+      "extra": "xiaoapan-body-z-move"
     }
   },
   "characters": {

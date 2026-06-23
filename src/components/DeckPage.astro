@@ -54,6 +54,64 @@ const selfRestCount = resolved.characters.filter((card) => card.cost.type === "�
 
     {guide && <DeckPlayGuide guide={guide} />}
 
+    {guide && (guide.coreCards || guide.replaceableCards || guide.replaceSuggestions) && (
+      <section class="hud-panel mb-10" style="padding: 1.25rem;">
+        <h2 class="section-heading" style="font-size: 1.1rem;">构筑建议</h2>
+        <div class="grid md:grid-cols-2 gap-4">
+          {guide.coreCards && guide.coreCards.length > 0 && (
+            <div>
+              <h3 class="font-bold text-sm mb-2" style="color: var(--color-text-highlight);">核心卡（不能替换）</h3>
+              <ul class="space-y-1">
+                {guide.coreCards.map((cardId) => {
+                  const card = resolved.characters.find((c) => c.id === cardId);
+                  return card ? (
+                    <li class="skill-text flex items-center gap-2">
+                      <span class="tag-pill tag-pill--role" style={`--role-color: var(--role-${card.mainRole === "强攻" ? "attack" : card.mainRole === "防御" ? "defend" : card.mainRole === "资源" ? "resource" : card.mainRole === "控制" ? "control" : card.mainRole === "支援" ? "support" : "ambush"});`}>{card.mainRole}</span>
+                      <span class="font-bold">{card.name}</span>
+                      <span class="text-xs" style="color: var(--text-muted);">— {card.skillName}</span>
+                    </li>
+                  ) : null;
+                })}
+              </ul>
+            </div>
+          )}
+          {guide.replaceableCards && guide.replaceableCards.length > 0 && (
+            <div>
+              <h3 class="font-bold text-sm mb-2" style="color: var(--text-muted);">可替换卡</h3>
+              <ul class="space-y-1">
+                {guide.replaceableCards.map((cardId) => {
+                  const card = resolved.characters.find((c) => c.id === cardId);
+                  return card ? (
+                    <li class="skill-text flex items-center gap-2">
+                      <span class="tag-pill tag-pill--role" style={`--role-color: var(--role-${card.mainRole === "强攻" ? "attack" : card.mainRole === "防御" ? "defend" : card.mainRole === "资源" ? "resource" : card.mainRole === "控制" ? "control" : card.mainRole === "支援" ? "support" : "ambush"});`}>{card.mainRole}</span>
+                      <span>{card.name}</span>
+                      <span class="text-xs" style="color: var(--text-muted);">— {card.skillName}</span>
+                    </li>
+                  ) : null;
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+        {guide.replaceSuggestions && guide.replaceSuggestions.length > 0 && (
+          <div class="mt-4">
+            <h3 class="font-bold text-sm mb-2" style="color: var(--accent-info);">替换建议</h3>
+            <ul class="space-y-2">
+              {guide.replaceSuggestions.map((suggestion) => {
+                const card = resolved.characters.find((c) => c.id === suggestion.card);
+                return (
+                  <li class="skill-text flex items-start gap-2">
+                    <span class="font-bold" style="color: var(--text-gold);">{card ? card.name : suggestion.card}</span>
+                    <span>— {suggestion.reason}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </section>
+    )}
+
     <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
       <div class="stat-hud__item">
         <div class="stat-hud__value" style="color: var(--color-role-attack)">{resolved.body?.hp ?? "?"}</div>

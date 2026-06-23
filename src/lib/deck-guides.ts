@@ -5,6 +5,9 @@ export interface DeckGuide {
   mega: string;
   extraFormLabel?: string;
   risk: string;
+  coreCards?: string[];
+  replaceableCards?: string[];
+  replaceSuggestions?: { card: string; reason: string }[];
 }
 
 export const deckGuides: Record<string, DeckGuide> = {
@@ -18,6 +21,12 @@ export const deckGuides: Record<string, DeckGuide> = {
     ],
     mega: "Mega 后每回合前 2 次伤害都能换牌差，并获得更多【杀】次数；进入这个阶段后，目标是持续给对手血线压力，而不是单次 All in。",
     risk: "这套牌会主动卖血和退场角色。若前两轮没打出伤害，先用控制/资源角色补手牌，再寻找必中窗口。",
+    coreCards: ["char_006_weixiaokele_ninja", "char_015_weixiaokele_lobbyist", "char_008_baizi_hitman"],
+    replaceableCards: ["char_002_weixiaokele_assassin", "char_007_baizi_ninja", "char_014_baizi_party-duck"],
+    replaceSuggestions: [
+      { card: "char_075_baizi_weilong", reason: "增加必中能力，对抗高闪避对手" },
+      { card: "char_089_kabishou_canadian", reason: "增加资源获取，补充手牌" },
+    ],
   },
   deck_mizai_001: {
     title: "情报压制路线",
@@ -29,6 +38,12 @@ export const deckGuides: Record<string, DeckGuide> = {
     ],
     mega: "Mega 后每回合最多触发两次，每次都能令对手展示全部手牌、精准弃置1张并摸1张。尽量把两次观看安排在同一回合，迅速扩大牌差。",
     risk: "伤害爆发不如爆杀流，若只看不打会给对手喘息。需要在掌握情报后立刻接清算或压血角色。",
+    coreCards: ["char_036_keke_spy", "char_040_fengyaojing_detective", "char_044_arthur_sheriff"],
+    replaceableCards: ["char_041_baizi_watcher", "char_046_fengyaojing_watcher"],
+    replaceSuggestions: [
+      { card: "char_047_miaosila_ironclad", reason: "增加伤害能力，强化杀不可闪" },
+      { card: "char_050_dong_bomber", reason: "增加爆发伤害，弃黑色牌连锁" },
+    ],
   },
   deck_combo_001: {
     title: "锦囊循环路线",
@@ -40,6 +55,12 @@ export const deckGuides: Record<string, DeckGuide> = {
     ],
     mega: "Mega 后非伤害锦囊会带来牌顶筛选和额外摸牌，适合把牌堆变成自己的资源池，慢慢滚出优势。",
     risk: "过度依赖锦囊密度。若手牌断锦囊，先用角色技能修牌堆或回收，不要硬打低收益回合。",
+    coreCards: ["char_056_huihuan_watcher", "char_057_guamao_silent-hunter", "char_058_xiangcai_politician"],
+    replaceableCards: ["char_060_linglong_defect-robot", "char_067_xiangcai_neo"],
+    replaceSuggestions: [
+      { card: "char_063_dong_assassin", reason: "增加伤害能力，锦囊结算后造成伤害" },
+      { card: "char_075_baizi_weilong", reason: "增加主动进攻能力" },
+    ],
   },
   deck_trans_001: {
     title: "拟态补位路线",
@@ -51,6 +72,12 @@ export const deckGuides: Record<string, DeckGuide> = {
     ],
     mega: "Mega 后每回合最多触发两次临时补位，且以此法上阵的角色首次发动【休整X】技能时费用降低1，最低为0；【休整自身】与【退场】费用不受影响。",
     risk: "角色区已满或角色牌堆为空时无法触发补位。先安排休整腾出位置，不要为了转化而转化。",
+    coreCards: ["char_055_xiaoapan_judge", "char_013_weixiaokele_morphling", "char_027_weixiaokele_medium"],
+    replaceableCards: ["char_026_miaosila_neo", "char_014_baizi_party-duck"],
+    replaceSuggestions: [
+      { card: "char_079_xiaoka_visionary-painter", reason: "增加转化能力，弃牌视为使用基本牌" },
+      { card: "char_075_baizi_weilong", reason: "增加主动进攻能力" },
+    ],
   },
   deck_dispatch_001: {
     title: "洞察换阵路线",
@@ -63,6 +90,12 @@ export const deckGuides: Record<string, DeckGuide> = {
     mega: "Z招式每局限发动一次。它不会替换【洞察全局】，而是在出牌阶段一次性刷新阵容，并让一张新角色获得【休整X】减费。",
     extraFormLabel: "Z招式节点",
     risk: "本体与Z招式都不直接造成伤害，需要保留【杀】和强攻角色完成收尾。换阵前还要确认角色牌堆数量足够。",
+    coreCards: ["char_081_aichitun_morphling", "char_082_aichitun_embalmer", "char_084_keke_watcher"],
+    replaceableCards: ["char_002_weixiaokele_assassin", "char_007_baizi_ninja"],
+    replaceSuggestions: [
+      { card: "char_075_baizi_weilong", reason: "增加主动进攻能力，视为打出杀" },
+      { card: "char_087_qindi_vigilante", reason: "增加受伤反击能力" },
+    ],
   },
   deck_blood_001: {
     title: "红黑逆命路线",
@@ -75,6 +108,12 @@ export const deckGuides: Record<string, DeckGuide> = {
     mega: "完成4次本体判定后进入Z就绪。Z招式每局限一次，可按已损失体力从共用弃牌区回收至多3张不同名称的牌并回复1点体力。",
     extraFormLabel: "Z招式节点",
     risk: "受到伤害和失去体力不同。主动失去体力能压低血线，但不会触发本体判定；面对高额爆发时要预留防御。",
+    coreCards: ["char_087_qindi_vigilante", "char_088_horus-lupercal_serial-killer", "char_089_kabishou_canadian"],
+    replaceableCards: ["char_020_baizi_ironclad", "char_022_weixiaokele_goblin"],
+    replaceSuggestions: [
+      { card: "char_075_baizi_weilong", reason: "增加主动进攻能力" },
+      { card: "char_094_daidaishou_astral", reason: "增加改判能力，控制判定结果" },
+    ],
   },
   deck_ambush_001: {
     title: "幽幕连伏路线",
@@ -87,6 +126,12 @@ export const deckGuides: Record<string, DeckGuide> = {
     mega: "累计发动4次伏击角色技能后进入Z就绪。发动后直到下个回合开始，可至多两次从退场区直接发动满足时机的伏击技能。",
     extraFormLabel: "Z招式节点",
     risk: "对手可以绕开公开的触发条件。不要过早明置伏击，也不要让角色区被非伏击角色长期占满。",
+    coreCards: ["char_104_player_falcon", "char_107_daidaishou_engineer", "char_108_tutu_birdwatcher"],
+    replaceableCards: ["char_099_kabishou_invisible-duck", "char_102_miaosila_dodo"],
+    replaceSuggestions: [
+      { card: "char_075_baizi_weilong", reason: "增加主动进攻能力" },
+      { card: "char_087_qindi_vigilante", reason: "增加受伤反击能力" },
+    ],
   },
   deck_defense_001: {
     title: "不灭守势路线",
@@ -99,6 +144,12 @@ export const deckGuides: Record<string, DeckGuide> = {
     mega: "Z就绪后，当一次伤害将令体力降至0或以下时，可防止该伤害并回复2点体力。它不能阻止直接失去体力。",
     extraFormLabel: "Z招式节点",
     risk: "这套牌主动进攻较弱。防住关键伤害后要利用牌差反击，避免只防守却不给对手血线压力。",
+    coreCards: ["char_016_baizi_gravy", "char_025_baizi_high-priest", "char_109_qindi_bodyguard"],
+    replaceableCards: ["char_111_horus-lupercal_adventurer", "char_112_miaosila_locksmith"],
+    replaceSuggestions: [
+      { card: "char_075_baizi_weilong", reason: "增加主动进攻能力" },
+      { card: "char_087_qindi_vigilante", reason: "增加受伤反击能力" },
+    ],
   },
 };
 

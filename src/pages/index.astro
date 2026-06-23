@@ -54,6 +54,36 @@ const collections = [
   </section>
 
   <section class="page-wrap py-4">
+    <h2 class="section-heading">新手快速开始</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="hud-panel" style="padding: 1.25rem; border-top: 2px solid var(--color-role-defend);">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="stat-hud__value" style="font-size: 1.5rem; color: var(--color-role-defend);">01</span>
+          <span class="font-bold" style="color: var(--color-role-defend);">先看规则</span>
+        </div>
+        <p class="skill-text">花 5 分钟了解基本玩法：本体承伤、角色暗置、休整发动、翻面激活额外形态。</p>
+        <a href="/rules" class="btn btn--ghost mt-3">查看规则 →</a>
+      </div>
+      <div class="hud-panel" style="padding: 1.25rem; border-top: 2px solid var(--color-text-highlight);">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="stat-hud__value" style="font-size: 1.5rem; color: var(--color-text-highlight);">02</span>
+          <span class="font-bold" style="color: var(--color-text-highlight);">选一套预组</span>
+        </div>
+        <p class="skill-text">推荐从「上头组」开始：简单直接，找杀→强化→压血，适合新手理解核心循环。</p>
+        <a href="/decks/aggro" class="btn btn--ghost mt-3">查看上头组 →</a>
+      </div>
+      <div class="hud-panel" style="padding: 1.25rem; border-top: 2px solid var(--color-aggro);">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="stat-hud__value" style="font-size: 1.5rem; color: var(--color-aggro);">03</span>
+          <span class="font-bold" style="color: var(--color-aggro);">开始对战</span>
+        </div>
+        <p class="skill-text">创建房间，邀请朋友，实战学习。系统不判定规则合法性，双方手动结算。</p>
+        <a href="/play" class="btn btn--primary mt-3">开始对战 →</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-wrap py-4">
     <h2 class="section-heading">卡牌收藏册</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {collections.map((item) => (

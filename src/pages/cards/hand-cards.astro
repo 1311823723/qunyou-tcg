@@ -8,6 +8,21 @@ const total = getHandCardTotal();
 const suitDist = getSuitDistribution();
 const basics = allHandCards.filter((c) => c.handType === "基础");
 const tricks = allHandCards.filter((c) => c.handType === "锦囊");
+
+// 计算牌堆概率
+const handProbabilities = allHandCards.map((card) => {
+  const count = card.cards.length;
+  const probability = (count / total * 100).toFixed(1);
+  const draw5 = ((1 - Math.pow((total - count) / total, 5)) * 100).toFixed(1);
+  const draw2 = ((1 - Math.pow((total - count) / total, 2)) * 100).toFixed(1);
+  return {
+    ...card,
+    count,
+    probability,
+    draw5,
+    draw2,
+  };
+}).sort((a, b) => b.count - a.count);
 ---
 <Layout title="手牌">
   <div class="page-wrap">
@@ -28,6 +43,36 @@ const tricks = allHandCards.filter((c) => c.handType === "锦囊");
           );
         })}
       </div>
+    </div>
+
+    <div class="hud-panel mb-8" style="padding: 1rem 1.2rem;">
+      <div class="text-xs mb-3" style="color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 0.12em;">牌堆概率计算器</div>
+      <p class="skill-text mb-4">计算在共用 {total} 张手牌牌堆中，各牌的摸取概率。</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm" style="border-collapse: separate; border-spacing: 0;">
+          <thead>
+            <tr style="background: rgba(0,0,0,0.3);">
+              <th class="text-left p-2 rounded-tl-lg" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem;">牌名</th>
+              <th class="text-center p-2" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem;">数量</th>
+              <th class="text-center p-2" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem;">单张概率</th>
+              <th class="text-center p-2" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem;">首摸5张至少1张</th>
+              <th class="text-center p-2 rounded-tr-lg" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem;">每回合摸2张至少1张</th>
+            </tr>
+          </thead>
+          <tbody>
+            {handProbabilities.map((card, index) => (
+              <tr class="hover:bg-white/5 transition-colors" style={index % 2 === 0 ? "background: rgba(0,0,0,0.15);" : ""}>
+                <td class="p-2 font-bold" style="color: var(--text-primary);">{card.name}</td>
+                <td class="p-2 text-center font-mono" style="color: var(--text-gold);">{card.count}</td>
+                <td class="p-2 text-center font-mono" style="color: var(--text-secondary);">{card.probability}%</td>
+                <td class="p-2 text-center font-mono" style="color: var(--accent-aggro-hot);">{card.draw5}%</td>
+                <td class="p-2 text-center font-mono" style="color: var(--accent-info);">{card.draw2}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs mt-3" style="color: var(--text-faint);">概率基于随机抽取计算，实际游戏会受弃牌、检索等操作影响。</p>
     </div>
 
     {basics.length > 0 && (
