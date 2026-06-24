@@ -2,7 +2,7 @@
 import Layout from "../../components/Layout.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import BodyCard from "../../components/BodyCard.astro";
-import { allBodies, EXTRA_FORM_LABELS } from "../../lib/cards";
+import { allBodies } from "../../lib/cards";
 ---
 <Layout title="本体牌">
   <div class="page-wrap max-w-3xl">
@@ -10,44 +10,6 @@ import { allBodies, EXTRA_FORM_LABELS } from "../../lib/cards";
     <div class="hud-panel mb-6 scroll-reveal" style="padding: 1rem 1.2rem;">
       <p class="skill-text">本体牌是每局公开的核心身份。它承受伤害，定义打法方向。每张本体最多拥有一种额外形态（Mega / Z招式 等），写在卡牌背面，翻面即激活形态。</p>
     </div>
-
-    <section class="mb-8 scroll-reveal">
-      <h2 class="section-heading">额外形态对比表</h2>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm" style="border-collapse: separate; border-spacing: 0;">
-          <thead>
-            <tr style="background: rgba(0,0,0,0.3);">
-              <th class="text-left p-2 rounded-tl-lg" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem;">本体</th>
-              <th class="text-center p-2" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem;">流派</th>
-              <th class="text-center p-2" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem;">类型</th>
-              <th class="text-center p-2" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem;">触发条件</th>
-              <th class="text-center p-2 rounded-tr-lg" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem;">额外技能</th>
-            </tr>
-          </thead>
-          <tbody>
-            {allBodies.map((body, index) => (
-              <tr class="hover:bg-white/5 transition-colors" style={index % 2 === 0 ? "background: rgba(0,0,0,0.15);" : ""}>
-                <td class="p-2 font-bold" style="color: var(--text-primary);">{body.name}</td>
-                <td class="p-2 text-center" style="color: var(--text-secondary);">{body.archetype}</td>
-                <td class="p-2 text-center">
-                  {body.extraForm ? (
-                    <span class="tag-pill tag-pill--mech">{EXTRA_FORM_LABELS[body.extraForm.type] || body.extraForm.type}</span>
-                  ) : (
-                    <span class="text-xs" style="color: var(--text-faint);">无</span>
-                  )}
-                </td>
-                <td class="p-2 text-center" style="color: var(--text-muted); font-size: 0.75rem;">
-                  {body.extraForm?.condition || "—"}
-                </td>
-                <td class="p-2 text-center" style="color: var(--text-gold); font-size: 0.75rem;">
-                  {body.extraForm?.skillName || "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
 
     <div class="grid gap-6">
       {allBodies.map((b, i) => (
