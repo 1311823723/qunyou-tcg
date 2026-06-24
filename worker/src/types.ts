@@ -75,6 +75,7 @@ export interface RoomState {
   lastActivityAt: number;
   started: boolean;
   players: PlayerState[];
+  spectators: string[];
   handDeck: CardInstance[];
   handDiscard: CardInstance[];
   resolving: CardInstance[];
@@ -90,6 +91,7 @@ export interface RoomState {
 
 export interface SocketAttachment {
   playerId: string;
+  isSpectator?: boolean;
 }
 
 export interface ClientMessage {

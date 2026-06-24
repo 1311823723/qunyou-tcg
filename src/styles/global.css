@@ -1007,6 +1007,8 @@ strong { color: var(--text-gold); font-weight: 800; }
 .filter-group__label { margin-right: 0.12rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.66rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
 .filter-group--roles { padding-top: 0.05rem; }
 .filter-group--roles .filter-chip { min-width: 3.05rem; justify-content: center; padding-inline: 0.86rem; }
+.filter-group--decks { margin-top: 0.58rem; padding-top: 0.66rem; border-top: 1px solid var(--border-soft); }
+.filter-group--decks .filter-chip { min-width: 3.05rem; justify-content: center; padding-inline: 0.86rem; }
 .filter-group--tags { margin-top: 0.58rem; padding-top: 0.66rem; border-top: 1px solid var(--border-soft); }
 .filter-more { margin-top: 0.78rem; }
 .filter-more__summary { display: inline-flex; align-items: center; gap: 0.62rem; min-height: 2.15rem; padding: 0.36rem 0.72rem; border: 1px solid var(--border-soft); border-radius: 999px; color: var(--text-secondary); background: rgba(255,255,255,0.045); font-size: 0.74rem; font-weight: 900; cursor: pointer; transition: 0.16s ease; }
@@ -1176,8 +1178,16 @@ strong { color: var(--text-gold); font-weight: 800; }
 .deck-hero__blurb { max-width: 42rem; margin-top: 1rem; color: var(--text-secondary); font-size: 0.98rem; line-height: 1.78; }
 .deck-hero__risk { max-width: 40rem; margin-top: 0.9rem; padding: 0.68rem 0.88rem; border: 1px solid color-mix(in srgb, var(--deck-accent, #ff5748) 34%, transparent); border-radius: 12px; color: var(--deck-soft, #ffb0a4); background: color-mix(in srgb, var(--deck-accent, #ff5748) 10%, transparent); font-size: 0.82rem; line-height: 1.6; }
 .combo-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.55rem; padding: 1rem; border: 1px solid rgba(255,217,138,0.22); border-radius: 16px; background: rgba(0,0,0,0.28); }
-.combo-flow__step { padding: 0.32rem 0.56rem; border: 1px solid rgba(255,90,53,0.24); border-radius: 8px; color: var(--text-gold); background: rgba(255,90,53,0.12); font-size: 0.82rem; font-weight: 900; }
-.combo-flow__arrow { color: var(--text-muted); }
+.combo-flow__node { position: relative; display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; border: 1px solid rgba(255,90,53,0.24); border-radius: 10px; background: linear-gradient(135deg, rgba(255,90,53,0.12), rgba(255,90,53,0.06)); transition: all 0.2s ease; }
+.combo-flow__node:hover { border-color: rgba(255,90,53,0.5); box-shadow: 0 0 12px rgba(255,90,53,0.2); }
+.combo-flow__node--mega { border-color: rgba(157,108,255,0.35); background: linear-gradient(135deg, rgba(157,108,255,0.15), rgba(157,108,255,0.08)); }
+.combo-flow__node--mega:hover { border-color: rgba(157,108,255,0.6); box-shadow: 0 0 12px rgba(157,108,255,0.25); }
+.combo-flow__step { color: var(--text-gold); font-size: 0.82rem; font-weight: 900; }
+.combo-flow__node--mega .combo-flow__step { color: var(--accent-mega-purple); }
+.combo-flow__number { display: flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; background: rgba(255,90,53,0.25); color: var(--text-gold); font-size: 0.65rem; font-weight: 900; }
+.combo-flow__node--mega .combo-flow__number { background: rgba(157,108,255,0.3); color: var(--accent-mega-purple); }
+.combo-flow__connector { display: flex; align-items: center; }
+.combo-flow__arrow { color: var(--text-muted); font-size: 1.2rem; }
 .combo-flow__kill { color: #ff6a52; font-weight: 900; }
 .combo-flow__mega { color: var(--accent-mega-purple); font-weight: 900; }
 .deck-guide {

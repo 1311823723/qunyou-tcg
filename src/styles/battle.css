@@ -93,6 +93,33 @@
 .battle-custom-modal__text p { color: var(--text-secondary); line-height: 1.68; }
 .battle-custom-picker { display: grid; gap: 0.75rem; }
 
+/* 观战模式样式 */
+.battle-spectator-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid rgba(255, 217, 138, 0.3);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(255, 217, 138, 0.1), rgba(255, 217, 138, 0.05));
+  color: var(--text-gold);
+  font: 900 0.85rem var(--font-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* 观战模式下隐藏操作按钮 */
+[data-spectator="true"] .battle-counter__actions,
+[data-spectator="true"] .battle-counter__activate-btn,
+[data-spectator="true"] .battle-lobby__controls,
+[data-spectator="true"] .battle-lobby__ready-bar,
+[data-spectator="true"] .battle-toolbar,
+[data-spectator="true"] [data-command="body:flip"],
+[data-spectator="true"] [data-command="turn:end"] {
+  display: none !important;
+}
+
 /* 预组详情弹窗样式 */
 .battle-dialog--deck-detail .battle-card-menu {
   width: min(100%, 56rem);
@@ -482,18 +509,28 @@
   text-shadow: 0 0 8px rgba(216,183,92,0.5);
 }
 
+/* 计数器包装器 */
+.battle-counter-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.battle-counter-wrapper.is-ready {
+  gap: 0.75rem;
+}
+
 /* 就绪状态显示 */
 .battle-counter__ready-display {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  margin: 0.5rem 0;
+  margin: 0.25rem 0;
 }
 
 .battle-counter__ready-icon {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   filter: drop-shadow(0 0 12px rgba(216,183,92,0.6));
   animation: ready-pulse 2s infinite;
@@ -506,21 +543,24 @@
 
 .battle-counter__ready-value {
   color: var(--accent-mega);
-  font: 900 1.2rem var(--font-display);
+  font: 900 1rem var(--font-display);
   text-shadow: 0 0 12px rgba(216,183,92,0.5);
 }
 
 /* 激活按钮 */
 .battle-counter__activate-btn {
-  display: block;
-  width: 100%;
-  padding: 0.6rem 1rem;
-  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  padding: 0.5rem 0.3rem;
+  min-height: 48px;
   border: 2px solid var(--accent-mega);
   border-radius: 8px;
   background: linear-gradient(135deg, rgba(216,183,92,0.2), rgba(216,183,92,0.1));
   color: var(--accent-mega);
-  font: 900 0.9rem var(--font-display);
+  font: 900 0.75rem var(--font-display);
   cursor: pointer;
   transition: all 0.2s ease;
   text-transform: uppercase;

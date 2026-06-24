@@ -13,8 +13,15 @@ const { guide } = Astro.props;
     <div class="deck-guide__flow">
       {guide.flow.map((step, index) => (
         <>
-          <span class={index === guide.flow.length - 1 ? "combo-flow__mega" : "combo-flow__step"}>{step}</span>
-          {index < guide.flow.length - 1 && <span class="combo-flow__arrow">→</span>}
+          <div class={index === guide.flow.length - 1 ? "combo-flow__node combo-flow__node--mega" : "combo-flow__node"}>
+            <span class="combo-flow__step">{step}</span>
+            <span class="combo-flow__number">{index + 1}</span>
+          </div>
+          {index < guide.flow.length - 1 && (
+            <div class="combo-flow__connector">
+              <span class="combo-flow__arrow">→</span>
+            </div>
+          )}
         </>
       ))}
     </div>

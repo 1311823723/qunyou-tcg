@@ -69,6 +69,21 @@ const featuredTheme = featuredDeck?.theme === "aggro" ? "deck-theme" : `deck-the
           <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
         </form>
       </section>
+
+      <section class="hud-panel battle-entry__panel battle-entry__panel--spectate">
+        <div class="battle-entry__panel-heading">
+          <span class="battle-entry__step">03</span>
+          <div><span>观战模式</span><h2>观看对战</h2></div>
+        </div>
+        <p class="battle-entry__panel-copy">输入房间码观战对局，观战者不能进行操作，只能观看公开信息。</p>
+        <form id="spectate-room-form" class="battle-form">
+          <label>房间码
+            <input name="roomCode" class="battle-room-input" minlength="6" maxlength="6" required autocomplete="off" placeholder="6 位房间码" inputmode="text" autocapitalize="characters" spellcheck="false" />
+          </label>
+          <button class="btn btn--ghost battle-entry__submit" type="submit"><span>观战</span><b>→</b></button>
+          <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
+        </form>
+      </section>
     </div>
 
     <section class="battle-entry__notes">
@@ -234,5 +249,18 @@ const featuredTheme = featuredDeck?.theme === "aggro" ? "deck-theme" : `deck-the
     setFormStatus(form, "资料已保存，正在进入准备室。", "loading");
     savePending(nickname, loadout);
     location.href = `/play/room?code=${code}`;
+  });
+
+  document.querySelector<HTMLFormElement>("#spectate-room-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const code = String(payload.roomCode || "").trim().toUpperCase();
+    if (!/^[A-Z0-9]{6}$/.test(code)) {
+      setFormStatus(form, "请输入 6 位房间码（字母或数字）。", "error");
+      return;
+    }
+    setFormStatus(form, "正在进入观战模式。", "loading");
+    location.href = `/play/room?code=${code}&spectate=true`;
   });
 </script>

@@ -201,6 +201,7 @@ export class BattleRoom extends DurableObject<Env> {
       lastActivityAt: now,
       started: false,
       players: [this.newPlayer("p1", token, nickname, deckId, customDeck)],
+      spectators: [],
       handDeck: [],
       handDiscard: [],
       resolving: [],
@@ -243,13 +244,29 @@ export class BattleRoom extends DurableObject<Env> {
     if (!this.state) return json({ error: "房间不存在或已经过期。" }, { status: 404 });
     const url = new URL(request.url);
     const token = cleanText(url.searchParams.get("token"), 80);
-    const player = this.state.players.find((item) => item.token === token);
-    if (!player) return json({ error: "请先通过加入页面进入房间。" }, { status: 401 });
+    const spectator = url.searchParams.get("spectator") === "true";
+
+    let playerId: string;
+    let isSpectator = false;
+
+    if (spectator) {
+      // 观战者连接
+      playerId = `spectator-${crypto.randomUUID()}`;
+      isSpectator = true;
+      if (!this.state.spectators) this.state.spectators = [];
+      this.state.spectators.push(playerId);
+      this.addLog(`观战者加入`, playerId, "system", { zone: "spectator" });
+    } else {
+      // 玩家连接
+      const player = this.state.players.find((item) => item.token === token);
+      if (!player) return json({ error: "请先通过加入页面进入房间。" }, { status: 401 });
+      playerId = player.id;
+    }
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
-    server.serializeAttachment({ playerId: player.id } satisfies SocketAttachment);
+    server.serializeAttachment({ playerId, isSpectator } satisfies SocketAttachment);
     this.state.lastActivityAt = Date.now();
     await this.persist();
     this.broadcast();
@@ -259,6 +276,12 @@ export class BattleRoom extends DurableObject<Env> {
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
     if (!this.state || typeof raw !== "string") return;
     const attachment = ws.deserializeAttachment() as SocketAttachment | null;
+
+    // 观战者不能发送游戏操作
+    if (attachment?.isSpectator) {
+      return this.sendError(ws, "观战者不能进行操作。");
+    }
+
     const player = this.state.players.find((item) => item.id === attachment?.playerId);
     if (!player) return this.sendError(ws, "座位身份无效。");
 
@@ -346,6 +369,19 @@ export class BattleRoom extends DurableObject<Env> {
 
   async webSocketClose(ws: WebSocket) {
     const attachment = ws.deserializeAttachment() as SocketAttachment | null;
+
+    // 观战者断开连接
+    if (attachment?.isSpectator && this.state?.spectators) {
+      const index = this.state.spectators.indexOf(attachment.playerId);
+      if (index >= 0) {
+        this.state.spectators.splice(index, 1);
+        this.addLog(`观战者离开`, attachment.playerId, "system", { zone: "spectator" });
+        this.broadcast();
+      }
+      return;
+    }
+
+    // 玩家断开连接
     const hasAnotherConnection = attachment?.playerId
       ? this.ctx.getWebSockets().some((socket) => {
           if (socket === ws) return false;
@@ -1168,6 +1204,65 @@ export class BattleRoom extends DurableObject<Env> {
     };
   }
 
+  private snapshotForSpectator(disconnectedPlayerId?: string) {
+    if (!this.state) throw new Error("房间不存在。");
+    const connected = this.connectedPlayerIds();
+    if (disconnectedPlayerId) connected.delete(disconnectedPlayerId);
+    return {
+      roomCode: this.state.roomCode,
+      you: "spectator",
+      revision: this.state.revision,
+      pendingRestart: this.state.pendingRestart,
+      players: this.state.players.map((player) => ({
+        id: player.id,
+        nickname: player.nickname,
+        deckId: player.deckId,
+        ready: player.ready,
+        connected: connected.has(player.id),
+        health: player.health,
+        megaProgress: player.megaProgress,
+        megaUsed: player.megaUsed || false,
+        zMoveUsed: player.zMoveUsed || false,
+        bodyFlipped: player.bodyFlipped,
+        body: player.body ? this.cardView(player.body, true) : undefined,
+        hand: player.hand.map(() => ({ ownerId: player.id, faceDown: true })),
+        handCount: player.hand.length,
+        characterDeckCount: player.characterDeck.length,
+        characterSlots: player.characterSlots.map((item) => {
+          if (!item) return item;
+          if ("label" in item) {
+            return {
+              id: item.id,
+              label: item.label,
+              ownerId: item.ownerId,
+            };
+          }
+          if (item.faceDown) {
+            return {
+              ownerId: item.ownerId,
+              faceDown: true,
+              slotIndex: player.characterSlots.indexOf(item),
+            };
+          }
+          return this.cardView(item, true);
+        }),
+        retired: player.retired.map((card) => this.cardView(card, true)),
+        banished: player.banished.map((card) => this.cardView(card, !card.faceDown)),
+      })),
+      game: {
+        started: this.state.started,
+        currentPlayerId: this.state.currentPlayerId,
+        firstPlayerId: this.state.firstPlayerId,
+        turnNumber: this.state.turnNumber,
+        handDeckCount: this.state.handDeck.length,
+        handDiscard: this.state.handDiscard.map((card) => this.cardView(card, true)),
+        resolving: this.state.resolving.map((card) => this.cardView(card, true)),
+        logs: this.state.logs,
+      },
+      isSpectator: true,
+    };
+  }
+
   private cardView(card: CardInstance, reveal: boolean) {
     return {
       instanceId: card.instanceId,
@@ -1186,10 +1281,17 @@ export class BattleRoom extends DurableObject<Env> {
       const attachment = socket.deserializeAttachment() as SocketAttachment | null;
       if (!attachment?.playerId) continue;
       try {
-        socket.send(JSON.stringify({
-          type: "snapshot",
-          snapshot: this.snapshotFor(attachment.playerId, disconnectedPlayerId),
-        }));
+        if (attachment.isSpectator) {
+          socket.send(JSON.stringify({
+            type: "snapshot",
+            snapshot: this.snapshotForSpectator(disconnectedPlayerId),
+          }));
+        } else {
+          socket.send(JSON.stringify({
+            type: "snapshot",
+            snapshot: this.snapshotFor(attachment.playerId, disconnectedPlayerId),
+          }));
+        }
       } catch {
         // A closing socket will disappear from getWebSockets on the next event.
       }

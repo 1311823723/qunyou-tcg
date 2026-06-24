@@ -492,8 +492,13 @@ async function connect() {
     renderFatal("房间码无效，请返回对战首页重新进入。");
     return;
   }
+
+  // 检查是否是观战模式
+  const urlParams = new URLSearchParams(location.search);
+  const isSpectator = urlParams.get("spectate") === "true";
+
   const pending = getPending();
-  if (!pending.nickname) {
+  if (!pending.nickname && !isSpectator) {
     const joinUrl = new URL("/play", location.origin);
     joinUrl.searchParams.set("room", roomCode);
     location.replace(joinUrl);
@@ -501,25 +506,28 @@ async function connect() {
   }
   window.clearTimeout(reconnectTimer);
   setConnectionState("连接中", "connecting");
-  if (!snapshot) renderConnecting("正在确认房间与玩家座位。");
+  if (!snapshot) renderConnecting(isSpectator ? "正在连接观战模式。" : "正在确认房间与玩家座位。");
   const token = getToken();
   const initialLoadout = handshakeLoadout();
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 10000);
 
   try {
-    const response = await fetch(`${API_URL}/rooms/${roomCode}/join`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        token,
-        nickname: pending.nickname,
-        ...initialLoadout,
-      }),
-      signal: controller.signal,
-    });
-    const result = await response.json().catch(() => ({})) as { error?: string };
-    if (!response.ok) throw new Error(result.error || `加入房间失败（${response.status}）`);
+    if (!isSpectator) {
+      // 玩家加入房间
+      const response = await fetch(`${API_URL}/rooms/${roomCode}/join`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          token,
+          nickname: pending.nickname,
+          ...initialLoadout,
+        }),
+        signal: controller.signal,
+      });
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(result.error || `加入房间失败（${response.status}）`);
+    }
   } catch (error) {
     window.clearTimeout(timeout);
     if (attempt !== connectionAttempt) return;
@@ -535,9 +543,12 @@ async function connect() {
   if (attempt !== connectionAttempt) return;
 
   const wsBase = API_URL.replace(/^http/, "ws");
-  const url = new URL(`${wsBase}/rooms/${roomCode}/connect`);
-  url.searchParams.set("token", token);
-  socket = new WebSocket(url);
+  const wsUrl = new URL(`${wsBase}/rooms/${roomCode}/connect`);
+  wsUrl.searchParams.set("token", token);
+  if (isSpectator) {
+    wsUrl.searchParams.set("spectator", "true");
+  }
+  socket = new WebSocket(wsUrl);
   let socketFailureHandled = false;
   const socketTimeout = window.setTimeout(() => {
     if (attempt === connectionAttempt && socket?.readyState === WebSocket.CONNECTING) {
@@ -1233,18 +1244,31 @@ function preloadBodyPortraits() {
 
 function render() {
   if (!snapshot) return;
+  const isSpectator = snapshot.you === "spectator";
   app.dataset.phase = snapshot.game.started ? "game" : "lobby";
+  app.dataset.spectator = isSpectator ? "true" : "false";
   syncRoomControls(snapshot.game.started && !snapshot.pendingRestart);
   window.clearInterval(restartCountdownTimer);
   const preserved = captureUIState();
-  const me = snapshot.players.find((player) => player.id === snapshot?.you);
-  const opponent = snapshot.players.find((player) => player.id !== snapshot?.you);
+
+  // 观战模式：使用第一个玩家作为"我"的视角
+  const me = isSpectator
+    ? snapshot.players[0]
+    : snapshot.players.find((player) => player.id === snapshot?.you);
+  const opponent = isSpectator
+    ? snapshot.players[1]
+    : snapshot.players.find((player) => player.id !== snapshot?.you);
+
   if (!me) {
-    renderFatal("未能认回你的座位。");
+    renderFatal(isSpectator ? "观战失败，房间不存在或已关闭。" : "未能认回你的座位。");
     return;
   }
   if (!snapshot.game.started) {
-    renderLobby(me, opponent);
+    if (isSpectator) {
+      renderFatal("游戏尚未开始，请等待双方准备。");
+    } else {
+      renderLobby(me, opponent);
+    }
     restoreUIState(preserved);
     return;
   }
@@ -1253,6 +1277,7 @@ function render() {
   const myHandCount = me.handCount ?? me.hand.length;
   root.innerHTML = `
     ${activeMoveTargets ? `<div class="battle-move-banner">点击落点模式 · 请选择标注的目标区域（Esc 取消）</div>` : ""}
+    ${isSpectator ? `<div class="battle-spectator-banner">观战模式 · 你只能观看公开信息</div>` : ""}
     ${renderRestartRequest(me, opponent)}
     <div class="battle-table">
       ${opponent ? renderPlayer(opponent, false, isMyTurn) : renderWaitingSeat()}
@@ -1263,7 +1288,7 @@ function render() {
       <button type="button" data-region-target="battle-player-opponent"><span>对手</span></button>
       <button type="button" data-region-target="battle-center"><span>公共区</span></button>
       <button type="button" data-region-target="battle-player-self"><span>我的阵地</span></button>
-      <button type="button" data-region-target="battle-hand-self"><span>手牌</span><b>${myHandCount}</b></button>
+      ${!isSpectator ? `<button type="button" data-region-target="battle-hand-self"><span>手牌</span><b>${myHandCount}</b></button>` : ""}
     </nav>
   `;
   bindActions();
@@ -2152,32 +2177,40 @@ function renderProgressCounter(label: string, value: string | number, command: s
     return `<img src="${iconPath}" alt="" aria-hidden="true" class="battle-counter__progress-icon battle-counter__progress-icon--${iconState} ${pulseClass}" />`;
   }).join("");
 
-  return `<div class="battle-counter ${stateClass} battle-counter--${iconType}">
-    <span>${label}</span>
+  return `<div class="battle-counter-wrapper ${ready ? "is-ready" : ""}">
+    <div class="battle-counter ${stateClass} battle-counter--${iconType}">
+      <span>${label}</span>
 
-    ${ready && !isUsed ? `
-      <!-- 就绪状态：显示放大的满能量图标 -->
-      <div class="battle-counter__ready-display">
-        <img src="/battle-icons/${iconType}/${iconPrefix}-ready.png" alt="" class="battle-counter__ready-icon" />
-        <span class="battle-counter__ready-value">${numeric}/${maxProgress}</span>
-      </div>
-    ` : `
-      <!-- 正常状态：显示进度环和图标 -->
-      <div class="battle-counter__progress-ring">
-        <svg viewBox="0 0 44 44">
-          <circle class="ring-bg" cx="22" cy="22" r="${radius}" />
-          <circle class="ring-fill ${stateClass}" cx="22" cy="22" r="${radius}"
-                  stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" />
-        </svg>
-        <span class="battle-counter__progress-value">${numeric}/${maxProgress}</span>
-      </div>
-      <div class="battle-counter__progress-icons">
-        ${milestones}
-      </div>
-    `}
+      ${ready && !isUsed ? `
+        <!-- 就绪状态：显示放大的满能量图标 -->
+        <div class="battle-counter__ready-display">
+          <img src="/battle-icons/${iconType}/${iconPrefix}-ready.png" alt="" class="battle-counter__ready-icon" />
+          <span class="battle-counter__ready-value">${numeric}/${maxProgress}</span>
+        </div>
+      ` : `
+        <!-- 正常状态：显示进度环和图标 -->
+        <div class="battle-counter__progress-ring">
+          <svg viewBox="0 0 44 44">
+            <circle class="ring-bg" cx="22" cy="22" r="${radius}" />
+            <circle class="ring-fill ${stateClass}" cx="22" cy="22" r="${radius}"
+                    stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" />
+          </svg>
+          <span class="battle-counter__progress-value">${numeric}/${maxProgress}</span>
+        </div>
+        <div class="battle-counter__progress-icons">
+          ${milestones}
+        </div>
+      `}
+
+      ${editable ? `<div class="battle-counter__actions">
+        <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric - 1}" aria-label="${label}减一">−</button>
+        <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric + 1}" aria-label="${label}加一">＋</button>
+        <button type="button" data-counter-set="${command}" data-player="${playerId}" data-current="${numeric}" data-label="${label}">设置</button>
+      </div>` : ""}
+    </div>
 
     ${ready && editable ? `
-      <!-- 激活按钮 -->
+      <!-- 激活按钮：放在计数器右侧 -->
       <button type="button"
               class="battle-counter__activate-btn ${isUsed ? "is-used" : ""}"
               data-command="${isUsed ? "" : activateCommand}"
@@ -2186,12 +2219,6 @@ function renderProgressCounter(label: string, value: string | number, command: s
         ${isUsed ? usedLabel : activateLabel}
       </button>
     ` : ""}
-
-    ${editable ? `<div class="battle-counter__actions">
-      <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric - 1}" aria-label="${label}减一">−</button>
-      <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric + 1}" aria-label="${label}加一">＋</button>
-      <button type="button" data-counter-set="${command}" data-player="${playerId}" data-current="${numeric}" data-label="${label}">设置</button>
-    </div>` : ""}
   </div>`;
 }
 
