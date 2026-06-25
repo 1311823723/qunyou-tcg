@@ -59,12 +59,19 @@ for (const deck of allDecks) {
           ))}
         </div>
       </details>
+      <div class="filter-group filter-group--view" aria-label="视图模式">
+        <span class="filter-group__label">视图</span>
+        <button class="filter-chip is-active" data-view="detail">详情模式</button>
+        <button class="filter-chip" data-view="card">卡面模式</button>
+      </div>
     </div>
     <div id="filter-empty" class="empty-state" style="display:none;">
       <div class="empty-state__icon">🔍</div>
       <p>没有匹配的角色牌，试试调整筛选条件</p>
     </div>
-    <div class="card-gallery card-gallery--chars" id="card-gallery">
+
+    <!-- 详情模式 -->
+    <div class="card-gallery card-gallery--chars" id="card-gallery-detail">
       {allCharacters.map((c, i) => {
         const decks = characterDeckMap.get(c.id) || [];
         return (
@@ -80,6 +87,31 @@ for (const deck of allDecks) {
             style={`animation-delay: ${Math.min(i * 0.03, 1)}s`}
           >
             <CharacterCard character={c} showDeck />
+          </div>
+        );
+      })}
+    </div>
+
+    <!-- 卡面模式 -->
+    <div class="card-gallery card-gallery--thumbs" id="card-gallery-card" style="display: none;">
+      {allCharacters.map((c, i) => {
+        const decks = characterDeckMap.get(c.id) || [];
+        return (
+          <div
+            class="filter-card thumb-card scroll-reveal"
+            data-role={c.mainRole}
+            data-tags={c.tags.join(",")}
+            data-name={c.name}
+            data-skill={c.skillName}
+            data-effect={c.effectText}
+            data-id={c.id}
+            data-decks={decks.join(",")}
+            style={`animation-delay: ${Math.min(i * 0.02, 1)}s`}
+          >
+            <button type="button" class="thumb-card__btn" data-card-id={c.id} aria-label={`查看 ${c.name}`}>
+              <img src={`/cards/characters/${c.id}.webp`} alt="" loading="lazy" />
+              <span class="thumb-card__name">{c.name}</span>
+            </button>
           </div>
         );
       })}
@@ -208,6 +240,78 @@ for (const deck of allDecks) {
 
   // Initial filter from URL
   applyFilters();
+
+  // View mode switching
+  const viewButtons = document.querySelectorAll("[data-view]");
+  const detailGallery = document.getElementById("card-gallery-detail");
+  const cardGallery = document.getElementById("card-gallery-card");
+  const VIEW_STORAGE_KEY = "card-view-mode";
+
+  function setViewMode(mode: string) {
+    // Update button states
+    viewButtons.forEach((btn) => {
+      btn.classList.toggle("is-active", (btn as HTMLElement).dataset.view === mode);
+    });
+
+    // Toggle gallery visibility
+    if (detailGallery) detailGallery.style.display = mode === "detail" ? "" : "none";
+    if (cardGallery) cardGallery.style.display = mode === "card" ? "" : "none";
+
+    // Save preference
+    localStorage.setItem(VIEW_STORAGE_KEY, mode);
+  }
+
+  // View button clicks
+  viewButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const mode = (btn as HTMLElement).dataset.view || "detail";
+      setViewMode(mode);
+    });
+  });
+
+  // Restore saved view preference
+  const savedView = localStorage.getItem(VIEW_STORAGE_KEY) || "detail";
+  setViewMode(savedView);
+
+  // Card thumbnail click to zoom
+  document.querySelectorAll(".thumb-card__btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const cardId = (btn as HTMLElement).dataset.cardId;
+      if (!cardId) return;
+
+      const cardEl = document.querySelector(`[data-id="${cardId}"]`);
+      if (!cardEl) return;
+
+      const name = cardEl.getAttribute("data-name") || "";
+      const role = cardEl.getAttribute("data-role") || "";
+      const skill = cardEl.getAttribute("data-skill") || "";
+      const effect = cardEl.getAttribute("data-effect") || "";
+
+      showCardZoom(cardId, name, role, skill, effect);
+    });
+  });
+
+  function showCardZoom(id: string, name: string, role: string, skill: string, effect: string) {
+    const dialog = document.getElementById("battle-dialog") as HTMLDialogElement | null;
+    const content = document.getElementById("battle-dialog-content");
+    if (!dialog || !content) return;
+
+    content.innerHTML = `
+      <div class="card-zoom">
+        <div class="card-zoom__image">
+          <img src="/cards-hd/characters/${id}.webp" alt="${name}" />
+        </div>
+        <div class="card-zoom__info">
+          <span class="tag-pill tag-pill--role" style="--role-color: var(--role-${role === "强攻" ? "attack" : role === "防御" ? "defend" : role === "资源" ? "resource" : role === "控制" ? "control" : role === "支援" ? "support" : "ambush"});">${role}</span>
+          <h2>${name}</h2>
+          <p class="card-zoom__skill">${skill}</p>
+          <p class="card-zoom__effect">${effect}</p>
+        </div>
+      </div>
+    `;
+
+    dialog.showModal();
+  }
 
   // Card compare functionality
   function openComparePanel() {
