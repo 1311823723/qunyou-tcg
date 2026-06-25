@@ -55,3 +55,4 @@
 18. **制卡导出工作流：** 处理原画接入、原画替换、制卡、TTS 导出或前端卡图同步前，必须先阅读 `docs/card-export-workflow.md`，并按其中顺序执行。
 19. **原画注册禁止并行：** 禁止并行执行多个会写入 `data/card-art.json` 的命令，尤其是多个 `npm run art:use`。多张图或本体正反面必须串行注册，避免 manifest 读写互相覆盖。
 20. **提交推送规则：** 只有用户明确要求提交或推送时才执行 git add/commit/push。提交前必须检查 `git status --short`，说明变更范围，只 stage 本次任务相关文件，不主动纳入用户未说明的无关改动。
+21. **Python 环境：** 项目 Python 依赖安装在根目录 `.venv`。执行 Python 脚本或安装依赖时，Codex 必须优先使用 `.venv/bin/python`、`.venv/bin/pip` 或 `.venv/bin/python -m pip`，不要把依赖安装到系统 Python；安装依赖时加 `--cache-dir .venv/.pip-cache`，避免使用不可写的用户级 pip 缓存。

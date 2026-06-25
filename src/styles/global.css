@@ -1316,8 +1316,9 @@ strong { color: var(--text-gold); font-weight: 800; }
 
 /* 卡牌放大对话框 */
 .card-zoom-dialog {
+  width: auto;
   max-width: 90vw;
-  max-height: 90vh;
+  max-height: 95vh;
   padding: 0;
   border: 1px solid var(--border-panel);
   border-radius: var(--radius-lg);
@@ -1333,7 +1334,7 @@ strong { color: var(--text-gold); font-weight: 800; }
   position: relative;
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: 95vh;
   overflow-y: auto;
 }
 .card-zoom-dialog__close {
@@ -1362,54 +1363,56 @@ strong { color: var(--text-gold); font-weight: 800; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.25rem;
-  padding: 1.5rem;
-  max-width: 450px;
+  gap: 1rem;
+  padding: 1.25rem;
+  width: 380px;
+  max-width: 90vw;
   margin: 0 auto;
   background: linear-gradient(180deg, rgba(21, 24, 39, 0.98), rgba(13, 15, 27, 0.98));
   border-radius: var(--radius-lg);
 }
 .card-zoom__image {
   width: 100%;
-  max-height: 55vh;
+  aspect-ratio: 5 / 7;
   overflow: hidden;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
+  flex-shrink: 0;
 }
 .card-zoom__image img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 .card-zoom__info {
   width: 100%;
   text-align: center;
 }
 .card-zoom__name {
-  margin: 0.5rem 0;
+  margin: 0.25rem 0;
   color: var(--text-gold);
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 900;
 }
 .card-zoom__meta {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
-  margin: 1rem 0;
-  padding: 0.75rem;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+  padding: 0.5rem;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, 0.3);
 }
 .card-zoom__meta-item {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.15rem;
   text-align: center;
 }
 .card-zoom__meta-label {
   color: var(--text-muted);
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 800;
   font-family: var(--font-mono);
   letter-spacing: 0.1em;
@@ -1417,21 +1420,21 @@ strong { color: var(--text-gold); font-weight: 800; }
 }
 .card-zoom__meta-value {
   color: var(--text-primary);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 .card-zoom__effect-box {
-  padding: 0.75rem;
+  padding: 0.5rem;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, 0.2);
   text-align: left;
 }
 .card-zoom__effect-label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
   color: var(--text-muted);
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 800;
   font-family: var(--font-mono);
   letter-spacing: 0.1em;
@@ -1440,8 +1443,8 @@ strong { color: var(--text-gold); font-weight: 800; }
 .card-zoom__effect {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.6;
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 639px) {
