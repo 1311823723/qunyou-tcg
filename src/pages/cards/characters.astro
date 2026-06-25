@@ -152,6 +152,9 @@ for (const deck of allDecks) {
   // 预组到角色的映射数据
   const deckCharacterMap: Record<string, string[]> = {};
 
+  // View mode storage key
+  const VIEW_STORAGE_KEY = "card-view-mode";
+
   function getFilters() {
     const params = new URLSearchParams(window.location.search);
     return {
@@ -257,7 +260,6 @@ for (const deck of allDecks) {
   const viewButtons = document.querySelectorAll("[data-view]");
   const detailGallery = document.getElementById("card-gallery-detail");
   const cardGallery = document.getElementById("card-gallery-card");
-  const VIEW_STORAGE_KEY = "card-view-mode";
 
   function setViewMode(mode: string) {
     // Update button states

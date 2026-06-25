@@ -338,7 +338,7 @@
   },
   {
     "id": "char_022_weixiaokele_goblin",
-    "name": "地精-微笑尅乐",
+    "name": "埃德加-微笑尅乐",
     "cardType": "角色",
     "deck": "",
     "mainRole": "强攻",
@@ -350,7 +350,7 @@
     "timing": "出牌阶段",
     "skillName": "血之渴望",
     "effectText": "本回合内你使用【杀】造成伤害后，若该伤害≥2，你回复1点体力。此技能每回合限发动一次。",
-    "source": "塔"
+    "source": "荒"
   },
   {
     "id": "char_023_arthur_falcon",
@@ -370,7 +370,7 @@
   },
   {
     "id": "char_024_weixiaokele_ironclad",
-    "name": "铁甲战士-微笑尅乐",
+    "name": "罗莎-微笑尅乐",
     "cardType": "角色",
     "deck": "",
     "mainRole": "防御",
@@ -382,7 +382,7 @@
     "timing": "出牌阶段",
     "skillName": "钢筋铁骨",
     "effectText": "你可以将手牌中至多两张牌移出游戏。每移出一张，直到你的下个回合开始前，你受到的下一次伤害-1。",
-    "source": "塔"
+    "source": "荒"
   },
   {
     "id": "char_025_baizi_high-priest",
@@ -498,7 +498,7 @@
   },
   {
     "id": "char_032_weixiaokele_silent-hunter",
-    "name": "静默猎手-微笑尅乐",
+    "name": "黑鸦-微笑尅乐",
     "cardType": "角色",
     "deck": "",
     "mainRole": "支援",
@@ -510,11 +510,11 @@
     "timing": "当你的本体使用【杀】造成伤害后",
     "skillName": "刀刃风暴",
     "effectText": "将弃牌堆中的一张【杀】加入手牌。",
-    "source": "塔"
+    "source": "荒"
   },
   {
     "id": "char_033_weixiaokele_watcher",
-    "name": "观者-微笑尅乐",
+    "name": "健次-微笑尅乐",
     "cardType": "角色",
     "deck": "",
     "mainRole": "支援",
@@ -526,7 +526,7 @@
     "timing": "出牌阶段",
     "skillName": "姿态流转",
     "effectText": "你选择「怒」（本回合你下次使用【杀】造成的伤害+1）或「静」（本回合你下次使用锦囊时摸1张手牌），效果持续至本回合结束。",
-    "source": "塔"
+    "source": "荒"
   },
   {
     "id": "char_034_xiaoapan_avenger",
