@@ -146,7 +146,7 @@
   },
   {
     "id": "char_010_weixiaokele_bomber",
-    "name": "炸弹狼-微笑尅乐",
+    "name": "爆炸王-微笑尅乐",
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "控制",
@@ -162,7 +162,7 @@
   },
   {
     "id": "char_011_baizi_bomber",
-    "name": "炸弹狼-摆子",
+    "name": "爆炸王-摆子",
     "cardType": "角色",
     "deck": "爆杀流",
     "mainRole": "强攻",
@@ -786,7 +786,7 @@
   },
   {
     "id": "char_050_dong_bomber",
-    "name": "炸弹狼-dong",
+    "name": "爆炸王-dong",
     "cardType": "角色",
     "deck": "密裁",
     "mainRole": "强攻",
