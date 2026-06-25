@@ -284,7 +284,7 @@ for (const deck of allDecks) {
   });
 
   // Restore saved view preference
-  const savedView = localStorage.getItem(VIEW_STORAGE_KEY) || "detail";
+  const savedView = localStorage.getItem(VIEW_STORAGE_KEY) || "card";
   setViewMode(savedView);
 
   // Card thumbnail click to zoom

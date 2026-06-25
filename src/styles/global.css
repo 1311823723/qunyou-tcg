@@ -1317,9 +1317,9 @@ strong { color: var(--text-gold); font-weight: 800; }
 
 /* 卡牌放大对话框 */
 .card-zoom-dialog {
-  width: auto;
-  max-width: 90vw;
-  max-height: 95vh;
+  width: fit-content;
+  max-width: 96vw;
+  max-height: 96vh;
   padding: 0;
   border: 1px solid var(--border-panel);
   border-radius: var(--radius-lg);
@@ -1335,7 +1335,9 @@ strong { color: var(--text-gold); font-weight: 800; }
   position: relative;
   display: flex;
   flex-direction: column;
-  max-height: 95vh;
+  width: fit-content;
+  max-width: 96vw;
+  max-height: 96vh;
   overflow-y: auto;
 }
 .card-zoom-dialog__close {
@@ -1361,38 +1363,39 @@ strong { color: var(--text-gold); font-weight: 800; }
   border-color: rgba(255, 90, 53, 0.5);
 }
 .card-zoom {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(22rem, 33rem) minmax(17rem, 23rem);
   align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
-  width: 300px;
-  max-width: 85vw;
+  gap: clamp(1rem, 2vw, 1.4rem);
+  padding: clamp(0.8rem, 1.6vw, 1.25rem);
+  width: min(94vw, 58rem);
   margin: 0 auto;
   background: linear-gradient(180deg, rgba(21, 24, 39, 0.98), rgba(13, 15, 27, 0.98));
   border-radius: var(--radius-lg);
 }
 .card-zoom__image {
   width: 100%;
-  aspect-ratio: 5 / 7;
   overflow: hidden;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  flex-shrink: 0;
 }
 .card-zoom__image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: min(86vh, 46rem);
+  margin: 0 auto;
+  object-fit: contain;
 }
 .card-zoom__info {
   width: 100%;
-  text-align: center;
+  min-width: 0;
+  text-align: left;
 }
 .card-zoom__name {
   margin: 0.25rem 0;
   color: var(--text-gold);
-  font-size: 1.1rem;
+  font-size: clamp(1.15rem, 1.6vw, 1.55rem);
   font-weight: 900;
 }
 .card-zoom__meta {
@@ -1444,8 +1447,25 @@ strong { color: var(--text-gold); font-weight: 800; }
 .card-zoom__effect {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.8rem;
-  line-height: 1.5;
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+@media (max-width: 860px) {
+  .card-zoom {
+    grid-template-columns: 1fr;
+    width: min(92vw, 28rem);
+  }
+
+  .card-zoom__image img {
+    width: 100%;
+    height: auto;
+    max-height: 72vh;
+  }
+
+  .card-zoom__info {
+    text-align: center;
+  }
 }
 
 @media (max-width: 639px) {
