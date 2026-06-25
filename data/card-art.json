@@ -88,6 +88,11 @@
     "char_070_huihuan_silent-hunter": "huihuan-silent-hunter-v1",
     "char_074_huihuan_nameless": "huihuan-nameless-v1",
     "char_078_huihuan_deep-blue": "huihuan-deep-blue-v1",
-    "char_080_huihuan_visionary-painter": "huihuan-visionary-painter-v1"
+    "char_080_huihuan_visionary-painter": "huihuan-visionary-painter-v1",
+    "char_087_qindi_vigilante": "qindi-vigilante",
+    "char_098_qindi_silencer": "qindi-silencer",
+    "char_106_qindi_vulture": "qindi-vulture",
+    "char_109_qindi_bodyguard": "qindi-bodyguard",
+    "char_118_qindi_birdwatcher": "qindi-birdwatcher"
   }
 }

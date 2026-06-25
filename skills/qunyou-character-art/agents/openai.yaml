@@ -1,0 +1,4 @@
+interface:
+  display_name: "群友杀角色原画"
+  short_description: "生成贴合来源游戏、群友形象与技能语义的角色原画提示"
+  default_prompt: "Use $qunyou-character-art to draft a character-card art prompt for a 群友杀 TCG role card."
