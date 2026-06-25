@@ -1323,6 +1323,7 @@ strong { color: var(--text-gold); font-weight: 800; }
   border-radius: var(--radius-lg);
   background: transparent;
   overflow: visible;
+  margin: auto;
 }
 .card-zoom-dialog::backdrop {
   background: rgba(0, 0, 0, 0.85);
