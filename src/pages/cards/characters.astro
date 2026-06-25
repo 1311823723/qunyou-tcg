@@ -108,7 +108,7 @@ for (const deck of allDecks) {
             data-decks={decks.join(",")}
             style={`animation-delay: ${Math.min(i * 0.02, 1)}s`}
           >
-            <button type="button" class="thumb-card__btn" data-card-id={c.id} aria-label={`查看 ${c.name}`}>
+            <button type="button" class="thumb-card__btn" data-card-id={c.id} data-card-name={c.name} data-card-role={c.mainRole} data-card-skill={c.skillName} data-card-effect={c.effectText} data-card-timing={c.timing} data-card-cost={c.cost.type === "休整" ? `休整 ${c.cost.amount}` : c.cost.text || c.cost.type} aria-label={`查看 ${c.name}`}>
               <img src={`/cards/characters/${c.id}.webp`} alt="" loading="lazy" />
               <span class="thumb-card__name">{c.name}</span>
             </button>
@@ -117,6 +117,14 @@ for (const deck of allDecks) {
       })}
     </div>
   </div>
+
+  <!-- 卡牌放大对话框 -->
+  <dialog id="card-zoom-dialog" class="card-zoom-dialog">
+    <div class="card-zoom-dialog__content">
+      <button type="button" class="card-zoom-dialog__close" aria-label="关闭">×</button>
+      <div id="card-zoom-body"></div>
+    </div>
+  </dialog>
 
   <div id="card-compare-panel" class="card-compare-panel" style="display: none;">
     <div class="card-compare-header">
@@ -274,44 +282,84 @@ for (const deck of allDecks) {
   setViewMode(savedView);
 
   // Card thumbnail click to zoom
-  document.querySelectorAll(".thumb-card__btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const cardId = (btn as HTMLElement).dataset.cardId;
-      if (!cardId) return;
+  const zoomDialog = document.getElementById("card-zoom-dialog") as HTMLDialogElement | null;
+  const zoomBody = document.getElementById("card-zoom-body");
+  const zoomClose = document.querySelector(".card-zoom-dialog__close");
 
-      const cardEl = document.querySelector(`[data-id="${cardId}"]`);
-      if (!cardEl) return;
+  function showCardZoom(id: string, name: string, role: string, skill: string, effect: string, timing: string, cost: string) {
+    if (!zoomDialog || !zoomBody) return;
 
-      const name = cardEl.getAttribute("data-name") || "";
-      const role = cardEl.getAttribute("data-role") || "";
-      const skill = cardEl.getAttribute("data-skill") || "";
-      const effect = cardEl.getAttribute("data-effect") || "";
+    const roleColorMap: Record<string, string> = {
+      "强攻": "attack",
+      "防御": "defend",
+      "资源": "resource",
+      "控制": "control",
+      "支援": "support",
+      "伏击": "ambush",
+    };
+    const roleVar = roleColorMap[role] || "attack";
 
-      showCardZoom(cardId, name, role, skill, effect);
-    });
-  });
-
-  function showCardZoom(id: string, name: string, role: string, skill: string, effect: string) {
-    const dialog = document.getElementById("battle-dialog") as HTMLDialogElement | null;
-    const content = document.getElementById("battle-dialog-content");
-    if (!dialog || !content) return;
-
-    content.innerHTML = `
+    zoomBody.innerHTML = `
       <div class="card-zoom">
         <div class="card-zoom__image">
           <img src="/cards-hd/characters/${id}.webp" alt="${name}" />
         </div>
         <div class="card-zoom__info">
-          <span class="tag-pill tag-pill--role" style="--role-color: var(--role-${role === "强攻" ? "attack" : role === "防御" ? "defend" : role === "资源" ? "resource" : role === "控制" ? "control" : role === "支援" ? "support" : "ambush"});">${role}</span>
-          <h2>${name}</h2>
-          <p class="card-zoom__skill">${skill}</p>
-          <p class="card-zoom__effect">${effect}</p>
+          <span class="tag-pill tag-pill--role" style="--role-color: var(--role-${roleVar});">${role}</span>
+          <h2 class="card-zoom__name">${name}</h2>
+          <div class="card-zoom__meta">
+            <div class="card-zoom__meta-item">
+              <span class="card-zoom__meta-label">技能名</span>
+              <span class="card-zoom__meta-value">${skill}</span>
+            </div>
+            <div class="card-zoom__meta-item">
+              <span class="card-zoom__meta-label">费用</span>
+              <span class="card-zoom__meta-value">${cost}</span>
+            </div>
+            <div class="card-zoom__meta-item">
+              <span class="card-zoom__meta-label">时机</span>
+              <span class="card-zoom__meta-value">${timing}</span>
+            </div>
+          </div>
+          <div class="card-zoom__effect-box">
+            <span class="card-zoom__effect-label">效果</span>
+            <p class="card-zoom__effect">${effect}</p>
+          </div>
         </div>
       </div>
     `;
 
-    dialog.showModal();
+    zoomDialog.showModal();
   }
+
+  // Bind click events
+  document.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    const btn = target.closest(".thumb-card__btn") as HTMLElement | null;
+    if (btn) {
+      const id = btn.dataset.cardId || "";
+      const name = btn.dataset.cardName || "";
+      const role = btn.dataset.cardRole || "";
+      const skill = btn.dataset.cardSkill || "";
+      const effect = btn.dataset.cardEffect || "";
+      const timing = btn.dataset.cardTiming || "";
+      const cost = btn.dataset.cardCost || "";
+      showCardZoom(id, name, role, skill, effect, timing, cost);
+      return;
+    }
+
+    // Close dialog
+    if (target === zoomDialog || target === zoomClose || target.closest(".card-zoom-dialog__close")) {
+      zoomDialog?.close();
+    }
+  });
+
+  // Close on Escape key
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && zoomDialog?.open) {
+      zoomDialog.close();
+    }
+  });
 
   // Card compare functionality
   function openComparePanel() {
