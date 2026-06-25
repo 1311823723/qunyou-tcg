@@ -3,23 +3,9 @@ import Layout from "../../components/Layout.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import CharacterCard from "../../components/CharacterCard.astro";
 import { allCharacters, MAIN_ROLES, ALL_TAGS } from "../../lib/cards";
-import { allDecks } from "../../lib/decks";
 
 const roleLabel = "定位";
-const deckLabel = "预组";
 const allLabel = "全部";
-
-// 构建角色到预组的映射
-const characterDeckMap = new Map<string, string[]>();
-for (const deck of allDecks) {
-  for (const charId of deck.characterIds) {
-    const existing = characterDeckMap.get(charId) || [];
-    if (!existing.includes(deck.name)) {
-      existing.push(deck.name);
-    }
-    characterDeckMap.set(charId, existing);
-  }
-}
 ---
 
 <Layout title="角色牌">
@@ -38,13 +24,6 @@ for (const deck of allDecks) {
         <button class="filter-chip is-active" data-filter="role" data-value="">{allLabel}</button>
         {MAIN_ROLES.map((r) => (
           <button class="filter-chip" data-filter="role" data-value={r}>{r}</button>
-        ))}
-      </div>
-      <div class="filter-group filter-group--decks" aria-label="按预组筛选">
-        <span class="filter-group__label">{deckLabel}</span>
-        <button class="filter-chip is-active" data-filter="deck" data-value="">{allLabel}</button>
-        {allDecks.map((d) => (
-          <button class="filter-chip" data-filter="deck" data-value={d.name}>{d.name}</button>
         ))}
       </div>
       <details class="filter-more" id="tag-filter-panel">
@@ -72,49 +51,41 @@ for (const deck of allDecks) {
 
     <!-- 详情模式 -->
     <div class="card-gallery card-gallery--chars" id="card-gallery-detail">
-      {allCharacters.map((c, i) => {
-        const decks = characterDeckMap.get(c.id) || [];
-        return (
-          <div
-            class="filter-card scroll-reveal"
-            data-role={c.mainRole}
-            data-tags={c.tags.join(",")}
-            data-name={c.name}
-            data-skill={c.skillName}
-            data-effect={c.effectText}
-            data-id={c.id}
-            data-decks={decks.join(",")}
-            style={`animation-delay: ${Math.min(i * 0.03, 1)}s`}
-          >
-            <CharacterCard character={c} showDeck />
-          </div>
-        );
-      })}
+      {allCharacters.map((c, i) => (
+        <div
+          class="filter-card scroll-reveal"
+          data-role={c.mainRole}
+          data-tags={c.tags.join(",")}
+          data-name={c.name}
+          data-skill={c.skillName}
+          data-effect={c.effectText}
+          data-id={c.id}
+          style={`animation-delay: ${Math.min(i * 0.03, 1)}s`}
+        >
+          <CharacterCard character={c} showDeck />
+        </div>
+      ))}
     </div>
 
     <!-- 卡面模式 -->
     <div class="card-gallery card-gallery--thumbs" id="card-gallery-card" style="display: none;">
-      {allCharacters.map((c, i) => {
-        const decks = characterDeckMap.get(c.id) || [];
-        return (
-          <div
-            class="filter-card thumb-card scroll-reveal"
-            data-role={c.mainRole}
-            data-tags={c.tags.join(",")}
-            data-name={c.name}
-            data-skill={c.skillName}
-            data-effect={c.effectText}
-            data-id={c.id}
-            data-decks={decks.join(",")}
-            style={`animation-delay: ${Math.min(i * 0.02, 1)}s`}
-          >
-            <button type="button" class="thumb-card__btn" data-card-id={c.id} data-card-name={c.name} data-card-role={c.mainRole} data-card-skill={c.skillName} data-card-effect={c.effectText} data-card-timing={c.timing} data-card-cost={c.cost.type === "休整" ? `休整 ${c.cost.amount}` : c.cost.text || c.cost.type} aria-label={`查看 ${c.name}`}>
-              <img src={`/cards/characters/${c.id}.webp`} alt="" loading="lazy" />
-              <span class="thumb-card__name">{c.name}</span>
-            </button>
-          </div>
-        );
-      })}
+      {allCharacters.map((c, i) => (
+        <div
+          class="filter-card thumb-card scroll-reveal"
+          data-role={c.mainRole}
+          data-tags={c.tags.join(",")}
+          data-name={c.name}
+          data-skill={c.skillName}
+          data-effect={c.effectText}
+          data-id={c.id}
+          style={`animation-delay: ${Math.min(i * 0.02, 1)}s`}
+        >
+          <button type="button" class="thumb-card__btn" data-card-id={c.id} data-card-name={c.name} data-card-role={c.mainRole} data-card-skill={c.skillName} data-card-effect={c.effectText} data-card-timing={c.timing} data-card-cost={c.cost.type === "休整" ? `休整 ${c.cost.amount}` : c.cost.text || c.cost.type} aria-label={`查看 ${c.name}`}>
+            <img src={`/cards/characters/${c.id}.webp`} alt="" loading="lazy" />
+            <span class="thumb-card__name">{c.name}</span>
+          </button>
+        </div>
+      ))}
     </div>
   </div>
 
@@ -159,14 +130,13 @@ for (const deck of allDecks) {
     const params = new URLSearchParams(window.location.search);
     return {
       role: params.get("role") || "",
-      deck: params.get("deck") || "",
       tag: params.get("tag") || "",
       search: params.get("search") || "",
     };
   }
 
   function applyFilters() {
-    const { role, deck, tag, search } = getFilters();
+    const { role, tag, search } = getFilters();
     const currentView = localStorage.getItem(VIEW_STORAGE_KEY) || "card";
     const activeGallery = currentView === "detail"
       ? document.getElementById("card-gallery-detail")
@@ -182,14 +152,12 @@ for (const deck of allDecks) {
       const cardName = (el.dataset.name || "").toLowerCase();
       const cardSkill = (el.dataset.skill || "").toLowerCase();
       const cardEffect = (el.dataset.effect || "").toLowerCase();
-      const cardDecks = (el.dataset.decks || "").split(",");
 
       const matchRole = !role || cardRole === role;
-      const matchDeck = !deck || cardDecks.includes(deck);
       const matchTag = !tag || cardTags.includes(tag);
       const matchSearch = !q || cardName.includes(q) || cardSkill.includes(q) || cardEffect.includes(q);
 
-      if (matchRole && matchDeck && matchTag && matchSearch) {
+      if (matchRole && matchTag && matchSearch) {
         el.style.display = "";
         visible++;
       } else {
@@ -209,7 +177,6 @@ for (const deck of allDecks) {
       const filterType = chip.dataset.filter;
       const val = chip.dataset.value || "";
       if (filterType === "role") chip.classList.toggle("is-active", val === role);
-      if (filterType === "deck") chip.classList.toggle("is-active", val === deck);
       if (filterType === "tag") chip.classList.toggle("is-active", val === tag);
     });
 

@@ -1008,8 +1008,6 @@ strong { color: var(--text-gold); font-weight: 800; }
 .filter-group__label { margin-right: 0.12rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.66rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
 .filter-group--roles { padding-top: 0.05rem; }
 .filter-group--roles .filter-chip { min-width: 3.05rem; justify-content: center; padding-inline: 0.86rem; }
-.filter-group--decks { margin-top: 0.58rem; padding-top: 0.66rem; border-top: 1px solid var(--border-soft); }
-.filter-group--decks .filter-chip { min-width: 3.05rem; justify-content: center; padding-inline: 0.86rem; }
 .filter-group--tags { margin-top: 0.58rem; padding-top: 0.66rem; border-top: 1px solid var(--border-soft); }
 .filter-group--view { margin-top: 0.58rem; padding-top: 0.66rem; border-top: 1px solid var(--border-soft); }
 .filter-group--view .filter-chip { min-width: 4.5rem; justify-content: center; padding-inline: 0.86rem; }
