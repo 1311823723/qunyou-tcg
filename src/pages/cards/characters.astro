@@ -61,8 +61,8 @@ for (const deck of allDecks) {
       </details>
       <div class="filter-group filter-group--view" aria-label="视图模式">
         <span class="filter-group__label">视图</span>
-        <button class="filter-chip is-active" data-view="detail">详情模式</button>
-        <button class="filter-chip" data-view="card">卡面模式</button>
+        <button class="filter-chip" data-view="detail">详情模式</button>
+        <button class="filter-chip is-active" data-view="card">卡面模式</button>
       </div>
     </div>
     <div id="filter-empty" class="empty-state" style="display:none;">
@@ -164,7 +164,11 @@ for (const deck of allDecks) {
 
   function applyFilters() {
     const { role, deck, tag, search } = getFilters();
-    const cards = document.querySelectorAll(".filter-card");
+    const currentView = localStorage.getItem(VIEW_STORAGE_KEY) || "card";
+    const activeGallery = currentView === "detail"
+      ? document.getElementById("card-gallery-detail")
+      : document.getElementById("card-gallery-card");
+    const cards = activeGallery ? activeGallery.querySelectorAll(".filter-card") : document.querySelectorAll(".filter-card");
     const q = search.toLowerCase();
     let visible = 0;
 
@@ -193,9 +197,9 @@ for (const deck of allDecks) {
     const empty = document.getElementById("filter-empty");
     if (empty) empty.style.display = visible === 0 ? "" : "none";
 
-    // Update subtitle
+    // Update subtitle - 使用固定总数 120
     const header = document.querySelector(".page-header__sub");
-    if (header) header.textContent = `${visible} / ${cards.length} 张 · 竖版 TCG 卡面`;
+    if (header) header.textContent = `${visible} / 120 张 · 竖版 TCG 卡面`;
 
     // Sync chip active states
     document.querySelectorAll<HTMLElement>(".filter-chip").forEach((chip) => {
