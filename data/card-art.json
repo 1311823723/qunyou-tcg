@@ -100,6 +100,11 @@
     "char_028_arthur_undertaker": "arthur-undertaker",
     "char_031_arthur_watcher": "arthur-watcher",
     "char_044_arthur_sheriff": "arthur-sheriff",
-    "char_023_arthur_falcon": "arthur-falcon"
+    "char_023_arthur_falcon": "arthur-falcon",
+    "char_072_daidaishou_luna": "daidaishou-luna",
+    "char_076_daidaishou_hackclaw": "daidaishou-hackclaw",
+    "char_094_daidaishou_astral": "daidaishou-astral",
+    "char_107_daidaishou_engineer": "daidaishou-engineer",
+    "char_117_daidaishou_medium": "daidaishou-medium"
   }
 }
