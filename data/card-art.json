@@ -105,6 +105,26 @@
     "char_076_daidaishou_hackclaw": "daidaishou-hackclaw",
     "char_094_daidaishou_astral": "daidaishou-astral",
     "char_107_daidaishou_engineer": "daidaishou-engineer",
-    "char_117_daidaishou_medium": "daidaishou-medium"
+    "char_117_daidaishou_medium": "daidaishou-medium",
+    "char_036_keke_spy": "keke-spy",
+    "char_037_keke_seer": "keke-seer",
+    "char_038_keke_avenger": "keke-avenger",
+    "char_039_keke_judge": "keke-judge",
+    "char_084_keke_watcher": "keke-watcher",
+    "char_091_zongzi_vulture": "zongzi-vulture",
+    "char_026_miaosila_neo": "miaosila-neo",
+    "char_030_miaosila_detective": "miaosila-detective",
+    "char_047_miaosila_ironclad": "miaosila-ironclad",
+    "char_090_miaosila_medium": "miaosila-medium",
+    "char_100_miaosila_demolitionist": "miaosila-demolitionist",
+    "char_102_miaosila_dodo": "miaosila-dodo",
+    "char_112_miaosila_locksmith": "miaosila-locksmith",
+    "char_113_miaosila_celebrity": "miaosila-celebrity",
+    "char_005_aichitun_jester": "aichitun-jester",
+    "char_081_aichitun_morphling": "aichitun-morphling",
+    "char_082_aichitun_embalmer": "aichitun-embalmer",
+    "char_083_aichitun_detective": "aichitun-detective",
+    "char_085_aichitun_bodyguard": "aichitun-bodyguard",
+    "char_086_aichitun_sheriff": "aichitun-sheriff"
   }
 }
