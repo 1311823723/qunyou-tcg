@@ -125,6 +125,8 @@
     "char_082_aichitun_embalmer": "aichitun-embalmer",
     "char_083_aichitun_detective": "aichitun-detective",
     "char_085_aichitun_bodyguard": "aichitun-bodyguard",
-    "char_086_aichitun_sheriff": "aichitun-sheriff"
+    "char_086_aichitun_sheriff": "aichitun-sheriff",
+    "char_103_zongzi_snitch": "zongzi-snitch",
+    "char_114_zongzi_bodyguard": "zongzi-bodyguard"
   }
 }

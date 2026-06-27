@@ -1405,7 +1405,7 @@
   },
   {
     "id": "char_089_kabishou_canadian",
-    "name": "加拿大鹅-卡比兽",
+    "name": "加拿大鹅-柯柯",
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "资源",
@@ -1496,7 +1496,7 @@
   },
   {
     "id": "char_096_kabishou_politician",
-    "name": "政治家-卡比兽",
+    "name": "政治家-柯柯",
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "支援",
@@ -1535,7 +1535,7 @@
   },
   {
     "id": "char_099_kabishou_invisible-duck",
-    "name": "隐形鸭-卡比兽",
+    "name": "隐形鸭-柯柯",
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
