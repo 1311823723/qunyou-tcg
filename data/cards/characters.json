@@ -1444,7 +1444,7 @@
   },
   {
     "id": "char_092_player_detective",
-    "name": "侦探-player",
+    "name": "侦探-机器人 1 号",
     "cardType": "角色",
     "deck": "卖血流",
     "mainRole": "控制",
@@ -1600,7 +1600,7 @@
   },
   {
     "id": "char_104_player_falcon",
-    "name": "猎鹰-player",
+    "name": "猎鹰-机器人 1 号",
     "cardType": "角色",
     "deck": "伏击流",
     "mainRole": "伏击",
@@ -1743,7 +1743,7 @@
   },
   {
     "id": "char_115_player_mimic",
-    "name": "模仿鹅-player",
+    "name": "模仿鹅-机器人 1 号",
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "防御",
@@ -1808,7 +1808,7 @@
   },
   {
     "id": "char_120_player_astral",
-    "name": "星界使者-player",
+    "name": "星界使者-机器人 1 号",
     "cardType": "角色",
     "deck": "防御流",
     "mainRole": "支援",

@@ -127,6 +127,21 @@
     "char_085_aichitun_bodyguard": "aichitun-bodyguard",
     "char_086_aichitun_sheriff": "aichitun-sheriff",
     "char_103_zongzi_snitch": "zongzi-snitch",
-    "char_114_zongzi_bodyguard": "zongzi-bodyguard"
+    "char_114_zongzi_bodyguard": "zongzi-bodyguard",
+    "char_089_kabishou_canadian": "keke-canadian",
+    "char_096_kabishou_politician": "keke-politician",
+    "char_099_kabishou_invisible-duck": "keke-invisible-duck",
+    "char_095_pangpanghali_lover": "pangpanghali-lover",
+    "char_101_pangpanghali_identity-thief": "pangpanghali-identity-thief",
+    "char_110_pangpanghali_canadian": "pangpanghali-canadian",
+    "char_119_pangpanghali_politician": "pangpanghali-politician",
+    "char_093_tutu_snitch": "tutu-snitch",
+    "char_105_tutu_professional": "tutu-professional",
+    "char_108_tutu_birdwatcher": "tutu-birdwatcher",
+    "char_116_tutu_vigilante": "tutu-vigilante",
+    "char_092_player_detective": "robot-1-detective",
+    "char_104_player_falcon": "robot-1-falcon",
+    "char_115_player_mimic": "robot-1-mimic",
+    "char_120_player_astral": "robot-1-astral"
   }
 }
