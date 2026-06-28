@@ -145,11 +145,13 @@
     "char_120_player_astral": "robot-1-astral",
     "char_015_weixiaokele_lobbyist": "weixiaokele-lobbyist",
     "char_024_weixiaokele_ironclad": "weixiaokele-rosa",
-    "char_027_weixiaokele_medium": "weixiaokele-medium",
+    "char_027_weixiaokele_medium": "weixiaokele-medium-v2",
     "char_002_weixiaokele_assassin": "weixiaokele-assassin-v1",
-    "char_009_weixiaokele_hitman": "weixiaokele-hitman-v1",
+    "char_009_weixiaokele_hitman": "weixiaokele-hitman-v2",
     "char_010_weixiaokele_bomber": "weixiaokele-bomber-v1",
-    "char_013_weixiaokele_morphling": "weixiaokele-morphling-v1",
-    "char_022_weixiaokele_goblin": "weixiaokele-edgar-v1"
+    "char_013_weixiaokele_morphling": "weixiaokele-morphling-v2",
+    "char_022_weixiaokele_goblin": "weixiaokele-edgar-v2",
+    "char_006_weixiaokele_ninja": "weixiaokele-ninja-v1",
+    "char_032_weixiaokele_silent-hunter": "weixiaokele-silent-hunter-v1"
   }
 }
