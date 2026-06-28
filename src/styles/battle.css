@@ -3080,7 +3080,8 @@ button.battle-log__entry:hover, button.battle-log__entry:focus-visible { color: 
 .battle-entry__invite-banner b { color: var(--text-gold); font-family: var(--font-mono); letter-spacing: 0.12em; }
 .battle-entry__invite-banner p { margin: 0; color: var(--text-muted); font-size: 0.72rem; }
 .battle-entry__grid {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
   gap: 0.75rem;
   padding: 0.42rem;
   border-radius: 22px;
@@ -3110,6 +3111,20 @@ button.battle-log__entry:hover, button.battle-log__entry:focus-visible { color: 
 .battle-entry__panel .battle-form input { min-height: 2.8rem; }
 .battle-entry__submit { min-height: 2.95rem; margin-top: auto; }
 .battle-entry__notes { margin-top: clamp(2rem, 4vw, 3rem); }
+
+@media (max-width: 1180px) and (min-width: 681px) {
+  .battle-entry__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .battle-entry__panel--spectate {
+    grid-column: 1 / -1;
+    min-height: 0;
+  }
+  .battle-entry__panel--spectate .battle-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(11rem, 0.42fr);
+    align-items: end;
+  }
+  .battle-entry__panel--spectate .battle-form__status { grid-column: 1 / -1; }
+}
 
 #battle-app[data-phase="lobby"] [data-game-only] { display: none !important; }
 .battle-lobby {
