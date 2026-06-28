@@ -142,6 +142,9 @@
     "char_092_player_detective": "robot-1-detective",
     "char_104_player_falcon": "robot-1-falcon",
     "char_115_player_mimic": "robot-1-mimic",
-    "char_120_player_astral": "robot-1-astral"
+    "char_120_player_astral": "robot-1-astral",
+    "char_015_weixiaokele_lobbyist": "weixiaokele-lobbyist",
+    "char_024_weixiaokele_ironclad": "weixiaokele-rosa",
+    "char_027_weixiaokele_medium": "weixiaokele-medium"
   }
 }
