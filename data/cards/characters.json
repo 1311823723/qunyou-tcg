@@ -1194,7 +1194,7 @@
     "tags": ["伤害","必中"],
     "cost": {
       "type": "休整",
-      "amount": 1
+      "amount": 2
     },
     "timing": "出牌阶段",
     "skillName": "虎蹲炮",
