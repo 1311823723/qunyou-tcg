@@ -449,20 +449,20 @@
     "source": "鹅"
   },
   {
-    "id": "char_029_baizi_silent-hunter",
-    "name": "静默猎手-摆子",
+    "id": "char_029_guamao_lover",
+    "name": "恋人-瓜猫",
     "cardType": "角色",
-    "deck": "",
+    "deck": "伏击流",
     "mainRole": "控制",
-    "tags": ["标记","角色控制"],
+    "tags": ["退场","角色控制"],
     "cost": {
-      "type": "休整",
-      "amount": 1
+      "type": "复合",
+      "text": "休整自身/退场自身"
     },
-    "timing": "出牌阶段",
-    "skillName": "毒雾",
-    "effectText": "你可以将一张手牌正面朝下放置在对手角色区内一个未被占据的角色位上，视为「毒雾」标记。于对手每个回合的结束阶段开始时，对手失去1点体力，然后弃置标记。对手可通过休整1将其移除。",
-    "source": "塔"
+    "timing": "当你的另一张角色退场后",
+    "skillName": "殉情清算",
+    "effectText": "你可以休整此角色，选择对手1张明置角色，本回合其不能发动技能。若退场的是【恋人-香菜】，你可以改为将此角色退场，然后休整对手至多2张角色。",
+    "source": "鹅"
   },
   {
     "id": "char_030_miaosila_detective",
@@ -1122,20 +1122,20 @@
     "source": "塔"
   },
   {
-    "id": "char_071_baizi_red-wolf",
-    "name": "红狼-摆子",
+    "id": "char_071_xiangcai_lover",
+    "name": "恋人-香菜",
     "cardType": "角色",
-    "deck": "",
+    "deck": "伏击流",
     "mainRole": "强攻",
-    "tags": ["情报"],
+    "tags": ["伤害","退场"],
     "cost": {
-      "type": "休整",
-      "amount": 1
+      "type": "退场",
+      "text": "退场自身"
     },
     "timing": "出牌阶段",
-    "skillName": "破门突入",
-    "effectText": "观看对手角色区一张暗置角色。",
-    "source": "洲"
+    "skillName": "至死不渝",
+    "effectText": "对对手本体造成2点伤害，然后其摸1张手牌。若【恋人-瓜猫】已明置，其不因此摸牌。",
+    "source": "鹅"
   },
   {
     "id": "char_072_daidaishou_luna",
@@ -1605,10 +1605,10 @@
     "deck": "伏击流",
     "mainRole": "伏击",
     "tags": ["响应","必中"],
-    "cost": { "type": "退场", "text": "退场自身" },
+    "cost": { "type": "休整自身", "text": "休整自身" },
     "timing": "当对手使用【闪】响应你的【杀】时",
     "skillName": "凌空绝杀",
-    "effectText": "令此【闪】无效，此【杀】继续结算。",
+    "effectText": "令此【闪】无效，此【杀】继续结算，对手可继续使用【闪】。",
     "source": "鹅"
   },
   {

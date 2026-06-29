@@ -44,7 +44,6 @@
     "char_018_baizi_defect-robot": "baizi-defect-robot",
     "char_020_baizi_ironclad": "baizi-ironclad",
     "char_025_baizi_high-priest": "baizi-high-priest",
-    "char_029_baizi_silent-hunter": "baizi-silent-hunter",
     "char_041_baizi_watcher": "baizi-watcher",
     "char_043_baizi_falcon": "baizi-falcon",
     "char_051_baizi_lobbyist": "baizi-lobbyist",
@@ -54,7 +53,6 @@
     "char_058_xiangcai_politician": "xiangcai-politician-final",
     "char_061_xiangcai_watcher": "xiangcai-watcher-resource-v3",
     "char_067_xiangcai_neo": "xiangcai-neo-resource-v3",
-    "char_071_baizi_red-wolf": "baizi-red-wolf",
     "char_075_baizi_weilong": "baizi-weilong",
     "char_052_fengyaojing_desert-butcher": "fengyaojing-desert-butcher-v2",
     "char_003_qindi_sheriff": "qindi-sheriff",
@@ -152,7 +150,9 @@
     "char_013_weixiaokele_morphling": "weixiaokele-morphling-v2",
     "char_022_weixiaokele_goblin": "weixiaokele-edgar-v2",
     "char_006_weixiaokele_ninja": "weixiaokele-ninja-v1",
-    "char_032_weixiaokele_silent-hunter": "weixiaokele-silent-hunter-v1",
-    "char_033_weixiaokele_watcher": "weixiaokele-watcher-v1"
+    "char_032_weixiaokele_silent-hunter": "weixiaokele-silent-hunter-v2",
+    "char_033_weixiaokele_watcher": "weixiaokele-watcher-v1",
+    "char_071_xiangcai_lover": "xiangcai-lover-v1",
+    "char_029_guamao_lover": "guamao-lover-v1"
   }
 }

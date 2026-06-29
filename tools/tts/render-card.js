@@ -212,6 +212,11 @@ function cardShell(inner, options = {}) {
           <stop offset="0.62" stop-color="#f8f4e8" stop-opacity="0.76"/>
           <stop offset="1" stop-color="#d8d1c2" stop-opacity="0.88"/>
         </linearGradient>
+        <linearGradient id="artToPanelFade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="${paper}" stop-opacity="0"/>
+          <stop offset="0.58" stop-color="${paper}" stop-opacity="0.26"/>
+          <stop offset="1" stop-color="${paper}" stop-opacity="0.72"/>
+        </linearGradient>
         <radialGradient id="sealGlow" cx="50%" cy="50%" r="50%">
           <stop offset="0" stop-color="#ffffff" stop-opacity="0.38"/>
           <stop offset="1" stop-color="${accent}" stop-opacity="0.08"/>
@@ -299,6 +304,8 @@ function renderCharacter(card) {
   const roleDarkColor = ROLE_DARK_COLORS[card.mainRole] ?? "#4b2d1c";
   const roleTrimColor = ROLE_TRIM_COLORS[card.mainRole] ?? "#ffe08a";
   const { prefix, suffix } = splitCharacterName(card.name);
+  const costText = formatCost(card.cost);
+  const costFontSize = costText.length >= 9 ? 12 : costText.length >= 7 ? 15 : 19;
   const inner = `
     <rect x="26" y="26" width="100" height="998" fill="${roleDarkColor}" stroke="${roleTrimColor}" stroke-opacity="0.70" stroke-width="3"/>
     <g opacity="0.17">
@@ -307,20 +314,21 @@ function renderCharacter(card) {
       <path d="M42 532 C96 568, 42 610, 102 658" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
     </g>
     ${artStage("角色原画预留", "character", { x: 126, y: 26, width: 598, height: 960, accent: roleColor, imageDataUri: card.__ttsArt })}
+    <rect x="126" y="696" width="598" height="62" fill="url(#artToPanelFade)"/>
     <circle cx="76" cy="92" r="42" fill="url(#sealGlow)" stroke="${roleTrimColor}" stroke-width="4"/>
     <text x="76" y="104" text-anchor="middle" font-size="29" font-weight="900" fill="#fff0a6">${escapeXml(card.mainRole.slice(0, 1))}</text>
     ${prefix ? verticalText(prefix, 76, 206, 25, { fill: roleTrimColor, stroke: "#160b09", strokeWidth: 4, gap: 36 }) : ""}
     ${verticalText(suffix, 76, prefix ? 396 : 248, suffix.length > 4 ? 36 : 42, { fill: "#ffffff", stroke: roleDarkColor, strokeWidth: 5, gap: suffix.length > 4 ? 46 : 58 })}
     <rect x="55" y="868" width="42" height="48" rx="3" fill="rgba(255,255,255,0.08)" stroke="${roleTrimColor}" stroke-opacity="0.68"/>
     ${verticalText(card.source || "通用", 76, 896, 17, { fill: roleTrimColor, gap: 20 })}
-    <text x="676" y="104" text-anchor="middle" writing-mode="tb" font-size="24" font-weight="900" fill="${roleTrimColor}" stroke="#0b0b12" stroke-width="4" paint-order="stroke">${escapeXml(card.mainRole)}</text>
+    ${verticalText(card.mainRole, 676, 104, 24, { fill: roleTrimColor, stroke: "#0b0b12", strokeWidth: 4, gap: 38 })}
     <g transform="translate(150 678)">${tagsSvg(card.tags, 0, 0, { fill: "rgba(0,0,0,0.45)", stroke: "rgba(255,255,255,0.32)", max: 4 })}</g>
     <g filter="url(#shadow)">
       <path d="M126 746 H724 V986 H126 Z" fill="url(#textParchment)" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/>
       <rect x="150" y="770" width="190" height="42" rx="7" fill="${roleColor}"/>
       <text x="245" y="800" text-anchor="middle" font-size="22" font-weight="900" fill="#ffffff">${escapeXml(card.skillName)}</text>
       <rect x="356" y="770" width="112" height="42" rx="7" fill="#312a24" fill-opacity="0.84"/>
-      <text x="412" y="800" text-anchor="middle" font-size="19" font-weight="900" fill="#ffe59a">${escapeXml(formatCost(card.cost))}</text>
+      <text x="412" y="800" text-anchor="middle" font-size="${costFontSize}" font-weight="900" fill="#ffe59a">${escapeXml(costText)}</text>
       ${fitTextBlock(card.timing, 486, 800, 196, 38, 20, 16, { fill: "#534333", weight: 800 })}
       ${fitTextBlock(card.effectText, 150, 848, 530, 104, 25, 18, { fill: "#25201b", weight: 700 })}
     </g>
