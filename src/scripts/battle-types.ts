@@ -20,6 +20,7 @@ export type CatalogCard = {
   megaCondition?: string;
   timing?: string;
   costText?: string;
+  costKind?: "rest" | "exit" | "compound" | "other";
   mainRole?: string;
   tags?: string[];
   skillName?: string;

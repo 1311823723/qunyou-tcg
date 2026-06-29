@@ -2092,8 +2092,8 @@ function renderHpCounter(label: string, value: string | number, command: string,
     }
   }
 
-  return `<div class="battle-counter ${counterClass}" aria-label="${label} ${numeric} / ${maxHp}">
-    <span>${label}</span>
+  return `<div class="battle-counter battle-counter--hp ${counterClass}" aria-label="${label} ${numeric} / ${maxHp}">
+    <span class="battle-counter__label">${label}</span>
     <div class="battle-counter__hp-icons">
       ${crystals.join("")}
     </div>
@@ -2147,7 +2147,7 @@ function renderProgressCounter(label: string, value: string | number, command: s
   // SVG progress ring calculations
   const radius = 20;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percent / 100) * circumference;
+  const offset = circumference - (Math.min(100, percent) / 100) * circumference;
 
   // Generate milestones，使用图标替代普通节点
   const milestones = Array.from({ length: maxProgress }, (_, i) => {
@@ -2177,30 +2177,23 @@ function renderProgressCounter(label: string, value: string | number, command: s
     return `<img src="${iconPath}" alt="" aria-hidden="true" class="battle-counter__progress-icon battle-counter__progress-icon--${iconState} ${pulseClass}" />`;
   }).join("");
 
-  return `<div class="battle-counter-wrapper ${ready ? "is-ready" : ""}">
-    <div class="battle-counter ${stateClass} battle-counter--${iconType}">
-      <span>${label}</span>
+  const statusLabel = isUsed ? usedLabel : ready ? (isMega ? "可 Mega" : isZMove ? "Z 就绪" : "已就绪") : "";
 
-      ${ready && !isUsed ? `
-        <!-- 就绪状态：显示放大的满能量图标 -->
-        <div class="battle-counter__ready-display">
-          <img src="/battle-icons/${iconType}/${iconPrefix}-ready.png" alt="" class="battle-counter__ready-icon" />
-          <span class="battle-counter__ready-value">${numeric}/${maxProgress}</span>
-        </div>
-      ` : `
-        <!-- 正常状态：显示进度环和图标 -->
-        <div class="battle-counter__progress-ring">
-          <svg viewBox="0 0 44 44">
-            <circle class="ring-bg" cx="22" cy="22" r="${radius}" />
-            <circle class="ring-fill ${stateClass}" cx="22" cy="22" r="${radius}"
-                    stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" />
-          </svg>
-          <span class="battle-counter__progress-value">${numeric}/${maxProgress}</span>
-        </div>
-        <div class="battle-counter__progress-icons">
-          ${milestones}
-        </div>
-      `}
+  return `<div class="battle-counter-wrapper ${ready ? "is-ready" : ""} ${isUsed ? "is-used" : ""}">
+    <div class="battle-counter ${stateClass} ${isUsed ? "is-used" : ""} battle-counter--${iconType}">
+      <span class="battle-counter__label">${label}</span>
+      <div class="battle-counter__progress-ring">
+        <svg viewBox="0 0 44 44">
+          <circle class="ring-bg" cx="22" cy="22" r="${radius}" />
+          <circle class="ring-fill ${stateClass}" cx="22" cy="22" r="${radius}"
+                  stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" />
+        </svg>
+        <span class="battle-counter__progress-value">${numeric}/${maxProgress}</span>
+      </div>
+      <div class="battle-counter__progress-icons">
+        ${milestones}
+      </div>
+      ${statusLabel ? `<span class="battle-counter__state">${statusLabel}</span>` : ""}
 
       ${editable ? `<div class="battle-counter__actions">
         <button type="button" data-command="${command}" data-player="${playerId}" data-value="${numeric - 1}" aria-label="${label}减一">−</button>
@@ -2210,7 +2203,6 @@ function renderProgressCounter(label: string, value: string | number, command: s
     </div>
 
     ${ready && editable ? `
-      <!-- 激活按钮：放在计数器右侧 -->
       <button type="button"
               class="battle-counter__activate-btn ${isUsed ? "is-used" : ""}"
               data-command="${isUsed ? "" : activateCommand}"
@@ -2398,17 +2390,19 @@ function renderCard(
   const cardClass = `battle-mini-card battle-mini-card--${definition.kind}${imagePath ? " battle-mini-card--art" : ""}${sizeClass}${faceClass}${skillClass}`;
   const inSlot = definition.kind === "character" && options.zone.startsWith("slot:");
   const faceBadge = inSlot
-    ? (card.faceDown ? `<span class="battle-mini-card__face-badge battle-mini-card__face-badge--down">暗</span>` : `<span class="battle-mini-card__face-badge">明</span>`)
+    ? (card.faceDown ? `<span class="battle-mini-card__face-badge battle-mini-card__face-badge--down">暗置</span>` : `<span class="battle-mini-card__face-badge">明置</span>`)
     : "";
   const costBadge = definition.kind === "character" && definition.costText
-    ? `<span class="battle-mini-card__cost" title="技能消耗：${escapeHtml(definition.costText)}">${escapeHtml(definition.costText)}</span>`
+    ? `<span class="battle-mini-card__cost battle-mini-card__cost--${definition.costKind || "other"}" title="技能消耗：${escapeHtml(definition.costText)}">${escapeHtml(definition.costText)}</span>`
     : "";
+  const declaredBadge = skillClass ? `<span class="battle-mini-card__declared">已声明</span>` : "";
   return `<button type="button" class="${cardClass}" draggable="${String(options.interactive)}"
     data-card="${card.instanceId || ""}" data-owner="${options.owner.id}" data-zone="${options.zone}"
     aria-label="${escapeHtml(name)}" title="${escapeHtml([definition.costText, definition.timing, definition.text].filter(Boolean).join("｜"))}">
     ${imagePath ? `<img src="${imagePath}" alt="" loading="lazy" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
     ${faceBadge}
     ${costBadge}
+    ${declaredBadge}
     <strong>${escapeHtml(name)}</strong><small>${escapeHtml(poker + definition.subtitle)}</small>
   </button>`;
 }

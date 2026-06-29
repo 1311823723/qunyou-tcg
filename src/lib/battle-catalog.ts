@@ -2,7 +2,7 @@ import { EXTRA_FORM_CONDITION_LABELS, EXTRA_FORM_LABELS, allBodies, allCharacter
 import { allDecks } from "./decks";
 import { getArchetypeBlurb } from "./archetypes";
 import { getBodyArt, getCharacterArt } from "./card-art";
-import { formatCharacterCost } from "./ui";
+import { costKind, formatCharacterCost } from "./ui";
 
 const ARCHETYPE_THEME_SLUG: Record<string, string> = {
   "爆杀流": "aggro",
@@ -56,6 +56,7 @@ export interface BattleCatalogCard {
   megaCondition?: string;
   timing?: string;
   costText?: string;
+  costKind?: "rest" | "exit" | "compound" | "other";
   mainRole?: string;
   tags?: string[];
   skillName?: string;
@@ -109,6 +110,7 @@ export function getBattleCatalog() {
       skillName: card.skillName,
       timing: card.timing,
       costText: formatCharacterCost(card.cost),
+      costKind: costKind(card.cost),
       imagePath: `/cards/characters/${card.id}.webp`,
       highResImagePath: `/cards-hd/characters/${card.id}.webp`,
       portraitPath: art?.src,
