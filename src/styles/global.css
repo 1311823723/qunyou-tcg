@@ -115,6 +115,98 @@ body::selection { color: #180806; background: var(--accent-aggro-hot); }
 a { color: inherit; }
 strong { color: var(--text-gold); font-weight: 800; }
 
+/* Online battle hall */
+.battle-hall { padding-block: 2rem 4rem; }
+.battle-hall__hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 1.4rem 0 2rem;
+}
+.battle-hall__hero h1 { margin: 0.45rem 0; font-family: var(--font-display); font-size: clamp(2.15rem, 6vw, 4.6rem); line-height: 1; }
+.battle-hall__hero p { margin: 0; color: var(--text-secondary); }
+.battle-hall__profile {
+  min-width: 13rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-gold);
+  border-radius: 14px;
+  background: rgba(12,14,25,0.78);
+  box-shadow: 0 18px 44px rgba(0,0,0,0.26);
+}
+.battle-hall__profile span { display: block; color: var(--text-muted); font-size: 0.72rem; letter-spacing: 0.12em; }
+.battle-hall__profile strong { display: block; margin: 0.18rem 0 0.65rem; font-size: 1.15rem; }
+.battle-hall__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.2rem 0 2.5rem; }
+.battle-hall__action { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1rem; padding: 1.1rem; }
+.battle-hall__action--create { border-color: rgba(255,217,138,0.3); }
+.battle-hall__action h2 { margin: 0.08rem 0; font-size: 1.08rem; }
+.battle-hall__action small { color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 0.09em; }
+.battle-hall__action p { margin: 0; color: var(--text-secondary); font-size: 0.8rem; }
+.battle-hall__action .battle-form__status { grid-column: 2 / -1; }
+.battle-hall__code-form { display: flex; gap: 0.55rem; }
+.battle-hall__code-form input { width: 9.5rem; }
+.battle-hall__rooms { padding-top: 0.5rem; }
+.battle-hall__rooms-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.battle-hall__rooms-heading h2 { margin: 0.28rem 0 0; font-size: 1.7rem; }
+.battle-hall__rooms-heading p { margin: 0.28rem 0 0; color: var(--text-muted); }
+.battle-hall__notice { margin-bottom: 0.8rem; padding: 0.65rem 0.8rem; border: 1px solid rgba(88,199,232,0.22); border-radius: 9px; color: var(--text-secondary); background: rgba(88,199,232,0.07); }
+.battle-hall__notice[data-state="error"] { border-color: rgba(255,87,72,0.35); color: #ffb0a7; background: rgba(255,87,72,0.08); }
+.battle-hall__room-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1rem; }
+.battle-room-card {
+  position: relative;
+  overflow: hidden;
+  padding: 1rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-top: 2px solid var(--accent-success);
+  border-radius: 16px;
+  background: linear-gradient(155deg, rgba(20,26,38,0.94), rgba(7,9,17,0.94));
+  box-shadow: 0 18px 44px rgba(0,0,0,0.3);
+}
+.battle-room-card::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 90% 0, rgba(86,217,134,0.11), transparent 42%); }
+.battle-room-card.is-playing { border-top-color: var(--accent-mega-purple); }
+.battle-room-card.is-playing::before { background: radial-gradient(circle at 90% 0, rgba(157,108,255,0.16), transparent 44%); }
+.battle-room-card.is-invited { outline: 2px solid var(--text-gold); outline-offset: 3px; }
+.battle-room-card header { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
+.battle-room-card code { color: var(--text-gold); font-family: var(--font-mono); font-size: 1.05rem; letter-spacing: 0.12em; }
+.battle-room-card__status { display: inline-flex; align-items: center; gap: 0.42rem; color: var(--accent-success); font-weight: 800; }
+.battle-room-card.is-playing .battle-room-card__status { color: #bd9cff; }
+.battle-room-card__status i, .battle-room-card__players i { width: 0.48rem; height: 0.48rem; border-radius: 999px; background: currentColor; box-shadow: 0 0 10px currentColor; }
+.battle-room-card__players { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; margin: 1rem 0; }
+.battle-room-card__players > span { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 0.45rem; min-width: 0; padding: 0.65rem; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: rgba(0,0,0,0.2); }
+.battle-room-card__players b { overflow: hidden; color: var(--text-primary); text-overflow: ellipsis; white-space: nowrap; }
+.battle-room-card__players small { grid-column: 2; color: var(--text-muted); }
+.battle-room-card__players .is-online { color: var(--accent-success); }
+.battle-room-card__players .is-away { color: var(--role-support); }
+.battle-room-card__players .is-empty { color: var(--text-faint); }
+.battle-room-card__meta { position: relative; display: flex; flex-wrap: wrap; gap: 0.4rem 0.75rem; margin-bottom: 0.9rem; color: var(--text-muted); font-size: 0.72rem; }
+.battle-room-card > .btn { position: relative; width: 100%; }
+.battle-hall__empty { grid-column: 1 / -1; display: grid; justify-items: center; padding: 3.2rem 1rem; border: 1px dashed rgba(255,255,255,0.12); border-radius: 16px; color: var(--text-muted); text-align: center; background: rgba(10,12,22,0.5); }
+.battle-hall__empty span { width: 2.5rem; height: 2.5rem; margin-bottom: 0.8rem; border: 1px solid rgba(216,183,92,0.38); border-radius: 50%; box-shadow: inset 0 0 20px rgba(216,183,92,0.08); }
+.battle-hall__empty strong { color: var(--text-primary); font-size: 1.05rem; }
+.battle-hall__empty p { margin: 0.35rem 0 0; }
+.battle-profile-dialog { width: min(92vw, 28rem); padding: 0; border: 1px solid var(--border-gold); border-radius: 18px; color: var(--text-primary); background: #111522; box-shadow: 0 30px 90px rgba(0,0,0,0.7); }
+.battle-profile-dialog::backdrop { background: rgba(3,4,9,0.78); backdrop-filter: blur(10px); }
+.battle-profile-form { display: grid; gap: 0.9rem; padding: 1.4rem; }
+.battle-profile-form h2, .battle-profile-form p { margin: 0; }
+.battle-profile-form p { color: var(--text-secondary); }
+.battle-profile-form label { display: grid; gap: 0.38rem; color: var(--text-secondary); font-weight: 700; }
+.battle-profile-form input { width: 100%; padding: 0.8rem; border: 1px solid var(--border-panel); border-radius: 9px; color: var(--text-primary); background: var(--bg-inset); }
+
+@media (max-width: 850px) {
+  .battle-hall__actions { grid-template-columns: 1fr; }
+  .battle-hall__hero { align-items: stretch; flex-direction: column; }
+  .battle-hall__profile { width: 100%; }
+}
+@media (max-width: 580px) {
+  .battle-hall { padding-top: 0.75rem; }
+  .battle-hall__action { grid-template-columns: auto 1fr; }
+  .battle-hall__action > .btn, .battle-hall__action > form { grid-column: 1 / -1; width: 100%; }
+  .battle-hall__action .battle-form__status { grid-column: 1 / -1; }
+  .battle-hall__code-form input { min-width: 0; width: 100%; }
+  .battle-hall__rooms-heading { align-items: flex-start; }
+  .battle-room-card__players { grid-template-columns: 1fr; }
+}
+
 .site-bg {
   position: fixed;
   inset: 0;
@@ -1276,6 +1368,8 @@ strong { color: var(--text-gold); font-weight: 800; }
 }
 .thumb-card {
   position: relative;
+  content-visibility: auto;
+  contain-intrinsic-size: 170px 280px;
 }
 .thumb-card__btn {
   display: flex;
@@ -1372,18 +1466,38 @@ strong { color: var(--text-gold); font-weight: 800; }
   border-radius: var(--radius-lg);
 }
 .card-zoom__image {
-  width: 100%;
+  position: relative;
+  width: min(100%, 57vh);
+  aspect-ratio: 5 / 7;
+  justify-self: center;
   overflow: hidden;
   border-radius: var(--radius-md);
+  background: rgba(3, 6, 12, 0.72);
   box-shadow: var(--shadow-card);
 }
 .card-zoom__image img {
+  position: absolute;
+  inset: 0;
   display: block;
-  width: auto;
-  max-width: 100%;
-  height: min(86vh, 46rem);
-  margin: 0 auto;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+}
+.card-zoom__image-placeholder { filter: saturate(0.92); }
+.card-zoom__image-hd { opacity: 0; transition: opacity 0.22s ease; }
+.card-zoom__image-hd.is-loaded { opacity: 1; }
+.card-zoom__image-loading {
+  position: absolute;
+  z-index: 2;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  padding: 0.25rem 0.48rem;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: rgba(3,6,12,0.8);
+  font-size: 0.62rem;
+  backdrop-filter: blur(8px);
 }
 .card-zoom__info {
   width: 100%;
@@ -1453,12 +1567,6 @@ strong { color: var(--text-gold); font-weight: 800; }
   .card-zoom {
     grid-template-columns: 1fr;
     width: min(92vw, 28rem);
-  }
-
-  .card-zoom__image img {
-    width: 100%;
-    height: auto;
-    max-height: 72vh;
   }
 
   .card-zoom__info {

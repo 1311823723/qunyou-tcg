@@ -449,20 +449,20 @@
     "source": "鹅"
   },
   {
-    "id": "char_029_guamao_lover",
-    "name": "恋人-瓜猫",
+    "id": "char_029_daidaishou_luna",
+    "name": "露娜-呆呆兽",
     "cardType": "角色",
-    "deck": "伏击流",
+    "deck": "",
     "mainRole": "控制",
-    "tags": ["退场","角色控制"],
+    "tags": ["情报","手牌控制"],
     "cost": {
-      "type": "复合",
-      "text": "休整自身/退场自身"
+      "type": "休整",
+      "amount": 1
     },
-    "timing": "当你的另一张角色退场后",
-    "skillName": "殉情清算",
-    "effectText": "你可以休整此角色，选择对手1张明置角色，本回合其不能发动技能。若退场的是【恋人-香菜】，你可以改为将此角色退场，然后休整对手至多2张角色。",
-    "source": "鹅"
+    "timing": "出牌阶段",
+    "skillName": "月蚀封锁",
+    "effectText": "随机展示对手1张手牌。对手本回合不能使用或打出与该牌同名的牌。",
+    "source": "洲"
   },
   {
     "id": "char_030_miaosila_detective",
@@ -1138,20 +1138,20 @@
     "source": "鹅"
   },
   {
-    "id": "char_072_daidaishou_luna",
-    "name": "露娜-呆呆兽",
+    "id": "char_072_guamao_lover",
+    "name": "恋人-瓜猫",
     "cardType": "角色",
-    "deck": "",
+    "deck": "伏击流",
     "mainRole": "控制",
-    "tags": ["情报","手牌控制"],
+    "tags": ["退场","角色控制"],
     "cost": {
-      "type": "休整",
-      "amount": 1
+      "type": "复合",
+      "text": "休整自身/退场自身"
     },
-    "timing": "出牌阶段",
-    "skillName": "月蚀封锁",
-    "effectText": "随机展示对手1张手牌。对手本回合不能使用或打出与该牌同名的牌。",
-    "source": "洲"
+    "timing": "当你的另一张角色退场后",
+    "skillName": "殉情清算",
+    "effectText": "你可以休整此角色，选择对手1张明置角色，本回合其不能发动技能。若退场的是【恋人-香菜】，你可以改为将此角色退场，然后休整对手至多2张角色。",
+    "source": "鹅"
   },
   {
     "id": "char_073_xiaoapan_bee-medic",

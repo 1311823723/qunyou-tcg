@@ -150,7 +150,8 @@ export type ServerMessage =
       allowedActions: InspectionAction[];
     }
   | VisualEffectEvent
-  | { type: "roomEnded" };
+  | { type: "roomEnded"; reason?: string }
+  | { type: "roomLeft" };
 
 export type PreservedUI = {
   scrollLeft: Record<string, number>;

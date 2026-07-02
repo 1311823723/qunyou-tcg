@@ -1,9 +1,9 @@
 ---
 name: qunyou-character-art
-description: Create or refine image-generation prompts and art-direction briefs for 群友杀 TCG character-card original art. Use when generating, reviewing, or replacing character-card artwork from data/cards/characters.json, especially when the art must match the card's source game role, a provided friend/reference image, and the card skill's meaning before registering art with npm run art:use.
+description: Create or refine image-generation prompts and art-direction briefs for 宝旅团 TCG character-card original art. Use when generating, reviewing, or replacing character-card artwork from data/cards/characters.json, especially when the art must match the card's source game role, a provided friend/reference image, and the card skill's meaning before registering art with npm run art:use.
 ---
 
-# 群友杀角色原画
+# 宝旅团角色原画
 
 Use this skill for **角色牌** art only. For body, Mega, Z招式, or export mechanics, follow `docs/card-export-workflow.md` as the source of truth.
 

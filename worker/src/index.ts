@@ -31,6 +31,7 @@ import type {
   ClientMessage,
   CustomDeckConfig,
   InspectionResult,
+  LobbyRoomSummary,
   Marker,
   PlayerState,
   RoomState,
@@ -40,6 +41,7 @@ import type {
 } from "./types";
 
 const ROOM_TTL_MS = 24 * 60 * 60 * 1000;
+const WAITING_DISCONNECT_GRACE_MS = 60 * 1000;
 const CUSTOM_DECK_ID = "custom";
 const deckById = new Map(allDecks.map((deck) => [deck.id, deck]));
 const bodyById = new Map(bodies.map((body) => [body.id, body]));
@@ -123,6 +125,14 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
 
+    if (request.method === "GET" && url.pathname === "/lobby") {
+      const lobby = env.BATTLE_LOBBY.getByName("global");
+      const rooms = await lobby.listRooms();
+      return json({ rooms, generatedAt: Date.now() }, {
+        headers: { ...headers, "cache-control": "no-store" },
+      });
+    }
+
     if (request.method === "POST" && url.pathname === "/rooms") {
       const rate = await env.CREATE_RATE_LIMITER.limit({ key: clientAddress(request) });
       if (!rate.success) {
@@ -174,11 +184,49 @@ export default {
   },
 };
 
+export class BattleLobby extends DurableObject<Env> {
+  async listRooms(): Promise<LobbyRoomSummary[]> {
+    const now = Date.now();
+    const rooms = await this.readRooms();
+    let changed = false;
+    for (const [code, room] of Object.entries(rooms)) {
+      if (now - room.updatedAt >= ROOM_TTL_MS) {
+        delete rooms[code];
+        changed = true;
+      }
+    }
+    if (changed) await this.ctx.storage.put("rooms", rooms);
+    return Object.values(rooms).sort((left, right) => {
+      if (left.status !== right.status) return left.status === "waiting" ? -1 : 1;
+      return right.createdAt - left.createdAt;
+    });
+  }
+
+  async upsertRoom(room: LobbyRoomSummary) {
+    const rooms = await this.readRooms();
+    rooms[room.roomCode] = room;
+    await this.ctx.storage.put("rooms", rooms);
+  }
+
+  async removeRoom(roomCode: string) {
+    const rooms = await this.readRooms();
+    if (!rooms[roomCode]) return;
+    delete rooms[roomCode];
+    await this.ctx.storage.put("rooms", rooms);
+  }
+
+  private async readRooms() {
+    return await this.ctx.storage.get<Record<string, LobbyRoomSummary>>("rooms") || {};
+  }
+}
+
 export class BattleRoom extends DurableObject<Env> {
   private state?: RoomState;
+  private readonly env: Env;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.env = env;
     ctx.blockConcurrencyWhile(async () => {
       this.state = await ctx.storage.get<RoomState>("room");
       if (this.state) {
@@ -187,6 +235,7 @@ export class BattleRoom extends DurableObject<Env> {
         this.state.processedActionIds ??= [];
         const migrated = this.migrateState();
         if (migrated) await ctx.storage.put("room", this.state);
+        await this.syncLobby();
       }
     });
   }
@@ -219,6 +268,7 @@ export class BattleRoom extends DurableObject<Env> {
       inspections: [],
     };
     await this.persist();
+    await this.syncLobby();
     return { roomCode: code };
   }
 
@@ -228,6 +278,12 @@ export class BattleRoom extends DurableObject<Env> {
     }
     let player = this.state.players.find((item) => item.token === token);
     if (!player) {
+      if (this.state.started) {
+        return { status: 409, body: { error: "牌局已经开始，请使用观战模式进入。" } };
+      }
+      if (this.state.players[0]?.disconnectedAt) {
+        return { status: 409, body: { error: "房主暂时离线，请等待其重连。" } };
+      }
       if (this.state.players.length >= 2) {
         return { status: 409, body: { error: "房间已满，无法加入。" } };
       }
@@ -235,8 +291,10 @@ export class BattleRoom extends DurableObject<Env> {
       this.state.players.push(player);
       this.addLog(`${nickname} 加入了房间`, player.id, "system", { zone: "lobby", ownerId: player.id });
       this.state.revision += 1;
-      await this.persist();
     }
+    this.state.lastActivityAt = Date.now();
+    await this.persist();
+    await this.syncLobby();
     return { status: 200, body: { ok: true, playerId: player.id } };
   }
 
@@ -245,30 +303,38 @@ export class BattleRoom extends DurableObject<Env> {
     const url = new URL(request.url);
     const token = cleanText(url.searchParams.get("token"), 80);
     const spectator = url.searchParams.get("spectator") === "true";
+    const spectatorNickname = cleanText(url.searchParams.get("nickname"), 20);
 
     let playerId: string;
     let isSpectator = false;
 
     if (spectator) {
-      // 观战者连接
+      if (!this.state.started) return json({ error: "牌局开始后才能观战。" }, { status: 409 });
+      if (!token || !spectatorNickname) return json({ error: "观战身份无效。" }, { status: 400 });
       playerId = `spectator-${crypto.randomUUID()}`;
       isSpectator = true;
       if (!this.state.spectators) this.state.spectators = [];
       this.state.spectators.push(playerId);
-      this.addLog(`观战者加入`, playerId, "system", { zone: "spectator" });
+      this.addLog(`${spectatorNickname} 加入观战`, playerId, "system", { zone: "spectator" });
     } else {
       // 玩家连接
       const player = this.state.players.find((item) => item.token === token);
       if (!player) return json({ error: "请先通过加入页面进入房间。" }, { status: 401 });
+      player.disconnectedAt = undefined;
       playerId = player.id;
     }
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
-    server.serializeAttachment({ playerId, isSpectator } satisfies SocketAttachment);
+    server.serializeAttachment({
+      playerId,
+      isSpectator,
+      ...(isSpectator ? { spectatorNickname } : {}),
+    } satisfies SocketAttachment);
     this.state.lastActivityAt = Date.now();
     await this.persist();
+    await this.syncLobby();
     this.broadcast();
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -307,6 +373,10 @@ export class BattleRoom extends DurableObject<Env> {
         await this.endRoom(player);
         return;
       }
+      if (message.type === "room:leave") {
+        await this.leaveWaitingRoom(player);
+        return;
+      }
       const now = Date.now();
       pruneInspections(this.state, now);
       if (clearExpiredRestart(this.state, now)) {
@@ -322,12 +392,14 @@ export class BattleRoom extends DurableObject<Env> {
         throw new Error("牌桌状态已更新，请等待同步后重试。");
       }
       const visualEffects: VisualEffectSpec[] = [];
+      const wasStarted = this.state.started;
       const inspection = this.applyAction(player, message, visualEffects);
       this.state.processedActionIds.push(message.actionId);
       this.state.processedActionIds = this.state.processedActionIds.slice(-100);
       this.state.lastActivityAt = Date.now();
       this.state.revision += 1;
       await this.persist();
+      if (!wasStarted && this.state.started) await this.syncLobby();
       this.broadcast();
       this.broadcastVisualEffects(visualEffects);
       if ((message.protocolVersion ?? 1) >= 2) this.sendActionAck(ws, message.actionId);
@@ -368,20 +440,22 @@ export class BattleRoom extends DurableObject<Env> {
   }
 
   async webSocketClose(ws: WebSocket) {
+    if (!this.state) return;
     const attachment = ws.deserializeAttachment() as SocketAttachment | null;
 
-    // 观战者断开连接
-    if (attachment?.isSpectator && this.state?.spectators) {
+    if (attachment?.isSpectator) {
       const index = this.state.spectators.indexOf(attachment.playerId);
       if (index >= 0) {
         this.state.spectators.splice(index, 1);
-        this.addLog(`观战者离开`, attachment.playerId, "system", { zone: "spectator" });
+        this.addLog(`${attachment.spectatorNickname || "观战者"} 离开观战`, attachment.playerId, "system", { zone: "spectator" });
+        this.state.lastActivityAt = Date.now();
+        await this.persist();
+        await this.syncLobby();
         this.broadcast();
       }
       return;
     }
 
-    // 玩家断开连接
     const hasAnotherConnection = attachment?.playerId
       ? this.ctx.getWebSockets().some((socket) => {
           if (socket === ws) return false;
@@ -389,24 +463,53 @@ export class BattleRoom extends DurableObject<Env> {
           return other?.playerId === attachment.playerId;
         })
       : false;
+    if (!hasAnotherConnection && attachment?.playerId) {
+      const player = this.state.players.find((item) => item.id === attachment.playerId);
+      if (player) {
+        player.disconnectedAt = Date.now();
+        this.state.lastActivityAt = Date.now();
+        await this.persist();
+        await this.syncLobby();
+      }
+    }
     this.broadcast(hasAnotherConnection ? undefined : attachment?.playerId);
   }
 
   async alarm() {
     if (!this.state) return;
+    const now = Date.now();
+    let changed = false;
     if (clearExpiredRestart(this.state)) {
       this.addLog("重新开始请求已超时");
       this.state.revision += 1;
+      changed = true;
+    }
+    if (!this.state.started) {
+      const host = this.state.players[0];
+      if (host?.disconnectedAt && now - host.disconnectedAt >= WAITING_DISCONNECT_GRACE_MS) {
+        await this.destroyRoom("房主离线超时，等待房间已关闭。");
+        return;
+      }
+      const guest = this.state.players[1];
+      if (guest?.disconnectedAt && now - guest.disconnectedAt >= WAITING_DISCONNECT_GRACE_MS) {
+        this.state.players.splice(1, 1);
+        if (host) host.ready = false;
+        this.addLog(`${guest.nickname} 离线超时，座位已释放`, guest.id, "system", { zone: "lobby" });
+        this.state.revision += 1;
+        changed = true;
+      }
+    }
+    if (now - this.state.lastActivityAt >= ROOM_TTL_MS && this.ctx.getWebSockets().length === 0) {
+      await this.destroyRoom("房间已过期。");
+      return;
+    }
+    if (changed) {
       await this.persist();
+      await this.syncLobby();
       this.broadcast();
       return;
     }
-    if (Date.now() - this.state.lastActivityAt >= ROOM_TTL_MS && this.ctx.getWebSockets().length === 0) {
-      await this.ctx.storage.deleteAll();
-      this.state = undefined;
-      return;
-    }
-    await this.ctx.storage.setAlarm(this.state.lastActivityAt + ROOM_TTL_MS);
+    await this.scheduleAlarm();
   }
 
   private newPlayer(id: string, token: string, nickname: string, deckId: string, customDeck?: CustomDeckConfig): PlayerState {
@@ -769,6 +872,7 @@ export class BattleRoom extends DurableObject<Env> {
     }
     const first = this.state.players[crypto.getRandomValues(new Uint8Array(1))[0] % 2];
     this.state.started = true;
+    if (reason === "start") this.state.startedAt = Date.now();
     this.state.firstPlayerId = first.id;
     this.state.currentPlayerId = first.id;
     this.state.turnNumber = 1;
@@ -1344,18 +1448,54 @@ export class BattleRoom extends DurableObject<Env> {
     ws.send(JSON.stringify({ type: "error", error, ...metadata }));
   }
 
+  private async leaveWaitingRoom(player: PlayerState) {
+    if (!this.state) throw new Error("房间状态不存在。");
+    if (this.state.started) throw new Error("牌局开始后不能以等待房间方式退出。");
+    if (player.id === "p1") {
+      await this.destroyRoom("房主已退出，等待房间已关闭。");
+      return;
+    }
+
+    this.addLog(`${player.nickname} 退出了等待房间`, player.id, "system", { zone: "lobby" });
+    this.state.players = this.state.players.filter((item) => item.id !== player.id);
+    const host = this.state.players[0];
+    if (host) host.ready = false;
+    this.state.lastActivityAt = Date.now();
+    this.state.revision += 1;
+    await this.persist();
+    await this.syncLobby();
+    this.broadcast();
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = socket.deserializeAttachment() as SocketAttachment | null;
+      if (attachment?.playerId !== player.id) continue;
+      try {
+        socket.send(JSON.stringify({ type: "roomLeft" }));
+        socket.close(1000, "Player left waiting room");
+      } catch {
+        // The peer may already have disconnected.
+      }
+    }
+  }
+
   private async endRoom(player: PlayerState) {
     if (!this.state) throw new Error("房间状态不存在。");
     this.addLog(`${player.nickname} 结束了游戏`, player.id, "action", { zone: "room" });
+    await this.destroyRoom("这场游戏已经结束，房间已关闭。");
+  }
+
+  private async destroyRoom(reason: string) {
+    if (!this.state) return;
+    const roomCode = this.state.roomCode;
     const sockets = this.ctx.getWebSockets();
     for (const socket of sockets) {
       try {
-        socket.send(JSON.stringify({ type: "roomEnded" }));
+        socket.send(JSON.stringify({ type: "roomEnded", reason }));
       } catch {
         // The socket will be closed below.
       }
     }
     await this.ctx.storage.deleteAll();
+    await this.env.BATTLE_LOBBY.getByName("global").removeRoom(roomCode);
     this.state = undefined;
     for (const socket of sockets) {
       try {
@@ -1364,6 +1504,27 @@ export class BattleRoom extends DurableObject<Env> {
         // The peer may already have disconnected.
       }
     }
+  }
+
+  private async syncLobby() {
+    if (!this.state) return;
+    const hostConnected = !this.state.players[0]?.disconnectedAt;
+    const summary: LobbyRoomSummary = {
+      roomCode: this.state.roomCode,
+      status: this.state.started ? "playing" : "waiting",
+      players: this.state.players.map((player) => ({
+        nickname: player.nickname,
+        connected: !player.disconnectedAt,
+      })),
+      playerCount: this.state.players.length,
+      capacity: 2,
+      joinable: !this.state.started && this.state.players.length < 2 && hostConnected,
+      spectatorCount: this.state.spectators.length,
+      createdAt: this.state.createdAt,
+      ...(this.state.startedAt ? { startedAt: this.state.startedAt } : {}),
+      updatedAt: Date.now(),
+    };
+    await this.env.BATTLE_LOBBY.getByName("global").upsertRoom(summary);
   }
 
   private addLog(
@@ -1450,10 +1611,18 @@ export class BattleRoom extends DurableObject<Env> {
   private async persist() {
     if (!this.state) return;
     await this.ctx.storage.put("room", this.state);
-    const roomExpiry = this.state.lastActivityAt + ROOM_TTL_MS;
-    const nextAlarm = this.state.pendingRestart
-      ? Math.min(roomExpiry, this.state.pendingRestart.expiresAt)
-      : roomExpiry;
-    await this.ctx.storage.setAlarm(nextAlarm);
+    await this.scheduleAlarm();
+  }
+
+  private async scheduleAlarm() {
+    if (!this.state) return;
+    const candidates = [this.state.lastActivityAt + ROOM_TTL_MS];
+    if (this.state.pendingRestart) candidates.push(this.state.pendingRestart.expiresAt);
+    if (!this.state.started) {
+      for (const player of this.state.players) {
+        if (player.disconnectedAt) candidates.push(player.disconnectedAt + WAITING_DISCONNECT_GRACE_MS);
+      }
+    }
+    await this.ctx.storage.setAlarm(Math.min(...candidates));
   }
 }

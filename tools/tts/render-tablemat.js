@@ -107,13 +107,13 @@ function renderTablemat() {
   <g>
     <rect x="1848" y="900" width="400" height="248" rx="80" fill="rgba(5, 8, 18, 0.48)" stroke="#d8b75c" stroke-opacity="0.54" stroke-width="6"/>
     <circle cx="2048" cy="1024" r="104" fill="rgba(216,183,92,0.09)" stroke="#d8b75c" stroke-opacity="0.50" stroke-width="6"/>
-    <text x="2048" y="996" text-anchor="middle" font-size="60" font-weight="900" fill="#fff0a6" stroke="#080b16" stroke-width="8" paint-order="stroke">群友杀</text>
+    <text x="2048" y="996" text-anchor="middle" font-size="60" font-weight="900" fill="#fff0a6" stroke="#080b16" stroke-width="8" paint-order="stroke">宝旅团</text>
     <text x="2048" y="1062" text-anchor="middle" font-size="38" font-weight="900" fill="#f5eddc" stroke="#080b16" stroke-width="6" paint-order="stroke">TCG</text>
   </g>
 
   <path d="M342 116 L3754 116" stroke="url(#goldLine)" stroke-width="5"/>
   <path d="M342 1932 L3754 1932" stroke="url(#goldLine)" stroke-width="5"/>
-  <text x="2048" y="1960" text-anchor="middle" font-size="24" font-weight="800" fill="#827a99">LOCAL TABLETOP SIMULATOR MAT · 4096 x 2048</text>
+  <text x="2048" y="1960" text-anchor="middle" font-size="24" font-weight="800" fill="#827a99">BAOLVTUAN TCG · LOCAL TABLETOP SIMULATOR MAT · 4096 x 2048</text>
 </svg>
 `;
 }

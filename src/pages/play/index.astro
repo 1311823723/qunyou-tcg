@@ -3,127 +3,138 @@ import Layout from "../../components/Layout.astro";
 import { getBattleCatalog } from "../../lib/battle-catalog";
 
 const catalog = getBattleCatalog();
-const featuredDeck = catalog.decks[0];
-const featuredBody = featuredDeck ? catalog.cards[featuredDeck.bodyId] : undefined;
-const featuredTheme = featuredDeck?.theme === "aggro" ? "deck-theme" : `deck-theme deck-theme--${featuredDeck?.theme || "neutral"}`;
 ---
-<Layout title="在线对战" description="创建或加入群友杀 TCG 1v1 手动牌桌。">
-  <div class="page-wrap battle-entry">
-    <section class="battle-entry__hero">
-      <div class="battle-entry__hero-copy">
-        <span class="battle-entry__eyebrow"><i></i> 在线对战</span>
-        <h1>开一桌，<br /><strong>和群友直接开打</strong></h1>
-        <p>不用注册。创建房间或输入邀请码，进入准备室后再选择阵容。</p>
-        <div class="battle-entry__status-row" aria-label="对战功能">
-          <span>无需注册</span>
-          <span>断线可恢复</span>
-          <span>隐藏信息保护</span>
-        </div>
+<Layout title="在线对战大厅" description="进入宝旅团 TCG 在线大厅，创建、加入或观战 1v1 对局。">
+  <div class="page-wrap battle-hall">
+    <section class="battle-hall__hero">
+      <div>
+        <span class="battle-entry__eyebrow"><i></i> ONLINE BATTLE HALL</span>
+        <h1>在线对战大厅</h1>
+        <p>查看公开房间，加入等待中的牌桌，或观看已经开始的对局。</p>
       </div>
-      {featuredDeck && (
-        <aside class="battle-entry__preview" aria-label="牌组示例">
-          <article class={`battle-deck-preview__card ${featuredTheme}`}>
-            {featuredBody?.imagePath && <img src={featuredBody.imagePath} alt={`${featuredBody.name}卡面`} class="battle-deck-preview__art" />}
-            <div>
-              <span class="battle-deck-preview__tag">牌组示例 · {featuredDeck.archetype}</span>
-              <strong>{featuredDeck.name}</strong>
-              <p>{featuredDeck.blurb || featuredBody?.subtitle}</p>
-            </div>
-          </article>
-        </aside>
-      )}
+      <div class="battle-hall__profile" id="battle-hall-profile" hidden>
+        <span>当前玩家</span>
+        <strong data-profile-name>未设置</strong>
+        <button type="button" class="battle-small-btn" data-edit-profile>修改用户名</button>
+      </div>
     </section>
 
     <div id="battle-invite-banner" class="battle-entry__invite-banner" role="status" hidden>
       <span>收到对战邀请</span>
-      <strong>你正在加入房间 <b data-invited-room>------</b></strong>
-      <p>填写昵称即可进入准备室。</p>
+      <strong>房间 <b data-invited-room>------</b> 已为你标出</strong>
+      <p>确认用户名后即可加入、重连或观战。</p>
     </div>
 
-    <div class="battle-entry__grid" aria-label="开始在线对战">
-      <section class="hud-panel battle-entry__panel battle-entry__panel--primary">
-        <div class="battle-entry__panel-heading">
-          <span class="battle-entry__step">01</span>
-          <div><span>我来开房</span><h2>创建新房间</h2></div>
-        </div>
-        <p class="battle-entry__panel-copy">生成一条邀请链接，发给对手后在准备室选阵容。</p>
-        <form id="create-room-form" class="battle-form">
-          <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="你的昵称" /></label>
-          <button class="btn btn--primary battle-entry__submit" type="submit"><span>创建房间</span><b>→</b></button>
-          <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
-        </form>
-      </section>
+    <section class="battle-hall__actions" aria-label="大厅操作">
+      <article class="hud-panel battle-hall__action battle-hall__action--create">
+        <span class="battle-entry__step">01</span>
+        <div><small>HOST A MATCH</small><h2>创建房间</h2><p>创建后进入现有准备室选择阵容。</p></div>
+        <button type="button" class="btn btn--primary" id="battle-create-room">创建新房间</button>
+        <p class="battle-form__status" id="battle-create-status" aria-live="polite" hidden></p>
+      </article>
 
-      <section class="hud-panel battle-entry__panel battle-entry__panel--join" data-join-panel>
-        <div class="battle-entry__panel-heading">
-          <span class="battle-entry__step">02</span>
-          <div><span>已有邀请</span><h2>加入对战房间</h2></div>
-        </div>
-        <p class="battle-entry__panel-copy">输入 6 位房间码，或直接打开对手发来的邀请链接。</p>
-        <form id="join-room-form" class="battle-form">
-          <label>房间码
-            <input name="roomCode" class="battle-room-input" minlength="6" maxlength="6" required autocomplete="off" placeholder="6 位房间码" inputmode="text" autocapitalize="characters" spellcheck="false" />
-          </label>
-          <label>昵称<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="你的昵称" /></label>
-          <button class="btn btn--secondary battle-entry__submit" type="submit"><span>加入房间</span><b>→</b></button>
-          <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
+      <article class="hud-panel battle-hall__action">
+        <span class="battle-entry__step">02</span>
+        <div><small>ROOM CODE</small><h2>按编号进入</h2><p>等待房会加入，对局房会进入观战。</p></div>
+        <form id="battle-code-form" class="battle-hall__code-form">
+          <input name="roomCode" class="battle-room-input" minlength="6" maxlength="6" required autocomplete="off" placeholder="6 位房间码" inputmode="text" autocapitalize="characters" spellcheck="false" aria-label="房间码" />
+          <button class="btn btn--secondary" type="submit">进入</button>
         </form>
-      </section>
+        <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
+      </article>
+    </section>
 
-      <section class="hud-panel battle-entry__panel battle-entry__panel--spectate">
-        <div class="battle-entry__panel-heading">
-          <span class="battle-entry__step">03</span>
-          <div><span>观战模式</span><h2>观看对战</h2></div>
+    <section class="battle-hall__rooms" aria-labelledby="battle-hall-title">
+      <header class="battle-hall__rooms-heading">
+        <div>
+          <span class="battle-entry__eyebrow"><i></i> PUBLIC ROOMS</span>
+          <h2 id="battle-hall-title">公开房间</h2>
+          <p id="battle-hall-summary">正在读取大厅状态…</p>
         </div>
-        <p class="battle-entry__panel-copy">输入房间码观战对局，观战者不能进行操作，只能观看公开信息。</p>
-        <form id="spectate-room-form" class="battle-form">
-          <label>房间码
-            <input name="roomCode" class="battle-room-input" minlength="6" maxlength="6" required autocomplete="off" placeholder="6 位房间码" inputmode="text" autocapitalize="characters" spellcheck="false" />
-          </label>
-          <button class="btn btn--ghost battle-entry__submit" type="submit"><span>观战</span><b>→</b></button>
-          <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
-        </form>
-      </section>
-    </div>
+        <button type="button" class="battle-small-btn" id="battle-refresh-lobby">刷新大厅</button>
+      </header>
+      <div id="battle-hall-notice" class="battle-hall__notice" role="status" hidden></div>
+      <div id="battle-room-list" class="battle-hall__room-grid" aria-live="polite">
+        <div class="battle-hall__empty"><span></span><strong>正在连接大厅</strong><p>稍等一下，正在获取公开房间。</p></div>
+      </div>
+    </section>
 
     <section class="battle-entry__notes">
       <div class="battle-entry__notes-heading">
-        <span class="battle-entry__eyebrow"><i></i> 开局前须知</span>
-        <h2>牌桌同步状态，<br />规则由双方结算</h2>
+        <span class="battle-entry__eyebrow"><i></i> 大厅说明</span>
+        <h2>找到一桌，<br />直接开始</h2>
       </div>
       <div class="battle-entry__features">
-        <article><span>01</span><strong>手动判定</strong><p>系统不自动判断技能、费用、伤害或胜负。</p></article>
-        <article><span>02</span><strong>隐藏信息</strong><p>手牌和暗置角色仅对拥有者可见，查看会记入日志。</p></article>
-        <article><span>03</span><strong>房间恢复</strong><p>刷新或短暂断线后，同一浏览器会自动认回座位。</p></article>
+        <article><span>01</span><strong>等待房可加入</strong><p>空位开放且房主在线时，可以直接进入准备室。</p></article>
+        <article><span>02</span><strong>进行中可观战</strong><p>观战者只能查看公开信息，不能操作牌桌。</p></article>
+        <article><span>03</span><strong>同浏览器可重连</strong><p>用户名与座位记录保存在当前浏览器中。</p></article>
       </div>
     </section>
   </div>
+
+  <dialog id="battle-profile-dialog" class="battle-dialog battle-profile-dialog">
+    <form method="dialog" id="battle-profile-form" class="battle-profile-form">
+      <span class="battle-kicker">PLAYER PROFILE</span>
+      <h2>设置你的用户名</h2>
+      <p>用户名只保存在当前浏览器，用于创建房间、加入对局和观战日志。</p>
+      <label>用户名<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="1–20 个字符" /></label>
+      <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
+      <button type="submit" class="btn btn--primary">进入大厅</button>
+    </form>
+  </dialog>
 
   <script id="battle-entry-catalog" type="application/json" set:html={JSON.stringify(catalog)}></script>
 </Layout>
 
 <script>
   import { getBattleApiUrl } from "../../lib/battle-api";
+  import {
+    PENDING_KEY,
+    getBattleToken,
+    isActivePlayerRoom,
+    markActiveRoom,
+    nextLobbyPollDelay,
+    normalizeNickname,
+    readPending,
+    readProfile,
+    saveProfile,
+  } from "../../scripts/battle-profile";
+
+  type LobbyRoom = {
+    roomCode: string;
+    status: "waiting" | "playing";
+    players: Array<{ nickname: string; connected: boolean }>;
+    playerCount: number;
+    capacity: 2;
+    joinable: boolean;
+    spectatorCount: number;
+    createdAt: number;
+    startedAt?: number;
+    updatedAt: number;
+  };
 
   const API_URL = getBattleApiUrl();
-  const TOKEN_KEY = "qunyou-battle-token-v1";
-  const PENDING_KEY = "qunyou-battle-pending-v1";
   const CUSTOM_DECK_ID = "custom";
   const catalog = JSON.parse(document.querySelector("#battle-entry-catalog")?.textContent || "{}") as {
     cards?: Record<string, { kind?: string }>;
     decks?: Array<{ id: string }>;
   };
-  const nicknameInputs = [...document.querySelectorAll<HTMLInputElement>('.battle-form input[name="nickname"]')];
-  const joinRoomInput = document.querySelector<HTMLInputElement>('#join-room-form input[name="roomCode"]');
+  const profileDialog = document.querySelector<HTMLDialogElement>("#battle-profile-dialog");
+  const profileForm = document.querySelector<HTMLFormElement>("#battle-profile-form");
+  const roomList = document.querySelector<HTMLElement>("#battle-room-list");
+  const summary = document.querySelector<HTMLElement>("#battle-hall-summary");
+  const notice = document.querySelector<HTMLElement>("#battle-hall-notice");
+  const refreshButton = document.querySelector<HTMLButtonElement>("#battle-refresh-lobby");
   const invitedRoomCode = new URLSearchParams(location.search).get("room")?.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) || "";
+  let currentProfile = readProfile();
+  let rooms: LobbyRoom[] = [];
+  let pollTimer = 0;
+  let loadingLobby = false;
 
-  function readPending() {
-    try {
-      const value = JSON.parse(localStorage.getItem(PENDING_KEY) || "null");
-      return value && typeof value === "object" ? value : {};
-    } catch {
-      return {};
-    }
+  function escapeHtml(value: unknown) {
+    return String(value ?? "").replace(/[&<>'"]/g, (character) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
+    })[character] || character);
   }
 
   function validCustomDeck(value: unknown) {
@@ -149,118 +160,189 @@ const featuredTheme = featuredDeck?.theme === "aggro" ? "deck-theme" : `deck-the
     return { deckId: catalog.decks?.[0]?.id || "" };
   }
 
-  const rememberedNickname = String((readPending() as { nickname?: string }).nickname || "");
-  nicknameInputs.forEach((input) => {
-    input.value = rememberedNickname;
-    input.addEventListener("input", () => {
-      nicknameInputs.forEach((peer) => {
-        if (peer !== input) peer.value = input.value;
-      });
-    });
-  });
-
-  if (invitedRoomCode.length === 6 && joinRoomInput) {
-    joinRoomInput.value = invitedRoomCode;
-    document.querySelector<HTMLElement>("[data-join-panel]")?.classList.add("is-invited");
-    const banner = document.querySelector<HTMLElement>("#battle-invite-banner");
-    if (banner) banner.hidden = false;
-    const code = banner?.querySelector<HTMLElement>("[data-invited-room]");
-    if (code) code.textContent = invitedRoomCode;
-    document.querySelector<HTMLInputElement>('#join-room-form input[name="nickname"]')?.focus();
+  function savePendingProfile() {
+    if (!currentProfile) return;
+    localStorage.setItem(PENDING_KEY, JSON.stringify({ nickname: currentProfile.nickname, ...bootstrapLoadout() }));
   }
 
-  joinRoomInput?.addEventListener("input", () => {
-    joinRoomInput.value = joinRoomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
-  });
-
-  function token() {
-    const saved = localStorage.getItem(TOKEN_KEY);
-    if (saved) return saved;
-    const created = typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
-    localStorage.setItem(TOKEN_KEY, created);
-    return created;
+  function renderProfile() {
+    const panel = document.querySelector<HTMLElement>("#battle-hall-profile");
+    const name = document.querySelector<HTMLElement>("[data-profile-name]");
+    if (panel) panel.hidden = !currentProfile;
+    if (name) name.textContent = currentProfile?.nickname || "未设置";
   }
 
-  function setFormStatus(form: HTMLFormElement, message: string, state = "info") {
-    const element = form.querySelector<HTMLElement>("[data-form-status]");
+  function setStatus(element: HTMLElement | null, message: string, state = "info") {
     if (!element) return;
     element.textContent = message;
     element.dataset.state = state;
     element.hidden = !message;
   }
 
-  function savePending(nickname: string, loadout: ReturnType<typeof bootstrapLoadout>) {
-    localStorage.setItem(PENDING_KEY, JSON.stringify({ nickname, ...loadout }));
+  function relativeTime(timestamp: number) {
+    const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+    if (minutes < 1) return "刚刚";
+    if (minutes < 60) return `${minutes} 分钟前`;
+    return `${Math.floor(minutes / 60)} 小时前`;
   }
 
-  document.querySelector<HTMLFormElement>("#create-room-form")?.addEventListener("submit", async (event) => {
+  function roomAction(room: LobbyRoom) {
+    const active = isActivePlayerRoom(room.roomCode);
+    if (active) return { label: "重新进入", mode: "player", disabled: false } as const;
+    if (room.status === "playing") return { label: "进入观战", mode: "spectator", disabled: false } as const;
+    if (room.joinable) return { label: "加入房间", mode: "player", disabled: false } as const;
+    return { label: room.playerCount >= room.capacity ? "房间已满" : "房主暂离", mode: "player", disabled: true } as const;
+  }
+
+  function renderRooms() {
+    if (!roomList || !summary) return;
+    const waiting = rooms.filter((room) => room.status === "waiting").length;
+    const playing = rooms.length - waiting;
+    summary.textContent = rooms.length ? `${waiting} 个等待房 · ${playing} 个对局中` : "当前没有公开房间";
+    if (!rooms.length) {
+      roomList.innerHTML = `<div class="battle-hall__empty"><span></span><strong>大厅暂时空着</strong><p>创建第一间牌桌，或稍后点击刷新大厅。</p></div>`;
+      return;
+    }
+    roomList.innerHTML = rooms.map((room) => {
+      const action = roomAction(room);
+      const invited = room.roomCode === invitedRoomCode;
+      const playerSeats = [0, 1].map((index) => {
+        const player = room.players[index];
+        return player
+          ? `<span class="${player.connected ? "is-online" : "is-away"}"><i></i><b>${escapeHtml(player.nickname)}</b><small>${player.connected ? "在线" : "暂离"}</small></span>`
+          : `<span class="is-empty"><i></i><b>等待加入</b><small>空位</small></span>`;
+      }).join("");
+      return `<article class="battle-room-card ${room.status === "playing" ? "is-playing" : "is-waiting"} ${invited ? "is-invited" : ""}">
+        <header><span class="battle-room-card__status"><i></i>${room.status === "playing" ? "对局中" : "等待中"}</span><code>${escapeHtml(room.roomCode)}</code></header>
+        <div class="battle-room-card__players">${playerSeats}</div>
+        <div class="battle-room-card__meta"><span>${room.playerCount} / ${room.capacity} 玩家</span><span>${room.spectatorCount} 人观战</span><span>${relativeTime(room.createdAt)}</span></div>
+        <button type="button" class="btn ${room.status === "playing" ? "btn--secondary" : "btn--primary"}" data-room-action="${action.mode}" data-room-code="${escapeHtml(room.roomCode)}" ${action.disabled ? "disabled" : ""}>${action.label}</button>
+      </article>`;
+    }).join("");
+    roomList.querySelectorAll<HTMLButtonElement>("[data-room-action]").forEach((button) => {
+      button.addEventListener("click", () => enterRoom(button.dataset.roomCode || "", button.dataset.roomAction === "spectator"));
+    });
+  }
+
+  function scheduleLobbyPoll() {
+    window.clearTimeout(pollTimer);
+    const delay = nextLobbyPollDelay(rooms.length);
+    if (delay) pollTimer = window.setTimeout(() => refreshLobby(), delay);
+  }
+
+  async function refreshLobby(manual = false) {
+    if (!currentProfile || loadingLobby) return;
+    loadingLobby = true;
+    window.clearTimeout(pollTimer);
+    if (refreshButton) refreshButton.disabled = true;
+    if (manual) setStatus(notice, "正在刷新大厅…", "loading");
+    try {
+      const response = await fetch(`${API_URL}/lobby`, { cache: "no-store" });
+      const result = await response.json().catch(() => ({})) as { rooms?: LobbyRoom[]; error?: string };
+      if (!response.ok || !Array.isArray(result.rooms)) throw new Error(result.error || "大厅服务暂时不可用。");
+      rooms = result.rooms;
+      setStatus(notice, "");
+      renderRooms();
+    } catch (error) {
+      setStatus(notice, `${error instanceof Error ? error.message : "大厅加载失败。"} 当前列表可能已经过期。`, "error");
+      if (!rooms.length && roomList) roomList.innerHTML = `<div class="battle-hall__empty is-error"><span></span><strong>未能连接大厅</strong><p>仍可按房间码进入，或点击刷新重试。</p></div>`;
+    } finally {
+      loadingLobby = false;
+      if (refreshButton) refreshButton.disabled = false;
+      scheduleLobbyPoll();
+    }
+  }
+
+  function enterRoom(code: string, spectator: boolean) {
+    const normalized = code.trim().toUpperCase();
+    if (!/^[A-Z0-9]{6}$/.test(normalized) || !currentProfile) return;
+    savePendingProfile();
+    location.href = `/play/room?code=${normalized}${spectator ? "&spectate=true" : ""}`;
+  }
+
+  function openProfileEditor() {
+    const input = profileForm?.elements.namedItem("nickname") as HTMLInputElement | null;
+    if (input) input.value = currentProfile?.nickname || "";
+    profileDialog?.showModal();
+    input?.focus();
+  }
+
+  profileForm?.addEventListener("submit", (event) => {
     event.preventDefault();
-    const form = event.currentTarget;
-    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
-    const nickname = String(new FormData(form).get("nickname") || "").trim();
+    const input = profileForm.elements.namedItem("nickname") as HTMLInputElement | null;
+    try {
+      currentProfile = saveProfile(input?.value);
+      setStatus(profileForm.querySelector("[data-form-status]"), "");
+      profileDialog?.close();
+      renderProfile();
+      refreshLobby();
+    } catch (error) {
+      setStatus(profileForm.querySelector("[data-form-status]"), error instanceof Error ? error.message : "用户名无效。", "error");
+    }
+  });
+  profileDialog?.addEventListener("cancel", (event) => {
+    if (!currentProfile) event.preventDefault();
+  });
+
+  document.querySelector("[data-edit-profile]")?.addEventListener("click", openProfileEditor);
+  refreshButton?.addEventListener("click", () => refreshLobby(true));
+
+  const codeForm = document.querySelector<HTMLFormElement>("#battle-code-form");
+  const codeInput = codeForm?.elements.namedItem("roomCode") as HTMLInputElement | null;
+  codeInput?.addEventListener("input", () => {
+    codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  });
+  codeForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const code = normalizeNickname(codeInput?.value).toUpperCase();
+    const status = codeForm.querySelector<HTMLElement>("[data-form-status]");
+    if (!/^[A-Z0-9]{6}$/.test(code)) {
+      setStatus(status, "请输入 6 位房间码（字母或数字）。", "error");
+      return;
+    }
+    const room = rooms.find((item) => item.roomCode === code);
+    const spectator = room?.status === "playing" && !isActivePlayerRoom(code);
+    setStatus(status, spectator ? "正在进入观战模式。" : "正在进入房间。", "loading");
+    enterRoom(code, spectator);
+  });
+
+  document.querySelector<HTMLButtonElement>("#battle-create-room")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const status = document.querySelector<HTMLElement>("#battle-create-status");
+    if (!currentProfile) return openProfileEditor();
     const loadout = bootstrapLoadout();
-    if (!button) return;
-    const originalLabel = button.innerHTML;
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 10000);
     button.disabled = true;
-    button.textContent = "正在创建…";
-    setFormStatus(form, "正在连接对战服务器并创建房间。", "loading");
+    setStatus(status, "正在创建房间…", "loading");
     try {
       const response = await fetch(`${API_URL}/rooms`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ nickname, ...handshakeLoadout(), token: token() }),
-        signal: controller.signal,
+        body: JSON.stringify({ nickname: currentProfile.nickname, ...handshakeLoadout(), token: getBattleToken() }),
       });
       const result = await response.json().catch(() => ({})) as { roomCode?: string; error?: string };
-      if (!response.ok) throw new Error(result.error || `创建房间失败（${response.status}）`);
-      if (!result.roomCode) throw new Error("服务器未返回房间码，请稍后重试。");
-      savePending(nickname, loadout);
-      setFormStatus(form, `房间 ${result.roomCode} 已创建，正在进入准备室。`, "success");
+      if (!response.ok || !result.roomCode) throw new Error(result.error || "创建房间失败。");
+      localStorage.setItem(PENDING_KEY, JSON.stringify({ nickname: currentProfile.nickname, ...loadout }));
+      markActiveRoom(result.roomCode);
       location.href = `/play/room?code=${result.roomCode}`;
     } catch (error) {
-      const message = error instanceof DOMException && error.name === "AbortError"
-        ? "创建房间超时。请检查网络后重试。"
-        : error instanceof TypeError
-          ? "无法连接对战服务器。请检查网络后重试。"
-          : error instanceof Error ? error.message : "创建房间失败，请稍后重试。";
-      setFormStatus(form, message, "error");
+      setStatus(status, error instanceof Error ? error.message : "创建房间失败。", "error");
       button.disabled = false;
-      button.innerHTML = originalLabel;
-    } finally {
-      window.clearTimeout(timeout);
     }
   });
 
-  document.querySelector<HTMLFormElement>("#join-room-form")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const payload = Object.fromEntries(new FormData(form).entries());
-    const nickname = String(payload.nickname || "").trim();
-    const code = String(payload.roomCode || "").trim().toUpperCase();
-    if (!/^[A-Z0-9]{6}$/.test(code)) {
-      setFormStatus(form, "请输入 6 位房间码（字母或数字）。", "error");
-      return;
-    }
-    const loadout = bootstrapLoadout();
-    setFormStatus(form, "资料已保存，正在进入准备室。", "loading");
-    savePending(nickname, loadout);
-    location.href = `/play/room?code=${code}`;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshLobby();
   });
 
-  document.querySelector<HTMLFormElement>("#spectate-room-form")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const payload = Object.fromEntries(new FormData(form).entries());
-    const code = String(payload.roomCode || "").trim().toUpperCase();
-    if (!/^[A-Z0-9]{6}$/.test(code)) {
-      setFormStatus(form, "请输入 6 位房间码（字母或数字）。", "error");
-      return;
-    }
-    setFormStatus(form, "正在进入观战模式。", "loading");
-    location.href = `/play/room?code=${code}&spectate=true`;
-  });
+  if (invitedRoomCode) {
+    if (codeInput) codeInput.value = invitedRoomCode;
+    const banner = document.querySelector<HTMLElement>("#battle-invite-banner");
+    if (banner) banner.hidden = false;
+    const code = banner?.querySelector<HTMLElement>("[data-invited-room]");
+    if (code) code.textContent = invitedRoomCode;
+  }
+
+  renderProfile();
+  if (currentProfile) refreshLobby();
+  else openProfileEditor();
 </script>

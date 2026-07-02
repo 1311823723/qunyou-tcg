@@ -81,7 +81,7 @@ const allLabel = "全部";
           style={`animation-delay: ${Math.min(i * 0.02, 1)}s`}
         >
           <button type="button" class="thumb-card__btn" data-card-id={c.id} data-card-name={c.name} data-card-role={c.mainRole} data-card-skill={c.skillName} data-card-effect={c.effectText} data-card-timing={c.timing} data-card-cost={c.cost.type === "休整" ? `休整 ${c.cost.amount}` : c.cost.text || c.cost.type} aria-label={`查看 ${c.name}`}>
-            <img src={`/cards/characters/${c.id}.webp`} alt="" loading="lazy" />
+            <img src={`/cards/characters/${c.id}.webp`} width="250" height="350" alt="" loading="lazy" decoding="async" />
             <span class="thumb-card__name">{c.name}</span>
           </button>
         </div>
@@ -275,7 +275,9 @@ const allLabel = "全部";
     zoomBody.innerHTML = `
       <div class="card-zoom">
         <div class="card-zoom__image">
-          <img src="/cards-hd/characters/${id}.webp" alt="${name}" />
+          <img class="card-zoom__image-placeholder" src="/cards/characters/${id}.webp" width="250" height="350" alt="${name}" decoding="async" />
+          <img class="card-zoom__image-hd" src="/cards-hd/characters/${id}.webp" width="750" height="1050" alt="${name} 高清卡图" decoding="async" />
+          <span class="card-zoom__image-loading">正在加载高清卡图…</span>
         </div>
         <div class="card-zoom__info">
           <span class="tag-pill tag-pill--role" style="--role-color: var(--role-${roleVar});">${role}</span>
@@ -301,6 +303,19 @@ const allLabel = "全部";
         </div>
       </div>
     `;
+
+    const highResImage = zoomBody.querySelector<HTMLImageElement>(".card-zoom__image-hd");
+    const loadingLabel = zoomBody.querySelector<HTMLElement>(".card-zoom__image-loading");
+    const revealHighRes = () => {
+      highResImage?.classList.add("is-loaded");
+      if (loadingLabel) loadingLabel.hidden = true;
+    };
+    if (highResImage?.complete && highResImage.naturalWidth > 0) revealHighRes();
+    else highResImage?.addEventListener("load", revealHighRes, { once: true });
+    highResImage?.addEventListener("error", () => {
+      highResImage.remove();
+      if (loadingLabel) loadingLabel.textContent = "高清图加载失败，已显示普通卡图";
+    }, { once: true });
 
     zoomDialog.showModal();
   }

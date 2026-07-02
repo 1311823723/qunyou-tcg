@@ -65,6 +65,16 @@ test("battle worker defines separate create and join rate limits", () => {
   ]);
 });
 
+test("battle worker registers room and lobby durable objects", () => {
+  assert.deepEqual(workerConfig.durable_objects.bindings.map(({ name, class_name }) => ({ name, class_name })), [
+    { name: "BATTLE_ROOMS", class_name: "BattleRoom" },
+    { name: "BATTLE_LOBBY", class_name: "BattleLobby" },
+  ]);
+  assert.ok(workerConfig.migrations.some((migration) =>
+    migration.tag === "v2" && migration.new_sqlite_classes?.includes("BattleLobby")
+  ));
+});
+
 test("every table card has a 750px high-resolution preview", async () => {
   for (const subDir of ["bodies", "characters", "hand_cards"]) {
     const tableDir = new URL(`public/cards/${subDir}/`, root);

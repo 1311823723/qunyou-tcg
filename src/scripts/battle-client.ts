@@ -21,6 +21,13 @@ import {
 } from "./battle-custom-deck";
 import { normalizeBattleSnapshot } from "./battle-state.mjs";
 import {
+  PENDING_KEY,
+  clearActiveRoom,
+  getBattleToken,
+  markActiveRoom,
+  readPending,
+} from "./battle-profile";
+import {
   battleLogRegionId,
   battleLogTargetKey,
   filterBattleLogs,
@@ -70,8 +77,6 @@ const customRoleFilterOptions = customRoleFilters(characterCatalogCards);
 const customTagFilterOptions = customTagFilters(characterCatalogCards);
 
 const API_URL = getBattleApiUrl();
-const TOKEN_KEY = "qunyou-battle-token-v1";
-const PENDING_KEY = "qunyou-battle-pending-v1";
 const CUSTOM_DECK_ID = "custom";
 const CUSTOM_DECK_KEY = "qunyou-battle-custom-deck-v1";
 const COACH_KEY = "qunyou-battle-coach-v1";
@@ -314,22 +319,8 @@ function getRoomCode() {
   return (last === "room" ? query : last)?.toUpperCase() || "";
 }
 
-function getToken() {
-  const saved = localStorage.getItem(TOKEN_KEY);
-  if (saved) return saved;
-  const created = typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
-  localStorage.setItem(TOKEN_KEY, created);
-  return created;
-}
-
 function getPending() {
-  try {
-    return JSON.parse(localStorage.getItem(PENDING_KEY) || "{}") as { nickname?: string; deckId?: string; customDeck?: CustomDeckConfig };
-  } catch {
-    return {};
-  }
+  return readPending() as { nickname?: string; deckId?: string; customDeck?: CustomDeckConfig };
 }
 
 function pendingLoadout() {
@@ -498,7 +489,7 @@ async function connect() {
   const isSpectator = urlParams.get("spectate") === "true";
 
   const pending = getPending();
-  if (!pending.nickname && !isSpectator) {
+  if (!pending.nickname) {
     const joinUrl = new URL("/play", location.origin);
     joinUrl.searchParams.set("room", roomCode);
     location.replace(joinUrl);
@@ -507,7 +498,7 @@ async function connect() {
   window.clearTimeout(reconnectTimer);
   setConnectionState("连接中", "connecting");
   if (!snapshot) renderConnecting(isSpectator ? "正在连接观战模式。" : "正在确认房间与玩家座位。");
-  const token = getToken();
+  const token = getBattleToken();
   const initialLoadout = handshakeLoadout();
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 10000);
@@ -526,7 +517,11 @@ async function connect() {
         signal: controller.signal,
       });
       const result = await response.json().catch(() => ({})) as { error?: string };
-      if (!response.ok) throw new Error(result.error || `加入房间失败（${response.status}）`);
+      if (!response.ok) {
+        if (response.status === 404 || response.status === 409) clearActiveRoom(roomCode);
+        throw new Error(result.error || `加入房间失败（${response.status}）`);
+      }
+      markActiveRoom(roomCode);
     }
   } catch (error) {
     window.clearTimeout(timeout);
@@ -547,6 +542,7 @@ async function connect() {
   wsUrl.searchParams.set("token", token);
   if (isSpectator) {
     wsUrl.searchParams.set("spectator", "true");
+    wsUrl.searchParams.set("nickname", pending.nickname || "观战者");
   }
   socket = new WebSocket(wsUrl);
   let socketFailureHandled = false;
@@ -598,18 +594,32 @@ async function connect() {
       enqueueVisualEffect(message);
     } else if (message.type === "roomEnded") {
       roomEnded = true;
+      clearActiveRoom(roomCode);
       hasConnected = false;
       connectionAttempt += 1;
       window.clearTimeout(reconnectTimer);
       root.innerHTML = `<section class="battle-loading hud-panel">
         <span class="battle-kicker">游戏结束</span>
         <h1>房间已关闭</h1>
-        <p>这场游戏已经结束，房间已关闭。</p>
+        <p>${escapeHtml(message.reason || "这场游戏已经结束，房间已关闭。")}</p>
         <a class="btn btn--primary" href="/play">返回在线对战</a>
       </section>`;
       setConnectionState("已结束", "failed");
       syncRoomControls(false);
       clearVisualEffects();
+    } else if (message.type === "roomLeft") {
+      roomEnded = true;
+      clearActiveRoom(roomCode);
+      connectionAttempt += 1;
+      window.clearTimeout(reconnectTimer);
+      root.innerHTML = `<section class="battle-loading hud-panel">
+        <span class="battle-kicker">已退出</span>
+        <h1>你已离开等待房间</h1>
+        <p>座位已经释放，可以返回大厅加入其他对局。</p>
+        <a class="btn btn--primary" href="/play">返回在线对战大厅</a>
+      </section>`;
+      setConnectionState("已退出", "failed");
+      syncRoomControls(false);
     } else if (message.type === "error") {
       rejectPendingAction(message.actionId);
       showError(message.error);
@@ -1277,7 +1287,7 @@ function render() {
   const myHandCount = me.handCount ?? me.hand.length;
   root.innerHTML = `
     ${activeMoveTargets ? `<div class="battle-move-banner">点击落点模式 · 请选择标注的目标区域（Esc 取消）</div>` : ""}
-    ${isSpectator ? `<div class="battle-spectator-banner">观战模式 · 你只能观看公开信息</div>` : ""}
+    ${isSpectator ? `<div class="battle-spectator-banner">${escapeHtml(getPending().nickname || "观战者")} · 观战模式 · 只能观看公开信息</div>` : ""}
     ${renderRestartRequest(me, opponent)}
     <div class="battle-table">
       ${opponent ? renderPlayer(opponent, false, isMyTurn) : renderWaitingSeat()}
@@ -1470,6 +1480,7 @@ function renderLobby(me: PlayerView, opponent?: PlayerView) {
           <button class="btn ${me.ready ? "btn--secondary" : "btn--primary"}" data-command="player:ready" data-ready="${String(!me.ready)}">
             ${me.ready ? "取消准备并修改阵容" : "确认阵容并准备"}
           </button>
+          <button class="battle-small-btn battle-lobby__leave" data-command="room:leave">退出等待房间</button>
         </div>
       </section>
     </section>
@@ -1742,7 +1753,7 @@ function renderCustomDeckSummary(deck: CustomDeckConfig, disabled: boolean) {
     .slice(0, 4)
     .join("、");
   return `<article class="battle-custom-summary">
-    ${body?.imagePath ? `<img src="${escapeHtml(body.imagePath)}" alt="${escapeHtml(body.name)}卡面" />` : ""}
+    ${body?.imagePath ? `<img src="${escapeHtml(body.imagePath)}" width="250" height="350" alt="${escapeHtml(body.name)}卡面" loading="lazy" decoding="async" />` : ""}
     <div>
       <span>当前自选阵容</span>
       <strong>${escapeHtml(body?.name || "未选本体")}</strong>
@@ -1819,7 +1830,7 @@ function showCustomDeckEditor(me: PlayerView) {
       <div class="battle-custom-editor__section-title"><strong>选择本体</strong><span>本体决定牌组的核心玩法</span></div>
       <div class="battle-custom-body-select" data-custom-body-select aria-label="选择本体卡">
         ${bodyCatalogCards.map((card) => `<button type="button" class="battle-custom-body-choice ${card.id === draftBodyId ? "is-selected" : ""}" data-custom-body-option="${card.id}">
-          ${card.imagePath ? `<img src="${escapeHtml(card.imagePath)}" alt="${escapeHtml(card.name)}卡面" />` : ""}
+          ${card.imagePath ? `<img src="${escapeHtml(card.imagePath)}" width="250" height="350" alt="${escapeHtml(card.name)}卡面" loading="lazy" decoding="async" />` : ""}
           <span><strong>${escapeHtml(card.name)}</strong><small>${escapeHtml(card.archetype || card.subtitle)}</small></span>
         </button>`).join("")}
       </div>
@@ -1847,7 +1858,7 @@ function showCustomDeckEditor(me: PlayerView) {
         const role = card.mainRole || card.subtitle.split(" · ")[0] || "";
         return `<label class="battle-custom-card ${checked ? "is-selected" : ""}" data-custom-card data-card-id="${card.id}" data-role="${escapeHtml(role)}" data-search="${escapeHtml(customCardSearchText(card))}">
           <input type="checkbox" value="${card.id}" data-custom-character ${checked ? "checked" : ""} />
-          ${card.imagePath ? `<img src="${card.imagePath}" alt="" loading="lazy" />` : ""}
+          ${card.imagePath ? `<img src="${card.imagePath}" width="250" height="350" alt="" loading="lazy" decoding="async" />` : ""}
           <span>${escapeHtml(card.name)}</span>
           <small>${escapeHtml(card.subtitle)}</small>
           <button type="button" class="battle-custom-card__detail" data-custom-preview="${card.id}" aria-label="查看 ${escapeHtml(card.name)}">查看</button>
@@ -2313,7 +2324,7 @@ function renderPile(title: string, count: number, command: string, action: strin
       : "";
   const owner = ownerId ? ` data-zone-owner="${ownerId}"` : "";
   return `<article class="battle-pile ${count ? "" : "is-empty"}"${dropTarget}${owner}>
-    <div class="battle-card-back"><span>群友杀</span></div>
+    <div class="battle-card-back"><span>宝旅团</span></div>
     <strong>${title}</strong><span class="battle-zone-count">${count} 张</span>
     ${command ? `<button type="button" class="battle-small-btn" data-command="${command}"${shortcut ? ` aria-keyshortcuts="${shortcut}"` : ""}>${action}</button>` : ""}
   </article>`;
@@ -2379,9 +2390,9 @@ function renderCard(
   if (definition.kind === "hand") {
     imagePath = handCardImagePath(definition.id, card.suit, card.rank);
   } else if (definition.kind === "body" && isFlipped) {
-    imagePath = definition.extraHighResImagePath || definition.extraImagePath;
+    imagePath = definition.extraImagePath || definition.extraHighResImagePath;
   } else if (definition.kind === "body") {
-    imagePath = definition.highResImagePath || definition.imagePath;
+    imagePath = definition.imagePath || definition.highResImagePath;
   } else {
     imagePath = definition.imagePath;
   }
@@ -2399,7 +2410,7 @@ function renderCard(
   return `<button type="button" class="${cardClass}" draggable="${String(options.interactive)}"
     data-card="${card.instanceId || ""}" data-owner="${options.owner.id}" data-zone="${options.zone}"
     aria-label="${escapeHtml(name)}" title="${escapeHtml([definition.costText, definition.timing, definition.text].filter(Boolean).join("｜"))}">
-    ${imagePath ? `<img src="${imagePath}" alt="" loading="lazy" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
+    ${imagePath ? `<img src="${imagePath}" width="250" height="350" alt="" loading="lazy" decoding="async" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
     ${faceBadge}
     ${costBadge}
     ${declaredBadge}
@@ -2703,6 +2714,12 @@ function handleCommand(element: HTMLElement) {
     send(command, { requestId: element.dataset.requestId });
   } else if (command === "room:end") {
     showConfirmDialog("确定结束游戏？房间会立即关闭，双方都会退出且无法恢复。", () => send(command));
+  } else if (command === "room:leave") {
+    const isHost = snapshot?.you === "p1";
+    showConfirmDialog(
+      isHost ? "确定退出？房主退出后等待房间会立即关闭。" : "确定退出？你的座位会立即释放。",
+      () => send(command),
+    );
   }
 }
 

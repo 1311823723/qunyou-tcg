@@ -23,6 +23,7 @@ const art = getBodyArt(b.id);
           height={art.front.height}
           alt=""
           loading="lazy"
+          decoding="async"
           aria-hidden="true"
         />
       )}
@@ -38,7 +39,7 @@ const art = getBodyArt(b.id);
       </div>
       {art?.front && (
         <div class="tcg-body__art">
-          <img src={art.front.src} width={art.front.width} height={art.front.height} alt={`${b.name} 本体原画`} loading="lazy" />
+          <img src={art.front.src} width={art.front.width} height={art.front.height} alt={`${b.name} 本体原画`} loading="lazy" decoding="async" />
         </div>
       )}
       <div class="tcg-body__body">
@@ -74,6 +75,7 @@ const art = getBodyArt(b.id);
             height={art.extra.height}
             alt=""
             loading="lazy"
+            decoding="async"
             aria-hidden="true"
           />
         )}
@@ -89,7 +91,7 @@ const art = getBodyArt(b.id);
         </div>
         {art?.extra && (
           <div class="tcg-body__art tcg-body__art--extra">
-            <img src={art.extra.src} width={art.extra.width} height={art.extra.height} alt={`${b.extraForm.name} 原画`} loading="lazy" />
+            <img src={art.extra.src} width={art.extra.width} height={art.extra.height} alt={`${b.extraForm.name} 原画`} loading="lazy" decoding="async" />
           </div>
         )}
         <div class="tcg-body__body">

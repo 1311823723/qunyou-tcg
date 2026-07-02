@@ -22,9 +22,22 @@ async function post(path, body) {
   return { response, result: await response.json() };
 }
 
-function client(code, player) {
+async function lobbyRoom(code) {
+  const response = await fetch(`${base}/lobby`);
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.ok(Array.isArray(result.rooms));
+  assert.ok(result.rooms.every((room) => !("token" in room) && !("deckId" in room)));
+  return result.rooms.find((room) => room.roomCode === code);
+}
+
+function client(code, player, options = {}) {
   const url = new URL(`${base.replace(/^http/, "ws")}/rooms/${code}/connect`);
   url.searchParams.set("token", player.token);
+  if (options.spectator) {
+    url.searchParams.set("spectator", "true");
+    url.searchParams.set("nickname", player.nickname);
+  }
   const socket = new WebSocket(url);
   const messages = [];
   const waiters = [];
@@ -77,12 +90,45 @@ const blockedOrigin = await fetch(`${base}/rooms`, {
 assert.equal(blockedOrigin.status, 403);
 step("disallowed browser origin rejected");
 
+const leaveOwner = { nickname: "退出测试房主", token: `leave-owner-${crypto.randomUUID()}`, deckId: "deck_aggro_001" };
+const leaveGuest = { nickname: "退出测试客人", token: `leave-guest-${crypto.randomUUID()}`, deckId: "deck_mizai_001" };
+const leaveCreated = await post("/rooms", leaveOwner);
+const leaveCode = leaveCreated.result.roomCode;
+assert.equal((await post(`/rooms/${leaveCode}/join`, leaveGuest)).response.status, 200);
+const leaveA = client(leaveCode, leaveOwner);
+const leaveB = client(leaveCode, leaveGuest);
+await Promise.all([
+  new Promise((resolve) => leaveA.socket.addEventListener("open", resolve, { once: true })),
+  new Promise((resolve) => leaveB.socket.addEventListener("open", resolve, { once: true })),
+]);
+await Promise.all([
+  leaveA.waitFor((message) => message.type === "snapshot"),
+  leaveB.waitFor((message) => message.type === "snapshot"),
+]);
+leaveB.send("room:leave");
+await leaveB.waitFor((message) => message.type === "roomLeft");
+await leaveA.waitFor((message) => message.type === "snapshot" && message.snapshot.players.length === 1);
+assert.equal((await lobbyRoom(leaveCode)).playerCount, 1);
+leaveA.send("room:leave");
+await leaveA.waitFor((message) => message.type === "roomEnded");
+assert.equal(await lobbyRoom(leaveCode), undefined);
+leaveA.socket.close();
+leaveB.socket.close();
+step("waiting-room leave policy verified");
+
 const created = await post("/rooms", owner);
 step("room created");
 assert.equal(created.response.status, 200);
 const code = created.result.roomCode;
+const listedWaiting = await lobbyRoom(code);
+assert.equal(listedWaiting.status, "waiting");
+assert.equal(listedWaiting.playerCount, 1);
+assert.equal(listedWaiting.joinable, true);
 assert.match(code, /^[A-Z0-9]{6}$/);
 assert.equal((await post(`/rooms/${code}/join`, guest)).response.status, 200);
+const listedFull = await lobbyRoom(code);
+assert.equal(listedFull.playerCount, 2);
+assert.equal(listedFull.joinable, false);
 
 const a = client(code, owner);
 const b = client(code, guest);
@@ -136,6 +182,21 @@ const [startedA, startedB] = await Promise.all([
   b.waitFor((message) => message.type === "snapshot" && message.snapshot.game.started),
 ]);
 step("game started");
+const listedPlaying = await lobbyRoom(code);
+assert.equal(listedPlaying.status, "playing");
+assert.equal(listedPlaying.joinable, false);
+
+const spectator = client(code, {
+  nickname: "生命周期观战者",
+  token: `spectator-${crypto.randomUUID()}`,
+}, { spectator: true });
+await new Promise((resolve) => spectator.socket.addEventListener("open", resolve, { once: true }));
+const spectatorSnapshot = await spectator.waitFor((message) => message.type === "snapshot");
+assert.equal(spectatorSnapshot.snapshot.isSpectator, true);
+assert.ok(spectatorSnapshot.snapshot.game.logs.some((log) => log.text.includes("生命周期观战者 加入观战")));
+assert.equal((await lobbyRoom(code)).spectatorCount, 1);
+spectator.socket.close();
+step("spectator identity and lobby count verified");
 const [turnStartA, turnStartB] = await Promise.all([
   a.waitFor((message) => message.type === "visualEffect" && message.effect === "turnStart"),
   b.waitFor((message) => message.type === "visualEffect" && message.effect === "turnStart"),
@@ -348,7 +409,9 @@ assert.ok(discardSnapshot.snapshot.game.logs.some((log) =>
   log.text.includes("弃置了")
   && /(黑桃|红桃|梅花|方块).+【.+】/.test(log.text)
 ));
-const discardLog = discardSnapshot.snapshot.game.logs.find((log) => log.text.includes("弃置了"));
+const discardLog = discardSnapshot.snapshot.game.logs.findLast((log) =>
+  log.text.includes("弃置了") && log.target?.zone === "handDiscard"
+);
 assert.equal(discardLog.kind, "action");
 assert.equal(discardLog.target.zone, "handDiscard");
 assert.equal(JSON.stringify(discardLog.target).includes(firstInspected.instanceId), false);
@@ -685,6 +748,7 @@ await Promise.all([
 const missing = await post(`/rooms/${code}/join`, guest);
 assert.equal(missing.response.status, 404);
 assert.equal(missing.result.error, "房间不存在或已经过期。");
+assert.equal(await lobbyRoom(code), undefined);
 a.socket.close();
 bReconnect.socket.close();
 

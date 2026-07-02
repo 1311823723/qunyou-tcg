@@ -55,6 +55,7 @@ export interface PlayerState {
   deckId?: string;
   customDeck?: CustomDeckConfig;
   ready: boolean;
+  disconnectedAt?: number;
   health: number;
   megaProgress: number;
   megaUsed?: boolean;
@@ -74,6 +75,7 @@ export interface RoomState {
   createdAt: number;
   lastActivityAt: number;
   started: boolean;
+  startedAt?: number;
   players: PlayerState[];
   spectators: string[];
   handDeck: CardInstance[];
@@ -92,6 +94,25 @@ export interface RoomState {
 export interface SocketAttachment {
   playerId: string;
   isSpectator?: boolean;
+  spectatorNickname?: string;
+}
+
+export interface LobbyPlayerSummary {
+  nickname: string;
+  connected: boolean;
+}
+
+export interface LobbyRoomSummary {
+  roomCode: string;
+  status: "waiting" | "playing";
+  players: LobbyPlayerSummary[];
+  playerCount: number;
+  capacity: 2;
+  joinable: boolean;
+  spectatorCount: number;
+  createdAt: number;
+  startedAt?: number;
+  updatedAt: number;
 }
 
 export interface ClientMessage {

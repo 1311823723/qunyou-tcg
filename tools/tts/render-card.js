@@ -365,13 +365,13 @@ function renderHand(card) {
 
 function renderBack(type) {
   const meta = {
-    character: { label: "角色牌", accent: "#9d6cff", sub: "CHARACTER" },
-    hand: { label: "手牌牌堆", accent: "#58c7e8", sub: "HAND DECK" },
-  }[type] ?? { label: "群友杀 TCG", accent: "#ffd98a", sub: "QUNYOU TCG" };
+    character: { label: "角色牌", accent: "#9d6cff", sub: "BAOLVTUAN TCG" },
+    hand: { label: "手牌牌堆", accent: "#58c7e8", sub: "BAOLVTUAN TCG" },
+  }[type] ?? { label: "宝旅团 TCG", accent: "#ffd98a", sub: "BAOLVTUAN TCG" };
   return cardShell(`
     <rect x="92" y="130" width="566" height="790" rx="40" fill="rgba(0,0,0,0.28)" stroke="${meta.accent}" stroke-opacity="0.36" stroke-width="4"/>
     <circle cx="375" cy="410" r="168" fill="${meta.accent}" fill-opacity="0.10" stroke="${meta.accent}" stroke-opacity="0.38" stroke-width="5"/>
-    <text x="375" y="386" text-anchor="middle" font-size="52" font-weight="900" fill="#f4f0e8">群友杀</text>
+    <text x="375" y="386" text-anchor="middle" font-size="52" font-weight="900" fill="#f4f0e8">宝旅团</text>
     <text x="375" y="448" text-anchor="middle" font-size="40" font-weight="900" fill="${meta.accent}">TCG</text>
     <text x="375" y="592" text-anchor="middle" font-size="42" font-weight="900" fill="#ffd98a">${escapeXml(meta.label)}</text>
     <text x="375" y="644" text-anchor="middle" font-size="24" font-weight="800" fill="#827a99">${meta.sub}</text>

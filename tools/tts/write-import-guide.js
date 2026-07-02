@@ -9,7 +9,7 @@ function writeImportGuide(outPath, manifest) {
   const presetDecks = manifest.presetDecks ?? [];
 
   const lines = [
-    "# 群友杀 TCG - Tabletop Simulator 导入说明",
+    "# 宝旅团 TCG - Tabletop Simulator 导入说明",
     "",
     "本目录由 `npm run export:tts` 生成。所有卡牌内容来自 `data/cards/*.json`，没有写入前端 UI。",
     "",

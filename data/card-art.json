@@ -99,7 +99,7 @@
     "char_031_arthur_watcher": "arthur-watcher",
     "char_044_arthur_sheriff": "arthur-sheriff",
     "char_023_arthur_falcon": "arthur-falcon",
-    "char_072_daidaishou_luna": "daidaishou-luna",
+    "char_029_daidaishou_luna": "daidaishou-luna",
     "char_076_daidaishou_hackclaw": "daidaishou-hackclaw",
     "char_094_daidaishou_astral": "daidaishou-astral",
     "char_107_daidaishou_engineer": "daidaishou-engineer",
@@ -153,6 +153,6 @@
     "char_032_weixiaokele_silent-hunter": "weixiaokele-silent-hunter-v2",
     "char_033_weixiaokele_watcher": "weixiaokele-watcher-v1",
     "char_071_xiangcai_lover": "xiangcai-lover-v1",
-    "char_029_guamao_lover": "guamao-lover-v1"
+    "char_072_guamao_lover": "guamao-lover-v1"
   }
 }

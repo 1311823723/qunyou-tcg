@@ -48,7 +48,7 @@ export function renderSelectedCharacterTray(cardsById: Record<string, CatalogCar
   return ids.map((id) => {
     const card = cardsById[id];
     return `<button type="button" class="battle-custom-picked__card" ${removable ? `data-custom-remove="${escapeHtml(id)}"` : "disabled"} title="${removable ? "点击移除" : "已选择"}">
-      ${card?.imagePath ? `<img src="${escapeHtml(card.imagePath)}" alt="" />` : ""}
+      ${card?.imagePath ? `<img src="${escapeHtml(card.imagePath)}" width="250" height="350" alt="" loading="lazy" decoding="async" />` : ""}
       <span><strong>${escapeHtml(card?.name || id)}</strong><small>${escapeHtml(card?.mainRole || "角色")}</small></span>
       ${removable ? "<b aria-hidden=\"true\">×</b>" : ""}
     </button>`;

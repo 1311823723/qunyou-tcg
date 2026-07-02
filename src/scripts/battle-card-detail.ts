@@ -70,7 +70,7 @@ export function renderCardArtPreview(view: CardDetailView) {
     return `<div class="battle-card-detail__placeholder battle-card-detail__placeholder--back"><span>暗</span><small>身份未知</small></div>`;
   }
   return `<button type="button" class="battle-card-detail__art-button" data-card-art-zoom aria-label="放大查看 ${escapeHtml(view.displayName)}">
-    <img class="battle-card-detail__art" src="${escapeHtml(view.imagePath)}" alt="${escapeHtml(view.displayName)}" />
+    <img class="battle-card-detail__art" src="${escapeHtml(view.imagePath)}" width="250" height="350" alt="${escapeHtml(view.displayName)}" decoding="async" />
     <span>点击查看高清大图</span>
   </button>`;
 }
@@ -106,8 +106,8 @@ export function renderCardDetailBody(view: CardDetailView) {
 export function renderCardArtDialog(view: CardDetailView) {
   const art = view.imagePath
     ? `<div class="battle-card-zoom__image-stack">
-        <img class="battle-card-zoom__image battle-card-zoom__image--placeholder" src="${escapeHtml(view.imagePath)}" alt="${escapeHtml(view.displayName)}" />
-        ${view.highResImagePath ? `<img class="battle-card-zoom__image battle-card-zoom__image--hd" src="${escapeHtml(view.highResImagePath)}" alt="${escapeHtml(view.displayName)} 高清卡图" data-card-hd-image />` : ""}
+        <img class="battle-card-zoom__image battle-card-zoom__image--placeholder" src="${escapeHtml(view.imagePath)}" width="250" height="350" alt="${escapeHtml(view.displayName)}" decoding="async" />
+        ${view.highResImagePath ? `<img class="battle-card-zoom__image battle-card-zoom__image--hd" src="${escapeHtml(view.highResImagePath)}" width="750" height="1050" alt="${escapeHtml(view.displayName)} 高清卡图" decoding="async" data-card-hd-image />` : ""}
         ${view.highResImagePath ? `<span class="battle-card-zoom__loading" data-card-hd-loading>正在加载高清卡图…</span>` : ""}
       </div>`
     : `<div class="battle-card-zoom__back"><span>暗置</span><small>身份未知</small></div>`;

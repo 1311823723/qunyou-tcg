@@ -40,3 +40,19 @@ test("legacy character hands migrate into character decks exactly once", () => {
     ["hand-2", "hand-1", "deck-2", "deck-1"],
   );
 });
+
+test("version 2 active rooms gain a stable started timestamp", () => {
+  const state = {
+    stateVersion: 2,
+    revision: 4,
+    started: true,
+    createdAt: 1000,
+    lastActivityAt: 2500,
+    players: [],
+  };
+  const result = migrateRoomState(state, (items) => items);
+  assert.deepEqual(result, { migrated: true, recycledCount: 0 });
+  assert.equal(state.stateVersion, ROOM_STATE_VERSION);
+  assert.equal(state.startedAt, 2500);
+  assert.equal(state.revision, 5);
+});

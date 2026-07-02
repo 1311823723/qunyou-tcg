@@ -30,6 +30,10 @@
       {
         "name": "BATTLE_ROOMS",
         "class_name": "BattleRoom"
+      },
+      {
+        "name": "BATTLE_LOBBY",
+        "class_name": "BattleLobby"
       }
     ]
   },
@@ -37,6 +41,10 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["BattleRoom"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["BattleLobby"]
     }
   ],
   "observability": {

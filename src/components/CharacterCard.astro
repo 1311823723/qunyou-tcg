@@ -28,6 +28,7 @@ const textDensity = textLength > 90 ? "dense" : textLength > 65 ? "medium" : "no
       height={art.height}
       alt=""
       loading="lazy"
+      decoding="async"
       aria-hidden="true"
     />
   )}
@@ -42,7 +43,7 @@ const textDensity = textLength > 90 ? "dense" : textLength > 65 ? "medium" : "no
     </div>
   </header>
   <div class={`tcg-char__art ${art ? "tcg-char__art--image" : ""}`} aria-hidden="true">
-    {art && <img src={art.src} width={art.width} height={art.height} alt="" loading="lazy" />}
+    {art && <img src={art.src} width={art.width} height={art.height} alt="" loading="lazy" decoding="async" />}
   </div>
   <div class="tcg-char__tags">
     {c.tags.map((tag) => <TagPill label={tag} />)}

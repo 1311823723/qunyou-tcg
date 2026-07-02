@@ -3684,3 +3684,100 @@ button.battle-log__entry:hover, button.battle-log__entry:focus-visible { color: 
 
   .battle-counter__state { display: none; }
 }
+
+/* Focus hierarchy: reserve persistent light for the active player and active targets. */
+#battle-app[data-animation-mode="on"] .battle-mini-card.is-face-up {
+  animation: none;
+}
+
+#battle-app[data-animation-mode="on"] .battle-player--active-turn .battle-mini-card.is-face-up {
+  animation: battle-face-up-aura 5.2s ease-in-out infinite;
+}
+
+.battle-player:not(.battle-player--active-turn) .battle-player__identity::before {
+  opacity: 0.58;
+  box-shadow: 0 0 7px color-mix(in srgb, var(--deck-accent) 48%, transparent);
+}
+
+.battle-player:not(.battle-player--active-turn) .battle-player__field {
+  border-color: rgba(255,255,255,0.055);
+  background: rgba(1,5,9,0.16);
+}
+
+.battle-slot--empty,
+.battle-pile.is-empty,
+.battle-zone.is-empty {
+  opacity: 0.42;
+  border-color: rgba(127,197,220,0.08);
+  background: rgba(2,8,13,0.12);
+  box-shadow: none;
+}
+
+.battle-slot--empty:hover,
+.battle-slot--empty.is-drag-over,
+.battle-slot--empty.is-move-target,
+.battle-pile.is-empty:hover,
+.battle-zone.is-empty:hover,
+.battle-pile.is-move-target,
+.battle-zone.is-move-target,
+.battle-pile.is-drag-over,
+.battle-zone.is-drag-over {
+  opacity: 1;
+}
+
+.battle-private-rail:not(.battle-private-rail--hand) {
+  border-color: rgba(255,255,255,0.055);
+  background: rgba(2,6,10,0.24);
+}
+
+@media (max-width: 430px) {
+  .battle-player__header {
+    min-width: 0;
+    padding-inline: 0;
+  }
+
+  .battle-counter-wrapper {
+    display: flex;
+    min-width: 0;
+  }
+
+  .battle-counter-wrapper .battle-counter,
+  .battle-counter--hp {
+    min-width: 0;
+  }
+
+  .battle-counter__progress-icons,
+  #battle-app[data-table-mode="compact"] .battle-counter__progress-icons,
+  .battle-counter__hp-icons,
+  #battle-app[data-table-mode="compact"] .battle-counter__hp-icons {
+    min-width: 0;
+  }
+
+  .battle-counter__state {
+    display: none;
+  }
+
+  .battle-counter__activate-btn {
+    min-width: 3.25rem;
+    padding-inline: 0.28rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .battle-counter,
+  #battle-app[data-table-mode="compact"] .battle-counter {
+    gap: 0.22rem;
+  }
+
+  .battle-counter__progress-ring,
+  #battle-app[data-table-mode="compact"] .battle-counter__progress-ring {
+    width: 39px;
+    height: 39px;
+  }
+
+  .battle-counter__progress-icon,
+  #battle-app[data-table-mode="compact"] .battle-counter__progress-icon {
+    width: 11px;
+    height: 11px;
+  }
+}
