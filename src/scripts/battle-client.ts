@@ -1305,7 +1305,7 @@ function render() {
   bindRegionNavigation();
   restoreUIState(preserved);
   startRestartCountdown();
-  maybeShowCoach();
+  if (!isSpectator) maybeShowCoach();
 }
 
 function bindRegionNavigation() {
@@ -2007,6 +2007,8 @@ function renderLobbySeat(player: PlayerView, isMe: boolean) {
 }
 
 function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
+  const isSpectator = snapshot?.you === "spectator";
+  const canInteract = isMe && !isSpectator;
   const body = cardDefinition(player.body);
   const deck = deckFor(player);
   const handCount = player.handCount ?? player.hand.length;
@@ -2026,21 +2028,21 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
           ${snapshot?.game.currentPlayerId === player.id ? `<span class="battle-turn-badge">${isMe && isMyTurn ? "你的回合" : "当前回合"}</span>` : ""}
         </div>
         <div class="battle-counters">
-          ${renderCounter("体力", player.health || 0, "health:set", player.id, true, 7, "hp")}
-          ${renderCounter(extraFormLabel, megaText, "megaProgress:set", player.id, isMe, max, "progress", isMega ? (player.megaUsed || false) : isZMove ? (player.zMoveUsed || false) : false)}
+          ${renderCounter("体力", player.health || 0, "health:set", player.id, !isSpectator, 7, "hp")}
+          ${renderCounter(extraFormLabel, megaText, "megaProgress:set", player.id, canInteract, max, "progress", isMega ? (player.megaUsed || false) : isZMove ? (player.zMoveUsed || false) : false)}
         </div>
       </header>
       <div class="battle-player__field">
         <div class="battle-body-zone">
           <span class="battle-zone-label">本体</span>
-          ${renderCard(player.body, { owner: player, zone: "body", interactive: isMe, flipped: player.bodyFlipped, size: "field" })}
-          ${isMe ? `<button class="battle-small-btn" data-command="body:flip">翻转本体</button>` : ""}
+          ${renderCard(player.body, { owner: player, zone: "body", interactive: canInteract, flipped: player.bodyFlipped, size: "field" })}
+          ${canInteract ? `<button class="battle-small-btn" data-command="body:flip">翻转本体</button>` : ""}
           ${body?.megaCondition ? `<p class="battle-mega-condition" title="${escapeHtml(body.megaCondition)}"><strong>${escapeHtml(body.extraConditionLabel || "额外形态条件")}</strong>${escapeHtml(body.megaCondition)}</p>` : ""}
         </div>
         <div class="battle-character-slots">
           <span class="battle-zone-label battle-zone-label--row">角色区</span>
           <div class="battle-character-slots__grid">
-            ${player.characterSlots.map((item, index) => renderSlot(item, index, player, isMe)).join("")}
+            ${player.characterSlots.map((item, index) => renderSlot(item, index, player, canInteract)).join("")}
           </div>
         </div>
       </div>
@@ -2050,19 +2052,19 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
             <strong>${isMe ? "我的角色资源" : "对手角色资源"}</strong>
           </div>
           <div class="battle-side-zones">
-            ${renderPile("角色牌堆", player.characterDeckCount, isMe ? "character:deploy" : "", "上阵角色", player.id, isMe ? "R" : undefined)}
-            ${renderZone("退场区", player.retired, player, "retired", isMe)}
-            ${renderZone("移出游戏", player.banished, player, "banished", isMe)}
+            ${renderPile("角色牌堆", player.characterDeckCount, canInteract ? "character:deploy" : "", "上阵角色", player.id, canInteract ? "R" : undefined)}
+            ${renderZone("退场区", player.retired, player, "retired", canInteract)}
+            ${renderZone("移出游戏", player.banished, player, "banished", canInteract)}
           </div>
         </div>
         <div ${isMe ? 'id="battle-hand-self"' : ""} class="battle-private-rail battle-private-rail--hand"
-          data-drop-target="${isMe ? "hand" : "opponentHand"}" data-zone-owner="${player.id}">
+          data-drop-target="${isSpectator ? "" : isMe ? "hand" : "opponentHand"}" data-zone-owner="${player.id}">
           <div class="battle-private-rail__title">
             <strong>${isMe ? "我的手牌" : "对手手牌"}</strong>
             <span>${handCount} 张</span>
-            ${!isMe ? `<button class="battle-small-btn" data-command="card:inspect-zone" data-owner="${player.id}" data-zone="hand">查看手牌</button>` : ""}
+            ${!isMe && !isSpectator ? `<button class="battle-small-btn" data-command="card:inspect-zone" data-owner="${player.id}" data-zone="hand">查看手牌</button>` : ""}
           </div>
-          <div class="battle-card-row" data-scroll-key="${isMe ? "hand-self" : "hand-opp"}">${player.hand.map((card) => renderCard(card, { owner: player, zone: "hand", interactive: isMe, size: isMe ? "hand" : "compact" })).join("")}</div>
+          <div class="battle-card-row" data-scroll-key="${isMe ? "hand-self" : "hand-opp"}">${player.hand.map((card) => renderCard(card, { owner: player, zone: "hand", interactive: canInteract, size: isMe ? "hand" : "compact" })).join("")}</div>
         </div>
       </div>
     </section>
@@ -2622,6 +2624,7 @@ function applyHighlightedTarget() {
 
 function applyInteractionAvailability() {
   const connected = socket?.readyState === WebSocket.OPEN;
+  const canInteract = connected && snapshot?.you !== "spectator";
   document.querySelectorAll<HTMLElement>(
     "[data-command], [data-counter-set], [data-card-action], [data-inspection-move], [data-discard-move], [data-dialog-confirm], .battle-slot-picker__btn",
   ).forEach((element) => {
@@ -2630,11 +2633,11 @@ function applyInteractionAvailability() {
     const lockKey = (command === "health:set" || command === "megaProgress:set") && playerId
       ? `${command}:${playerId}`
       : command;
-    if (!connected || (lockKey && hasPendingLock(lockKey))) element.setAttribute("disabled", "");
+    if (!canInteract || (lockKey && hasPendingLock(lockKey))) element.setAttribute("disabled", "");
   });
   root.querySelectorAll<HTMLElement>("[data-card]").forEach((element) => {
     const cardId = element.dataset.card || "";
-    if (!connected || hasPendingLock(`card:${cardId}`)) {
+    if (!canInteract || hasPendingLock(`card:${cardId}`)) {
       element.setAttribute("draggable", "false");
       if (hasPendingLock(`card:${cardId}`)) element.classList.add("is-action-pending");
     }
