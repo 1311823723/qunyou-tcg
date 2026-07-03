@@ -710,6 +710,18 @@
 .battle-private-rail { margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid var(--border-soft); }
 .battle-private-rail__title { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.3rem; color: var(--text-muted); font-size: 0.68rem; }
 .battle-private-rail__title strong { color: var(--text-secondary); }
+.battle-private-rail__title .battle-hand-limit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.12rem 0.42rem;
+  border: 1px solid rgba(216,183,92,0.26);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: rgba(216,183,92,0.07);
+  font: 800 0.58rem var(--font-body);
+}
+.battle-private-rail__title .battle-hand-limit b { color: var(--text-gold); font: 900 0.68rem var(--font-mono); }
 .battle-card-row { display: flex; gap: 0.35rem; overflow-x: auto; padding: 0.1rem 0 0.3rem; scroll-snap-type: x proximity; }
 .battle-mini-card { position: relative; flex: 0 0 auto; scroll-snap-align: start; width: clamp(4rem, 5vw, 5.8rem); aspect-ratio: 5/7; padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.13); border-radius: 7px; color: white; background: #11131e; box-shadow: 0 4px 12px rgba(0,0,0,0.28); cursor: pointer; text-align: left; transition: transform 0.15s, border-color 0.15s; }
 .battle-mini-card--hand { width: clamp(4.4rem, 5.8vw, 6.4rem); }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeBattleSnapshot } from "../../src/scripts/battle-state.mjs";
+import { defaultHandLimit, normalizeBattleSnapshot } from "../../src/scripts/battle-state.mjs";
 
 function snapshot(player) {
   return {
@@ -63,4 +63,21 @@ test("count-only legacy snapshots receive safe card-back placeholders", () => {
   ));
   assert.equal("characterHand" in opponent, false);
   assert.equal("characterHandCount" in opponent, false);
+});
+
+test("default hand limit uses capped health plus revealed characters", () => {
+  assert.equal(defaultHandLimit({ health: 7, characterSlots: [null, null] }), 4);
+  assert.equal(defaultHandLimit({
+    health: 3,
+    characterSlots: [
+      { instanceId: "face-up-1", faceDown: false },
+      { instanceId: "face-down", faceDown: true },
+      { id: "marker", label: "标记" },
+      { instanceId: "face-up-2", faceDown: false },
+    ],
+  }), 5);
+  assert.equal(defaultHandLimit({
+    health: 0,
+    characterSlots: [{ instanceId: "face-up", faceDown: false }],
+  }), 1);
 });

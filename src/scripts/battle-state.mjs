@@ -16,6 +16,14 @@ function padPrivateCards(items, total, ownerId) {
   ];
 }
 
+export function defaultHandLimit(player) {
+  const health = Number.isFinite(player?.health) ? Math.max(0, Math.floor(player.health)) : 0;
+  const revealedCharacters = cards(player?.characterSlots).filter((slot) =>
+    slot && typeof slot === "object" && "instanceId" in slot && slot.faceDown === false
+  ).length;
+  return Math.min(health, 4) + revealedCharacters;
+}
+
 export function normalizeBattleSnapshot(snapshot) {
   return {
     ...snapshot,

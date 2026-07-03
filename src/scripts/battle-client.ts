@@ -19,7 +19,7 @@ import {
   renderSelectedCharacterTray,
   type CustomDeckFilters,
 } from "./battle-custom-deck";
-import { normalizeBattleSnapshot } from "./battle-state.mjs";
+import { defaultHandLimit, normalizeBattleSnapshot } from "./battle-state.mjs";
 import {
   PENDING_KEY,
   clearActiveRoom,
@@ -2012,6 +2012,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
   const body = cardDefinition(player.body);
   const deck = deckFor(player);
   const handCount = player.handCount ?? player.hand.length;
+  const handLimit = defaultHandLimit(player);
   const max = body?.megaMax;
   const megaText = max ? `${player.megaProgress || 0}/${max}` : String(player.megaProgress || 0);
   const extraFormLabel = body?.extraFormLabel || "额外形态";
@@ -2062,6 +2063,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
           <div class="battle-private-rail__title">
             <strong>${isMe ? "我的手牌" : "对手手牌"}</strong>
             <span>${handCount} 张</span>
+            <span class="battle-hand-limit" title="默认手牌上限 = min(当前体力, 4) + 己方已明置角色数量">默认上限 <b>${handLimit}</b></span>
             ${!isMe && !isSpectator ? `<button class="battle-small-btn" data-command="card:inspect-zone" data-owner="${player.id}" data-zone="hand">查看手牌</button>` : ""}
           </div>
           <div class="battle-card-row" data-scroll-key="${isMe ? "hand-self" : "hand-opp"}">${player.hand.map((card) => renderCard(card, { owner: player, zone: "hand", interactive: canInteract, size: isMe ? "hand" : "compact" })).join("")}</div>
