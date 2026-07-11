@@ -5,10 +5,12 @@ export type LocatedCard = {
   owner: PlayerState;
   zone: ZoneName;
   index: number;
+  markerId?: string;
+  markerLabel?: string;
 };
 
 export function isPrivateLocation(located: LocatedCard) {
-  if (["hand", "characterDeck"].includes(located.zone)) return true;
+  if (["hand", "characterDeck", "bodyMarker"].includes(located.zone)) return true;
   if (located.zone === "characterSlot" || located.zone === "banished") return Boolean(located.card.faceDown);
   return false;
 }
@@ -25,7 +27,7 @@ export function assertCardCanEnter(card: CardInstance, target: string) {
     "handDeckBottom",
     "opponentHand",
     "hand",
-    "handMarker",
+    "bodyMarker",
   ]);
   const characterTargets = new Set([
     "characterDeckBottom",
@@ -54,6 +56,6 @@ export function zoneLabel(zone: string) {
     resolving: "结算区",
     characterSlot: "角色区",
     opponentHand: "对手手牌区",
-    handMarker: "暗置标记区",
+    bodyMarker: "本体标记区",
   } as Record<string, string>)[zone] || zone;
 }

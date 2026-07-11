@@ -37,6 +37,7 @@ import type {
   CardView,
   AnimationMode,
   BattleLog,
+  BodyMarkerView,
   Catalog,
   CatalogCard,
   CatalogDeck,
@@ -815,7 +816,7 @@ function actionFeedback(type: string, payload: Record<string, unknown>) {
     handDeckBottom: "共用牌堆底",
     opponentHand: "对手手牌",
     hand: "我的手牌",
-    handMarker: "角色位标记",
+    bodyMarker: "本体标记区",
     characterDeckBottom: "角色牌堆底",
     characterDeckShuffle: "角色牌堆",
     retired: "退场区",
@@ -843,7 +844,12 @@ function actionFeedback(type: string, payload: Record<string, unknown>) {
     "resolving:discardAll": "结算区已全部弃置",
     "turn:end": "已结束回合",
     "marker:create": "标记已创建",
+    "marker:adjust": "标记数量已调整",
+    "marker:rename": "标记已改名",
     "marker:remove": "标记已移除",
+    "marker:card-remove": "标记牌已移去",
+    "slot-marker:create": "占位标记已创建",
+    "slot-marker:remove": "占位标记已移除",
     "player:ready": "准备状态已更新",
     "player:selectDeck": "预组已选择",
     "room:restartRequest": "重新开始请求已发送",
@@ -879,7 +885,16 @@ function actionTargetKey(type: string, payload: Record<string, unknown>) {
   if (type === "deck:recycleDiscard") return "handDeckTop";
   if (type === "resolving:discardAll") return "handDiscard";
   if (type === "turn:end") return "battle-center";
-  if (type === "marker:create" && Number.isInteger(payload.slotIndex)) return `characterSlot:${String(payload.slotIndex)}@${you}`;
+  if (type.startsWith("marker:")) {
+    const markerOwnerId = typeof payload.markerId === "string"
+      ? findBodyMarkerView(payload.markerId)?.player.id
+      : undefined;
+    const playerId = String(payload.playerId || markerOwnerId || you);
+    return playerId ? `bodyMarker@${playerId}` : undefined;
+  }
+  if (type.startsWith("slot-marker:") && Number.isInteger(payload.slotIndex)) {
+    return `characterSlot:${String(payload.slotIndex)}@${String(payload.playerId || you)}`;
+  }
   return undefined;
 }
 
@@ -888,6 +903,8 @@ function actionLockKey(type: string, payload: Record<string, unknown>) {
   if ((type === "health:set" || type === "megaProgress:set") && payload.playerId) {
     return `${type}:${String(payload.playerId)}`;
   }
+  if (type.startsWith("marker:") && payload.markerId) return `marker:${String(payload.markerId)}`;
+  if (type.startsWith("slot-marker:") && payload.markerId) return `slot-marker:${String(payload.markerId)}`;
   return type;
 }
 
@@ -1127,6 +1144,9 @@ function elementForTargetKey(targetKey: string) {
   }
   if (targetKey.startsWith("player@")) {
     return root.querySelector<HTMLElement>(`[data-player-id="${CSS.escape(targetKey.slice(7))}"]`) ?? undefined;
+  }
+  if (targetKey.startsWith("bodyMarker@")) {
+    return root.querySelector<HTMLElement>(`[data-marker-rack-owner="${CSS.escape(targetKey.slice(11))}"]`) ?? undefined;
   }
   const [dropTarget, ownerId] = targetKey.split("@");
   return [...root.querySelectorAll<HTMLElement>("[data-drop-target]")].find((element) =>
@@ -2231,11 +2251,12 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
           ${renderCard(player.body, { owner: player, zone: "body", interactive: canInteract, flipped: player.bodyFlipped, size: "field" })}
           ${canInteract ? `<button class="battle-small-btn" data-command="body:flip">翻转本体</button>` : ""}
           ${body?.megaCondition ? `<p class="battle-mega-condition" title="${escapeHtml(body.megaCondition)}"><strong>${escapeHtml(body.extraConditionLabel || "额外形态条件")}</strong>${escapeHtml(body.megaCondition)}</p>` : ""}
+          ${renderBodyMarkers(player, !isSpectator)}
         </div>
         <div class="battle-character-slots">
           <span class="battle-zone-label battle-zone-label--row">角色区</span>
           <div class="battle-character-slots__grid">
-            ${player.characterSlots.map((item, index) => renderSlot(item, index, player, canInteract)).join("")}
+            ${player.characterSlots.map((item, index) => renderSlot(item, index, player, canInteract, !isSpectator)).join("")}
           </div>
         </div>
       </div>
@@ -2456,7 +2477,6 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
     <div class="battle-toolbar">
       <button type="button" data-command="deck:shuffle" data-deck="hand">洗混共用牌堆</button>
       <button type="button" data-command="hand:randomSelect" data-owner="${opponent?.id || ""}">随机展示对手手牌</button>
-      <button type="button" data-command="marker:create">创建标记</button>
       ${activeMoveTargets ? `<button type="button" data-command="move:cancel">取消落点</button>` : ""}
     </div>
     ${recentLogs.length ? `<ul class="battle-log-recent" aria-label="最近操作">${recentLogs.map(renderBattleLogItem).join("")}</ul>` : ""}
@@ -2503,7 +2523,30 @@ function renderCenterBody(player: PlayerView, isMe: boolean) {
     <strong>${escapeHtml(body?.name || player.nickname)}</strong>
     ${body?.megaCondition ? `<p title="${escapeHtml(body.megaCondition)}"><b>${escapeHtml(body.extraFormLabel || "额外形态")}</b>${escapeHtml(body.megaCondition)}</p>` : ""}
     ${isMe ? `<button class="battle-small-btn" data-command="body:flip">翻转本体</button>` : ""}
+    ${renderBodyMarkers(player, snapshot?.you !== "spectator")}
   </aside>`;
+}
+
+function renderBodyMarkers(player: PlayerView, editable: boolean) {
+  const markers = player.markers || [];
+  return `<section class="battle-marker-rack" data-marker-rack-owner="${player.id}" aria-label="${escapeHtml(player.nickname)}的本体标记">
+    <header><span>标记</span>${editable ? `<button type="button" data-command="marker:create" data-player="${player.id}" aria-label="为${escapeHtml(player.nickname)}添加标记">＋</button>` : ""}</header>
+    <div class="battle-marker-rack__list">
+      ${markers.length ? markers.map((marker) => renderBodyMarker(marker, editable)).join("") : `<span class="battle-marker-rack__empty">暂无</span>`}
+    </div>
+  </section>`;
+}
+
+function renderBodyMarker(marker: BodyMarkerView, editable: boolean) {
+  const count = marker.kind === "counter" ? marker.count : marker.count || marker.cards.length;
+  const cardStack = marker.kind === "cards"
+    ? `<span class="battle-marker-chip__cards" aria-hidden="true"><i></i><i></i></span>`
+    : `<span class="battle-marker-chip__dot" aria-hidden="true"></span>`;
+  return `<button type="button" class="battle-marker-chip battle-marker-chip--${marker.kind}"
+    data-body-marker="${marker.id}" ${editable ? "" : "disabled"}
+    aria-label="${escapeHtml(marker.label)}，数量 ${count}${editable ? "，点击管理" : ""}">
+    ${cardStack}<span>${escapeHtml(marker.label)}</span><b>×${count}</b>
+  </button>`;
 }
 
 function formatLogTime(at: number) {
@@ -2548,13 +2591,16 @@ function renderZone(
   </article>`;
 }
 
-function renderSlot(item: CardView | MarkerView | null, index: number, owner: PlayerView, isMe: boolean) {
-  if (!item) return `<article class="battle-slot battle-slot--empty" data-drop-target="characterSlot:${index}" data-zone-owner="${owner.id}"><span>位 ${index + 1}</span></article>`;
+function renderSlot(item: CardView | MarkerView | null, index: number, owner: PlayerView, isMe: boolean, canManageMarkers: boolean) {
+  if (!item) return `<article class="battle-slot battle-slot--empty" data-drop-target="characterSlot:${index}" data-zone-owner="${owner.id}">
+    <span>位 ${index + 1}</span>
+    ${canManageMarkers ? `<button type="button" class="battle-slot__marker-add" data-slot-marker-create data-player="${owner.id}" data-slot="${index}">占位标记</button>` : ""}
+  </article>`;
   if ("label" in item) {
     const label = escapeHtml(item.label);
     return `<article class="battle-slot battle-slot--marker">
       <span class="battle-slot__marker-label">${label}</span>
-      <button type="button" class="battle-slot__marker-del" data-marker="${item.id}" data-marker-label="${label}" aria-label="删除标记 ${label}">×</button>
+      ${canManageMarkers ? `<button type="button" class="battle-slot__marker-del" data-slot-marker="${item.id}" data-marker-label="${label}" aria-label="删除标记 ${label}">×</button>` : ""}
     </article>`;
   }
   if (!item.instanceId && item.faceDown) {
@@ -2699,13 +2745,27 @@ function bindActions() {
       });
     });
   });
-  root.querySelectorAll<HTMLElement>("[data-marker]").forEach((element) => {
+  root.querySelectorAll<HTMLElement>("[data-slot-marker]").forEach((element) => {
     element.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const markerId = element.dataset.marker;
+      const markerId = element.dataset.slotMarker;
       if (!markerId) return;
-      send("marker:remove", { markerId });
+      showConfirmDialog(`移除角色位中的「${element.dataset.markerLabel || "标记"}」？`, () => send("slot-marker:remove", { markerId }));
+    });
+  });
+  root.querySelectorAll<HTMLElement>("[data-slot-marker-create]").forEach((element) => {
+    element.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showSlotMarkerDialog(element.dataset.player || "", Number(element.dataset.slot));
+    });
+  });
+  root.querySelectorAll<HTMLElement>("[data-body-marker]").forEach((element) => {
+    element.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showBodyMarkerDialog(element.dataset.bodyMarker || "", element);
     });
   });
   root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
@@ -2910,7 +2970,7 @@ function handleCommand(element: HTMLElement) {
   } else if (command === "hand:randomSelect") {
     send(command, { ownerId: element.dataset.owner });
   } else if (command === "marker:create") {
-    showMarkerDialog((label, slotIndex) => send(command, { label, slotIndex }));
+    showMarkerDialog(element.dataset.player || snapshot?.you || "");
   } else if (command === "room:restartRequest") {
     showConfirmDialog("请求重新开始？对手同意后双方会重新洗牌和发牌。", () => send(command));
   } else if (command === "room:restartRespond") {
@@ -2975,54 +3035,196 @@ function showNumberDialog(label: string, current: number, onSubmit: (value: numb
   input?.select();
 }
 
-function showMarkerDialog(onSubmit: (label: string, slotIndex: number) => void) {
+function showMarkerDialog(defaultPlayerId: string) {
+  const players = snapshot?.players || [];
   dialogContent.innerHTML = `<div class="battle-card-menu">
-    <h2>创建标记</h2>
-    <label class="battle-dialog-label">标记名称
-      <input type="text" id="battle-marker-label" maxlength="12" placeholder="炸弹、毒雾、护盾" value="充能球" />
+    <span class="battle-kicker">本体标记区</span>
+    <h2>添加数量标记</h2>
+    <label class="battle-dialog-label">放置到
+      <select id="battle-marker-owner">
+        ${players.map((player) => `<option value="${player.id}" ${player.id === defaultPlayerId ? "selected" : ""}>${escapeHtml(player.nickname)}的本体旁</option>`).join("")}
+      </select>
     </label>
-    <p class="battle-dialog-hint">选择要放置的己方角色位（1–4）</p>
-    <div class="battle-slot-picker">
-      ${[0, 1, 2, 3].map((i) => `<button type="button" class="battle-slot-picker__btn" data-slot="${i}">位 ${i + 1}</button>`).join("")}
+    <label class="battle-dialog-label">标记名称
+      <input type="text" id="battle-marker-label" maxlength="20" placeholder="充能球、护盾、怒气" value="充能球" />
+    </label>
+    <label class="battle-dialog-label">初始数量</label>
+    <div class="battle-form-stepper">
+      <button type="button" class="battle-stepper-btn" data-marker-step="-1" aria-label="减少">−</button>
+      <input type="number" id="battle-marker-count" value="1" min="1" max="99" />
+      <button type="button" class="battle-stepper-btn" data-marker-step="1" aria-label="增加">＋</button>
     </div>
     <div class="battle-card-menu__actions battle-card-menu__actions--row">
       <button type="button" class="battle-small-btn" data-dialog-cancel>取消</button>
+      <button type="button" class="btn btn--primary" data-dialog-confirm>添加标记</button>
     </div>
   </div>`;
   dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
-  dialogContent.querySelectorAll<HTMLElement>(".battle-slot-picker__btn").forEach((btn) => {
+  const countInput = dialogContent.querySelector<HTMLInputElement>("#battle-marker-count");
+  dialogContent.querySelectorAll<HTMLElement>("[data-marker-step]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const label = dialogContent.querySelector<HTMLInputElement>("#battle-marker-label")?.value.trim();
-      if (!label) return;
-      onSubmit(label, Number(btn.dataset.slot));
-      dialog.close();
+      if (!countInput) return;
+      countInput.value = String(Math.max(1, Math.min(99, Number(countInput.value) + Number(btn.dataset.markerStep))));
     });
+  });
+  dialogContent.querySelector("[data-dialog-confirm]")?.addEventListener("click", () => {
+    const label = dialogContent.querySelector<HTMLInputElement>("#battle-marker-label")?.value.trim();
+    const playerId = dialogContent.querySelector<HTMLSelectElement>("#battle-marker-owner")?.value;
+    if (!label || !playerId) return;
+    send("marker:create", { label, playerId, count: Math.max(1, Math.min(99, Number(countInput?.value || 1))) });
+    dialog.close();
+  });
+  openBattleDialog();
+  dialogContent.querySelector<HTMLInputElement>("#battle-marker-label")?.select();
+}
+
+function showHandMarkerDialog(instanceId: string) {
+  const me = snapshot?.players.find((player) => player.id === snapshot?.you);
+  const cardMarkers = (me?.markers || []).filter((marker) => marker.kind === "cards");
+  dialogContent.innerHTML = `<div class="battle-card-menu">
+    <h2>暗置为标记</h2>
+    ${cardMarkers.length ? `<label class="battle-dialog-label">加入已有标记
+      <select id="battle-card-marker-existing">
+        <option value="">新建牌类标记</option>
+        ${cardMarkers.map((marker) => `<option value="${marker.id}" data-label="${escapeHtml(marker.label)}">${escapeHtml(marker.label)} ×${marker.count}</option>`).join("")}
+      </select>
+    </label>` : ""}
+    <label class="battle-dialog-label">标记名称
+      <input type="text" id="battle-marker-label" maxlength="20" value="藤蔓" />
+    </label>
+    <p class="battle-dialog-hint">这张牌会正面朝下放在你的本体旁，不占角色位。</p>
+    <div class="battle-card-menu__actions battle-card-menu__actions--row">
+      <button type="button" class="battle-small-btn" data-dialog-cancel>取消</button>
+      <button type="button" class="btn btn--primary" data-dialog-confirm>确认放置</button>
+    </div>
+  </div>`;
+  dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
+  const select = dialogContent.querySelector<HTMLSelectElement>("#battle-card-marker-existing");
+  select?.addEventListener("change", () => {
+    const option = select.selectedOptions[0];
+    const input = dialogContent.querySelector<HTMLInputElement>("#battle-marker-label");
+    if (input && option?.dataset.label) input.value = option.dataset.label;
+  });
+  dialogContent.querySelector("[data-dialog-confirm]")?.addEventListener("click", () => {
+    const label = dialogContent.querySelector<HTMLInputElement>("#battle-marker-label")?.value.trim();
+    if (!label) return;
+    send("card:move", { instanceId, targetZone: "bodyMarker", markerId: select?.value || undefined, label });
+    dialog.close();
   });
   openBattleDialog();
 }
 
-function showHandMarkerDialog(instanceId: string) {
+function showSlotMarkerDialog(playerId: string, slotIndex: number) {
+  const owner = snapshot?.players.find((player) => player.id === playerId);
   dialogContent.innerHTML = `<div class="battle-card-menu">
-    <h2>暗置为标记</h2>
+    <span class="battle-kicker">角色位 ${slotIndex + 1}</span>
+    <h2>放置占位标记</h2>
     <label class="battle-dialog-label">标记名称
-      <input type="text" id="battle-marker-label" maxlength="12" value="充能球" />
+      <input type="text" id="battle-slot-marker-label" maxlength="20" value="炸弹" />
     </label>
-    <p class="battle-dialog-hint">选择角色位</p>
-    <div class="battle-slot-picker">
-      ${[0, 1, 2, 3].map((i) => `<button type="button" class="battle-slot-picker__btn" data-slot="${i}">位 ${i + 1}</button>`).join("")}
+    <p class="battle-dialog-hint">该标记会占据${escapeHtml(owner?.nickname || "目标玩家")}的角色位，直到被手动移除。</p>
+    <div class="battle-card-menu__actions battle-card-menu__actions--row">
+      <button type="button" class="battle-small-btn" data-dialog-cancel>取消</button>
+      <button type="button" class="btn btn--primary" data-dialog-confirm>放置</button>
     </div>
-    <button type="button" class="battle-small-btn" data-dialog-cancel>取消</button>
   </div>`;
   dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
-  dialogContent.querySelectorAll<HTMLElement>(".battle-slot-picker__btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const label = dialogContent.querySelector<HTMLInputElement>("#battle-marker-label")?.value.trim();
-      if (!label) return;
-      send("card:move", { instanceId, targetZone: "handMarker", targetIndex: Number(btn.dataset.slot), label });
+  dialogContent.querySelector("[data-dialog-confirm]")?.addEventListener("click", () => {
+    const label = dialogContent.querySelector<HTMLInputElement>("#battle-slot-marker-label")?.value.trim();
+    if (!label) return;
+    send("slot-marker:create", { playerId, slotIndex, label });
+    dialog.close();
+  });
+  openBattleDialog();
+  dialogContent.querySelector<HTMLInputElement>("#battle-slot-marker-label")?.select();
+}
+
+function findBodyMarkerView(markerId: string) {
+  for (const player of snapshot?.players || []) {
+    const marker = (player.markers || []).find((item) => item.id === markerId);
+    if (marker) return { player, marker };
+  }
+  return undefined;
+}
+
+function showBodyMarkerDialog(markerId: string, returnFocus?: HTMLElement) {
+  const found = findBodyMarkerView(markerId);
+  if (!found) return;
+  const { player, marker } = found;
+  const isCardMarker = marker.kind === "cards";
+  const count = isCardMarker ? marker.count : marker.count;
+  const ownsCards = player.id === snapshot?.you;
+  const cardRows = isCardMarker && ownsCards
+    ? marker.cards.map((card, index) => {
+        const definition = cardDefinition(card);
+        const poker = card.suit && card.rank ? `${suitSymbol(card.suit)}${card.rank} · ` : "";
+        return `<li><span><i class="battle-marker-card-back"></i>${escapeHtml(poker + (definition?.name || `暗置牌 ${index + 1}`))}</span>
+          <button type="button" data-marker-card-remove="${card.instanceId || ""}">移去</button></li>`;
+      }).join("")
+    : "";
+  dialogContent.innerHTML = `<div class="battle-card-menu battle-marker-manager">
+    <span class="battle-kicker">${escapeHtml(player.nickname)}的本体标记</span>
+    <h2>${escapeHtml(marker.label)} <small>×${count}</small></h2>
+    <label class="battle-dialog-label">标记名称
+      <div class="battle-marker-manager__rename">
+        <input type="text" id="battle-marker-rename" maxlength="20" value="${escapeHtml(marker.label)}" />
+        <button type="button" data-marker-rename>改名</button>
+      </div>
+    </label>
+    ${isCardMarker ? `
+      <p class="battle-dialog-hint">这些牌正面朝下放在本体旁。移去后会正面朝上进入共用手牌弃牌区。</p>
+      ${ownsCards ? `<ul class="battle-marker-card-list">${cardRows}</ul>` : `<div class="battle-marker-hidden-stack"><span class="battle-marker-chip__cards"><i></i><i></i></span><b>${count} 张暗置牌</b></div>`}
+      <button type="button" class="battle-small-btn" data-marker-card-remove="">移去最上方一张</button>
+    ` : `
+      <label class="battle-dialog-label">数量</label>
+      <div class="battle-form-stepper">
+        <button type="button" class="battle-stepper-btn" data-marker-count-step="-1" aria-label="减少">−</button>
+        <input type="number" id="battle-marker-edit-count" value="${count}" min="1" max="99" />
+        <button type="button" class="battle-stepper-btn" data-marker-count-step="1" aria-label="增加">＋</button>
+      </div>
+      <button type="button" class="battle-small-btn" data-marker-count-save>设为输入数量</button>
+    `}
+    <div class="battle-card-menu__actions battle-card-menu__actions--row">
+      <button type="button" class="battle-small-btn" data-dialog-cancel>关闭</button>
+      <button type="button" class="battle-small-btn battle-marker-manager__delete" data-marker-delete>删除整个标记</button>
+    </div>
+  </div>`;
+  dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
+  dialogContent.querySelector("[data-marker-rename]")?.addEventListener("click", () => {
+    const label = dialogContent.querySelector<HTMLInputElement>("#battle-marker-rename")?.value.trim();
+    if (!label || label === marker.label) return;
+    send("marker:rename", { markerId, label });
+    dialog.close();
+  });
+  dialogContent.querySelectorAll<HTMLElement>("[data-marker-count-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (marker.kind !== "counter") return;
+      const next = marker.count + Number(button.dataset.markerCountStep);
+      if (next < 1) {
+        dialog.close();
+        showConfirmDialog(`「${marker.label}」已是最后一枚，确定删除？`, () => send("marker:remove", { markerId }));
+        return;
+      }
+      send("marker:adjust", { markerId, count: next });
       dialog.close();
     });
   });
-  openBattleDialog();
+  dialogContent.querySelector("[data-marker-count-save]")?.addEventListener("click", () => {
+    const next = Math.max(1, Math.min(99, Number(dialogContent.querySelector<HTMLInputElement>("#battle-marker-edit-count")?.value || 1)));
+    send("marker:adjust", { markerId, count: next });
+    dialog.close();
+  });
+  dialogContent.querySelectorAll<HTMLElement>("[data-marker-card-remove]").forEach((button) => {
+    button.addEventListener("click", () => {
+      send("marker:card-remove", { markerId, instanceId: button.dataset.markerCardRemove || undefined });
+      dialog.close();
+    });
+  });
+  dialogContent.querySelector("[data-marker-delete]")?.addEventListener("click", () => {
+    dialog.close();
+    showConfirmDialog(`删除整个「${marker.label}」标记${isCardMarker ? `并将其中 ${count} 张牌置入弃牌区` : ""}？`, () => send("marker:remove", { markerId }));
+  });
+  openBattleDialog(returnFocus);
 }
 
 function showConfirmDialog(message: string, onConfirm: () => void) {
@@ -3225,6 +3427,7 @@ function findVisibleCard(instanceId: string) {
     player.body,
     ...player.hand,
     ...player.characterSlots.filter((item): item is CardView => !!item && "instanceId" in item),
+    ...(player.markers || []).flatMap((marker) => marker.kind === "cards" ? marker.cards : []),
     ...player.retired,
     ...player.banished,
   ]);

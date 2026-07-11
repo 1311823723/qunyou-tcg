@@ -7,7 +7,8 @@ export type ZoneName =
   | "handDeck"
   | "handDiscard"
   | "resolving"
-  | "characterSlot";
+  | "characterSlot"
+  | "bodyMarker";
 
 export interface CardInstance {
   instanceId: string;
@@ -25,6 +26,22 @@ export interface Marker {
   ownerId: string;
   card?: CardInstance;
 }
+
+export type BodyMarker =
+  | {
+      id: string;
+      kind: "counter";
+      label: string;
+      ownerId: string;
+      count: number;
+    }
+  | {
+      id: string;
+      kind: "cards";
+      label: string;
+      ownerId: string;
+      cards: CardInstance[];
+    };
 
 export interface CustomDeckConfig {
   bodyId: string;
@@ -65,6 +82,7 @@ export interface PlayerState {
   hand: CardInstance[];
   characterDeck: CardInstance[];
   characterSlots: Array<CardInstance | Marker | null>;
+  markers: BodyMarker[];
   retired: CardInstance[];
   banished: CardInstance[];
 }

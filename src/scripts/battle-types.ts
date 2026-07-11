@@ -63,6 +63,10 @@ export type CardView = {
 
 export type MarkerView = { id: string; label: string; ownerId: string };
 
+export type BodyMarkerView =
+  | { id: string; kind: "counter"; label: string; ownerId: string; count: number }
+  | { id: string; kind: "cards"; label: string; ownerId: string; cards: CardView[]; count: number };
+
 export type PlayerView = {
   id: string;
   nickname: string;
@@ -80,6 +84,7 @@ export type PlayerView = {
   handCount?: number;
   characterDeckCount: number;
   characterSlots: Array<CardView | MarkerView | null>;
+  markers: BodyMarkerView[];
   retired: CardView[];
   banished: CardView[];
 };

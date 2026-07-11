@@ -41,6 +41,7 @@ export function normalizeBattleSnapshot(snapshot) {
         ...currentPlayer,
         hand: isOpponent ? padPrivateCards(hand, handCount, player.id) : hand,
         handCount,
+        markers: Array.isArray(player.markers) ? player.markers : [],
       };
     }),
   };

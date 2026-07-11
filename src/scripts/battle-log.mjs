@@ -29,6 +29,7 @@ export function battleLogTargetKey(target, viewerId) {
     characterDeckShuffle: `characterDeckBottom${ownerSuffix}`,
     retired: `retired${ownerSuffix}`,
     banished: `banished${ownerSuffix}`,
+    bodyMarker: `bodyMarker${ownerSuffix}`,
   };
   return zoneKeys[target.zone];
 }

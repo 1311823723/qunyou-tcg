@@ -43,6 +43,13 @@ test("legacy logs without targets remain non-locatable", () => {
   assert.equal(battleLogRegionId(undefined, "p1"), undefined);
 });
 
+test("body marker logs locate the owning player's marker rack", () => {
+  assert.equal(
+    battleLogTargetKey({ zone: "bodyMarker", ownerId: "p2" }, "p1"),
+    "bodyMarker@p2",
+  );
+});
+
 test("battle log text is summarized with semantic badges", () => {
   assert.deepEqual(formatBattleLog({
     id: "skill",

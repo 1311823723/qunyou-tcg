@@ -56,3 +56,22 @@ test("version 2 active rooms gain a stable started timestamp", () => {
   assert.equal(state.startedAt, 2500);
   assert.equal(state.revision, 5);
 });
+
+test("legacy rooms gain an empty body marker area without moving slot markers", () => {
+  const slotMarker = { id: "legacy-bomb", label: "炸弹", ownerId: "p1" };
+  const state = {
+    stateVersion: 3,
+    revision: 2,
+    started: true,
+    players: [{ id: "p1", characterSlots: [slotMarker, null, null, null] }],
+  };
+
+  const result = migrateRoomState(state, (items) => items);
+  assert.equal(result.migrated, true);
+  assert.deepEqual(state.players[0].markers, []);
+  assert.equal(state.players[0].characterSlots[0], slotMarker);
+
+  const second = migrateRoomState(state, (items) => items);
+  assert.equal(second.migrated, false);
+  assert.deepEqual(state.players[0].markers, []);
+});

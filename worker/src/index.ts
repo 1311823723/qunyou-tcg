@@ -23,10 +23,12 @@ import {
   zoneLabel,
 } from "./movement";
 import { migrateRoomState, ROOM_STATE_VERSION } from "./state-migration.mts";
+import { addCounterMarker, appendCardMarker, takeCardMarker } from "./marker-state.mts";
 import type { LocatedCard } from "./movement";
 import type {
   BattleLogKind,
   BattleLogTarget,
+  BodyMarker,
   CardInstance,
   ClientMessage,
   CustomDeckConfig,
@@ -526,6 +528,7 @@ export class BattleRoom extends DurableObject<Env> {
       hand: [],
       characterDeck: [],
       characterSlots: [null, null, null, null],
+      markers: [],
       retired: [],
       banished: [],
     };
@@ -546,6 +549,29 @@ export class BattleRoom extends DurableObject<Env> {
     }
     const deck = deckById.get(player.deckId || "");
     return deck ? { bodyId: deck.bodyId, characterIds: deck.characterIds } : undefined;
+  }
+
+  private markerOwner(payload: Record<string, unknown>, fallback: PlayerState) {
+    if (!this.state) throw new Error("房间状态不存在。");
+    const targetPlayerId = cleanText(payload.playerId, 20);
+    const owner = targetPlayerId
+      ? this.state.players.find((item) => item.id === targetPlayerId)
+      : fallback;
+    if (!owner) throw new Error("目标玩家不存在。");
+    return owner;
+  }
+
+  private markerOwnerLabel(owner: PlayerState, actor: PlayerState) {
+    return owner.id === actor.id ? "自己的" : `${owner.nickname} 的`;
+  }
+
+  private findBodyMarker(markerId: string): { owner: PlayerState; marker: BodyMarker; index: number } | undefined {
+    if (!this.state || !markerId) return undefined;
+    for (const owner of this.state.players) {
+      const index = owner.markers.findIndex((marker) => marker.id === markerId);
+      if (index >= 0) return { owner, marker: owner.markers[index], index };
+    }
+    return undefined;
   }
 
   private applyAction(
@@ -730,37 +756,121 @@ export class BattleRoom extends DurableObject<Env> {
       }
       case "marker:create": {
         this.requireStarted();
-        const index = this.clamp(payload.slotIndex, 0, 3);
-        if (player.characterSlots[index]) throw new Error("该角色位已经被占用。");
+        const owner = this.markerOwner(payload, player);
         const label = cleanText(payload.label, 20);
         if (!label) throw new Error("标记名称不能为空。");
-        player.characterSlots[index] = { id: crypto.randomUUID(), label, ownerId: player.id };
-        this.addLog(`${player.nickname} 创建了「${label}」标记`, player.id, "action", {
-          zone: "characterSlot",
-          ownerId: player.id,
-          slotIndex: index,
+        const count = this.clamp(payload.count, 1, 99);
+        const result = addCounterMarker(owner.markers, owner.id, label, count, () => crypto.randomUUID());
+        if (!result.created) {
+          this.addLog(`${player.nickname} 将${this.markerOwnerLabel(owner, player)}「${label}」由 ${result.previous} 调整为 ${result.marker.count}`, player.id, "action", {
+            zone: "bodyMarker",
+            ownerId: owner.id,
+          });
+          return;
+        }
+        const recipient = owner.id === player.id ? "自己" : owner.nickname;
+        this.addLog(`${player.nickname} 为${recipient}创建了「${label}」×${count}`, player.id, "action", {
+          zone: "bodyMarker",
+          ownerId: owner.id,
+        });
+        return;
+      }
+      case "marker:adjust": {
+        this.requireStarted();
+        const found = this.findBodyMarker(cleanText(payload.markerId, 80));
+        if (!found || found.marker.kind !== "counter") throw new Error("数量标记不存在。");
+        const next = this.clamp(payload.count, 1, 99);
+        const previous = found.marker.count;
+        found.marker.count = next;
+        this.addLog(`${player.nickname} 将${this.markerOwnerLabel(found.owner, player)}「${found.marker.label}」由 ${previous} 调整为 ${next}`, player.id, "action", {
+          zone: "bodyMarker",
+          ownerId: found.owner.id,
+        });
+        return;
+      }
+      case "marker:rename": {
+        this.requireStarted();
+        const found = this.findBodyMarker(cleanText(payload.markerId, 80));
+        if (!found) throw new Error("标记不存在。");
+        const label = cleanText(payload.label, 20);
+        if (!label) throw new Error("标记名称不能为空。");
+        if (found.owner.markers.some((marker) => marker !== found.marker && marker.kind === found.marker.kind && marker.label === label)) {
+          throw new Error("该玩家已有同名标记。");
+        }
+        const previous = found.marker.label;
+        found.marker.label = label;
+        this.addLog(`${player.nickname} 将${this.markerOwnerLabel(found.owner, player)}「${previous}」改名为「${label}」`, player.id, "action", {
+          zone: "bodyMarker",
+          ownerId: found.owner.id,
         });
         return;
       }
       case "marker:remove": {
         this.requireStarted();
         const markerId = cleanText(payload.markerId, 80);
+        const found = this.findBodyMarker(markerId);
+        if (!found) throw new Error("标记不存在。");
+        found.owner.markers.splice(found.index, 1);
+        if (found.marker.kind === "cards") {
+          for (const card of found.marker.cards) card.faceDown = false;
+          this.state.handDiscard.push(...found.marker.cards);
+        }
+        this.addLog(`${player.nickname} 移除了${this.markerOwnerLabel(found.owner, player)}「${found.marker.label}」标记`, player.id, "action", {
+          zone: "bodyMarker",
+          ownerId: found.owner.id,
+        });
+        return;
+      }
+      case "marker:card-remove": {
+        this.requireStarted();
+        const found = this.findBodyMarker(cleanText(payload.markerId, 80));
+        if (!found || found.marker.kind !== "cards" || found.marker.cards.length === 0) throw new Error("牌类标记不存在。");
+        const requestedId = cleanText(payload.instanceId, 80);
+        const taken = takeCardMarker(found.owner.markers, found.marker.id, requestedId || undefined);
+        if (!taken) throw new Error("找不到这张标记牌。");
+        const { card } = taken;
+        card.faceDown = false;
+        this.state.handDiscard.push(card);
+        this.addLog(`${player.nickname} 移去了${this.markerOwnerLabel(found.owner, player)}一枚「${found.marker.label}」标记：${this.handCardLabel(card)}`, player.id, "action", {
+          zone: "handDiscard",
+          ownerId: found.owner.id,
+        });
+        return;
+      }
+      case "slot-marker:create": {
+        this.requireStarted();
+        const owner = this.markerOwner(payload, player);
+        const index = Number(payload.slotIndex);
+        if (!Number.isInteger(index) || index < 0 || index > 3) throw new Error("角色位置无效。");
+        if (owner.characterSlots[index]) throw new Error("该角色位已经被占用。");
+        const label = cleanText(payload.label, 20);
+        if (!label) throw new Error("标记名称不能为空。");
+        owner.characterSlots[index] = { id: crypto.randomUUID(), label, ownerId: owner.id };
+        this.addLog(`${player.nickname} 在${this.markerOwnerLabel(owner, player)}角色位 ${index + 1} 放置了「${label}」标记`, player.id, "action", {
+          zone: "characterSlot",
+          ownerId: owner.id,
+          slotIndex: index,
+        });
+        return;
+      }
+      case "slot-marker:remove": {
+        this.requireStarted();
+        const markerId = cleanText(payload.markerId, 80);
         for (const owner of this.state.players) {
           const index = owner.characterSlots.findIndex((item) => item && "label" in item && item.id === markerId);
-          if (index >= 0) {
-            const marker = owner.characterSlots[index] as Marker;
-            owner.characterSlots[index] = null;
-            if (marker.card) {
-              marker.card.faceDown = false;
-              this.state.handDiscard.push(marker.card);
-            }
-            this.addLog(`${player.nickname} 移除了「${marker.label}」标记`, player.id, "action", {
-              zone: "characterSlot",
-              ownerId: owner.id,
-              slotIndex: index,
-            });
-            return;
+          if (index < 0) continue;
+          const marker = owner.characterSlots[index] as Marker;
+          owner.characterSlots[index] = null;
+          if (marker.card) {
+            marker.card.faceDown = false;
+            this.state.handDiscard.push(marker.card);
           }
+          this.addLog(`${player.nickname} 移除了${this.markerOwnerLabel(owner, player)}角色位 ${index + 1} 的「${marker.label}」标记`, player.id, "action", {
+            zone: "characterSlot",
+            ownerId: owner.id,
+            slotIndex: index,
+          });
+          return;
         }
         throw new Error("标记不存在。");
       }
@@ -864,6 +974,7 @@ export class BattleRoom extends DurableObject<Env> {
       })));
       player.hand = [];
       player.characterSlots = [null, null, null, null];
+      player.markers = [];
       player.retired = [];
       player.banished = [];
       this.draw(player, "hand", 5, false);
@@ -962,15 +1073,13 @@ export class BattleRoom extends DurableObject<Env> {
       } else if (target === "hand") {
         card.ownerId = actor.id;
         actor.hand.push(card);
-      } else if (target === "handMarker") {
+      } else if (target === "bodyMarker") {
         if (card.kind !== "hand" || card.ownerId !== actor.id) throw new Error("只能将自己的手牌暗置为标记。");
-        if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex > 3 || actor.characterSlots[targetIndex]) {
-          throw new Error("标记位置无效或已被占用。");
-        }
         const label = cleanText(payload.label, 20);
         if (!label) throw new Error("标记名称不能为空。");
+        const requestedMarkerId = cleanText(payload.markerId, 80);
         card.faceDown = true;
-        actor.characterSlots[targetIndex] = { id: crypto.randomUUID(), label, ownerId: actor.id, card };
+        appendCardMarker(actor.markers, actor.id, label, card, () => crypto.randomUUID(), requestedMarkerId || undefined);
       } else if (target === "characterDeckBottom") {
         card.faceDown = false;
         owner.characterDeck.unshift(card);
@@ -1001,7 +1110,7 @@ export class BattleRoom extends DurableObject<Env> {
       ? this.state.players.find((item) => item.id !== actor.id)?.id
       : target === "hand"
         ? actor.id
-        : ["retired", "banished", "characterSlot", "characterDeckBottom", "characterDeckShuffle"].includes(target)
+        : ["retired", "banished", "characterSlot", "characterDeckBottom", "characterDeckShuffle", "bodyMarker"].includes(target)
           ? owner.id
           : undefined;
     const logTarget = {
@@ -1062,6 +1171,20 @@ export class BattleRoom extends DurableObject<Env> {
           index: slot,
         };
       }
+      for (const marker of player.markers) {
+        if (marker.kind !== "cards") continue;
+        const index = marker.cards.findIndex((card) => card.instanceId === instanceId);
+        if (index >= 0) {
+          return {
+            card: marker.cards[index],
+            owner: player,
+            zone: "bodyMarker",
+            index,
+            markerId: marker.id,
+            markerLabel: marker.label,
+          };
+        }
+      }
     }
     const commonZones: Array<[ZoneName, CardInstance[]]> = [
       ["handDeck", this.state.handDeck],
@@ -1083,6 +1206,13 @@ export class BattleRoom extends DurableObject<Env> {
     if (!located || !this.state) return undefined;
     const { owner, zone, index } = located;
     if (zone === "characterSlot") owner.characterSlots[index] = null;
+    else if (zone === "bodyMarker") {
+      const markerIndex = owner.markers.findIndex((marker) => marker.id === located.markerId && marker.kind === "cards");
+      const marker = owner.markers[markerIndex];
+      if (markerIndex < 0 || marker.kind !== "cards") return undefined;
+      marker.cards.splice(index, 1);
+      if (marker.cards.length === 0) owner.markers.splice(markerIndex, 1);
+    }
     else if (zone === "handDeck") this.state.handDeck.splice(index, 1);
     else if (zone === "handDiscard") this.state.handDiscard.splice(index, 1);
     else if (zone === "resolving") this.state.resolving.splice(index, 1);
@@ -1094,6 +1224,17 @@ export class BattleRoom extends DurableObject<Env> {
     if (!this.state) return;
     const { card, owner, zone, index } = located;
     if (zone === "characterSlot") owner.characterSlots[index] = card;
+    else if (zone === "bodyMarker") {
+      const marker = owner.markers.find((item) => item.id === located.markerId);
+      if (marker?.kind === "cards") marker.cards.splice(index, 0, card);
+      else owner.markers.push({
+        id: located.markerId || crypto.randomUUID(),
+        kind: "cards",
+        label: located.markerLabel || "标记",
+        ownerId: owner.id,
+        cards: [card],
+      });
+    }
     else if (zone === "handDeck") this.state.handDeck.splice(index, 0, card);
     else if (zone === "handDiscard") this.state.handDiscard.splice(index, 0, card);
     else if (zone === "resolving") this.state.resolving.splice(index, 0, card);
@@ -1239,6 +1380,7 @@ export class BattleRoom extends DurableObject<Env> {
         ...player.hand,
         ...player.characterDeck,
         ...player.characterSlots.filter((item): item is CardInstance => !!item && "instanceId" in item),
+        ...player.markers.flatMap((marker) => marker.kind === "cards" ? marker.cards : []),
         ...player.retired,
         ...player.banished,
       ]),
@@ -1292,6 +1434,18 @@ export class BattleRoom extends DurableObject<Env> {
           }
           return this.cardView(item, true);
         }),
+        markers: player.markers.map((marker) => marker.kind === "counter"
+          ? { ...marker }
+          : {
+              id: marker.id,
+              kind: marker.kind,
+              label: marker.label,
+              ownerId: marker.ownerId,
+              count: marker.cards.length,
+              cards: marker.cards.map((card) => player.id === playerId
+                ? this.cardView(card, true)
+                : { ownerId: player.id, faceDown: true }),
+            }),
         retired: player.retired.map((card) => this.cardView(card, true)),
         banished: player.banished.map((card) => this.cardView(card, card.ownerId === playerId || !card.faceDown)),
       })),
@@ -1350,6 +1504,16 @@ export class BattleRoom extends DurableObject<Env> {
           }
           return this.cardView(item, true);
         }),
+        markers: player.markers.map((marker) => marker.kind === "counter"
+          ? { ...marker }
+          : {
+              id: marker.id,
+              kind: marker.kind,
+              label: marker.label,
+              ownerId: marker.ownerId,
+              count: marker.cards.length,
+              cards: marker.cards.map(() => ({ ownerId: player.id, faceDown: true })),
+            }),
         retired: player.retired.map((card) => this.cardView(card, true)),
         banished: player.banished.map((card) => this.cardView(card, !card.faceDown)),
       })),

@@ -48,6 +48,7 @@ test("private hand counts fall back to redacted arrays", () => {
   }));
   const opponent = normalized.players[1];
   assert.equal(opponent.handCount, 2);
+  assert.deepEqual(opponent.markers, []);
 });
 
 test("count-only legacy snapshots receive safe card-back placeholders", () => {

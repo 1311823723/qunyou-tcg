@@ -1,6 +1,6 @@
 import type { CardInstance, PlayerState, RoomState } from "./types";
 
-export const ROOM_STATE_VERSION = 3;
+export const ROOM_STATE_VERSION = 4;
 
 type LegacyPlayerState = PlayerState & {
   characterHand?: CardInstance[];
@@ -29,6 +29,12 @@ export function migrateRoomState(
   }
 
   if (state.started && !state.startedAt) state.startedAt = state.lastActivityAt || state.createdAt;
+
+  if (previousVersion < 4) {
+    for (const player of state.players) {
+      player.markers = Array.isArray(player.markers) ? player.markers : [];
+    }
+  }
 
   state.stateVersion = ROOM_STATE_VERSION;
   state.revision = (state.revision || 0) + 1;
