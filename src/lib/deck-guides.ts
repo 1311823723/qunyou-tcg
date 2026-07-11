@@ -64,16 +64,17 @@ export const deckGuides: Record<string, DeckGuide> = {
   },
   deck_trans_001: {
     title: "拟态补位路线",
-    flow: ["宣言转化", "触发拟态核心", "临时上阵角色", "继续发动技能", "Mega 后首次技能降费"],
+    flow: ["宣言转化", "积攒充能球", "激发闪电或等离子", "触发拟态核心", "Mega 后连续补位"],
     priorities: [
       "优先保留能把牌视为其他牌使用或打出的角色，它们是临时补位链的起点。",
+      "三张故障机器人共享至多3枚充能球：没有合适目标时先充能，需要展开时再转化为减伤、虚拟【杀】或技能降费。",
       "转化前注意预留角色位；临时补位会直接从角色牌堆顶暗置上阵。",
       "临时角色可以发动技能或支付休整费用；若未离场，会在结束阶段自动休整。",
     ],
     mega: "Mega 后每回合最多触发两次临时补位，且以此法上阵的角色首次发动【休整X】技能时费用降低1，最低为0；【休整自身】与【退场】费用不受影响。",
-    risk: "角色区已满或角色牌堆为空时无法触发补位。先安排休整腾出位置，不要为了转化而转化。",
-    coreCards: ["char_055_xiaoapan_judge", "char_013_weixiaokele_morphling", "char_027_weixiaokele_medium"],
-    replaceableCards: ["char_026_miaosila_neo", "char_014_baizi_party-duck"],
+    risk: "充能本身不会立刻产生场面收益，角色区已满或角色牌堆为空时也无法触发补位。先规划充能球用途与空角色位，不要为了转化而转化。",
+    coreCards: ["char_055_xiaoapan_judge", "char_013_weixiaokele_morphling", "char_018_baizi_defect-robot", "char_019_dong_defect-robot"],
+    replaceableCards: ["char_014_baizi_party-duck", "char_051_baizi_lobbyist"],
     replaceSuggestions: [
       { card: "char_079_xiaoka_visionary-painter", reason: "增加转化能力，弃牌视为使用基本牌" },
       { card: "char_075_baizi_weilong", reason: "增加主动进攻能力" },

@@ -306,33 +306,42 @@ function renderCharacter(card) {
   const { prefix, suffix } = splitCharacterName(card.name);
   const costText = formatCost(card.cost);
   const costFontSize = costText.length >= 9 ? 12 : costText.length >= 7 ? 15 : 19;
+  const railSide = card.layoutVariant === "right-rail" ? "right" : "left";
+  const railX = railSide === "right" ? 624 : 26;
+  const artX = railSide === "right" ? 26 : 126;
+  const roleInfoX = railSide === "right" ? 74 : 676;
+  const cardIdX = artX + 299;
+  const panelX = artX;
+  const skillX = panelX + 24;
+  const costX = panelX + 230;
+  const timingX = panelX + 360;
   const inner = `
-    <rect x="26" y="26" width="100" height="998" fill="${roleDarkColor}" stroke="${roleTrimColor}" stroke-opacity="0.70" stroke-width="3"/>
+    <rect x="${railX}" y="26" width="100" height="998" fill="${roleDarkColor}" stroke="${roleTrimColor}" stroke-opacity="0.70" stroke-width="3"/>
     <g opacity="0.17">
-      <path d="M42 80 C96 116, 42 158, 102 206" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
-      <path d="M42 306 C96 342, 42 384, 102 432" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
-      <path d="M42 532 C96 568, 42 610, 102 658" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
+      <path d="M${railX + 16} 80 C${railX + 70} 116, ${railX + 16} 158, ${railX + 76} 206" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
+      <path d="M${railX + 16} 306 C${railX + 70} 342, ${railX + 16} 384, ${railX + 76} 432" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
+      <path d="M${railX + 16} 532 C${railX + 70} 568, ${railX + 16} 610, ${railX + 76} 658" fill="none" stroke="${roleTrimColor}" stroke-width="3"/>
     </g>
-    ${artStage("角色原画预留", "character", { x: 126, y: 26, width: 598, height: 960, accent: roleColor, imageDataUri: card.__ttsArt })}
-    <rect x="126" y="696" width="598" height="62" fill="url(#artToPanelFade)"/>
-    <circle cx="76" cy="92" r="42" fill="url(#sealGlow)" stroke="${roleTrimColor}" stroke-width="4"/>
-    <text x="76" y="104" text-anchor="middle" font-size="29" font-weight="900" fill="#fff0a6">${escapeXml(card.mainRole.slice(0, 1))}</text>
-    ${prefix ? verticalText(prefix, 76, 206, 25, { fill: roleTrimColor, stroke: "#160b09", strokeWidth: 4, gap: 36 }) : ""}
-    ${verticalText(suffix, 76, prefix ? 396 : 248, suffix.length > 4 ? 36 : 42, { fill: "#ffffff", stroke: roleDarkColor, strokeWidth: 5, gap: suffix.length > 4 ? 46 : 58 })}
-    <rect x="55" y="868" width="42" height="48" rx="3" fill="rgba(255,255,255,0.08)" stroke="${roleTrimColor}" stroke-opacity="0.68"/>
-    ${verticalText(card.source || "通用", 76, 896, 17, { fill: roleTrimColor, gap: 20 })}
-    ${verticalText(card.mainRole, 676, 104, 24, { fill: roleTrimColor, stroke: "#0b0b12", strokeWidth: 4, gap: 38 })}
-    <g transform="translate(150 678)">${tagsSvg(card.tags, 0, 0, { fill: "rgba(0,0,0,0.45)", stroke: "rgba(255,255,255,0.32)", max: 4 })}</g>
+    ${artStage("角色原画预留", "character", { x: artX, y: 26, width: 598, height: 960, accent: roleColor, imageDataUri: card.__ttsArt })}
+    <rect x="${artX}" y="696" width="598" height="62" fill="url(#artToPanelFade)"/>
+    <circle cx="${railX + 50}" cy="92" r="42" fill="url(#sealGlow)" stroke="${roleTrimColor}" stroke-width="4"/>
+    <text x="${railX + 50}" y="104" text-anchor="middle" font-size="29" font-weight="900" fill="#fff0a6">${escapeXml(card.mainRole.slice(0, 1))}</text>
+    ${prefix ? verticalText(prefix, railX + 50, 206, 25, { fill: roleTrimColor, stroke: "#160b09", strokeWidth: 4, gap: 36 }) : ""}
+    ${verticalText(suffix, railX + 50, prefix ? 396 : 248, suffix.length > 4 ? 36 : 42, { fill: "#ffffff", stroke: roleDarkColor, strokeWidth: 5, gap: suffix.length > 4 ? 46 : 58 })}
+    <rect x="${railX + 29}" y="868" width="42" height="48" rx="3" fill="rgba(255,255,255,0.08)" stroke="${roleTrimColor}" stroke-opacity="0.68"/>
+    ${verticalText(card.source || "通用", railX + 50, 896, 17, { fill: roleTrimColor, gap: 20 })}
+    ${verticalText(card.mainRole, roleInfoX, 104, 24, { fill: roleTrimColor, stroke: "#0b0b12", strokeWidth: 4, gap: 38 })}
+    <g transform="translate(${artX + 24} 678)">${tagsSvg(card.tags, 0, 0, { fill: "rgba(0,0,0,0.45)", stroke: "rgba(255,255,255,0.32)", max: 4 })}</g>
     <g filter="url(#shadow)">
-      <path d="M126 746 H724 V986 H126 Z" fill="url(#textParchment)" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/>
-      <rect x="150" y="770" width="190" height="42" rx="7" fill="${roleColor}"/>
-      <text x="245" y="800" text-anchor="middle" font-size="22" font-weight="900" fill="#ffffff">${escapeXml(card.skillName)}</text>
-      <rect x="356" y="770" width="112" height="42" rx="7" fill="#312a24" fill-opacity="0.84"/>
-      <text x="412" y="800" text-anchor="middle" font-size="${costFontSize}" font-weight="900" fill="#ffe59a">${escapeXml(costText)}</text>
-      ${fitTextBlock(card.timing, 486, 800, 196, 38, 20, 16, { fill: "#534333", weight: 800 })}
-      ${fitTextBlock(card.effectText, 150, 848, 530, 104, 25, 18, { fill: "#25201b", weight: 700 })}
+      <path d="M${panelX} 746 H${panelX + 598} V986 H${panelX} Z" fill="url(#textParchment)" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/>
+      <rect x="${skillX}" y="770" width="190" height="42" rx="7" fill="${roleColor}"/>
+      <text x="${skillX + 95}" y="800" text-anchor="middle" font-size="22" font-weight="900" fill="#ffffff">${escapeXml(card.skillName)}</text>
+      <rect x="${costX}" y="770" width="112" height="42" rx="7" fill="#312a24" fill-opacity="0.84"/>
+      <text x="${costX + 56}" y="800" text-anchor="middle" font-size="${costFontSize}" font-weight="900" fill="#ffe59a">${escapeXml(costText)}</text>
+      ${fitTextBlock(card.timing, timingX, 800, 196, 38, 20, 16, { fill: "#534333", weight: 800 })}
+      ${fitTextBlock(card.effectText, skillX, 848, 530, 104, 25, 18, { fill: "#25201b", weight: 700 })}
     </g>
-    <text x="425" y="1014" text-anchor="middle" font-size="15" font-weight="700" fill="#b8ad96">${escapeXml(card.id)}</text>
+    <text x="${cardIdX}" y="1014" text-anchor="middle" font-size="15" font-weight="700" fill="#b8ad96">${escapeXml(card.id)}</text>
   `;
   return cardShell(inner, { accent: roleColor, secondary: "#172b38", variant: "character", paper: "#eee9dd" });
 }

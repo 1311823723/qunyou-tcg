@@ -21,7 +21,7 @@ export function defaultHandLimit(player) {
   const revealedCharacters = cards(player?.characterSlots).filter((slot) =>
     slot && typeof slot === "object" && "instanceId" in slot && slot.faceDown === false
   ).length;
-  return Math.min(health, 4) + revealedCharacters;
+  return Math.min(health, 4) + Math.min(revealedCharacters, 2);
 }
 
 export function normalizeBattleSnapshot(snapshot) {

@@ -28,6 +28,7 @@
     "timing": { "type": "string" },
     "skillName": { "type": "string" },
     "effectText": { "type": "string" },
+    "layoutVariant": { "type": "string", "enum": ["right-rail"] },
     "notes": { "type": "string" },
     "source": { "type": "string" }
   }

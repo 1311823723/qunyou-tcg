@@ -27,6 +27,7 @@ npm run build          # 构建静态站点
 npm run build:battle   # 检查 Worker 是否可以部署
 npm run preview        # 预览构建产物
 npm run validate       # 校验所有卡牌和预组数据
+npm run typecheck      # 检查前端 TypeScript 类型
 npm run print:aggro    # 打印爆杀组预组详情
 npm run export:tts     # 导出 Tabletop Simulator 本地资源
 npm run cards:sync     # 生成网页缩略图与高清预览图

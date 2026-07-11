@@ -116,12 +116,23 @@ type PendingAction = {
   optimistic?: boolean;
   slow?: boolean;
   sent?: boolean;
+  sentAt?: number;
   timeoutId?: number;
 };
 
 type ActiveMoveTargets = {
   cardId: string;
   actions: CardActionDescriptor[];
+  cardLabel: string;
+  sourceLabel: string;
+};
+
+type TableDensity = "dense" | "balanced" | "spacious";
+type NetworkQuality = "unknown" | "good" | "slow" | "weak";
+type NetworkInformationLike = EventTarget & {
+  effectiveType?: string;
+  rtt?: number;
+  saveData?: boolean;
 };
 
 let activeMoveTargets: ActiveMoveTargets | null = null;
@@ -151,6 +162,11 @@ let effectTimer = 0;
 let effectResolve: (() => void) | undefined;
 let effectGeneration = 0;
 let bodyPortraitsPreloaded = false;
+let tableDensity: TableDensity = "balanced";
+let networkQuality: NetworkQuality = "unknown";
+let lastRoundTripMs: number | undefined;
+let lastErrorCategory = "none";
+const latencySamples: number[] = [];
 
 const COACH_STEPS = [
   { title: "点击卡牌查看技能", text: "点任意卡牌可阅读完整效果，并从菜单移动到其他区域。" },
@@ -161,12 +177,68 @@ const COACH_STEPS = [
 
 roomLabel.textContent = roomCode;
 applyTableMode();
+applyTableDensity();
+refreshNetworkQuality();
 applyAnimationMode();
 
 function setConnectionState(label: string, state: string) {
   statusText.textContent = label;
   status.dataset.state = state;
   if (state === "open" || state === "closed" || state === "failed") announce(label);
+}
+
+function networkInformation() {
+  return (navigator as Navigator & { connection?: NetworkInformationLike }).connection;
+}
+
+function detectTableDensity(): TableDensity {
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  if (window.innerWidth >= 1680 && viewportHeight >= 880) return "spacious";
+  if (window.innerWidth <= 1366 || viewportHeight <= 760) return "dense";
+  return "balanced";
+}
+
+function applyTableDensity() {
+  tableDensity = detectTableDensity();
+  app.dataset.tableDensity = tableDensity;
+}
+
+function inferNetworkQuality() {
+  const info = networkInformation();
+  if (info?.saveData) return "weak" as const;
+  if (lastRoundTripMs !== undefined) {
+    if (lastRoundTripMs >= 1200) return "weak" as const;
+    if (lastRoundTripMs >= 500) return "slow" as const;
+    return "good" as const;
+  }
+  if (info?.effectiveType === "slow-2g" || info?.effectiveType === "2g") return "weak" as const;
+  if (info?.effectiveType === "3g") return "slow" as const;
+  return info?.effectiveType === "4g" ? "good" as const : "unknown" as const;
+}
+
+function refreshNetworkQuality() {
+  const next = inferNetworkQuality();
+  const changed = next !== networkQuality;
+  networkQuality = next;
+  app.dataset.networkQuality = networkQuality;
+  status.dataset.quality = networkQuality;
+  if (changed) applyAnimationMode();
+}
+
+function recordRoundTrip(duration: number) {
+  if (!Number.isFinite(duration) || duration < 0) return;
+  latencySamples.push(Math.round(duration));
+  if (latencySamples.length > 4) latencySamples.shift();
+  lastRoundTripMs = Math.round(latencySamples.reduce((sum, value) => sum + value, 0) / latencySamples.length);
+  refreshNetworkQuality();
+}
+
+function syncedConnectionLabel(revision: number) {
+  const latency = lastRoundTripMs === undefined ? "" : ` · ${lastRoundTripMs}ms`;
+  if (networkInformation()?.saveData) return `省流 · r${revision}${latency}`;
+  if (networkQuality === "weak") return `弱网 · r${revision}${latency}`;
+  if (networkQuality === "slow") return `较慢 · r${revision}${latency}`;
+  return `已同步 · r${revision}${latency}`;
 }
 
 setConnectionState("连接中", "connecting");
@@ -188,17 +260,60 @@ function announce(message: string) {
 }
 
 async function copyText(text: string, button?: HTMLButtonElement | null, doneLabel = "已复制", resetLabel?: string) {
-  try {
-    await navigator.clipboard.writeText(text);
+  const markCopied = () => {
     if (button) {
       const original = button.textContent;
       button.textContent = doneLabel;
       window.setTimeout(() => { button.textContent = resetLabel ?? original; }, 1400);
     }
     showToast(doneLabel);
+  };
+  try {
+    await navigator.clipboard.writeText(text);
+    markCopied();
   } catch {
-    showToast("复制失败，请手动复制");
+    const input = document.createElement("textarea");
+    input.value = text;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    const copied = document.execCommand("copy");
+    input.remove();
+    if (copied) markCopied();
+    else showToast("复制失败，请检查浏览器剪贴板权限");
   }
+}
+
+function webSocketStateLabel() {
+  const labels = ["连接中", "已连接", "关闭中", "已断开"];
+  return socket ? labels[socket.readyState] || "未知" : "未创建";
+}
+
+function buildDiagnostics() {
+  const info = networkInformation();
+  const role = snapshot?.you === "spectator" ? "spectator" : snapshot?.you || "unknown";
+  return [
+    "宝旅团 TCG 对战诊断",
+    `时间: ${new Date().toISOString()}`,
+    `房间: ${roomCode}`,
+    `客户端: ${app.dataset.clientVersion || "unknown"}`,
+    `身份: ${role}`,
+    `连接: ${status.dataset.state || "unknown"} / ${webSocketStateLabel()}`,
+    `网络: ${networkQuality}${lastRoundTripMs === undefined ? "" : ` / ${lastRoundTripMs}ms`}`,
+    `网络提示: ${info?.effectiveType || "unknown"}${info?.saveData ? " / save-data" : ""}`,
+    `Revision: ${confirmedSnapshot?.revision ?? snapshot?.revision ?? "none"}`,
+    `待确认操作: ${pendingActions.size}`,
+    `移动模式: ${activeMoveTargets ? "active" : "inactive"}`,
+    `最近错误分类: ${lastErrorCategory}`,
+    `布局: ${tableMode} / ${tableDensity}`,
+    `动画: ${animationMode} / effective-${effectiveAnimationMode()}`,
+    `视口: ${window.innerWidth}x${window.innerHeight} @${window.devicePixelRatio || 1}`,
+    `页面: ${location.origin}${location.pathname}`,
+    `API: ${new URL(API_URL).origin}`,
+    `浏览器: ${navigator.userAgent}`,
+  ].join("\n");
 }
 
 document.querySelectorAll<HTMLButtonElement>("[data-copy-invite]").forEach((button) => {
@@ -227,6 +342,12 @@ document.querySelector(".battle-topbar")?.addEventListener("click", (event) => {
   if (shortcutHelp) {
     showShortcutHelp(shortcutHelp);
     shortcutHelp.closest<HTMLDetailsElement>(".battle-topbar-menu")?.removeAttribute("open");
+    return;
+  }
+  const diagnosticsButton = event.target.closest<HTMLButtonElement>("[data-copy-diagnostics]");
+  if (diagnosticsButton) {
+    void copyText(buildDiagnostics(), diagnosticsButton, "诊断已复制", diagnosticsButton.textContent || "诊断");
+    diagnosticsButton.closest<HTMLDetailsElement>(".battle-topbar-menu")?.removeAttribute("open");
     return;
   }
   const modeToggle = event.target.closest<HTMLElement>("[data-table-mode-toggle]");
@@ -311,6 +432,13 @@ root.addEventListener("scroll", () => {
   window.cancelAnimationFrame(regionScrollFrame);
   regionScrollFrame = window.requestAnimationFrame(updateRegionFromScroll);
 }, { passive: true });
+
+let densityResizeFrame = 0;
+window.addEventListener("resize", () => {
+  window.cancelAnimationFrame(densityResizeFrame);
+  densityResizeFrame = window.requestAnimationFrame(applyTableDensity);
+}, { passive: true });
+networkInformation()?.addEventListener("change", refreshNetworkQuality);
 
 function getRoomCode() {
   const parts = location.pathname.split("/").filter(Boolean);
@@ -426,7 +554,7 @@ function readAnimationMode(): AnimationMode {
 }
 
 function effectiveAnimationMode(): AnimationMode {
-  return animationMode;
+  return animationMode === "off" || networkQuality === "weak" ? "off" : "on";
 }
 
 function applyAnimationMode() {
@@ -436,8 +564,10 @@ function applyAnimationMode() {
     off: "动画：关闭",
   };
   document.querySelectorAll<HTMLElement>("[data-animation-mode-toggle]").forEach((button) => {
-    button.textContent = labels[animationMode];
-    button.setAttribute("aria-label", `${labels[animationMode]}，点击切换`);
+    const pausedLabel = networkInformation()?.saveData ? "动画：省流暂停" : "动画：弱网暂停";
+    const label = animationMode === "on" && effectiveAnimationMode() === "off" ? pausedLabel : labels[animationMode];
+    button.textContent = label;
+    button.setAttribute("aria-label", `${label}，点击切换`);
     button.title = "切换战斗动画效果";
   });
   if (effectiveAnimationMode() === "off") clearVisualEffects();
@@ -544,6 +674,7 @@ async function connect() {
     wsUrl.searchParams.set("spectator", "true");
     wsUrl.searchParams.set("nickname", pending.nickname || "观战者");
   }
+  const socketStartedAt = performance.now();
   socket = new WebSocket(wsUrl);
   let socketFailureHandled = false;
   const socketTimeout = window.setTimeout(() => {
@@ -558,7 +689,8 @@ async function connect() {
     window.clearTimeout(socketTimeout);
     hasConnected = true;
     reconnectDelay = 800;
-    setConnectionState(snapshot ? `已同步 · r${snapshot.revision}` : "已连接，等待同步", "open");
+    recordRoundTrip(performance.now() - socketStartedAt);
+    setConnectionState(snapshot ? syncedConnectionLabel(snapshot.revision) : "已连接，等待同步", "open");
   });
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(String(event.data)) as ServerMessage;
@@ -571,7 +703,7 @@ async function connect() {
       confirmedSnapshot = nextSnapshot;
       rebuildOptimisticSnapshot();
       settleConfirmedActions();
-      setConnectionState(`已同步 · r${nextSnapshot.revision}`, "open");
+      setConnectionState(syncedConnectionLabel(nextSnapshot.revision), "open");
       render();
       restorePendingLoadout(nextSnapshot);
       preloadBodyPortraits();
@@ -580,6 +712,7 @@ async function connect() {
     } else if (message.type === "actionAck") {
       const pending = pendingActions.get(message.actionId);
       if (!pending) return;
+      if (pending.sentAt) recordRoundTrip(Date.now() - pending.sentAt);
       pending.ackRevision = message.revision;
       settleConfirmedActions();
     } else if (message.type === "inspection") {
@@ -621,6 +754,7 @@ async function connect() {
       setConnectionState("已退出", "failed");
       syncRoomControls(false);
     } else if (message.type === "error") {
+      lastErrorCategory = message.category || "operation_error";
       rejectPendingAction(message.actionId);
       showError(message.error);
     }
@@ -636,6 +770,7 @@ async function connect() {
     }
     clearPendingActions(true);
     clearVisualEffects();
+    lastErrorCategory = "socket_closed";
     setConnectionState("重连中", "closed");
     reconnectTimer = window.setTimeout(connect, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 1.7, 8000);
@@ -653,6 +788,7 @@ function renderConnecting(message: string) {
 }
 
 function renderConnectionError(message: string) {
+  lastErrorCategory = "connection_error";
   setConnectionState("连接失败", "failed");
   root.innerHTML = `<section class="battle-loading battle-loading--error hud-panel">
     <span class="battle-kicker">未能进入房间 ${escapeHtml(roomCode)}</span>
@@ -802,6 +938,7 @@ function dispatchNextPendingAction() {
   const pending = [...pendingActions.values()][0];
   if (!pending) return;
   pending.sent = true;
+  pending.sentAt = Date.now();
   pending.baseRevision = confirmedSnapshot?.revision ?? snapshot?.revision ?? 0;
   pending.timeoutId = window.setTimeout(() => {
     const current = pendingActions.get(pending.actionId);
@@ -1239,7 +1376,7 @@ function clearVisualEffects() {
 }
 
 function preloadBodyPortraits() {
-  if (bodyPortraitsPreloaded || !snapshot?.game.started) return;
+  if (bodyPortraitsPreloaded || !snapshot?.game.started || networkQuality === "weak") return;
   bodyPortraitsPreloaded = true;
   const paths = snapshot.players.flatMap((player) => {
     const definition = cardDefinition(player.body);
@@ -1286,7 +1423,7 @@ function render() {
   const isMyTurn = snapshot.game.currentPlayerId === snapshot.you;
   const myHandCount = me.handCount ?? me.hand.length;
   root.innerHTML = `
-    ${activeMoveTargets ? `<div class="battle-move-banner">点击落点模式 · 请选择标注的目标区域（Esc 取消）</div>` : ""}
+    ${renderMoveBanner(activeMoveTargets)}
     ${isSpectator ? `<div class="battle-spectator-banner">${escapeHtml(getPending().nickname || "观战者")} · 观战模式 · 只能观看公开信息</div>` : ""}
     ${renderRestartRequest(me, opponent)}
     <div class="battle-table">
@@ -1306,6 +1443,59 @@ function render() {
   restoreUIState(preserved);
   startRestartCountdown();
   if (!isSpectator) maybeShowCoach();
+}
+
+function moveSourceLabel(zone: string, ownerId: string) {
+  const side = ownerId === snapshot?.you ? "我的" : "对手";
+  if (zone.startsWith("slot:")) return `${side}角色位 ${Number(zone.split(":")[1]) + 1}`;
+  const labels: Record<string, string> = {
+    hand: `${side}手牌`,
+    body: `${side}本体`,
+    retired: `${side}退场区`,
+    banished: `${side}移出游戏区`,
+    resolving: "公共结算区",
+    handDiscard: "手牌弃牌区",
+  };
+  return labels[zone] || "牌桌区域";
+}
+
+function createMoveTargets(cardId: string, ownerId: string, zone: string, kind?: string): ActiveMoveTargets {
+  return {
+    cardId,
+    cardLabel: cardDisplayName(cardId) || "一张卡牌",
+    sourceLabel: moveSourceLabel(zone, ownerId),
+    actions: cardActionDescriptors(cardId, ownerId, zone, kind).filter((action) => action.kind === "move"),
+  };
+}
+
+function renderMoveBannerContent(active: ActiveMoveTargets) {
+  const targets = active.actions.map((action, index) =>
+    `<span><b>${index + 1}</b>${escapeHtml(action.label)}</span>`
+  ).join("");
+  return `<div class="battle-move-banner__identity">
+      <small>正在移动 · 来自${escapeHtml(active.sourceLabel)}</small>
+      <strong>${escapeHtml(active.cardLabel)}</strong>
+    </div>
+    <div class="battle-move-banner__targets" aria-label="可用目标">${targets}</div>
+    <button type="button" class="battle-move-banner__cancel" data-command="move:cancel" aria-label="取消移动">取消 <kbd>Esc</kbd></button>`;
+}
+
+function renderMoveBanner(active: ActiveMoveTargets | null) {
+  return `<aside id="battle-move-hud" class="battle-move-banner" role="status" ${active ? "" : "hidden"}>
+    ${active ? renderMoveBannerContent(active) : ""}
+  </aside>`;
+}
+
+function syncMoveBanner(active: ActiveMoveTargets | null) {
+  const banner = root.querySelector<HTMLElement>("#battle-move-hud");
+  if (!banner) return;
+  banner.hidden = !active;
+  banner.innerHTML = active ? renderMoveBannerContent(active) : "";
+  banner.querySelector<HTMLElement>("[data-command='move:cancel']")?.addEventListener("click", () => {
+    activeMoveTargets = null;
+    clearMoveTargetHints();
+    syncMoveBanner(null);
+  });
 }
 
 function bindRegionNavigation() {
@@ -2013,6 +2203,8 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
   const deck = deckFor(player);
   const handCount = player.handCount ?? player.hand.length;
   const handLimit = defaultHandLimit(player);
+  const excessHandCount = Math.max(0, handCount - handLimit);
+  const handSummaryLabel = `${isMe ? "我的" : "对手"}手牌 ${handCount} 张，默认手牌上限 ${handLimit}${excessHandCount ? `，按默认规则超出 ${excessHandCount} 张` : ""}，点击查看计算方式`;
   const max = body?.megaMax;
   const megaText = max ? `${player.megaProgress || 0}/${max}` : String(player.megaProgress || 0);
   const extraFormLabel = body?.extraFormLabel || "额外形态";
@@ -2062,8 +2254,10 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
           data-drop-target="${isSpectator ? "" : isMe ? "hand" : "opponentHand"}" data-zone-owner="${player.id}">
           <div class="battle-private-rail__title">
             <strong>${isMe ? "我的手牌" : "对手手牌"}</strong>
-            <span>${handCount} 张</span>
-            <span class="battle-hand-limit" title="默认手牌上限 = min(当前体力, 4) + 己方已明置角色数量">默认上限 <b>${handLimit}</b></span>
+            <button type="button" class="battle-hand-summary ${excessHandCount ? "is-over-limit" : ""}" data-hand-limit-help
+              aria-label="${handSummaryLabel}" title="点击查看默认手牌上限计算方式">
+              <b>${handCount}</b> 张 / 默认 <b>${handLimit}</b>${excessHandCount ? `<em>· 按默认超出 ${excessHandCount}</em>` : ""}
+            </button>
             ${!isMe && !isSpectator ? `<button class="battle-small-btn" data-command="card:inspect-zone" data-owner="${player.id}" data-zone="hand">查看手牌</button>` : ""}
           </div>
           <div class="battle-card-row" data-scroll-key="${isMe ? "hand-self" : "hand-opp"}">${player.hand.map((card) => renderCard(card, { owner: player, zone: "hand", interactive: canInteract, size: isMe ? "hand" : "compact" })).join("")}</div>
@@ -2404,6 +2598,9 @@ function renderCard(
   const skillClass = card.instanceId && card.instanceId === highlightedSkillCardId && Date.now() < highlightedSkillUntil ? " is-skill-declared" : "";
   const cardClass = `battle-mini-card battle-mini-card--${definition.kind}${imagePath ? " battle-mini-card--art" : ""}${sizeClass}${faceClass}${skillClass}`;
   const inSlot = definition.kind === "character" && options.zone.startsWith("slot:");
+  const priorityImage = definition.kind === "body" || inSlot;
+  const imageLoading = priorityImage ? "eager" : "lazy";
+  const imagePriority = definition.kind === "body" ? "high" : priorityImage ? "auto" : "low";
   const faceBadge = inSlot
     ? (card.faceDown ? `<span class="battle-mini-card__face-badge battle-mini-card__face-badge--down">暗置</span>` : `<span class="battle-mini-card__face-badge">明置</span>`)
     : "";
@@ -2414,7 +2611,7 @@ function renderCard(
   return `<button type="button" class="${cardClass}" draggable="${String(options.interactive)}"
     data-card="${card.instanceId || ""}" data-owner="${options.owner.id}" data-zone="${options.zone}"
     aria-label="${escapeHtml(name)}" title="${escapeHtml([definition.costText, definition.timing, definition.text].filter(Boolean).join("｜"))}">
-    ${imagePath ? `<img src="${imagePath}" width="250" height="350" alt="" loading="lazy" decoding="async" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
+    ${imagePath ? `<img src="${imagePath}" width="250" height="350" alt="" loading="${imageLoading}" fetchpriority="${imagePriority}" decoding="async" />` : `<span class="battle-mini-card__glyph">${definition.kind === "hand" ? "牌" : "角"}</span>`}
     ${faceBadge}
     ${costBadge}
     ${declaredBadge}
@@ -2427,6 +2624,9 @@ function cardDefinition(card?: CardView) {
 }
 
 function bindActions() {
+  root.querySelectorAll<HTMLElement>("[data-hand-limit-help]").forEach((element) => {
+    element.addEventListener("click", () => showHandLimitHelp(element));
+  });
   root.querySelectorAll<HTMLElement>("[data-log-filter]").forEach((element) => {
     element.addEventListener("click", () => {
       const next = element.dataset.logFilter;
@@ -2472,23 +2672,22 @@ function bindActions() {
       if (!optionsDraggable(element)) return;
       const instanceId = element.dataset.card || "";
       const definition = cardDefinition(findVisibleCard(instanceId));
-      activeMoveTargets = {
-        cardId: instanceId,
-        actions: cardActionDescriptors(
-          instanceId,
-          element.dataset.owner || "",
-          element.dataset.zone || "",
-          definition?.kind,
-        ).filter((action) => action.kind === "move"),
-      };
+      activeMoveTargets = createMoveTargets(
+        instanceId,
+        element.dataset.owner || "",
+        element.dataset.zone || "",
+        definition?.kind,
+      );
       event.dataTransfer?.setData("text/card-instance", element.dataset.card || "");
       element.classList.add("is-dragging");
+      syncMoveBanner(activeMoveTargets);
       applyMoveTargetHints(activeMoveTargets);
     });
     element.addEventListener("dragend", () => {
       element.classList.remove("is-dragging");
       activeMoveTargets = null;
       clearMoveTargetHints();
+      syncMoveBanner(null);
     });
   });
   root.querySelectorAll<HTMLElement>("[data-inspect-owner][data-inspect-slot]").forEach((element) => {
@@ -2525,6 +2724,7 @@ function bindActions() {
       if (action) executeMoveAction(instanceId, action);
       activeMoveTargets = null;
       clearMoveTargetHints();
+      syncMoveBanner(null);
     });
     element.addEventListener("click", () => {
       if (!activeMoveTargets) return;
@@ -2598,6 +2798,7 @@ function clearMoveTargetHints() {
   root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
     element.classList.remove("is-move-target", "is-drag-over");
     delete element.dataset.moveLabel;
+    delete element.dataset.moveOrder;
   });
 }
 
@@ -2606,8 +2807,10 @@ function applyMoveTargetHints(active: ActiveMoveTargets) {
   root.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((element) => {
     const action = actionForDropElement(active, element);
     if (!action) return;
+    const order = active.actions.indexOf(action) + 1;
     element.classList.add("is-move-target");
-    element.dataset.moveLabel = action.label;
+    element.dataset.moveOrder = String(order);
+    element.dataset.moveLabel = `${order}. ${action.label}`;
   });
 }
 
@@ -2726,6 +2929,19 @@ function handleCommand(element: HTMLElement) {
       () => send(command),
     );
   }
+}
+
+function showHandLimitHelp(returnFocus?: HTMLElement) {
+  dialogContent.innerHTML = `<div class="battle-card-menu battle-hand-limit-help">
+    <span class="battle-kicker">默认手牌上限</span>
+    <h2>手牌上限如何计算</h2>
+    <p class="battle-hand-limit-formula">先取当前体力和 4 中较小的数字，再加上己方明置角色数量；明置角色最多只计算 2 张。</p>
+    <p>例如：当前体力为 5，己方有 3 张明置角色时，默认手牌上限为 4 + 2 = 6。暗置角色和角色位中的标记不计入。</p>
+    <p class="battle-dialog-hint">这里显示的是默认值。技能造成的临时修正不包含在内，需双方另行结算。</p>
+    <button type="button" class="btn btn--primary" data-dialog-cancel autofocus>知道了</button>
+  </div>`;
+  dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
+  openBattleDialog(returnFocus);
 }
 
 function showNumberDialog(label: string, current: number, onSubmit: (value: number) => void) {
@@ -2964,11 +3180,7 @@ function executeCardAction(
   kind?: string,
 ) {
   if (action.kind === "moveMode") {
-    activeMoveTargets = {
-      cardId: instanceId,
-      actions: cardActionDescriptors(instanceId, ownerId, zone, kind)
-        .filter((item) => item.kind === "move"),
-    };
+    activeMoveTargets = createMoveTargets(instanceId, ownerId, zone, kind);
     dialog.close();
     render();
     return;

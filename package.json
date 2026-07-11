@@ -11,6 +11,7 @@
     "preview": "astro preview",
     "deploy:battle": "wrangler deploy --config worker/wrangler.jsonc",
     "validate": "node tools/validate-cards.js",
+    "typecheck": "tsc --noEmit",
     "test:battle": "node --test tools/battle/*.test.mjs",
     "test:battle:live": "node tools/battle/room-lifecycle.smoke.mjs",
     "print:aggro": "node tools/print-deck.js",

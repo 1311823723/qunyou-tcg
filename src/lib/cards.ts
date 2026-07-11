@@ -66,6 +66,7 @@ export interface CharacterCard {
   timing: string;
   skillName: string;
   effectText: string;
+  layoutVariant?: "right-rail";
   notes?: string;
 }
 

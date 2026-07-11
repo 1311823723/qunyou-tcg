@@ -65,7 +65,7 @@ test("count-only legacy snapshots receive safe card-back placeholders", () => {
   assert.equal("characterHandCount" in opponent, false);
 });
 
-test("default hand limit uses capped health plus revealed characters", () => {
+test("default hand limit caps health at four and revealed characters at two", () => {
   assert.equal(defaultHandLimit({ health: 7, characterSlots: [null, null] }), 4);
   assert.equal(defaultHandLimit({
     health: 3,
@@ -76,6 +76,15 @@ test("default hand limit uses capped health plus revealed characters", () => {
       { instanceId: "face-up-2", faceDown: false },
     ],
   }), 5);
+  assert.equal(defaultHandLimit({
+    health: 7,
+    characterSlots: [
+      { instanceId: "face-up-1", faceDown: false },
+      { instanceId: "face-up-2", faceDown: false },
+      { instanceId: "face-up-3", faceDown: false },
+      { instanceId: "face-up-4", faceDown: false },
+    ],
+  }), 6);
   assert.equal(defaultHandLimit({
     health: 0,
     characterSlots: [{ instanceId: "face-up", faceDown: false }],

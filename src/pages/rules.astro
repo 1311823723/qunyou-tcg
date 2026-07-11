@@ -3,7 +3,7 @@ import Layout from "../components/Layout.astro";
 import PageHeader from "../components/PageHeader.astro";
 
 const phases = ["准备阶段", "摸牌阶段", "出牌阶段", "布阵阶段", "弃牌阶段", "结束阶段"];
-const keywords = ["本体", "额外形态", "Mega", "Z招式", "暗置", "明置", "休整", "退场", "伏击", "共用手牌牌堆"];
+const keywords = ["本体", "额外形态", "Mega", "Z招式", "暗置", "明置", "休整", "退场", "伏击", "充能球", "濒死", "共用手牌牌堆"];
 const setupStats = [
   ["1", "本体", "公开核心角色"],
   ["16", "角色牌", "暗置与技能来源"],
@@ -20,7 +20,7 @@ const setupStats = [
         <div>
           <h2 class="section-heading" style="font-size: 1.1rem; margin-bottom: 0.75rem;">胜利目标</h2>
           <p class="skill-text">
-            每名玩家选择一张<strong>本体牌</strong>，搭配 16 张<strong>角色牌</strong>。双方共用 52 张<strong>手牌牌堆</strong>攻防；将对方本体体力降至 0 即获胜。
+            每名玩家选择一张<strong>本体牌</strong>，搭配 16 张<strong>角色牌</strong>。双方共用 52 张<strong>手牌牌堆</strong>攻防；令对手进入濒死且无法用【桃】回复至 1 点或以上即可获胜。
           </p>
           <div class="flex flex-wrap gap-1 mt-4">
             {keywords.map((k) => <span class="tag-pill tag-pill--mech">{k}</span>)}
@@ -63,7 +63,7 @@ const setupStats = [
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--text-muted);">
           <span class="text-sm font-bold" style="color: var(--text-muted);">弃牌阶段</span>
-          <p class="skill-text mt-2">手牌上限 = min(当前本体体力, 4) + 己方明置角色数量。须弃牌至手牌上限以内。</p>
+          <p class="skill-text mt-2">先取当前体力和 4 中较小的数字，再加上己方明置角色数量；明置角色最多只计算 2 张。须弃牌至手牌上限以内。</p>
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--accent-info);">
           <span class="text-sm font-bold" style="color: var(--accent-info);">结束阶段</span>
@@ -80,11 +80,38 @@ const setupStats = [
       <div class="rules-compare">
         <div class="hud-panel" style="padding: 1.1rem; border-top: 2px solid var(--color-text-highlight);">
           <h3 class="font-bold" style="color: var(--color-text-highlight);">休整</h3>
-          <p class="skill-text mt-2">将上阵角色放回角色牌堆底。常规技能成本，角色可循环使用，需投入节奏。</p>
+          <p class="skill-text mt-2">将上阵角色放回角色牌堆底。支付任意【休整X】时，只要休整对象包含发动该技能的角色，休整后便摸 1 张手牌。</p>
         </div>
         <div class="hud-panel" style="padding: 1.1rem; border-top: 2px solid var(--color-role-attack);">
           <h3 class="font-bold" style="color: var(--color-role-attack);">退场</h3>
           <p class="skill-text mt-2">将角色放入退场区。强力技能代价，通常无法回收，设计需格外谨慎。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-8 scroll-reveal">
+      <h2 class="section-heading" style="font-size: 1.15rem;">使用、响应与结算</h2>
+      <div class="hud-panel" style="padding: 1.1rem;">
+        <ol class="space-y-2 pl-5 skill-text" style="list-style: decimal;">
+          <li>声明使用牌或发动技能；暗置角色同时明置，并选择全部目标。</li>
+          <li>处理费用修改效果，然后支付最终费用。费用支付后不会因效果被抵消而返还。</li>
+          <li>牌或技能进入结算栈，由对手先获得响应机会，双方交替响应。</li>
+          <li>双方连续放弃响应后，按后加入先结算的顺序处理；每个效果完整结算后再处理新触发。</li>
+          <li>同一时机有多个己方技能触发时，由其拥有者决定顺序；同一技能对同一个事件最多发动一次。</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="mb-8 scroll-reveal">
+      <h2 class="section-heading" style="font-size: 1.15rem;">濒死与牌堆重置</h2>
+      <div class="rules-compare">
+        <div class="hud-panel" style="padding: 1.1rem; border-top: 2px solid var(--color-role-attack);">
+          <h3 class="font-bold" style="color: var(--color-role-attack);">濒死</h3>
+          <p class="skill-text mt-2">体力降至 0 或以下时立即进入濒死。濒死玩家可以连续使用【桃】，回复至 1 点或以上后继续游戏；无法回复则失败。</p>
+        </div>
+        <div class="hud-panel" style="padding: 1.1rem; border-top: 2px solid var(--color-role-resource);">
+          <h3 class="font-bold" style="color: var(--color-role-resource);">牌堆重置</h3>
+          <p class="skill-text mt-2">需要摸牌、展示或判定而牌堆不足时，洗混手牌弃牌区形成新牌堆；正在结算或展示的牌不参与洗牌。</p>
         </div>
       </div>
     </section>
@@ -131,6 +158,11 @@ const setupStats = [
           <div class="mechanic-tile__icon">DUEL</div>
           <h3 class="mechanic-tile__title">拼点</h3>
           <p class="mechanic-tile__desc">双方各选择并同时展示 1 张手牌。点数较高者拼点成功（A 最小，K 最大）。展示的牌置入弃牌区，平局没有胜者。</p>
+        </div>
+        <div class="mechanic-tile" style="--tile-color: var(--color-role-resource);">
+          <div class="mechanic-tile__icon">ORB</div>
+          <h3 class="mechanic-tile__title">充能球</h3>
+          <p class="mechanic-tile__desc">置于己方本体旁且不占角色位，每名玩家至多3枚。所有己方故障机器人共享，可将其转化为不同效果。</p>
         </div>
       </div>
     </section>
