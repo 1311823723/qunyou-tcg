@@ -3173,8 +3173,10 @@ function showBodyMarkerDialog(markerId: string, returnFocus?: HTMLElement) {
     </label>
     ${isCardMarker ? `
       <p class="battle-dialog-hint">这些牌正面朝下放在本体旁。移去后会正面朝上进入共用手牌弃牌区。</p>
-      ${ownsCards ? `<ul class="battle-marker-card-list">${cardRows}</ul>` : `<div class="battle-marker-hidden-stack"><span class="battle-marker-chip__cards"><i></i><i></i></span><b>${count} 张暗置牌</b></div>`}
-      <button type="button" class="battle-small-btn" data-marker-card-remove="">移去最上方一张</button>
+      ${ownsCards
+        ? `<ul class="battle-marker-card-list">${cardRows}</ul>`
+        : `<div class="battle-marker-hidden-stack"><span class="battle-marker-chip__cards"><i></i><i></i></span><b>${count} 张暗置牌</b></div>
+           <button type="button" class="battle-small-btn" data-marker-card-remove="">移去最上方一张</button>`}
     ` : `
       <label class="battle-dialog-label">数量</label>
       <div class="battle-form-stepper">
@@ -3182,7 +3184,7 @@ function showBodyMarkerDialog(markerId: string, returnFocus?: HTMLElement) {
         <input type="number" id="battle-marker-edit-count" value="${count}" min="1" max="99" />
         <button type="button" class="battle-stepper-btn" data-marker-count-step="1" aria-label="增加">＋</button>
       </div>
-      <button type="button" class="battle-small-btn" data-marker-count-save>设为输入数量</button>
+      <button type="button" class="btn btn--primary" data-marker-count-save>保存数量</button>
     `}
     <div class="battle-card-menu__actions battle-card-menu__actions--row">
       <button type="button" class="battle-small-btn" data-dialog-cancel>关闭</button>
@@ -3199,14 +3201,14 @@ function showBodyMarkerDialog(markerId: string, returnFocus?: HTMLElement) {
   dialogContent.querySelectorAll<HTMLElement>("[data-marker-count-step]").forEach((button) => {
     button.addEventListener("click", () => {
       if (marker.kind !== "counter") return;
-      const next = marker.count + Number(button.dataset.markerCountStep);
+      const input = dialogContent.querySelector<HTMLInputElement>("#battle-marker-edit-count");
+      const next = Number(input?.value || marker.count) + Number(button.dataset.markerCountStep);
       if (next < 1) {
         dialog.close();
         showConfirmDialog(`「${marker.label}」已是最后一枚，确定删除？`, () => send("marker:remove", { markerId }));
         return;
       }
-      send("marker:adjust", { markerId, count: next });
-      dialog.close();
+      if (input) input.value = String(Math.min(99, next));
     });
   });
   dialogContent.querySelector("[data-marker-count-save]")?.addEventListener("click", () => {

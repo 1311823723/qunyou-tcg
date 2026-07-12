@@ -649,14 +649,19 @@
 .battle-player__field { display: grid; grid-template-columns: minmax(5.5rem, 0.42fr) minmax(17rem, 3fr) minmax(9rem, 0.9fr); gap: 0.5rem; align-items: stretch; }
 .battle-body-zone, .battle-side-zones, .battle-character-slots { display: grid; gap: 0.35rem; }
 .battle-body-zone { align-content: start; justify-items: center; }
-.battle-marker-rack { display: grid; width: min(100%, 10rem); gap: 0.25rem; padding: 0.3rem; border: 1px solid rgba(216,183,92,0.18); border-radius: 8px; background: rgba(3,8,14,0.72); }
-.battle-marker-rack > header { display: flex; align-items: center; justify-content: space-between; color: var(--text-muted); font: 800 0.56rem var(--font-mono); letter-spacing: 0.08em; }
-.battle-marker-rack > header button { display: grid; width: 1.35rem; height: 1.35rem; padding: 0; place-items: center; border: 1px solid rgba(216,183,92,0.34); border-radius: 50%; color: var(--text-gold); background: rgba(216,183,92,0.08); cursor: pointer; }
-.battle-marker-rack__list { display: flex; min-width: 0; gap: 0.25rem; flex-wrap: wrap; }
-.battle-marker-rack__empty { color: var(--text-faint); font-size: 0.56rem; }
-.battle-marker-chip { display: inline-flex; min-width: 0; min-height: 1.55rem; padding: 0.2rem 0.38rem; align-items: center; gap: 0.24rem; border: 1px solid rgba(88,199,232,0.28); border-radius: 999px; color: #dff8ff; background: linear-gradient(135deg, rgba(88,199,232,0.13), rgba(157,108,255,0.1)); cursor: pointer; font-size: 0.58rem; }
+.battle-marker-rack { display: grid; width: min(100%, 10rem); gap: 0.3rem; padding: 0.38rem; overflow: hidden; border: 1px solid rgba(216,183,92,0.18); border-radius: 9px; background: rgba(3,8,14,0.72); }
+.battle-marker-rack > header { display: flex; min-height: 2rem; align-items: center; justify-content: space-between; color: var(--text-muted); font: 800 0.68rem var(--font-mono); letter-spacing: 0.08em; }
+.battle-marker-rack > header button { display: grid; width: 2rem; height: 2rem; padding: 0; flex: 0 0 auto; place-items: center; border: 1px solid rgba(216,183,92,0.34); border-radius: 50%; color: var(--text-gold); background: rgba(216,183,92,0.08); cursor: pointer; font-size: 1rem; }
+.battle-marker-rack__list { display: flex; min-width: 0; padding: 0.06rem 0 0.18rem; gap: 0.3rem; flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; scroll-snap-type: x proximity; }
+.battle-marker-rack__list::-webkit-scrollbar { height: 4px; }
+.battle-marker-rack__list::-webkit-scrollbar-track { background: rgba(255,255,255,0.025); }
+.battle-marker-rack__list::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(88,199,232,0.28); }
+.battle-marker-rack__empty { min-height: 2rem; display: inline-flex; align-items: center; color: var(--text-faint); font-size: 0.62rem; }
+.battle-marker-chip { display: inline-flex; min-width: max-content; min-height: 2rem; padding: 0.3rem 0.52rem; align-items: center; gap: 0.3rem; flex: 0 0 auto; scroll-snap-align: start; border: 1px solid rgba(88,199,232,0.28); border-radius: 999px; color: #dff8ff; background: linear-gradient(135deg, rgba(88,199,232,0.13), rgba(157,108,255,0.1)); cursor: pointer; font-size: 0.72rem; }
+.battle-marker-chip--cards { border-color: rgba(216,183,92,0.34); background: linear-gradient(135deg, rgba(157,108,255,0.2), rgba(216,183,92,0.1)); }
 .battle-marker-chip:disabled { opacity: 1; cursor: default; }
-.battle-marker-chip > span:not(.battle-marker-chip__cards, .battle-marker-chip__dot) { max-width: 5.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.battle-marker-chip:focus-visible, .battle-marker-rack > header button:focus-visible, .battle-slot__marker-add:focus-visible, .battle-slot__marker-del:focus-visible { outline: 2px solid var(--accent-info); outline-offset: 2px; }
+.battle-marker-chip > span:not(.battle-marker-chip__cards, .battle-marker-chip__dot) { max-width: 6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .battle-marker-chip b { color: var(--text-gold); font-family: var(--font-mono); }
 .battle-marker-chip__dot { width: 0.42rem; height: 0.42rem; flex: 0 0 auto; border-radius: 50%; background: var(--accent-info); box-shadow: 0 0 7px rgba(88,199,232,0.65); }
 .battle-marker-chip__cards { position: relative; width: 0.72rem; height: 0.88rem; flex: 0 0 auto; }
@@ -669,15 +674,15 @@
 .battle-slot { display: grid; min-height: 6.6rem; aspect-ratio: 5 / 7; place-items: center; overflow: hidden; border: 1px dashed rgba(255,255,255,0.14); border-radius: 9px; color: var(--text-faint); font-size: 0.68rem; font-weight: 700; background: rgba(0,0,0,0.18); transition: border-color 0.16s, box-shadow 0.16s, background 0.16s, opacity 0.16s; }
 .battle-slot--empty { border-color: rgba(111,154,177,0.11); color: rgba(148,190,207,0.2); background: rgba(2,8,13,0.18); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.01); }
 .battle-slot--empty span { letter-spacing: 0.12em; transform: scale(0.92); }
-.battle-slot__marker-add { padding: 0.18rem 0.35rem; border: 1px solid rgba(216,183,92,0.2); border-radius: 999px; color: rgba(216,183,92,0.68); background: rgba(216,183,92,0.05); cursor: pointer; font-size: 0.5rem; }
+.battle-slot__marker-add { min-height: 2rem; padding: 0.3rem 0.5rem; border: 1px solid rgba(216,183,92,0.24); border-radius: 999px; color: rgba(235,211,145,0.82); background: rgba(216,183,92,0.07); cursor: pointer; font-size: 0.62rem; }
 .battle-slot--marker { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem; border-style: solid; border-color: rgba(255,217,138,0.35); background: rgba(255,217,138,0.07); }
 .battle-slot__marker-label { color: var(--text-gold); font-weight: 900; font-size: 0.8rem; pointer-events: none; }
-.battle-slot__marker-del { width: 1.6rem; height: 1.6rem; padding: 0; display: grid; place-items: center; border: 1px solid rgba(255,90,53,0.4); border-radius: 50%; color: var(--accent-aggro-hot); background: rgba(255,90,53,0.1); font-size: 0.8rem; font-weight: 900; cursor: pointer; line-height: 1; }
+.battle-slot__marker-del { width: 2rem; height: 2rem; padding: 0; display: grid; place-items: center; border: 1px solid rgba(255,90,53,0.4); border-radius: 50%; color: var(--accent-aggro-hot); background: rgba(255,90,53,0.1); font-size: 0.9rem; font-weight: 900; cursor: pointer; line-height: 1; }
 .battle-slot__marker-del:hover { background: rgba(255,90,53,0.25); border-color: rgba(255,90,53,0.6); }
 .battle-marker-manager h2 small { color: var(--text-gold); font: 800 0.8rem var(--font-mono); }
 .battle-marker-manager__rename { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.45rem; }
 .battle-marker-manager__rename button,
-.battle-marker-card-list button { border: 1px solid rgba(88,199,232,0.28); border-radius: 7px; color: #dff8ff; background: rgba(88,199,232,0.08); cursor: pointer; }
+.battle-marker-card-list button { min-height: 2.25rem; padding: 0.4rem 0.65rem; border: 1px solid rgba(88,199,232,0.28); border-radius: 7px; color: #dff8ff; background: rgba(88,199,232,0.08); cursor: pointer; }
 .battle-marker-card-list { display: grid; max-height: 15rem; margin: 0; padding: 0; gap: 0.35rem; overflow-y: auto; list-style: none; }
 .battle-marker-card-list li { display: flex; min-width: 0; padding: 0.4rem 0.5rem; align-items: center; justify-content: space-between; gap: 0.5rem; border: 1px solid var(--border-soft); border-radius: 8px; background: rgba(0,0,0,0.18); }
 .battle-marker-card-list li > span { display: flex; min-width: 0; align-items: center; gap: 0.4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
