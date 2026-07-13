@@ -1418,7 +1418,7 @@ function render() {
   window.clearInterval(restartCountdownTimer);
   const preserved = captureUIState();
 
-  // 观战模式：使用第一个玩家作为"我"的视角
+  // 观战时沿用上下方布局，但界面文案始终使用玩家昵称区分双方。
   const me = isSpectator
     ? snapshot.players[0]
     : snapshot.players.find((player) => player.id === snapshot?.you);
@@ -1445,16 +1445,16 @@ function render() {
   root.innerHTML = `
     ${renderMoveBanner(activeMoveTargets)}
     ${isSpectator ? `<div class="battle-spectator-banner">${escapeHtml(getPending().nickname || "观战者")} · 观战模式 · 只能观看公开信息</div>` : ""}
-    ${renderRestartRequest(me, opponent)}
+    ${isSpectator ? "" : renderRestartRequest(me, opponent)}
     <div class="battle-table">
       ${opponent ? renderPlayer(opponent, false, isMyTurn) : renderWaitingSeat()}
       ${renderCenter(snapshot.game, me, opponent, isMyTurn)}
       ${renderPlayer(me, true, isMyTurn)}
     </div>
     <nav class="battle-region-nav" aria-label="牌桌区域导航">
-      <button type="button" data-region-target="battle-player-opponent"><span>对手</span></button>
+      <button type="button" data-region-target="battle-player-opponent"><span>${isSpectator && opponent ? escapeHtml(opponent.nickname) : "对手"}</span></button>
       <button type="button" data-region-target="battle-center"><span>公共区</span></button>
-      <button type="button" data-region-target="battle-player-self"><span>我的阵地</span></button>
+      <button type="button" data-region-target="battle-player-self"><span>${isSpectator ? escapeHtml(me.nickname) : "我的阵地"}</span></button>
       ${!isSpectator ? `<button type="button" data-region-target="battle-hand-self"><span>手牌</span><b>${myHandCount}</b></button>` : ""}
     </nav>
   `;
@@ -2219,12 +2219,14 @@ function renderLobbySeat(player: PlayerView, isMe: boolean) {
 function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
   const isSpectator = snapshot?.you === "spectator";
   const canInteract = isMe && !isSpectator;
+  const sideLabel = isSpectator ? player.nickname : isMe ? "我的" : "对手";
+  const fieldLabel = isSpectator ? `${player.nickname}的阵地` : isMe ? "你的阵地" : "对手阵地";
   const body = cardDefinition(player.body);
   const deck = deckFor(player);
   const handCount = player.handCount ?? player.hand.length;
   const handLimit = defaultHandLimit(player);
   const excessHandCount = Math.max(0, handCount - handLimit);
-  const handSummaryLabel = `${isMe ? "我的" : "对手"}手牌 ${handCount} 张，默认手牌上限 ${handLimit}${excessHandCount ? `，按默认规则超出 ${excessHandCount} 张` : ""}，点击查看计算方式`;
+  const handSummaryLabel = `${sideLabel}手牌 ${handCount} 张，默认手牌上限 ${handLimit}${excessHandCount ? `，按默认规则超出 ${excessHandCount} 张` : ""}，点击查看计算方式`;
   const max = body?.megaMax;
   const megaText = max ? `${player.megaProgress || 0}/${max}` : String(player.megaProgress || 0);
   const extraFormLabel = body?.extraFormLabel || "额外形态";
@@ -2236,7 +2238,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
     <section id="battle-player-${isMe ? "self" : "opponent"}" class="battle-player ${themeClasses(deck?.theme)} ${isMe ? "battle-player--self" : "battle-player--opponent"}${turnClass}" data-side="${isMe ? "self" : "opponent"}" data-player-id="${player.id}">
       <header class="battle-player__header">
         <div class="battle-player__identity">
-          <span><i class="${player.connected ? "is-online" : ""}"></i>${isMe ? "你的阵地" : "对手阵地"} · ${player.connected ? "在线" : "离线"}</span>
+          <span><i class="${player.connected ? "is-online" : ""}"></i>${escapeHtml(fieldLabel)} · ${player.connected ? "在线" : "离线"}</span>
           <strong>${escapeHtml(player.nickname)}</strong>
           ${snapshot?.game.currentPlayerId === player.id ? `<span class="battle-turn-badge">${isMe && isMyTurn ? "你的回合" : "当前回合"}</span>` : ""}
         </div>
@@ -2263,7 +2265,7 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
       <div class="battle-player__private">
         <div class="battle-private-rail battle-private-rail--characters battle-character-resources">
           <div class="battle-private-rail__title">
-            <strong>${isMe ? "我的角色资源" : "对手角色资源"}</strong>
+            <strong>${escapeHtml(sideLabel)}角色资源</strong>
           </div>
           <div class="battle-side-zones">
             ${renderPile("角色牌堆", player.characterDeckCount, canInteract ? "character:deploy" : "", "上阵角色", player.id, canInteract ? "R" : undefined)}
@@ -2274,9 +2276,9 @@ function renderPlayer(player: PlayerView, isMe: boolean, isMyTurn: boolean) {
         <div ${isMe ? 'id="battle-hand-self"' : ""} class="battle-private-rail battle-private-rail--hand"
           data-drop-target="${isSpectator ? "" : isMe ? "hand" : "opponentHand"}" data-zone-owner="${player.id}">
           <div class="battle-private-rail__title">
-            <strong>${isMe ? "我的手牌" : "对手手牌"}</strong>
+            <strong>${escapeHtml(sideLabel)}手牌</strong>
             <button type="button" class="battle-hand-summary ${excessHandCount ? "is-over-limit" : ""}" data-hand-limit-help
-              aria-label="${handSummaryLabel}" title="点击查看默认手牌上限计算方式">
+              aria-label="${escapeHtml(handSummaryLabel)}" title="点击查看默认手牌上限计算方式">
               <b>${handCount}</b> 张 / 默认 <b>${handLimit}</b>${excessHandCount ? `<em>· 按默认超出 ${excessHandCount}</em>` : ""}
             </button>
             ${!isMe && !isSpectator ? `<button class="battle-small-btn" data-command="card:inspect-zone" data-owner="${player.id}" data-zone="hand">查看手牌</button>` : ""}
@@ -2445,27 +2447,29 @@ function renderProgressCounter(label: string, value: string | number, command: s
 }
 
 function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | undefined, isMyTurn: boolean) {
+  const isSpectator = snapshot?.you === "spectator";
   const current = snapshot?.players.find((player) => player.id === game.currentPlayerId);
   const recentLogs = game.logs.slice(-3).reverse();
-  const filteredLogs = filterBattleLogs(game.logs, logFilter, snapshot?.you || "").slice(-30).reverse() as BattleLog[];
+  const activeLogFilter = isSpectator && (logFilter === "mine" || logFilter === "opponent") ? "all" : logFilter;
+  const filteredLogs = filterBattleLogs(game.logs, activeLogFilter, snapshot?.you || "").slice(-30).reverse() as BattleLog[];
   const endTurnDisabled = !isMyTurn ? " disabled" : "";
   const endTurnTitle = isMyTurn ? "" : ' title="当前不是你的回合"';
   return `<section id="battle-center" class="battle-center">
     <div class="battle-turnbar ${isMyTurn ? "is-your-turn" : ""}">
       <span class="battle-turnbar__round">TURN ${game.turnNumber}</span>
-      <div><small>${isMyTurn ? "ACTION AVAILABLE" : "WAITING FOR OPPONENT"}</small><strong class="${isMyTurn ? "battle-turnbar__you" : ""}">${current ? `${escapeHtml(current.nickname)} 的回合` : "等待开始"}</strong></div>
-      <button class="battle-small-btn battle-small-btn--accent" data-command="turn:end" aria-keyshortcuts="E"${endTurnDisabled}${endTurnTitle}>结束回合</button>
+      <div><small>${isSpectator ? "SPECTATING" : isMyTurn ? "ACTION AVAILABLE" : "WAITING FOR OPPONENT"}</small><strong class="${isMyTurn ? "battle-turnbar__you" : ""}">${current ? `${escapeHtml(current.nickname)} 的回合` : "等待开始"}</strong></div>
+      ${isSpectator ? "" : `<button class="battle-small-btn battle-small-btn--accent" data-command="turn:end" aria-keyshortcuts="E"${endTurnDisabled}${endTurnTitle}>结束回合</button>`}
     </div>
     <div class="battle-center__stage">
       ${opponent ? renderCenterBody(opponent, false) : `<div class="battle-center-body battle-center-body--empty"></div>`}
       <div class="battle-center__common">
         <div class="battle-center__lane-title"><i></i><span>公共结算区</span><i></i></div>
         <div class="battle-common-zones">
-          ${renderPile("共用牌堆", game.handDeckCount, "card:draw-hand", "摸 1 张", undefined, "D")}
-          ${renderZone("结算区", game.resolving, me, "resolving", true, [
+          ${renderPile("共用牌堆", game.handDeckCount, isSpectator ? "" : "card:draw-hand", "摸 1 张", undefined, isSpectator ? undefined : "D")}
+          ${renderZone("结算区", game.resolving, me, "resolving", !isSpectator, isSpectator ? [] : [
             { command: "resolving:discardAll", label: "全部弃置" },
           ])}
-          ${renderZone("手牌弃牌区", game.handDiscard, me, "handDiscard", true, [
+          ${renderZone("手牌弃牌区", game.handDiscard, me, "handDiscard", !isSpectator, isSpectator ? [] : [
             { command: "discard:viewAll", label: "查看全部" },
             { command: "deck:recycleDiscard", label: "洗回牌堆底" },
           ])}
@@ -2483,12 +2487,15 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
     <details class="battle-log">
       <summary>全部日志 · ${game.logs.length}</summary>
       <div class="battle-log__filters" role="group" aria-label="筛选操作日志">
-        ${[
+        ${(isSpectator ? [
+          ["all", "全部"],
+          ["inspection", "查看行为"],
+        ] : [
           ["all", "全部"],
           ["mine", "我的操作"],
           ["opponent", "对手操作"],
           ["inspection", "查看行为"],
-        ].map(([value, label]) => `<button type="button" data-log-filter="${value}" aria-pressed="${String(logFilter === value)}">${label}</button>`).join("")}
+        ]).map(([value, label]) => `<button type="button" data-log-filter="${value}" aria-pressed="${String(activeLogFilter === value)}">${label}</button>`).join("")}
       </div>
       ${filteredLogs.length
         ? `<ol>${filteredLogs.map(renderBattleLogItem).join("")}</ol>`
@@ -2511,19 +2518,21 @@ function renderBattleLogItem(log: BattleLog) {
 function renderCenterBody(player: PlayerView, isMe: boolean) {
   const body = cardDefinition(player.body);
   const deck = deckFor(player);
+  const isSpectator = snapshot?.you === "spectator";
+  const bodyLabel = isSpectator ? `${player.nickname}的本体` : isMe ? "我的本体" : "对手本体";
   return `<aside class="battle-center-body ${themeClasses(deck?.theme)} ${isMe ? "battle-center-body--self" : "battle-center-body--opponent"}">
-    <span>${isMe ? "我的本体" : "对手本体"}</span>
+    <span>${escapeHtml(bodyLabel)}</span>
     ${renderCard(player.body, {
       owner: player,
       zone: "body",
-      interactive: isMe,
+      interactive: isMe && !isSpectator,
       flipped: player.bodyFlipped,
       size: "field",
     })}
     <strong>${escapeHtml(body?.name || player.nickname)}</strong>
     ${body?.megaCondition ? `<p title="${escapeHtml(body.megaCondition)}"><b>${escapeHtml(body.extraFormLabel || "额外形态")}</b>${escapeHtml(body.megaCondition)}</p>` : ""}
-    ${isMe ? `<button class="battle-small-btn" data-command="body:flip">翻转本体</button>` : ""}
-    ${renderBodyMarkers(player, snapshot?.you !== "spectator")}
+    ${isMe && !isSpectator ? `<button class="battle-small-btn" data-command="body:flip">翻转本体</button>` : ""}
+    ${renderBodyMarkers(player, !isSpectator)}
   </aside>`;
 }
 
@@ -2604,6 +2613,13 @@ function renderSlot(item: CardView | MarkerView | null, index: number, owner: Pl
     </article>`;
   }
   if (!item.instanceId && item.faceDown) {
+    if (snapshot?.you === "spectator") {
+      return `<article class="battle-slot">
+        <div class="battle-mini-card battle-mini-card--back battle-mini-card--field" aria-label="第 ${index + 1} 个暗置角色，身份未知">
+          <span>暗置</span><small>身份未知</small>
+        </div>
+      </article>`;
+    }
     return `<article class="battle-slot">
       <button type="button" class="battle-mini-card battle-mini-card--back battle-mini-card--field"
         data-inspect-owner="${owner.id}" data-inspect-slot="${index}" aria-label="查看第 ${index + 1} 个暗置角色">
@@ -2622,6 +2638,11 @@ function renderCard(
   const definition = cardDefinition(card);
   const sizeClass = options.size ? ` battle-mini-card--${options.size}` : "";
   if (!definition) {
+    if (snapshot?.you === "spectator") {
+      return `<div class="battle-mini-card battle-mini-card--back${sizeClass}" aria-label="暗置卡牌，身份未知">
+        <span>暗置</span><small>身份未知</small>
+      </div>`;
+    }
     const cardAttribute = card.instanceId ? ` data-card="${card.instanceId}"` : "";
     return `<button type="button" class="battle-mini-card battle-mini-card--back${sizeClass}"${cardAttribute} data-owner="${options.owner.id}" data-zone="${options.zone}" aria-label="暗置卡牌">
       <span>暗置</span><small>身份未知</small>

@@ -50,7 +50,7 @@ const allLabel = "全部";
     </div>
 
     <!-- 详情模式 -->
-    <div class="card-gallery card-gallery--chars" id="card-gallery-detail">
+    <div class="card-gallery card-gallery--chars" id="card-gallery-detail" style="display: none;">
       {allCharacters.map((c, i) => (
         <div
           class="filter-card scroll-reveal"
@@ -68,7 +68,7 @@ const allLabel = "全部";
     </div>
 
     <!-- 卡面模式 -->
-    <div class="card-gallery card-gallery--thumbs" id="card-gallery-card" style="display: none;">
+    <div class="card-gallery card-gallery--thumbs" id="card-gallery-card">
       {allCharacters.map((c, i) => (
         <div
           class="filter-card thumb-card scroll-reveal"
@@ -229,17 +229,19 @@ const allLabel = "全部";
   const cardGallery = document.getElementById("card-gallery-card");
 
   function setViewMode(mode: string) {
+    const normalizedMode = mode === "detail" ? "detail" : "card";
     // Update button states
     viewButtons.forEach((btn) => {
-      btn.classList.toggle("is-active", (btn as HTMLElement).dataset.view === mode);
+      btn.classList.toggle("is-active", (btn as HTMLElement).dataset.view === normalizedMode);
     });
 
     // Toggle gallery visibility
-    if (detailGallery) detailGallery.style.display = mode === "detail" ? "" : "none";
-    if (cardGallery) cardGallery.style.display = mode === "card" ? "" : "none";
+    if (detailGallery) detailGallery.style.display = normalizedMode === "detail" ? "" : "none";
+    if (cardGallery) cardGallery.style.display = normalizedMode === "card" ? "" : "none";
 
     // Save preference
-    localStorage.setItem(VIEW_STORAGE_KEY, mode);
+    localStorage.setItem(VIEW_STORAGE_KEY, normalizedMode);
+    applyFilters();
   }
 
   // View button clicks
