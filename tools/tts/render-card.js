@@ -348,8 +348,8 @@ function renderCharacter(card) {
 
 function renderHand(card) {
   const suit = SUIT_META[card.suit] ?? { symbol: card.suit, color: "#f4f0e8" };
-  const isTrick = card.handType === "锦囊";
-  const accent = isTrick ? "#9d6cff" : "#58c7e8";
+  const isAction = card.handType === "行动";
+  const accent = isAction ? "#9d6cff" : "#58c7e8";
   const inner = `
     <rect x="34" y="34" width="682" height="982" fill="rgba(238,232,216,0.93)" stroke="${accent}" stroke-width="5"/>
     <rect x="58" y="58" width="116" height="158" fill="#111827" stroke="${suit.color}" stroke-opacity="0.75" stroke-width="3"/>

@@ -10,6 +10,8 @@ export interface CardEntry {
   rank: string;
 }
 
+export type HandCardType = "基础" | "行动";
+
 export interface ExtraFormData {
   type: "mega" | "z-move" | "terastal" | "dynamax";
   name: string;
@@ -74,7 +76,7 @@ export interface HandCard {
   id: string;
   name: string;
   cardType: "手牌";
-  handType: string;
+  handType: HandCardType;
   tags: string[];
   timing: string;
   effectText: string;
@@ -94,7 +96,7 @@ export function getBodyWithExtraFormCount(): number {
 }
 
 export const MAIN_ROLES = ["强攻", "防御", "资源", "控制", "支援", "伏击"] as const;
-export const HAND_TYPES = ["基础", "锦囊"] as const;
+export const HAND_TYPES = ["基础", "行动"] as const;
 export const ALL_SUITS = ["黑桃", "红桃", "梅花", "方块"] as const;
 
 export const SUIT_SYMBOLS: Record<string, string> = {

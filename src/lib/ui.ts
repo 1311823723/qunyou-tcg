@@ -22,7 +22,7 @@ export const ROLE_COLORS_CSS: Record<string, string> = {
 const ARCHETYPE_THEME: Record<string, string> = {
   "爆杀流": "aggro",
   "密裁": "mizai",
-  "锦囊流": "combo",
+  "行动流": "combo",
   "拟态流": "trans",
   "调度流": "dispatch",
   "卖血流": "blood",

@@ -1,7 +1,7 @@
 {
   "id": "deck_combo_001",
   "name": "操作组",
-  "archetype": "锦囊流",
+  "archetype": "行动流",
   "bodyId": "body_combo_001",
   "characterIds": [
     "char_054_xiangcai_prophet",
@@ -21,5 +21,5 @@
     "char_069_dong_sheriff",
     "char_070_huihuan_silent-hunter"
   ],
-  "notes": "锦囊流以使用锦囊触发本体被动脉冲：找锦囊→使用→摸牌→控牌堆→回收→继续操作。不强攻不控制，靠锦囊利用率与牌差碾压。"
+  "notes": "行动流以使用行动牌触发本体被动脉冲：找行动牌→使用→摸牌→控牌堆→回收→继续操作。不强攻不控制，靠行动牌利用率与牌差碾压。"
 }

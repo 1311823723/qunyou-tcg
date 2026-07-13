@@ -29,18 +29,19 @@ const ambushDeck = readJSON("decks/ambush.deck.json");
 const defenseDeck = readJSON("decks/defense.deck.json");
 const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck, dispatchDeck, bloodDeck, ambushDeck, defenseDeck];
 
-const legacyCardTerms = ["【杀】", "【闪】", "【桃】"];
+const legacyFormalTerms = ["【杀】", "【闪】", "【桃】", "锦囊"];
 const formalDataSources = [
   ["cards/bodies.json", bodies],
   ["cards/characters.json", characters],
   ["cards/hand_cards.json", handCards],
   ["archetypes.json", archetypes],
+  ["tag-taxonomy.json", tagTaxonomy],
   ...allDecks.map((deck) => [`decks/${deck.id}`, deck]),
 ];
 
 for (const [source, data] of formalDataSources) {
   const serialized = JSON.stringify(data);
-  for (const term of legacyCardTerms) {
+  for (const term of legacyFormalTerms) {
     if (serialized.includes(term)) {
       errors.push(`${source} contains legacy card term ${term}`);
     }
@@ -73,6 +74,7 @@ const characterIds = new Set(characters.map((c) => c.id));
 const validCostTypes = new Set(["休整", "退场", "无", "复合", "休整自身"]);
 const validMainRoles = new Set(["强攻", "防御", "资源", "控制", "支援", "伏击"]);
 const validCharacterTags = new Set(tagTaxonomy.tags);
+const validHandTypes = new Set(["基础", "行动"]);
 
 function hasDuplicateValues(values) {
   const seen = new Set();
@@ -127,6 +129,9 @@ for (const card of handCards) {
   if (!card.cards || !Array.isArray(card.cards)) {
     errors.push(`Hand card "${card.id}" missing cards array`);
     continue;
+  }
+  if (!validHandTypes.has(card.handType)) {
+    errors.push(`Hand card "${card.id}" has invalid handType "${card.handType}"`);
   }
   for (let i = 0; i < card.cards.length; i++) {
     const c = card.cards[i];

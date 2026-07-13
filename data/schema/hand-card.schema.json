@@ -7,7 +7,7 @@
     "id": { "type": "string" },
     "name": { "type": "string" },
     "cardType": { "type": "string", "const": "手牌" },
-    "handType": { "type": "string" },
+    "handType": { "type": "string", "enum": ["基础", "行动"] },
     "tags": {
       "type": "array",
       "items": { "type": "string" }

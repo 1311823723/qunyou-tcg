@@ -7,7 +7,7 @@ import { allHandCards, getHandCardTotal, getSuitDistribution, SUIT_SYMBOLS, ALL_
 const total = getHandCardTotal();
 const suitDist = getSuitDistribution();
 const basics = allHandCards.filter((c) => c.handType === "基础");
-const tricks = allHandCards.filter((c) => c.handType === "锦囊");
+const actions = allHandCards.filter((c) => c.handType === "行动");
 
 // 计算牌堆概率
 const handProbabilities = allHandCards.map((card) => {
@@ -91,11 +91,11 @@ const handProbabilities = allHandCards.map((card) => {
       </section>
     )}
 
-    {tricks.length > 0 && (
+    {actions.length > 0 && (
       <section class="scroll-reveal">
-        <h2 class="section-heading" style="font-size: 1rem;">锦囊牌</h2>
+        <h2 class="section-heading" style="font-size: 1rem;">行动牌</h2>
         <div class="card-gallery card-gallery--hand">
-          {tricks.map((c, i) => (
+          {actions.map((c, i) => (
             <div class="scroll-reveal" style={`animation-delay: ${i * 0.1}s`}>
               <HandCard card={c} />
             </div>

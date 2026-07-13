@@ -477,7 +477,7 @@
     },
     "timing": "出牌阶段",
     "skillName": "证物搜查",
-    "effectText": "你可以观看对手所有手牌，然后选择其中一张，令其弃置。若弃置的是锦囊牌，你摸1张手牌。",
+    "effectText": "你可以观看对手所有手牌，然后选择其中一张，令其弃置。若弃置的是行动牌，你摸1张手牌。",
     "source": "鹅"
   },
   {
@@ -525,7 +525,7 @@
     },
     "timing": "出牌阶段",
     "skillName": "姿态流转",
-    "effectText": "你选择「怒」（本回合你下次使用【出刀】造成的伤害+1）或「静」（本回合你下次使用锦囊时摸1张手牌），效果持续至本回合结束。",
+    "effectText": "你选择「怒」（本回合你下次使用【出刀】造成的伤害+1）或「静」（本回合你下次使用行动牌时摸1张手牌），效果持续至本回合结束。",
     "source": "荒"
   },
   {
@@ -555,9 +555,9 @@
       "type": "休整",
       "amount": 2
     },
-    "timing": "当对手使用锦囊牌时",
+    "timing": "当对手使用行动牌时",
     "skillName": "伏击之刃",
-    "effectText": "无效该锦囊并将其移出游戏。",
+    "effectText": "无效该行动牌并将其移出游戏。",
     "source": "塔"
   },
   {
@@ -852,7 +852,7 @@
     "id": "char_054_xiangcai_prophet",
     "name": "预言家-香菜",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "资源",
     "tags": ["牌堆操作","情报"],
     "cost": {
@@ -862,7 +862,7 @@
     "timing": "准备阶段",
     "skillName": "下回合剧本",
     "effectText": "观看共用手牌牌堆顶3张牌。你可以将其中任意数量的牌置于牌堆顶、其余置于牌堆底，并分别按任意顺序排列。若你的本体是【瓜猫】，改为观看5张牌。",
-    "notes": "锦囊流引擎卡。安排牌堆顶即安排双方摸牌质量，与Mega滤牌联动可极端精细控牌堆。",
+    "notes": "行动流引擎卡。安排牌堆顶即安排双方摸牌质量，与Mega滤牌联动可极端精细控牌堆。",
     "source": "鹅"
   },
   {
@@ -885,71 +885,71 @@
     "id": "char_056_huihuan_watcher",
     "name": "观者-灰焕",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "资源",
-    "tags": ["检索","锦囊"],
+    "tags": ["检索","行动牌"],
     "cost": {
       "type": "休整",
       "amount": 1
     },
     "timing": "出牌阶段",
-    "skillName": "锦囊妙计",
-    "effectText": "观看共用手牌牌堆顶3张牌，选择其中1张锦囊牌加入手牌，其余按任意顺序置入牌堆底。",
+    "skillName": "运筹妙计",
+    "effectText": "观看共用手牌牌堆顶3张牌，选择其中1张行动牌加入手牌，其余按任意顺序置入牌堆底。",
     "source": "塔"
   },
   {
     "id": "char_057_guamao_silent-hunter",
     "name": "静默猎手-瓜猫",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "资源",
-    "tags": ["回收","锦囊"],
+    "tags": ["回收","行动牌"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
     },
     "timing": "出牌阶段",
     "skillName": "循环利用",
-    "effectText": "从共用手牌弃牌区选择1张锦囊牌加入手牌。此技能每回合限发动一次。",
+    "effectText": "从共用手牌弃牌区选择1张行动牌加入手牌。此技能每回合限发动一次。",
     "source": "塔"
   },
   {
     "id": "char_058_xiangcai_politician",
     "name": "政治家-香菜",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "支援",
-    "tags": ["强化","锦囊"],
+    "tags": ["强化","行动牌"],
     "cost": {
       "type": "休整",
       "amount": 1
     },
     "timing": "出牌阶段",
     "skillName": "政策倾斜",
-    "effectText": "本回合你使用的下一张锦囊牌效果结算后，摸1张手牌。",
+    "effectText": "本回合你使用的下一张行动牌效果结算后，摸1张手牌。",
     "source": "鹅"
   },
   {
     "id": "char_059_dong_justice",
     "name": "正义使者-dong",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "支援",
-    "tags": ["牌堆操作","锦囊"],
+    "tags": ["牌堆操作","行动牌"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
     },
-    "timing": "当你使用锦囊牌后",
+    "timing": "当你使用行动牌后",
     "skillName": "正义复盘",
-    "effectText": "若该锦囊牌没有造成伤害，你可以观看共用手牌牌堆顶1张牌，将其置入手牌弃牌区或放回牌堆顶。",
+    "effectText": "若该行动牌没有造成伤害，你可以观看共用手牌牌堆顶1张牌，将其置入手牌弃牌区或放回牌堆顶。",
     "source": "鹅"
   },
   {
     "id": "char_060_linglong_defect-robot",
     "name": "故障机器人-绫珑",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "支援",
     "tags": ["牌堆操作","换牌"],
     "cost": {
@@ -965,46 +965,46 @@
     "id": "char_061_xiangcai_watcher",
     "name": "观者-香菜",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "资源",
-    "tags": ["锦囊","回收"],
+    "tags": ["行动牌","回收"],
     "cost": {
       "type": "休整",
       "amount": 1
     },
-    "timing": "当你使用的锦囊牌结算后",
+    "timing": "当你使用的行动牌结算后",
     "skillName": "余韵回流",
-    "effectText": "若该锦囊牌进入共用手牌弃牌区，你可以将其置于共用手牌牌堆底，然后摸1张手牌。",
+    "effectText": "若该行动牌进入共用手牌弃牌区，你可以将其置于共用手牌牌堆底，然后摸1张手牌。",
     "source": "塔"
   },
   {
     "id": "char_062_guamao_morphling",
     "name": "变形鸭-瓜猫",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "支援",
-    "tags": ["复制","锦囊"],
+    "tags": ["复制","行动牌"],
     "cost": {
       "type": "休整",
       "amount": 2
     },
-    "timing": "当你使用锦囊牌后",
+    "timing": "当你使用行动牌后",
     "skillName": "复刻",
-    "effectText": "将该锦囊牌的效果复制一次（若该锦囊有目标，你可以选择相同或不同目标）。此复制不视为使用锦囊牌。",
+    "effectText": "将该行动牌的效果复制一次（若该行动牌有目标，你可以选择相同或不同目标）。此复制不视为使用行动牌。",
     "source": "鹅"
   },
   {
     "id": "char_063_dong_assassin",
     "name": "刺客-dong",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "伏击",
     "tags": ["响应","伤害"],
     "cost": {
       "type": "退场",
       "text": "退场自身"
     },
-    "timing": "当对方使用锦囊牌结算后",
+    "timing": "当对方使用行动牌结算后",
     "skillName": "暗藏杀机",
     "effectText": "对对手本体造成1点伤害。",
     "source": "鹅"
@@ -1013,39 +1013,39 @@
     "id": "char_064_huihuan_pelican",
     "name": "鹈鹕-灰焕",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "伏击",
-    "tags": ["反制","锦囊"],
+    "tags": ["反制","行动牌"],
     "cost": {
       "type": "休整",
       "amount": 2
     },
-    "timing": "当对手使用锦囊牌时",
+    "timing": "当对手使用行动牌时",
     "skillName": "截胡",
-    "effectText": "无效该锦囊。该锦囊置入手牌弃牌区后，你摸1张手牌。",
+    "effectText": "无效该行动牌。该行动牌置入手牌弃牌区后，你摸1张手牌。",
     "source": "鹅"
   },
   {
     "id": "char_065_dong_high-priest",
     "name": "大祭司-dong",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "防御",
-    "tags": ["锦囊","回复"],
+    "tags": ["行动牌","回复"],
     "cost": {
       "type": "休整自身",
       "text": "休整自身"
     },
-    "timing": "当对方对你使用的锦囊牌结算后",
+    "timing": "当对方对你使用的行动牌结算后",
     "skillName": "圣光回响",
-    "effectText": "若该锦囊牌没有造成伤害，你回复1点体力。",
+    "effectText": "若该行动牌没有造成伤害，你回复1点体力。",
     "source": "鹅"
   },
   {
     "id": "char_066_linglong_ninja",
     "name": "忍者-绫珑",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "伏击",
     "tags": ["响应","摸牌"],
     "cost": {
@@ -1061,39 +1061,39 @@
     "id": "char_067_xiangcai_neo",
     "name": "涅奥-香菜",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "资源",
-    "tags": ["换牌","锦囊"],
+    "tags": ["换牌","行动牌"],
     "cost": {
       "type": "休整",
       "amount": 1
     },
     "timing": "出牌阶段",
     "skillName": "流水线",
-    "effectText": "展示手牌中1张锦囊牌，摸1张手牌。",
+    "effectText": "展示手牌中1张行动牌，摸1张手牌。",
     "source": "塔"
   },
   {
     "id": "char_068_huihuan_bird-eater",
     "name": "食鸟鸭-灰焕",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "资源",
-    "tags": ["锦囊","牌堆操作"],
+    "tags": ["行动牌","牌堆操作"],
     "cost": {
       "type": "休整",
       "amount": 2
     },
     "timing": "出牌阶段",
     "skillName": "废料再生",
-    "effectText": "从共用手牌弃牌区选择至多2张锦囊牌，将其洗回共用手牌牌堆，然后摸等量手牌。",
+    "effectText": "从共用手牌弃牌区选择至多2张行动牌，将其洗回共用手牌牌堆，然后摸等量手牌。",
     "source": "鹅"
   },
   {
     "id": "char_069_dong_sheriff",
     "name": "警长-dong",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "控制",
     "tags": ["情报","响应"],
     "cost": {
@@ -1102,16 +1102,16 @@
     },
     "timing": "对手准备阶段",
     "skillName": "定点布控",
-    "effectText": "宣言一种手牌类型（基础或锦囊）。本回合对手首次使用该类型手牌时，你摸1张手牌。",
+    "effectText": "宣言一种手牌类型（基础或行动）。本回合对手首次使用该类型手牌时，你摸1张手牌。",
     "source": "鹅"
   },
   {
     "id": "char_070_huihuan_silent-hunter",
     "name": "静默猎手-灰焕",
     "cardType": "角色",
-    "deck": "锦囊流",
+    "deck": "行动流",
     "mainRole": "支援",
-    "tags": ["强化","锦囊"],
+    "tags": ["强化","行动牌"],
     "cost": {
       "type": "休整",
       "amount": 1
@@ -1215,7 +1215,7 @@
     },
     "timing": "出牌阶段",
     "skillName": "信号破译",
-    "effectText": "宣言一种锦囊牌牌名，然后查看对手所有手牌。若其中有宣言的牌，你获得对手1张手牌。",
+    "effectText": "宣言一种行动牌牌名，然后查看对手所有手牌。若其中有宣言的牌，你获得对手1张手牌。",
     "source": "洲"
   },
   {

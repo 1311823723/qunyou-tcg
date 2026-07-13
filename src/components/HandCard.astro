@@ -6,9 +6,9 @@ import { SUIT_SYMBOLS, isRedSuit } from "../lib/cards";
 
 export interface Props { card: HandType; }
 const { card: h } = Astro.props;
-const isTrick = h.handType === "锦囊";
+const isAction = h.handType === "行动";
 ---
-<CardFrame class={`tcg-hand ${isTrick ? "tcg-hand--trick" : ""}`} kind={isTrick ? "trick" : "hand"}>
+<CardFrame class={`tcg-hand ${isAction ? "tcg-hand--trick" : ""}`} kind={isAction ? "trick" : "hand"}>
   <div class="tcg-hand__row">
     <div>
       <div class="card-timing">{h.handType}</div>

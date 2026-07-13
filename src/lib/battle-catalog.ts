@@ -7,7 +7,7 @@ import { costKind, formatCharacterCost } from "./ui";
 const ARCHETYPE_THEME_SLUG: Record<string, string> = {
   "爆杀流": "aggro",
   "密裁": "mizai",
-  "锦囊流": "combo",
+  "行动流": "combo",
   "拟态流": "trans",
   "调度流": "dispatch",
   "卖血流": "blood",
