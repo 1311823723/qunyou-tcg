@@ -62,7 +62,7 @@ test("battle log text is summarized with semantic badges", () => {
     text: "玩家A 声明【正义执行】",
     detail: "角色：警长-秦帝｜类型：角色 / 强攻｜发动时机：对手准备阶段｜消耗：休整 1｜效果：造成1点伤害。",
   });
-  assert.equal(formatBattleLog({ id: "discard", at: 1, text: "玩家A 弃置了黑桃7【杀】" }).badge, "弃置");
+  assert.equal(formatBattleLog({ id: "discard", at: 1, text: "玩家A 弃置了黑桃7【出刀】" }).badge, "弃置");
   assert.equal(formatBattleLog({ id: "rest", at: 1, text: "玩家A 休整了角色牌【忍者-摆子】，置于角色牌堆底" }).badge, "休整");
   assert.equal(formatBattleLog({ id: "view", at: 1, text: "玩家A 查看了 玩家B 的手牌", kind: "inspection" }).badge, "查看");
 });

@@ -7,7 +7,7 @@ const keywords = ["本体", "额外形态", "Mega", "Z招式", "暗置", "明置
 const setupStats = [
   ["1", "本体", "公开核心角色"],
   ["16", "角色牌", "暗置与技能来源"],
-  ["52", "共用手牌", "杀、闪与锦囊"],
+  ["52", "共用手牌", "出刀、闪避与锦囊"],
   ["5+2", "起手", "手牌 + 上阵角色"],
 ];
 ---
@@ -20,7 +20,7 @@ const setupStats = [
         <div>
           <h2 class="section-heading" style="font-size: 1.1rem; margin-bottom: 0.75rem;">胜利目标</h2>
           <p class="skill-text">
-            每名玩家选择一张<strong>本体牌</strong>，搭配 16 张<strong>角色牌</strong>。双方共用 52 张<strong>手牌牌堆</strong>攻防；令对手进入濒死且无法用【桃】回复至 1 点或以上即可获胜。
+            每名玩家选择一张<strong>本体牌</strong>，搭配 16 张<strong>角色牌</strong>。双方共用 52 张<strong>手牌牌堆</strong>攻防；令对手进入濒死且无法用【急救】回复至 1 点或以上即可获胜。
           </p>
           <div class="flex flex-wrap gap-1 mt-4">
             {keywords.map((k) => <span class="tag-pill tag-pill--mech">{k}</span>)}
@@ -55,7 +55,7 @@ const setupStats = [
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-aggro);">
           <span class="text-sm font-bold" style="color: var(--color-aggro);">出牌阶段</span>
-          <p class="skill-text mt-2">使用手牌、锦囊、本体技能；暗置角色满足时机可明置并发动技能。通常每回合限 1 张【杀】。</p>
+          <p class="skill-text mt-2">使用手牌、锦囊、本体技能；暗置角色满足时机可明置并发动技能。通常每回合限 1 张【出刀】。</p>
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-role-resource);">
           <span class="text-sm font-bold" style="color: var(--color-role-resource);">布阵阶段</span>
@@ -107,7 +107,7 @@ const setupStats = [
       <div class="rules-compare">
         <div class="hud-panel" style="padding: 1.1rem; border-top: 2px solid var(--color-role-attack);">
           <h3 class="font-bold" style="color: var(--color-role-attack);">濒死</h3>
-          <p class="skill-text mt-2">体力降至 0 或以下时立即进入濒死。濒死玩家可以连续使用【桃】，回复至 1 点或以上后继续游戏；无法回复则失败。</p>
+          <p class="skill-text mt-2">体力降至 0 或以下时立即进入濒死。濒死玩家可以连续使用【急救】，回复至 1 点或以上后继续游戏；无法回复则失败。</p>
         </div>
         <div class="hud-panel" style="padding: 1.1rem; border-top: 2px solid var(--color-role-resource);">
           <h3 class="font-bold" style="color: var(--color-role-resource);">牌堆重置</h3>

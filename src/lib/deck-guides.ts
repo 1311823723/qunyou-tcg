@@ -13,13 +13,13 @@ export interface DeckGuide {
 export const deckGuides: Record<string, DeckGuide> = {
   deck_aggro_001: {
     title: "压血爆杀路线",
-    flow: ["加伤/必中", "打出【杀】", "触发怦然杀意", "追加【杀】", "累计 4 伤 Mega"],
+    flow: ["加伤/必中", "打出【出刀】", "触发怦然杀意", "追加【出刀】", "累计 6 伤 Mega"],
     priorities: [
-      "优先保留能让【杀】命中或补伤害的角色，先把本体摸牌引擎打起来。",
-      "暗置伏击角色不要急着翻，等对手出牌阶段或关键【杀】结算时制造不确定性。",
+      "优先保留能让【出刀】命中或补伤害的角色，先把本体摸牌引擎打起来。",
+      "暗置伏击角色不要急着翻，等对手出牌阶段或关键【出刀】结算时制造不确定性。",
       "退场型强攻牌用于压低血线或收尾，不要在没有后续伤害时裸交。",
     ],
-    mega: "Mega 后每回合前 2 次伤害都能换牌差，并获得更多【杀】次数；进入这个阶段后，目标是持续给对手血线压力，而不是单次 All in。",
+    mega: "Mega 后仍在每回合首次造成伤害时摸1张手牌，同时获得更多【出刀】次数，并可在任一角色的结束阶段追加【出刀】；进入这个阶段后，目标是持续给对手血线压力，而不是单次 All in。",
     risk: "这套牌会主动卖血和退场角色。若前两轮没打出伤害，先用控制/资源角色补手牌，再寻找必中窗口。",
     coreCards: ["char_006_weixiaokele_ninja", "char_015_weixiaokele_lobbyist", "char_008_baizi_hitman"],
     replaceableCards: ["char_002_weixiaokele_assassin", "char_007_baizi_ninja", "char_014_baizi_party-duck"],
@@ -30,9 +30,9 @@ export const deckGuides: Record<string, DeckGuide> = {
   },
   deck_mizai_001: {
     title: "情报压制路线",
-    flow: ["看牌顶", "看手牌", "触发窥心", "精准弃牌", "累计 4 次观看 Mega"],
+    flow: ["看牌顶", "看手牌", "触发窥心", "精准弃牌", "累计 5 次观看 Mega"],
     priorities: [
-      "前期优先用观看牌顶规划摸牌，把【杀】/锦囊留在自己能利用的位置。",
+      "前期优先用观看牌顶规划摸牌，把【出刀】/锦囊留在自己能利用的位置。",
       "触发窥心后，根据局势选择补牌或令对手展示全部手牌并精准拆除关键牌。",
       "控制牌不要只追求当回合收益，尽量让每次观看都顺手触发本体。",
     ],
@@ -41,7 +41,7 @@ export const deckGuides: Record<string, DeckGuide> = {
     coreCards: ["char_036_keke_spy", "char_040_fengyaojing_detective", "char_044_arthur_sheriff"],
     replaceableCards: ["char_041_baizi_watcher", "char_046_fengyaojing_watcher"],
     replaceSuggestions: [
-      { card: "char_047_miaosila_ironclad", reason: "增加伤害能力，强化杀不可闪" },
+      { card: "char_047_miaosila_ironclad", reason: "增加伤害能力，强化【出刀】不可被【闪避】响应" },
       { card: "char_050_dong_bomber", reason: "增加爆发伤害，弃黑色牌连锁" },
     ],
   },
@@ -67,7 +67,7 @@ export const deckGuides: Record<string, DeckGuide> = {
     flow: ["宣言转化", "积攒充能球", "激发闪电或等离子", "触发拟态核心", "Mega 后连续补位"],
     priorities: [
       "优先保留能把牌视为其他牌使用或打出的角色，它们是临时补位链的起点。",
-      "三张故障机器人共享至多3枚充能球：没有合适目标时先充能，需要展开时再转化为减伤、虚拟【杀】或技能降费。",
+      "三张故障机器人共享至多3枚充能球：没有合适目标时先充能，需要展开时再转化为减伤、虚拟【出刀】或技能降费。",
       "转化前注意预留角色位；临时补位会直接从角色牌堆顶暗置上阵。",
       "临时角色可以发动技能或支付休整费用；若未离场，会在结束阶段自动休整。",
     ],
@@ -82,7 +82,7 @@ export const deckGuides: Record<string, DeckGuide> = {
   },
   deck_dispatch_001: {
     title: "洞察换阵路线",
-    flow: ["明置角色", "整理角色牌堆", "主动补位", "累计 6 次明置", "Z招式重构阵容"],
+    flow: ["明置角色", "整理角色牌堆", "主动补位", "累计 5 次明置", "Z招式重构阵容"],
     priorities: [
       "利用明置对手角色的技能触发【洞察全局】，提前安排下一批上阵角色。",
       "通过休整自身、补位与退场联动保持角色区流动，避免四个角色位长期锁死。",
@@ -90,11 +90,11 @@ export const deckGuides: Record<string, DeckGuide> = {
     ],
     mega: "Z招式每局限发动一次。它不会替换【洞察全局】，而是在出牌阶段一次性刷新阵容，并让一张新角色获得【休整X】减费。",
     extraFormLabel: "Z招式节点",
-    risk: "本体与Z招式都不直接造成伤害，需要保留【杀】和强攻角色完成收尾。换阵前还要确认角色牌堆数量足够。",
+    risk: "本体与Z招式都不直接造成伤害，需要保留【出刀】和强攻角色完成收尾。换阵前还要确认角色牌堆数量足够。",
     coreCards: ["char_081_aichitun_morphling", "char_082_aichitun_embalmer", "char_084_keke_watcher"],
     replaceableCards: ["char_002_weixiaokele_assassin", "char_007_baizi_ninja"],
     replaceSuggestions: [
-      { card: "char_075_baizi_weilong", reason: "增加主动进攻能力，视为打出杀" },
+      { card: "char_075_baizi_weilong", reason: "增加主动进攻能力，视为打出【出刀】" },
       { card: "char_087_qindi_vigilante", reason: "增加受伤反击能力" },
     ],
   },
@@ -136,10 +136,10 @@ export const deckGuides: Record<string, DeckGuide> = {
   },
   deck_defense_001: {
     title: "不灭守势路线",
-    flow: ["抵消【杀】", "防止或减少伤害", "本体摸牌", "保护角色", "Z招式抵御致命伤害"],
+    flow: ["抵消【出刀】", "防止或减少伤害", "本体摸牌", "保护角色", "Z招式抵御致命伤害"],
     priorities: [
-      "防御角色的触发范围不同，先判断对手是依赖【杀】、锦囊还是角色技能。",
-      "成功防御每回合至多触发一次本体摸牌，不必在同一回合交出所有防御资源。",
+      "防御角色的触发范围不同，先判断对手是依赖【出刀】、锦囊还是角色技能。",
+      "成功防御每回合至多触发三次本体摸牌，不必在同一回合交出所有防御资源。",
       "完成4次成功防御后保留Z招式，逼迫对手先消耗你的防御角色再尝试收尾。",
     ],
     mega: "Z就绪后，当一次伤害将令体力降至0或以下时，可防止该伤害并回复2点体力。它不能阻止直接失去体力。",

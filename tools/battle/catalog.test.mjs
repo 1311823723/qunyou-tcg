@@ -35,10 +35,10 @@ test("every online deck has one body and sixteen characters", () => {
 test("current body cards expose the expected extra-form progress maxima", () => {
   assert.deepEqual(Object.fromEntries(bodies.map((body) => [body.id, progressMax(body)])), {
     body_aggro_001: 6,
-    body_mizai_001: 4,
+    body_mizai_001: 5,
     body_combo_001: 6,
     body_trans_001: 4,
-    body_dispatch_001: 6,
+    body_dispatch_001: 5,
     body_blood_001: 4,
     body_ambush_001: 4,
     body_defense_001: 4,

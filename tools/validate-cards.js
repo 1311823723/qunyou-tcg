@@ -18,6 +18,7 @@ const bodies = readJSON("cards/bodies.json");
 const characters = readJSON("cards/characters.json");
 const handCards = readJSON("cards/hand_cards.json");
 const tagTaxonomy = readJSON("tag-taxonomy.json");
+const archetypes = readJSON("archetypes.json");
 const aggroDeck = readJSON("decks/aggro.deck.json");
 const mizaiDeck = readJSON("decks/mizai.deck.json");
 const comboDeck = readJSON("decks/combo.deck.json");
@@ -27,6 +28,30 @@ const bloodDeck = readJSON("decks/blood.deck.json");
 const ambushDeck = readJSON("decks/ambush.deck.json");
 const defenseDeck = readJSON("decks/defense.deck.json");
 const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck, dispatchDeck, bloodDeck, ambushDeck, defenseDeck];
+
+const legacyCardTerms = ["【杀】", "【闪】", "【桃】"];
+const formalDataSources = [
+  ["cards/bodies.json", bodies],
+  ["cards/characters.json", characters],
+  ["cards/hand_cards.json", handCards],
+  ["archetypes.json", archetypes],
+  ...allDecks.map((deck) => [`decks/${deck.id}`, deck]),
+];
+
+for (const [source, data] of formalDataSources) {
+  const serialized = JSON.stringify(data);
+  for (const term of legacyCardTerms) {
+    if (serialized.includes(term)) {
+      errors.push(`${source} contains legacy card term ${term}`);
+    }
+  }
+}
+
+for (const card of handCards) {
+  if (["杀", "闪", "桃"].includes(card.name)) {
+    errors.push(`Hand card "${card.id}" uses legacy name "${card.name}"`);
+  }
+}
 
 // Collect all card IDs
 const allIds = new Set();
