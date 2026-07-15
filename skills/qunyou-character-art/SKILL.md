@@ -64,11 +64,11 @@ Keep candidate images, approved source images, and registered assets in separate
 
 - Treat AI-generated images and intermediate edits as temporary candidates. Store them under `/private/tmp/qunyou-character-art/<card-id>/`.
 - Before user approval, do not write to `data/card-art.json`, `tools/tts/assets/art/`, or `src/assets/card-art-web/`.
-- After the user confirms a candidate as usable, archive the approved source image in `src/assets/card-art-source/` with a stable slug filename, for example `qindi-sheriff-v1.png`.
+- After the user confirms a candidate as usable, archive it in `src/assets/card-art-source/characters/` with a stable slug filename, for example `qindi-sheriff-v1.png`.
 - When the user explicitly asks to write/register/connect the art, register it with:
 
 ```bash
-npm run art:use -- --id <character-id> --source src/assets/card-art-source/<slug>.png --name <slug>
+npm run art:use -- --id <character-id> --source src/assets/card-art-source/characters/<slug>.png --name <slug>
 ```
 
 - The registration script is responsible for writing the formal assets and mapping:
@@ -78,7 +78,7 @@ npm run art:use -- --id <character-id> --source src/assets/card-art-source/<slug
 
 ## Approval Gate
 
-- Do not move temporary candidates into `src/assets/card-art-source/` until the user confirms the selected image.
+- Do not move temporary candidates into `src/assets/card-art-source/characters/` until the user confirms the selected image.
 - Do not run `npm run art:use` until the user explicitly says to write, register, or connect the art.
 - Register multiple character images serially. Never run multiple `npm run art:use` commands in parallel.
 - Do not change card data, decks, rules, or generated card faces as part of prompt drafting.
@@ -109,7 +109,7 @@ If the user asks to write/register the art after approval, follow `docs/card-exp
 - Register角色牌 without `--slot`:
 
 ```bash
-npm run art:use -- --id <character-id> --source src/assets/card-art-source/<slug>.png --name <slug>
+npm run art:use -- --id <character-id> --source src/assets/card-art-source/characters/<slug>.png --name <slug>
 ```
 
 - Run `npm run validate`, then `npm run export:tts` or `npm run build` as requested.

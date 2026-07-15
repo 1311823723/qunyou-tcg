@@ -25,6 +25,14 @@
 4. **导出文件以脚本生成结果为准。**
    不手工改 `exports/tts`、`public/cards`、`public/cards-hd` 下的成卡文件名。
 
+5. **正式源图与候选图分开保存。**
+   - 本体源图：`src/assets/card-art-source/bodies/<slug>.png`
+   - 角色源图：`src/assets/card-art-source/characters/<slug>.png`
+   - 手牌源图：`src/assets/card-art-source/hand-cards/<slug>.png`
+   - 跨牌种共用源图：`src/assets/card-art-source/shared/<slug>.png`
+   - 未确认候选图：`/private/tmp/qunyou-character-art/<card-id>/`
+   - 淘汰但暂时保留的版本：`archive/card-art-source-unused/`（不进入 Git）
+
 ## 原画命名建议
 
 - 本体正面：`<player>-body`
@@ -50,26 +58,32 @@
    单张角色牌示例：
 
    ```bash
-   npm run art:use -- --id char_052_fengyaojing_desert-butcher --source ./new-art.png --name fengyaojing-desert-butcher-v3
+   npm run art:use -- --id char_052_fengyaojing_desert-butcher --source src/assets/card-art-source/characters/fengyaojing-desert-butcher-v3.png --name fengyaojing-desert-butcher-v3
    ```
 
    单张手牌示例：
 
    ```bash
-   npm run art:use -- --id hand_basic_001 --source ./strike.png --name hand-strike
+   npm run art:use -- --id hand_basic_001 --source src/assets/card-art-source/hand-cards/hand-strike.png --name hand-strike
    ```
 
    本体双面示例：
 
    ```bash
-   npm run art:use -- --id body_blood_001 --slot front --source './风妖精本体.png' --name fengyaojing-body
-   npm run art:use -- --id body_blood_001 --slot extra --source './风妖精 z 招式.png' --name fengyaojing-body-z-move
+   npm run art:use -- --id body_blood_001 --slot front --source src/assets/card-art-source/bodies/fengyaojing-body.png --name fengyaojing-body
+   npm run art:use -- --id body_blood_001 --slot extra --source src/assets/card-art-source/bodies/fengyaojing-body-z-move.png --name fengyaojing-body-z-move
    ```
 
 3. **运行数据校验。**
 
    ```bash
    npm run validate
+   ```
+
+   同时检查原画引用：
+
+   ```bash
+   npm run art:audit
    ```
 
 4. **生成 TTS 导出。**
@@ -96,6 +110,20 @@
    - 必要时用图片预览确认不是空图、旧图或明显裁切错误。
 
 ## 常见任务
+
+### 清理原画资产
+
+1. 运行 `npm run art:audit`，确认缺失和未引用列表。
+2. 未引用的派生 PNG/WebP 和旧版源图先移入 `archive/card-art-source-unused/<日期>/`，不要直接删除。
+3. 当前采用的源图按牌种放入 `src/assets/card-art-source/` 的对应子目录，文件名与正式 slug 一致。
+4. 不要将 `tools/tts/assets/art/` 的派生 PNG 复制回来冒充缺失的原始源文件。
+5. 再次运行审计、`npm run validate` 和 `npm run build`。
+
+需要查看尚未归档的早期源图明细时，运行：
+
+```bash
+npm run art:audit -- --verbose
+```
 
 ### 单张角色原画替换
 
@@ -149,6 +177,7 @@
 ## 验收标准
 
 - `npm run validate` 通过。
+- `npm run art:audit` 不报告缺失的 TTS PNG 或网页 WebP。
 - 修改制卡导出脚本或前端成卡路径时，`npm run export:tts` 和 `npm run build` 通过。
 - 目标卡图在 TTS 单卡、TTS sheet、前端普通图、前端高清图中都能找到。
 - `data/card-art.json` 中目标映射正确，没有因为并行注册丢失另一面的映射。
