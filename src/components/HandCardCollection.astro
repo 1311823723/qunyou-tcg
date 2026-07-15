@@ -1,0 +1,61 @@
+---
+import HandCard from "./HandCard.astro";
+import type { HandCard as HandCardType } from "../lib/cards";
+import { SUIT_SYMBOLS, isRedSuit } from "../lib/cards";
+import { handCardHighResImagePath, handCardImagePath } from "../scripts/battle-format";
+
+export interface Props {
+  card: HandCardType;
+}
+
+const { card } = Astro.props;
+const faces = card.cards.map(({ suit, rank }) => ({
+  suit,
+  rank,
+  imagePath: handCardImagePath(card.id, suit, rank),
+  highResImagePath: handCardHighResImagePath(card.id, suit, rank),
+}));
+---
+
+<article class="hand-card-set">
+  <div class="hand-card-set__summary">
+    <HandCard card={card} />
+  </div>
+  <div class="hand-card-set__faces">
+    <div class="hand-card-set__heading">
+      <span>实体卡面</span>
+      <small>{faces.length} 张 · 点击查看高清图</small>
+    </div>
+    <div class="hand-card-face-grid" aria-label={`${card.name}的实体卡面`}>
+      {faces.map((face) => (
+        <button
+          type="button"
+          class="hand-card-face"
+          data-hand-card-face
+          data-card-name={card.name}
+          data-card-type={card.handType}
+          data-card-suit={face.suit}
+          data-card-rank={face.rank}
+          data-card-timing={card.timing}
+          data-card-effect={card.effectText}
+          data-card-image={face.imagePath}
+          data-card-image-hd={face.highResImagePath}
+          aria-label={`查看${card.name}，${face.suit}${face.rank}的高清卡面`}
+        >
+          <img
+            src={face.imagePath}
+            width="250"
+            height="350"
+            alt={`${card.name}，${face.suit}${face.rank}`}
+            loading="lazy"
+            decoding="async"
+          />
+          <span class={`hand-card-face__label ${isRedSuit(face.suit) ? "is-red" : ""}`}>
+            <span aria-hidden="true">{SUIT_SYMBOLS[face.suit]}</span>
+            {face.rank}
+          </span>
+        </button>
+      ))}
+    </div>
+  </div>
+</article>

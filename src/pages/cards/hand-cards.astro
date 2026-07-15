@@ -1,7 +1,7 @@
 ---
 import Layout from "../../components/Layout.astro";
 import PageHeader from "../../components/PageHeader.astro";
-import HandCard from "../../components/HandCard.astro";
+import HandCardCollection from "../../components/HandCardCollection.astro";
 import { allHandCards, getHandCardTotal, getSuitDistribution, SUIT_SYMBOLS, ALL_SUITS } from "../../lib/cards";
 
 const total = getHandCardTotal();
@@ -34,7 +34,7 @@ const handProbabilities = allHandCards.map((card) => {
         <div class="card-gallery card-gallery--hand">
           {basics.map((c, i) => (
             <div class="scroll-reveal" style={`animation-delay: ${i * 0.1}s`}>
-              <HandCard card={c} />
+              <HandCardCollection card={c} />
             </div>
           ))}
         </div>
@@ -47,7 +47,7 @@ const handProbabilities = allHandCards.map((card) => {
         <div class="card-gallery card-gallery--hand">
           {actions.map((c, i) => (
             <div class="scroll-reveal" style={`animation-delay: ${i * 0.1}s`}>
-              <HandCard card={c} />
+              <HandCardCollection card={c} />
             </div>
           ))}
         </div>
@@ -112,4 +112,119 @@ const handProbabilities = allHandCards.map((card) => {
       </div>
     </details>
   </div>
+
+  <dialog id="hand-card-zoom-dialog" class="card-zoom-dialog">
+    <div class="card-zoom-dialog__content">
+      <button type="button" class="card-zoom-dialog__close" aria-label="关闭高清卡面">×</button>
+      <div class="card-zoom hand-card-zoom">
+        <div class="card-zoom__image">
+          <img id="hand-card-zoom-image" width="250" height="350" alt="" decoding="async" hidden />
+          <img id="hand-card-zoom-image-hd" class="card-zoom__image-hd" width="750" height="1050" alt="" decoding="async" hidden />
+          <span id="hand-card-zoom-loading" class="card-zoom__image-loading">正在加载高清卡图…</span>
+        </div>
+        <div class="card-zoom__info">
+          <span id="hand-card-zoom-type" class="tag-pill tag-pill--role"></span>
+          <h2 id="hand-card-zoom-name" class="card-zoom__name"></h2>
+          <div class="card-zoom__meta">
+            <div class="card-zoom__meta-item">
+              <span class="card-zoom__meta-label">花色</span>
+              <span id="hand-card-zoom-suit" class="card-zoom__meta-value"></span>
+            </div>
+            <div class="card-zoom__meta-item">
+              <span class="card-zoom__meta-label">点数</span>
+              <span id="hand-card-zoom-rank" class="card-zoom__meta-value"></span>
+            </div>
+            <div class="card-zoom__meta-item">
+              <span class="card-zoom__meta-label">时机</span>
+              <span id="hand-card-zoom-timing" class="card-zoom__meta-value"></span>
+            </div>
+          </div>
+          <div class="card-zoom__effect-box">
+            <span class="card-zoom__effect-label">效果</span>
+            <p id="hand-card-zoom-effect" class="card-zoom__effect"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </dialog>
 </Layout>
+
+<script>
+  const zoomDialog = document.getElementById("hand-card-zoom-dialog") as HTMLDialogElement | null;
+  const zoomClose = zoomDialog?.querySelector<HTMLButtonElement>(".card-zoom-dialog__close") ?? null;
+  const zoomImage = document.getElementById("hand-card-zoom-image") as HTMLImageElement | null;
+  const zoomImageHd = document.getElementById("hand-card-zoom-image-hd") as HTMLImageElement | null;
+  const zoomLoading = document.getElementById("hand-card-zoom-loading");
+  const zoomType = document.getElementById("hand-card-zoom-type");
+  const zoomName = document.getElementById("hand-card-zoom-name");
+  const zoomSuit = document.getElementById("hand-card-zoom-suit");
+  const zoomRank = document.getElementById("hand-card-zoom-rank");
+  const zoomTiming = document.getElementById("hand-card-zoom-timing");
+  const zoomEffect = document.getElementById("hand-card-zoom-effect");
+  let lastZoomTrigger: HTMLButtonElement | null = null;
+
+  function setText(element: HTMLElement | null, value: string) {
+    if (element) element.textContent = value;
+  }
+
+  function openHandCardZoom(trigger: HTMLButtonElement) {
+    if (!zoomDialog || !zoomImage || !zoomImageHd) return;
+
+    const name = trigger.dataset.cardName || "手牌";
+    const suit = trigger.dataset.cardSuit || "";
+    const rank = trigger.dataset.cardRank || "";
+    const imagePath = trigger.dataset.cardImage || "";
+    const highResImagePath = trigger.dataset.cardImageHd || imagePath;
+    const alt = `${name}，${suit}${rank}`;
+
+    lastZoomTrigger = trigger;
+    setText(zoomType, `${trigger.dataset.cardType || "手牌"}牌`);
+    setText(zoomName, name);
+    setText(zoomSuit, suit);
+    setText(zoomRank, rank);
+    setText(zoomTiming, trigger.dataset.cardTiming || "");
+    setText(zoomEffect, trigger.dataset.cardEffect || "");
+
+    zoomImage.src = imagePath;
+    zoomImage.alt = alt;
+    zoomImage.hidden = false;
+    zoomImageHd.classList.remove("is-loaded");
+    zoomImageHd.src = highResImagePath;
+    zoomImageHd.alt = `${alt}高清卡图`;
+    zoomImageHd.hidden = false;
+    if (zoomLoading) {
+      zoomLoading.hidden = false;
+      zoomLoading.textContent = "正在加载高清卡图…";
+    }
+
+    const revealHighRes = () => {
+      zoomImageHd.classList.add("is-loaded");
+      if (zoomLoading) zoomLoading.hidden = true;
+    };
+    if (zoomImageHd.complete && zoomImageHd.naturalWidth > 0) revealHighRes();
+    else zoomImageHd.addEventListener("load", revealHighRes, { once: true });
+    zoomImageHd.addEventListener("error", () => {
+      zoomImageHd.hidden = true;
+      if (zoomLoading) zoomLoading.textContent = "高清图加载失败，已显示普通卡图";
+    }, { once: true });
+
+    zoomDialog.showModal();
+  }
+
+  document.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    const trigger = target.closest<HTMLButtonElement>("[data-hand-card-face]");
+    if (trigger) {
+      openHandCardZoom(trigger);
+      return;
+    }
+    if (target === zoomDialog || target === zoomClose || target.closest(".card-zoom-dialog__close")) {
+      zoomDialog?.close();
+    }
+  });
+
+  zoomDialog?.addEventListener("close", () => {
+    lastZoomTrigger?.focus();
+    lastZoomTrigger = null;
+  });
+</script>
