@@ -4,8 +4,8 @@ import type { BodyCard as BodyType } from "../lib/cards";
 import { EXTRA_FORM_LABELS, EXTRA_FORM_CONDITION_LABELS } from "../lib/cards";
 import { getBodyArt } from "../lib/card-art";
 
-export interface Props { body: BodyType; compact?: boolean; }
-const { body: b, compact } = Astro.props;
+export interface Props { body: BodyType; compact?: boolean; priority?: boolean; }
+const { body: b, compact, priority = false } = Astro.props;
 const hasExtra = !!b.extraForm;
 const formLabel = b.extraForm ? (EXTRA_FORM_LABELS[b.extraForm.type] ?? b.extraForm.type) : "";
 const hasCondition = b.extraForm?.condition && b.extraForm.condition.trim() !== "";
@@ -15,18 +15,6 @@ const art = getBodyArt(b.id);
   <div class="card-flip__inner" id={`flip-${b.id}`}>
     <!-- 正面：本体 -->
     <div class="card-flip__face card-flip__face--front">
-      {art?.front && (
-        <img
-          class="tcg-card__full-art tcg-card__full-art--body"
-          src={art.front.src}
-          width={art.front.width}
-          height={art.front.height}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          aria-hidden="true"
-        />
-      )}
       <div class="tcg-body__banner">
         <div>
           <div class="tcg-body__type">本体 · {b.archetype}</div>
@@ -39,7 +27,16 @@ const art = getBodyArt(b.id);
       </div>
       {art?.front && (
         <div class="tcg-body__art">
-          <img src={art.front.src} width={art.front.width} height={art.front.height} alt={`${b.name} 本体原画`} loading="lazy" decoding="async" />
+          <img
+            src={art.front.src}
+            width={art.front.width}
+            height={art.front.height}
+            alt={`${b.name} 本体原画`}
+            loading={priority ? "eager" : "lazy"}
+            fetchpriority={priority ? "high" : "auto"}
+            decoding="async"
+            data-body-art
+          />
         </div>
       )}
       <div class="tcg-body__body">
@@ -67,18 +64,6 @@ const art = getBodyArt(b.id);
     <!-- 背面：额外形态 -->
     {b.extraForm && (
       <div class="card-flip__face card-flip__face--back">
-        {art?.extra && (
-          <img
-            class="tcg-card__full-art tcg-card__full-art--body tcg-card__full-art--extra"
-            src={art.extra.src}
-            width={art.extra.width}
-            height={art.extra.height}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            aria-hidden="true"
-          />
-        )}
         <div class="tcg-body__banner tcg-body__banner--extra">
           <div>
             <div class="tcg-body__type tcg-body__type--extra">{formLabel}</div>
@@ -91,7 +76,14 @@ const art = getBodyArt(b.id);
         </div>
         {art?.extra && (
           <div class="tcg-body__art tcg-body__art--extra">
-            <img src={art.extra.src} width={art.extra.width} height={art.extra.height} alt={`${b.extraForm.name} 原画`} loading="lazy" decoding="async" />
+            <img
+              data-src={art.extra.src}
+              width={art.extra.width}
+              height={art.extra.height}
+              alt={`${b.extraForm.name} 原画`}
+              decoding="async"
+              data-body-art
+            />
           </div>
         )}
         <div class="tcg-body__body">
@@ -111,12 +103,29 @@ const art = getBodyArt(b.id);
 </div>
 
 <script>
+  function markBodyArtLoaded(image: HTMLImageElement) {
+    const art = image.closest(".tcg-body__art");
+    if (!art) return;
+    if (image.complete && image.naturalWidth > 0) art.classList.add("is-loaded");
+    else image.addEventListener("load", () => art.classList.add("is-loaded"), { once: true });
+  }
+
+  document.querySelectorAll<HTMLImageElement>("img[data-body-art][src]").forEach(markBodyArtLoaded);
+
   document.querySelectorAll(".card-flip__btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const targetId = (btn as HTMLElement).dataset.flipTarget;
       if (!targetId) return;
       const inner = document.getElementById(targetId);
       if (!inner) return;
+      if (!inner.classList.contains("is-flipped")) {
+        const deferredArt = inner.querySelector<HTMLImageElement>("img[data-body-art][data-src]");
+        if (deferredArt?.dataset.src) {
+          deferredArt.src = deferredArt.dataset.src;
+          deferredArt.removeAttribute("data-src");
+          markBodyArtLoaded(deferredArt);
+        }
+      }
       inner.classList.toggle("is-flipped");
     });
   });

@@ -8,7 +8,7 @@ const sampleChar1 = getCharacterById("char_015_weixiaokele_lobbyist");
 const sampleChar2 = getCharacterById("char_001_keke_assassin");
 ---
 <div class="hero-showcase" aria-label="卡牌预览">
-  {body && <div class="hero-showcase__card"><BodyCard body={body} compact /></div>}
+  {body && <div class="hero-showcase__card"><BodyCard body={body} compact priority /></div>}
   {sampleChar1 && <div class="hero-showcase__card"><CharacterCard character={sampleChar1} compact /></div>}
   {sampleChar2 && <div class="hero-showcase__card"><CharacterCard character={sampleChar2} compact /></div>}
 </div>

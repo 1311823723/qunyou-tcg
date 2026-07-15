@@ -21,16 +21,11 @@ const observer = new IntersectionObserver((entries) => {
  * 初始化滚动观察器
  */
 export function initScrollObserver() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    document.querySelectorAll(".scroll-reveal").forEach((el) => el.classList.add("is-visible"));
+    return;
+  }
   document.querySelectorAll(".scroll-reveal").forEach((el) => {
     observer.observe(el);
   });
-}
-
-// 页面加载时自动初始化
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initScrollObserver);
-  } else {
-    initScrollObserver();
-  }
 }

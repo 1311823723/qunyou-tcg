@@ -162,12 +162,14 @@ async function renderCards() {
   }
 
   for (const card of handCards) {
+    const art = artDataUri(CARD_ART.hands?.[card.id]);
     for (const entry of card.cards) {
       const physicalId = handPhysicalId(card, entry);
       const physicalCard = {
         ...card,
         ...entry,
         physicalId,
+        __ttsArt: art,
       };
       const filePath = path.join(EXPORT_DIR, "cards", "hand_cards", `${physicalId}.png`);
       await writeSvgAsPng(renderHand(physicalCard), filePath);

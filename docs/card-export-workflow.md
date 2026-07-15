@@ -4,7 +4,7 @@
 
 ## 适用场景
 
-- 为角色牌、本体牌或额外形态接入新原画。
+- 为角色牌、本体牌、额外形态或手牌接入新原画。
 - 替换已有原画，并同步 TTS PNG 与前端 WebP。
 - 重新生成 `exports/tts` 下的本地 TTS 卡包资源。
 - 重新生成 `public/cards` 和 `public/cards-hd` 下的前端成卡图。
@@ -33,6 +33,8 @@
   - 例：`fengyaojing-body-z-move`
 - 角色牌：`<player>-<identity>`，必要时追加稳定版本号
   - 例：`xiaoapan-warlock`、`fengyaojing-desert-butcher-v2`
+- 手牌：`hand-<英文短名>`
+  - 例：`hand-strike`、`hand-first-aid`
 
 ## 标准执行顺序
 
@@ -41,6 +43,7 @@
    - 本体正面使用 `--slot front`。
    - 本体额外形态使用 `--slot extra`。
    - 角色牌不使用 `--slot`。
+   - 手牌不使用 `--slot`，同名牌的不同花色与点数共用一张原画。
 
 2. **串行注册原画。**
 
@@ -48,6 +51,12 @@
 
    ```bash
    npm run art:use -- --id char_052_fengyaojing_desert-butcher --source ./new-art.png --name fengyaojing-desert-butcher-v3
+   ```
+
+   单张手牌示例：
+
+   ```bash
+   npm run art:use -- --id hand_basic_001 --source ./strike.png --name hand-strike
    ```
 
    本体双面示例：

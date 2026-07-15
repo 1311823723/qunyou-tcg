@@ -44,7 +44,7 @@ function isActive(href: string) {
             <a href={l.href} class="nav-link" aria-current={isActive(l.href) ? "page" : undefined}>{l.label}</a>
           ))}
         </nav>
-        <button type="button" class="nav-toggle" id="nav-toggle" aria-label="打开菜单" aria-expanded="false">☰</button>
+        <button type="button" class="nav-toggle" id="nav-toggle" aria-label="打开菜单" aria-controls="nav-drawer" aria-expanded="false">☰</button>
       </div>
       <nav class="nav-drawer" id="nav-drawer" aria-label="移动端导航">
         {links.map((l) => (
@@ -61,15 +61,21 @@ function isActive(href: string) {
       const toggle = document.getElementById("nav-toggle");
       const drawer = document.getElementById("nav-drawer");
       if (toggle && drawer) {
-        toggle.addEventListener("click", () => {
-          const open = drawer.classList.toggle("is-open");
+        const setMenuOpen = (open: boolean, returnFocus = false) => {
+          drawer.classList.toggle("is-open", open);
           toggle.setAttribute("aria-expanded", String(open));
+          toggle.setAttribute("aria-label", open ? "关闭菜单" : "打开菜单");
+          toggle.textContent = open ? "×" : "☰";
+          if (returnFocus) toggle.focus();
+        };
+        toggle.addEventListener("click", () => {
+          setMenuOpen(!drawer.classList.contains("is-open"));
         });
         drawer.querySelectorAll("a").forEach((a) => {
-          a.addEventListener("click", () => {
-            drawer.classList.remove("is-open");
-            toggle.setAttribute("aria-expanded", "false");
-          });
+          a.addEventListener("click", () => setMenuOpen(false));
+        });
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && drawer.classList.contains("is-open")) setMenuOpen(false, true);
         });
       }
 

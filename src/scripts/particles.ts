@@ -145,32 +145,10 @@ class ParticleSystem {
  * 初始化粒子系统
  */
 export function initParticles(containerId: string, config?: ParticleConfig) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
   const container = document.getElementById(containerId);
   if (container) {
     return new ParticleSystem(container, config);
   }
   return null;
-}
-
-// 页面加载时自动初始化
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      initParticles("hero-particles", {
-        count: 50,
-        color: "0, 212, 255",
-        speed: 0.3,
-        size: 1.5,
-        opacity: 0.3,
-      });
-    });
-  } else {
-    initParticles("hero-particles", {
-      count: 50,
-      color: "0, 212, 255",
-      speed: 0.3,
-      size: 1.5,
-      opacity: 0.3,
-    });
-  }
 }

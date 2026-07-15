@@ -358,7 +358,7 @@ function renderHand(card) {
     <rect x="194" y="58" width="472" height="158" fill="#111827" fill-opacity="0.92"/>
     <text x="430" y="126" text-anchor="middle" font-size="66" font-weight="900" fill="#f4f0e8">${escapeXml(card.name)}</text>
     <text x="430" y="178" text-anchor="middle" font-size="26" font-weight="900" fill="${accent}">${escapeXml(card.handType)}</text>
-    ${artStage("手牌原画预留", "hand", { x: 58, y: 246, width: 634, height: 390, accent })}
+    ${artStage("手牌原画预留", "hand", { x: 58, y: 246, width: 634, height: 390, accent, imageDataUri: card.__ttsArt })}
     <g transform="translate(78 654)">${tagsSvg(card.tags, 0, 0, { fill: "rgba(0,0,0,0.46)", stroke: "rgba(255,255,255,0.34)", max: 5 })}</g>
     <g filter="url(#shadow)">
       <path d="M58 720 H692 V966 H58 Z" fill="rgba(250,247,238,0.90)" stroke="${accent}" stroke-opacity="0.46" stroke-width="3"/>

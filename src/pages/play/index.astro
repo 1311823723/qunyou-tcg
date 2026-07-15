@@ -72,10 +72,10 @@ const catalog = getBattleCatalog();
     </section>
   </div>
 
-  <dialog id="battle-profile-dialog" class="battle-dialog battle-profile-dialog">
+  <dialog id="battle-profile-dialog" class="battle-dialog battle-profile-dialog" aria-labelledby="battle-profile-title">
     <form method="dialog" id="battle-profile-form" class="battle-profile-form">
       <span class="battle-kicker">PLAYER PROFILE</span>
-      <h2>设置你的用户名</h2>
+      <h2 id="battle-profile-title">设置你的用户名</h2>
       <p>用户名只保存在当前浏览器，用于创建房间、加入对局和观战日志。</p>
       <label>用户名<input name="nickname" maxlength="20" required autocomplete="nickname" placeholder="1–20 个字符" /></label>
       <p class="battle-form__status" data-form-status aria-live="polite" hidden></p>
@@ -200,7 +200,10 @@ const catalog = getBattleCatalog();
     const playing = rooms.length - waiting;
     summary.textContent = rooms.length ? `${waiting} 个等待房 · ${playing} 个对局中` : "当前没有公开房间";
     if (!rooms.length) {
-      roomList.innerHTML = `<div class="battle-hall__empty"><span></span><strong>大厅暂时空着</strong><p>创建第一间牌桌，或稍后点击刷新大厅。</p></div>`;
+      roomList.innerHTML = `<div class="battle-hall__empty"><span></span><strong>大厅暂时空着</strong><p>现在没有公开房间，可以先创建一间牌桌。</p><button type="button" class="btn btn--primary" data-empty-create>创建第一间牌桌</button></div>`;
+      roomList.querySelector<HTMLButtonElement>("[data-empty-create]")?.addEventListener("click", () => {
+        document.querySelector<HTMLButtonElement>("#battle-create-room")?.click();
+      });
       return;
     }
     roomList.innerHTML = rooms.map((room) => {

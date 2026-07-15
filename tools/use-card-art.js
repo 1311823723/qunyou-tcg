@@ -16,6 +16,7 @@ Usage:
 Examples:
   npm run art:use -- --id char_052_fengyaojing_desert-butcher --source ./new-art.png --name fengyaojing-desert-butcher-v3
   npm run art:use -- --id body_combo_001 --slot extra --source ./mega.png --name guamao-body-mega-v2
+  npm run art:use -- --id hand_basic_001 --source ./strike.png --name hand-strike
   npm run art:use -- --prune-unused
 `);
 }
@@ -72,6 +73,9 @@ function collectReferencedSlugs(manifest) {
   for (const slug of Object.values(manifest.characters ?? {})) {
     if (slug) slugs.add(slug);
   }
+  for (const slug of Object.values(manifest.hands ?? {})) {
+    if (slug) slugs.add(slug);
+  }
   return slugs;
 }
 
@@ -100,7 +104,17 @@ function updateManifest(manifest, id, slot, slug) {
     return previous;
   }
 
-  throw new Error("--id must start with body_ or char_");
+  if (id.startsWith("hand_")) {
+    if (slot) {
+      throw new Error("Hand cards do not use --slot");
+    }
+    manifest.hands ??= {};
+    const previous = manifest.hands[id];
+    manifest.hands[id] = slug;
+    return previous;
+  }
+
+  throw new Error("--id must start with body_, char_, or hand_");
 }
 
 function removeIfUnreferenced(slug, referencedSlugs, newSlug) {

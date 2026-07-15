@@ -7,6 +7,7 @@ import { getDeckById, resolveDeck, getRoleDistribution, getTagDistribution } fro
 import { getDeckGuide } from "../lib/deck-guides";
 import { getArchetypeKeywords, getArchetypeBlurb, getArchetypeRisks } from "../lib/archetypes";
 import { ROLE_COLORS_CSS, archetypeThemeClass } from "../lib/ui";
+import { EXTRA_FORM_LABELS } from "../lib/cards";
 
 interface Props {
   deckId: string;
@@ -31,26 +32,35 @@ const restCosts = resolved.characters.filter((card) => card.cost.type === "休�
 const restDist: Record<string, number> = {};
 for (const amount of restCosts) restDist[String(amount)] = (restDist[String(amount)] || 0) + 1;
 const selfRestCount = resolved.characters.filter((card) => card.cost.type === "休整自身").length;
+const extraFormLabel = resolved.body?.extraForm
+  ? (EXTRA_FORM_LABELS[resolved.body.extraForm.type] ?? resolved.body.extraForm.type)
+  : "额外形态";
 ---
 <Layout title={deck.name}>
   <div class={`page-wrap ${archetypeThemeClass(deck.archetype)}`}>
-    <header class="deck-hero scroll-reveal">
-      <div class="tag-pill tag-pill--deck mb-3">PRECONSTRUCTED DECK</div>
-      <h1 class="deck-hero__title">{deck.name}</h1>
-      <div class="deck-hero__archetype">{deck.archetype}</div>
-      {blurb && <p class="deck-hero__blurb">{blurb}</p>}
-      {risk && <p class="deck-hero__risk">⚠️ 风险：{risk}</p>}
-      <div class="flex flex-wrap gap-1 mt-4">
-        {keywords.map((keyword) => <span class="tag-pill tag-pill--deck">{keyword}</span>)}
+    <header class="deck-hero deck-hero--detail scroll-reveal">
+      <div class="deck-hero__copy">
+        <div class="tag-pill tag-pill--deck mb-3">PRECONSTRUCTED DECK</div>
+        <h1 class="deck-hero__title">{deck.name}</h1>
+        <div class="deck-hero__archetype">{deck.archetype}</div>
+        {blurb && <p class="deck-hero__blurb">{blurb}</p>}
+        {risk && <p class="deck-hero__risk">风险：{risk}</p>}
+        <div class="flex flex-wrap gap-1 mt-4">
+          {keywords.map((keyword) => <span class="tag-pill tag-pill--deck">{keyword}</span>)}
+        </div>
+        {deck.notes && <p class="deck-hero__blurb deck-hero__notes">{deck.notes}</p>}
       </div>
-      {deck.notes && <p class="deck-hero__blurb" style="font-size: 0.88rem; margin-top: 1rem; opacity: 0.9;">{deck.notes}</p>}
+      {resolved.body && (
+        <aside class="deck-hero__body" aria-labelledby="deck-body-title">
+          <div>
+            <span class="deck-hero__body-kicker">BODY CARD · {extraFormLabel}</span>
+            <h2 id="deck-body-title">本体与额外形态</h2>
+            <p>点击卡牌下方按钮翻面查看。额外形态的解锁条件与效果均以卡面文本为准。</p>
+          </div>
+          <BodyCard body={resolved.body} compact priority />
+        </aside>
+      )}
     </header>
-
-    <section class="mb-10 scroll-reveal">
-      <h2 class="section-heading" style="font-size: 1.1rem;">本体 · Z招式</h2>
-      <p class="skill-text mb-4" style="max-width: 36rem;">点击本体卡下方按钮翻面查看Z招式。达成条件后翻面进入Z就绪状态，每局限发动一次。</p>
-      <div class="max-w-md">{resolved.body && <BodyCard body={resolved.body} />}</div>
-    </section>
 
     {guide && <DeckPlayGuide guide={guide} />}
 

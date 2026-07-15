@@ -154,5 +154,19 @@
     "char_033_weixiaokele_watcher": "weixiaokele-watcher-v1",
     "char_071_xiangcai_lover": "xiangcai-lover-v1",
     "char_072_guamao_lover": "guamao-lover-v1"
+  },
+  "hands": {
+    "hand_basic_001": "hand-strike",
+    "hand_basic_002": "hand-evade",
+    "hand_basic_003": "hand-first-aid",
+    "hand_trick_001": "hand-fishing",
+    "hand_trick_002": "hand-sabotage",
+    "hand_trick_003": "hand-snatch",
+    "hand_trick_004": "hand-crisis-sabotage",
+    "hand_trick_005": "hand-rally",
+    "hand_trick_006": "hand-deploy",
+    "hand_trick_007": "hand-see-through",
+    "hand_trick_008": "hand-recall",
+    "hand_trick_009": "hand-hold"
   }
 }
