@@ -167,6 +167,8 @@
     "hand_trick_006": "hand-deploy",
     "hand_trick_007": "hand-see-through",
     "hand_trick_008": "hand-recall",
-    "hand_trick_009": "hand-hold"
+    "hand_trick_009": "hand-hold",
+    "hand_basic_004": "hand-impersonate-joker",
+    "hand_trick_010": "hand-emergency-meeting-joker"
   }
 }

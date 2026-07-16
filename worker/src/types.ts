@@ -18,6 +18,7 @@ export interface CardInstance {
   faceDown?: boolean;
   suit?: string;
   rank?: string;
+  joker?: "small" | "big";
 }
 
 export interface Marker {

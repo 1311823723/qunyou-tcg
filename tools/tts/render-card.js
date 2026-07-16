@@ -9,6 +9,7 @@ const {
   ROLE_DARK_COLORS,
   ROLE_TRIM_COLORS,
   SUIT_META,
+  JOKER_META,
 } = require("./constants");
 
 const HAND_TITLE_FONT_PATH = path.join(__dirname, "assets", "fonts", "SourceHanSerifCN-Heavy.otf");
@@ -372,7 +373,99 @@ function handRosette(cx, cy, accent) {
   `;
 }
 
+function renderJokerHand(card) {
+  const joker = JOKER_META[card.joker] ?? JOKER_META.small;
+  const isBig = card.joker === "big";
+  const accent = joker.accent;
+  const trim = joker.color;
+  const shadow = isBig ? "#2e050b" : "#05070c";
+  const titleLength = Array.from(card.name ?? "").length;
+  const titleSize = titleLength <= 4 ? 57 : 49;
+  const tagLabel = card.tags?.[0] || "通用";
+  const artY = isBig ? 120 : -110;
+  const artHeight = isBig ? 1050 : 1100;
+  const artImage = card.__ttsArt
+    ? `<image href="${card.__ttsArt}" x="31" y="${artY}" width="688" height="${artHeight}" preserveAspectRatio="xMidYMid slice"/>`
+    : `<rect x="31" y="31" width="688" height="988" fill="${shadow}"/><text x="375" y="500" text-anchor="middle" font-size="34" font-weight="900" fill="${trim}">王牌原画待确认</text>`;
+
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}">
+      <defs>
+        ${HAND_TITLE_FONT_FACE}
+        <clipPath id="jokerArtClip"><rect x="31" y="31" width="688" height="988" rx="14"/></clipPath>
+        <linearGradient id="jokerTopShade" x1="0" y1="0" x2="0" y2="1">
+          <stop stop-color="${shadow}" stop-opacity="0.92"/><stop offset="1" stop-color="${shadow}" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="jokerPanelFade" x1="0" y1="0" x2="0" y2="1">
+          <stop stop-color="${shadow}" stop-opacity="0"/><stop offset="1" stop-color="${shadow}" stop-opacity="0.3"/>
+        </linearGradient>
+        <linearGradient id="jokerFrame" x1="0" y1="0" x2="1" y2="1">
+          <stop stop-color="${trim}"/><stop offset="0.38" stop-color="${accent}"/><stop offset="0.7" stop-color="${isBig ? "#8e1822" : "#404756"}"/><stop offset="1" stop-color="${trim}"/>
+        </linearGradient>
+        <pattern id="jokerBorderPattern" width="52" height="12" patternUnits="userSpaceOnUse">
+          <path d="M0 6 H14 L20 1 L26 6 L32 11 L38 6 H52" fill="none" stroke="${trim}" stroke-opacity="0.62" stroke-width="1"/>
+          <circle cx="26" cy="6" r="1.8" fill="${accent}" fill-opacity="0.72"/>
+        </pattern>
+        <filter id="jokerShadow"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#000" flood-opacity="0.72"/></filter>
+      </defs>
+      <rect width="750" height="1050" fill="#020307"/>
+      <g clip-path="url(#jokerArtClip)">
+        ${artImage}
+        <rect x="31" y="31" width="688" height="300" fill="url(#jokerTopShade)"/>
+        <rect x="31" y="630" width="688" height="92" fill="url(#jokerPanelFade)"/>
+      </g>
+      <rect x="10" y="10" width="730" height="1030" rx="20" fill="none" stroke="${shadow}" stroke-width="14"/>
+      <rect x="21" y="21" width="708" height="1008" rx="17" fill="none" stroke="url(#jokerFrame)" stroke-width="5"/>
+      <rect x="31" y="31" width="688" height="988" rx="14" fill="none" stroke="${trim}" stroke-opacity="0.44" stroke-width="2"/>
+      <rect x="38" y="38" width="674" height="974" rx="10" fill="none" stroke="${accent}" stroke-opacity="0.34" stroke-width="1.5" stroke-dasharray="2 8 20 8"/>
+      <rect x="64" y="35" width="622" height="9" fill="url(#jokerBorderPattern)" opacity="0.55"/>
+      <rect x="64" y="1006" width="622" height="9" fill="url(#jokerBorderPattern)" opacity="0.55"/>
+      ${handCornerFlourish(31, 31, 0, trim)}
+      ${handCornerFlourish(719, 31, 90, trim)}
+      ${handCornerFlourish(719, 1019, 180, trim)}
+      ${handCornerFlourish(31, 1019, 270, trim)}
+      ${handRosette(375, 38, accent)}
+      ${handRosette(375, 1012, accent)}
+
+      <g filter="url(#jokerShadow)">
+        <path d="M50 48 H142 L164 70 V356 L142 378 H50 Z" fill="${shadow}" fill-opacity="0.68" stroke="url(#jokerFrame)" stroke-width="3"/>
+        <g text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="42" font-style="italic" font-weight="900" fill="#fff8ec" stroke="${accent}" stroke-width="1.2" paint-order="stroke">
+          <text x="106" y="105" transform="rotate(-7 106 105)">J</text>
+          <text x="106" y="153" transform="rotate(5 106 153)">O</text>
+          <text x="106" y="201" transform="rotate(-5 106 201)">K</text>
+          <text x="106" y="249" transform="rotate(5 106 249)">E</text>
+          <text x="106" y="297" transform="rotate(-7 106 297)">R</text>
+        </g>
+        <path d="M106 321 l9 14 l-9 14 l-9-14 Z" fill="${accent}" stroke="${trim}" stroke-width="1.5"/>
+        <circle cx="106" cy="335" r="3" fill="#fff8ec"/>
+      </g>
+
+      <g filter="url(#jokerShadow)">
+        <path d="M182 54 H684 L704 74 V190 L684 210 H182 L162 190 V74 Z" fill="${shadow}" fill-opacity="0.78" stroke="url(#jokerFrame)" stroke-width="3"/>
+        <text x="433" y="145" text-anchor="middle" font-family="'Qunyou Hand Title', 'Songti SC', serif" font-size="${titleSize}" font-weight="900" fill="#fff8ec" stroke="${shadow}" stroke-width="1.4" paint-order="stroke">${escapeXml(card.name)}</text>
+        <path d="M225 174 H641" stroke="${accent}" stroke-width="2" opacity="0.7"/>
+        <text x="433" y="198" text-anchor="middle" font-size="17" font-weight="800" letter-spacing="3" fill="${trim}">BAOLVTUAN TCG</text>
+      </g>
+
+      <g filter="url(#jokerShadow)">
+        <path d="M60 762 L82 740 H668 L690 762 V982 L668 1004 H82 L60 982 Z" fill="${shadow}" fill-opacity="0.88" stroke="url(#jokerFrame)" stroke-width="3"/>
+        <path d="M78 747 H672" stroke="${trim}" stroke-opacity="0.35"/>
+        <rect x="88" y="754" width="110" height="42" rx="21" fill="${accent}" fill-opacity="0.3" stroke="${trim}" stroke-opacity="0.78"/>
+        <text x="143" y="782" text-anchor="middle" font-size="19" font-weight="900" fill="#fff8ec">${escapeXml(card.handType)}牌</text>
+        <rect x="210" y="754" width="104" height="42" rx="21" fill="${shadow}" stroke="${accent}" stroke-width="2"/>
+        <text x="262" y="782" text-anchor="middle" font-size="19" font-weight="900" fill="${trim}">${escapeXml(tagLabel)}</text>
+        <text x="340" y="782" font-size="17" font-weight="900" fill="${trim}">时机</text>
+        ${fitTextBlock(card.timing, 390, 782, 254, 42, 19, 14, { fill: "#fff8ec", weight: 800, lineRatio: 1.2 })}
+        <path d="M88 820 H662" stroke="${accent}" stroke-opacity="0.48"/>
+        ${fitTextBlock(card.effectText, 90, 866, 570, 96, 25, 17, { fill: "#fffaf2", weight: 700, lineRatio: 1.38 })}
+        <text x="375" y="986" text-anchor="middle" font-size="13" font-weight="700" fill="${trim}" fill-opacity="0.72">${escapeXml(card.physicalId)}</text>
+      </g>
+    </svg>
+  `;
+}
+
 function renderHand(card) {
+  if (card.joker) return renderJokerHand(card);
   const suit = SUIT_META[card.suit] ?? { symbol: card.suit, color: "#f4f0e8" };
   const isAction = card.handType === "行动";
   const accent = isAction ? "#aa7cff" : "#7bcbd2";

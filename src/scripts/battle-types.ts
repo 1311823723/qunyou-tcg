@@ -58,6 +58,7 @@ export type CardView = {
   revealed?: boolean;
   suit?: string;
   rank?: string;
+  joker?: "small" | "big";
   slotIndex?: number;
 };
 

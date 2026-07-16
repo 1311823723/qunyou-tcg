@@ -3,11 +3,11 @@ import Layout from "../components/Layout.astro";
 import PageHeader from "../components/PageHeader.astro";
 
 const phases = ["准备阶段", "摸牌阶段", "出牌阶段", "布阵阶段", "弃牌阶段", "结束阶段"];
-const keywords = ["本体", "额外形态", "Mega", "Z招式", "暗置", "明置", "休整", "退场", "伏击", "充能球", "濒死", "共用手牌牌堆"];
+const keywords = ["本体", "额外形态", "Mega", "Z招式", "暗置", "明置", "休整", "退场", "伏击", "王牌", "充能球", "濒死", "共用手牌牌堆"];
 const setupStats = [
   ["1", "本体", "公开核心角色"],
   ["16", "角色牌", "暗置与技能来源"],
-  ["52", "共用手牌", "基础牌与行动牌"],
+  ["54", "共用手牌", "52 张扑克 + 2 张王牌"],
   ["5+2", "起手", "手牌 + 上阵角色"],
 ];
 ---
@@ -20,7 +20,7 @@ const setupStats = [
         <div>
           <h2 class="section-heading" style="font-size: 1.1rem; margin-bottom: 0.75rem;">胜利目标</h2>
           <p class="skill-text">
-            每名玩家选择一张<strong>本体牌</strong>，搭配 16 张<strong>角色牌</strong>。双方共用 52 张<strong>手牌牌堆</strong>攻防；令对手进入濒死且无法用【急救】回复至 1 点或以上即可获胜。
+            每名玩家选择一张<strong>本体牌</strong>，搭配 16 张<strong>角色牌</strong>。双方共用 54 张<strong>手牌牌堆</strong>攻防；令对手进入濒死且无法用【急救】回复至 1 点或以上即可获胜。
           </p>
           <div class="flex flex-wrap gap-1 mt-4">
             {keywords.map((k) => <span class="tag-pill tag-pill--mech">{k}</span>)}
@@ -130,7 +130,7 @@ const setupStats = [
       <h2 class="section-heading" style="font-size: 1.15rem;">开局流程</h2>
       <ol class="space-y-2 pl-5 skill-text" style="list-style: decimal;">
         <li>双方公开本体牌（正面朝上）；本体体力以本体牌标注为准。</li>
-        <li>洗混各自 16 张角色牌组与共用 52 张手牌牌堆。</li>
+        <li>洗混各自 16 张角色牌组与共用 54 张手牌牌堆。</li>
         <li>双方各摸 5 张手牌，并从各自角色牌堆顶暗置上阵 2 张角色。</li>
         <li>决定先后手；先手开始第一回合。</li>
       </ol>
@@ -152,17 +152,22 @@ const setupStats = [
         <div class="mechanic-tile" style="--tile-color: var(--color-role-attack);">
           <div class="mechanic-tile__icon">JUDGE</div>
           <h3 class="mechanic-tile__title">判定</h3>
-          <p class="mechanic-tile__desc">展示牌堆顶 1 张牌，根据花色确定结果。红桃/方块为红色，黑桃/梅花为黑色。判定牌置入弃牌区。</p>
+          <p class="mechanic-tile__desc">展示牌堆顶 1 张牌，根据颜色或花色确定结果。大王为红、小王为黑，但二者均无花色。判定牌置入弃牌区。</p>
         </div>
         <div class="mechanic-tile" style="--tile-color: var(--color-mega-purple);">
           <div class="mechanic-tile__icon">DUEL</div>
           <h3 class="mechanic-tile__title">拼点</h3>
-          <p class="mechanic-tile__desc">双方各选择并同时展示 1 张手牌。点数较高者拼点成功（A 最小，K 最大）。展示的牌置入弃牌区，平局没有胜者。</p>
+          <p class="mechanic-tile__desc">双方各选择并同时展示 1 张手牌。顺序为 A 最小，依次至 K，再为小王、大王。展示的牌置入弃牌区，平局没有胜者。</p>
         </div>
         <div class="mechanic-tile" style="--tile-color: var(--color-role-resource);">
           <div class="mechanic-tile__icon">ORB</div>
           <h3 class="mechanic-tile__title">充能球</h3>
           <p class="mechanic-tile__desc">置于己方本体旁且不占角色位，每名玩家至多3枚。所有己方故障机器人共享，可将其转化为不同效果。</p>
+        </div>
+        <div class="mechanic-tile" style="--tile-color: #ef5a67;">
+          <div class="mechanic-tile__icon">JOKER</div>
+          <h3 class="mechanic-tile__title">王牌</h3>
+          <p class="mechanic-tile__desc">小王【冒名顶替】可转化为三种基础牌；大王【紧急会议】可中止对手的牌并为双方补满空角色位。二者有颜色但无花色。</p>
         </div>
       </div>
     </section>

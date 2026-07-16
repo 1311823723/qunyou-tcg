@@ -120,11 +120,15 @@ for (const deck of allDecks) {
 
 // Check hand card total by counting cards array
 const totalCount = handCards.reduce((sum, card) => sum + card.cards.length, 0);
-if (totalCount !== 52) {
-  errors.push(`Hand cards total count = ${totalCount}, expected 52`);
+if (totalCount !== 54) {
+  errors.push(`Hand cards total count = ${totalCount}, expected 54`);
+}
+const jokerKinds = handCards.flatMap((card) => card.cards).filter((card) => card.joker).map((card) => card.joker).sort();
+if (JSON.stringify(jokerKinds) !== JSON.stringify(["big", "small"])) {
+  errors.push(`Hand cards must contain exactly one small joker and one big joker (found: ${jokerKinds.join(", ") || "none"})`);
 }
 
-// Check each hand card has suit/rank
+// Check each hand card has exactly one tag and one valid physical identity.
 for (const card of handCards) {
   if (!card.cards || !Array.isArray(card.cards)) {
     errors.push(`Hand card "${card.id}" missing cards array`);
@@ -133,10 +137,15 @@ for (const card of handCards) {
   if (!validHandTypes.has(card.handType)) {
     errors.push(`Hand card "${card.id}" has invalid handType "${card.handType}"`);
   }
+  if (!Array.isArray(card.tags) || card.tags.length !== 1) {
+    errors.push(`Hand card "${card.id}" must have exactly one tag`);
+  }
   for (let i = 0; i < card.cards.length; i++) {
     const c = card.cards[i];
-    if (!c.suit || !c.rank) {
-      errors.push(`Hand card "${card.id}" card #${i + 1} missing suit or rank`);
+    const isPoker = Boolean(c.suit && c.rank && !c.joker);
+    const isJoker = Boolean(c.joker && !c.suit && !c.rank && ["small", "big"].includes(c.joker));
+    if (!isPoker && !isJoker) {
+      errors.push(`Hand card "${card.id}" card #${i + 1} must use either suit/rank or joker`);
     }
   }
 }

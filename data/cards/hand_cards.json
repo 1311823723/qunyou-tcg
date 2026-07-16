@@ -31,7 +31,7 @@
     "name": "闪避",
     "cardType": "手牌",
     "handType": "基础",
-    "tags": ["防御", "响应"],
+    "tags": ["防御"],
     "timing": "当你的本体成为【出刀】的目标时",
     "effectText": "抵消此次【出刀】。",
     "cards": [
@@ -58,6 +58,18 @@
       { "suit": "红桃", "rank": "3" },
       { "suit": "方块", "rank": "2" },
       { "suit": "方块", "rank": "4" }
+    ]
+  },
+  {
+    "id": "hand_basic_004",
+    "name": "冒名顶替",
+    "cardType": "手牌",
+    "handType": "基础",
+    "tags": ["转化"],
+    "timing": "当你需要使用或打出基础牌时",
+    "effectText": "你可以将此牌当【出刀】、【闪避】或【急救】使用或打出。",
+    "cards": [
+      { "joker": "small" }
     ]
   },
   {
@@ -93,7 +105,7 @@
     "name": "顺手牵鹅",
     "cardType": "手牌",
     "handType": "行动",
-    "tags": ["控制", "资源"],
+    "tags": ["资源"],
     "timing": "出牌阶段",
     "effectText": "获得对手 1 张手牌。",
     "cards": [
@@ -120,7 +132,7 @@
     "name": "鼓舞",
     "cardType": "手牌",
     "handType": "行动",
-    "tags": ["角色联动", "强攻"],
+    "tags": ["强化"],
     "timing": "出牌阶段",
     "effectText": "本回合你下一次发动角色技能时，若技能费用不为退场，则修改为休整 1。",
     "cards": [
@@ -134,7 +146,7 @@
     "name": "临时布阵",
     "cardType": "手牌",
     "handType": "行动",
-    "tags": ["角色联动", "布阵"],
+    "tags": ["布阵"],
     "timing": "出牌阶段",
     "effectText": "若你的角色区未满，从你的角色牌堆中暗置上阵 1 张角色。",
     "cards": [
@@ -148,7 +160,7 @@
     "name": "看破",
     "cardType": "手牌",
     "handType": "行动",
-    "tags": ["特殊", "控制"],
+    "tags": ["情报"],
     "timing": "出牌阶段",
     "effectText": "查看对手 1 张暗置角色。你可以选择令其明置。",
     "cards": [
@@ -162,7 +174,7 @@
     "name": "撤回",
     "cardType": "手牌",
     "handType": "行动",
-    "tags": ["特殊", "防御"],
+    "tags": ["回收"],
     "timing": "当你使用的【出刀】或行动牌被响应后",
     "effectText": "将该牌从手牌弃牌区加入手牌。本次使用不计入你本回合使用该牌的次数限制。",
     "cards": [
@@ -175,12 +187,24 @@
     "name": "别急",
     "cardType": "手牌",
     "handType": "行动",
-    "tags": ["响应", "反制"],
+    "tags": ["反制"],
     "timing": "当任一玩家使用行动牌时",
     "effectText": "抵消该行动牌的效果。",
     "cards": [
       { "suit": "红桃", "rank": "9" },
       { "suit": "方块", "rank": "8" }
+    ]
+  },
+  {
+    "id": "hand_trick_010",
+    "name": "紧急会议",
+    "cardType": "手牌",
+    "handType": "行动",
+    "tags": ["响应"],
+    "timing": "当对手于出牌阶段使用【出刀】或行动牌时",
+    "effectText": "抵消该牌的效果并结束此出牌阶段。然后双方各从自己的角色牌堆顶暗置上阵角色，直至各自角色区没有空位或角色牌堆为空。",
+    "cards": [
+      { "joker": "big" }
     ]
   }
 ]

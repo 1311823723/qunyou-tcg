@@ -124,6 +124,8 @@ export function getBattleCatalog() {
       kind: "hand",
       subtitle: `${card.handType} · ${card.timing}`,
       text: card.effectText,
+      tags: card.tags,
+      timing: card.timing,
     };
   }
 

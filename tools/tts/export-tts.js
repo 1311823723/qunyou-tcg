@@ -9,6 +9,7 @@ const {
   SHEET_ROWS,
   SHEET_MAX_CARDS,
   SUIT_META,
+  JOKER_META,
 } = require("./constants");
 const {
   renderBodyFront,
@@ -76,6 +77,7 @@ function readDecks() {
 }
 
 function handPhysicalId(card, entry) {
+  if (entry.joker) return `${card.id}_${JOKER_META[entry.joker]?.slug ?? `${entry.joker}_joker`}`;
   const suit = SUIT_META[entry.suit]?.slug ?? entry.suit;
   return `${card.id}_${suit}_${String(entry.rank).toLowerCase()}`;
 }
@@ -183,6 +185,7 @@ async function renderCards() {
           handType: card.handType,
           suit: entry.suit,
           rank: entry.rank,
+          joker: entry.joker,
         },
       });
     }

@@ -2,10 +2,11 @@
 import Layout from "../../components/Layout.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import HandCardCollection from "../../components/HandCardCollection.astro";
-import { allHandCards, getHandCardTotal, getSuitDistribution, SUIT_SYMBOLS, ALL_SUITS } from "../../lib/cards";
+import { allHandCards, getHandCardTotal, getJokerCount, getSuitDistribution, SUIT_SYMBOLS, ALL_SUITS } from "../../lib/cards";
 
 const total = getHandCardTotal();
 const suitDist = getSuitDistribution();
+const jokerCount = getJokerCount();
 const basics = allHandCards.filter((c) => c.handType === "基础");
 const actions = allHandCards.filter((c) => c.handType === "行动");
 
@@ -65,7 +66,7 @@ const handProbabilities = allHandCards.map((card) => {
       <div class="hand-deck-analysis__content">
         <section aria-labelledby="suit-distribution-title">
           <h2 id="suit-distribution-title">花色分布</h2>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {ALL_SUITS.map((suit) => {
               const count = suitDist[suit] || 0;
               const red = suit === "红桃" || suit === "方块";
@@ -77,6 +78,12 @@ const handProbabilities = allHandCards.map((card) => {
                 </div>
               );
             })}
+            <div class="hand-deck-analysis__suit">
+              <span class="text-xl font-mono font-bold" style="color: #ef5a67;">JOKER</span>
+              <div class="dist-bar mt-2"><div class="dist-bar__fill" style={`width:${(jokerCount/total)*100}%;background:linear-gradient(90deg,#aeb4c2 0 48%,#ef5a67 52% 100%)`}></div></div>
+              <span class="text-xs font-mono mt-2 inline-block" style="color: var(--text-muted);">王牌 · {jokerCount}</span>
+              <small class="block mt-1" style="color: var(--text-faint);">小王·黑 / 大王·红</small>
+            </div>
           </div>
         </section>
 
@@ -175,12 +182,13 @@ const handProbabilities = allHandCards.map((card) => {
     const rank = trigger.dataset.cardRank || "";
     const imagePath = trigger.dataset.cardImage || "";
     const highResImagePath = trigger.dataset.cardImageHd || imagePath;
-    const alt = `${name}，${suit}${rank}`;
+    const joker = trigger.dataset.cardJoker || "";
+    const alt = `${name}，${joker ? rank : suit + rank}`;
 
     lastZoomTrigger = trigger;
     setText(zoomType, `${trigger.dataset.cardType || "手牌"}牌`);
     setText(zoomName, name);
-    setText(zoomSuit, suit);
+    setText(zoomSuit, joker ? "无花色" : suit);
     setText(zoomRank, rank);
     setText(zoomTiming, trigger.dataset.cardTiming || "");
     setText(zoomEffect, trigger.dataset.cardEffect || "");

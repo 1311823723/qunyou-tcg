@@ -944,6 +944,7 @@ export class BattleRoom extends DurableObject<Env> {
         kind: "hand" as const,
         suit: entry.suit,
         rank: entry.rank,
+        joker: entry.joker,
       })),
     ));
     this.state.handDiscard = [];
@@ -1540,6 +1541,7 @@ export class BattleRoom extends DurableObject<Env> {
         definitionId: card.definitionId,
         suit: card.suit,
         rank: card.rank,
+        joker: card.joker,
       } : {}),
     };
   }
@@ -1711,7 +1713,7 @@ export class BattleRoom extends DurableObject<Env> {
 
   private handCardLabel(card: CardInstance) {
     const definition = handCardById.get(card.definitionId);
-    const poker = card.suit && card.rank ? `${card.suit}${card.rank}` : "无点数";
+    const poker = card.joker === "big" ? "大王" : card.joker === "small" ? "小王" : card.suit && card.rank ? `${card.suit}${card.rank}` : "牌面未知";
     return `${poker}【${definition?.name || card.definitionId}】`;
   }
 

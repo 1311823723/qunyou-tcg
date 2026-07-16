@@ -20,8 +20,10 @@ function progressMax(body) {
   return match ? Number(match[1]) : undefined;
 }
 
-test("the shared hand deck contains exactly 52 physical cards", () => {
-  assert.equal(handCards.reduce((total, card) => total + card.cards.length, 0), 52);
+test("the shared hand deck contains exactly 54 physical cards including both jokers", () => {
+  assert.equal(handCards.reduce((total, card) => total + card.cards.length, 0), 54);
+  assert.deepEqual(handCards.flatMap((card) => card.cards).filter((card) => card.joker).map((card) => card.joker).sort(), ["big", "small"]);
+  assert.ok(handCards.every((card) => card.tags.length === 1));
 });
 
 test("every online deck has one body and sixteen characters", () => {

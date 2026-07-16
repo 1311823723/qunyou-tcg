@@ -7,6 +7,7 @@ function writeImportGuide(outPath, manifest) {
   const characterSheets = manifest.sheets.filter((sheet) => sheet.id.startsWith("characters_"));
   const handSheets = manifest.sheets.filter((sheet) => sheet.id.startsWith("hand_cards_"));
   const presetDecks = manifest.presetDecks ?? [];
+  const handCardCount = handSheets.reduce((total, sheet) => total + sheet.count, 0);
 
   const lines = [
     "# 宝旅团 TCG - Tabletop Simulator 导入说明",
@@ -37,7 +38,7 @@ function writeImportGuide(outPath, manifest) {
     "",
     "## 手牌牌堆",
     "",
-    "手牌已按花色点数展开为 52 张实体牌，使用统一手牌牌背。",
+    `手牌已展开为 ${handCardCount} 张实体牌（含大小王），使用统一手牌牌背。`,
     "",
     ...handSheets.map((sheet) => `- Face: \`${sheet.file}\`; Back: \`${sheet.back}\`; Number: ${sheet.count}`),
     "",

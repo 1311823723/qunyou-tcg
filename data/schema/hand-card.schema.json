@@ -10,6 +10,8 @@
     "handType": { "type": "string", "enum": ["基础", "行动"] },
     "tags": {
       "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
       "items": { "type": "string" }
     },
     "timing": { "type": "string" },
@@ -17,12 +19,25 @@
     "cards": {
       "type": "array",
       "items": {
-        "type": "object",
-        "required": ["suit", "rank"],
-        "properties": {
-          "suit": { "type": "string", "enum": ["黑桃", "红桃", "梅花", "方块"] },
-          "rank": { "type": "string" }
-        }
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["suit", "rank"],
+            "properties": {
+              "suit": { "type": "string", "enum": ["黑桃", "红桃", "梅花", "方块"] },
+              "rank": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["joker"],
+            "properties": {
+              "joker": { "type": "string", "enum": ["small", "big"] }
+            },
+            "additionalProperties": false
+          }
+        ]
       }
     }
   }

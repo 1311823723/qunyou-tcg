@@ -1,7 +1,7 @@
 ---
 import HandCard from "./HandCard.astro";
 import type { HandCard as HandCardType } from "../lib/cards";
-import { SUIT_SYMBOLS, isRedSuit } from "../lib/cards";
+import { JOKER_LABELS, SUIT_SYMBOLS, isRedSuit } from "../lib/cards";
 import { handCardHighResImagePath, handCardImagePath } from "../scripts/battle-format";
 
 export interface Props {
@@ -9,12 +9,17 @@ export interface Props {
 }
 
 const { card } = Astro.props;
-const faces = card.cards.map(({ suit, rank }) => ({
-  suit,
-  rank,
-  imagePath: handCardImagePath(card.id, suit, rank),
-  highResImagePath: handCardHighResImagePath(card.id, suit, rank),
-}));
+const faces = card.cards.map(({ suit, rank, joker }) => {
+  const jokerLabel = joker ? JOKER_LABELS[joker] : "";
+  return {
+    suit: suit ?? "无花色",
+    rank: rank ?? jokerLabel,
+    joker,
+    label: jokerLabel || `${SUIT_SYMBOLS[suit ?? ""] ?? ""}${rank ?? ""}`,
+    imagePath: handCardImagePath(card.id, suit, rank, joker),
+    highResImagePath: handCardHighResImagePath(card.id, suit, rank, joker),
+  };
+});
 ---
 
 <article class="hand-card-set">
@@ -36,23 +41,23 @@ const faces = card.cards.map(({ suit, rank }) => ({
           data-card-type={card.handType}
           data-card-suit={face.suit}
           data-card-rank={face.rank}
+          data-card-joker={face.joker}
           data-card-timing={card.timing}
           data-card-effect={card.effectText}
           data-card-image={face.imagePath}
           data-card-image-hd={face.highResImagePath}
-          aria-label={`查看${card.name}，${face.suit}${face.rank}的高清卡面`}
+          aria-label={`查看${card.name}，${face.joker ? face.rank : `${face.suit}${face.rank}`}的高清卡面`}
         >
           <img
             src={face.imagePath}
             width="250"
             height="350"
-            alt={`${card.name}，${face.suit}${face.rank}`}
+            alt={`${card.name}，${face.joker ? face.rank : `${face.suit}${face.rank}`}`}
             loading="lazy"
             decoding="async"
           />
-          <span class={`hand-card-face__label ${isRedSuit(face.suit) ? "is-red" : ""}`}>
-            <span aria-hidden="true">{SUIT_SYMBOLS[face.suit]}</span>
-            {face.rank}
+          <span class={`hand-card-face__label ${isRedSuit(face.suit) || face.joker === "big" ? "is-red" : ""}`}>
+            {face.joker ? face.label : <><span aria-hidden="true">{SUIT_SYMBOLS[face.suit]}</span>{face.rank}</>}
           </span>
         </button>
       ))}

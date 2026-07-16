@@ -1,6 +1,6 @@
 import { getBattleApiUrl } from "../lib/battle-api";
 import { deckGuides } from "../lib/deck-guides";
-import { escapeHtml, handCardImagePath, suitSymbol } from "./battle-format";
+import { escapeHtml, handCardIdentityLabel, handCardImagePath } from "./battle-format";
 import {
   bindHighResImage,
   renderCardArtDialog,
@@ -864,7 +864,8 @@ function cardDisplayName(instanceId: string) {
   const card = findVisibleCard(instanceId);
   const definition = cardDefinition(card);
   if (!definition) return "";
-  const poker = card?.suit && card.rank ? `${suitSymbol(card.suit)}${card.rank} ` : "";
+  const identity = card ? handCardIdentityLabel(card.suit, card.rank, card.joker) : "";
+  const poker = identity ? `${identity} ` : "";
   return `【${poker}${definition.name}】`;
 }
 
@@ -2650,10 +2651,11 @@ function renderCard(
   }
   const isFlipped = options.flipped && definition.kind === "body";
   const name = isFlipped ? definition.extraName || definition.name : definition.name;
-  const poker = card.suit && card.rank ? `${suitSymbol(card.suit)}${card.rank} · ` : "";
+  const identity = handCardIdentityLabel(card.suit, card.rank, card.joker);
+  const poker = identity ? `${identity} · ` : "";
   let imagePath: string | undefined;
   if (definition.kind === "hand") {
-    imagePath = handCardImagePath(definition.id, card.suit, card.rank);
+    imagePath = handCardImagePath(definition.id, card.suit, card.rank, card.joker);
   } else if (definition.kind === "body" && isFlipped) {
     imagePath = definition.extraImagePath || definition.extraHighResImagePath;
   } else if (definition.kind === "body") {
@@ -3178,7 +3180,8 @@ function showBodyMarkerDialog(markerId: string, returnFocus?: HTMLElement) {
   const cardRows = isCardMarker && ownsCards
     ? marker.cards.map((card, index) => {
         const definition = cardDefinition(card);
-        const poker = card.suit && card.rank ? `${suitSymbol(card.suit)}${card.rank} · ` : "";
+        const identity = handCardIdentityLabel(card.suit, card.rank, card.joker);
+        const poker = identity ? `${identity} · ` : "";
         return `<li><span><i class="battle-marker-card-back"></i>${escapeHtml(poker + (definition?.name || `暗置牌 ${index + 1}`))}</span>
           <button type="button" data-marker-card-remove="${card.instanceId || ""}">移去</button></li>`;
       }).join("")
@@ -3468,7 +3471,7 @@ function showDiscardPile() {
     <p class="battle-dialog-hint">按牌堆顺序显示，最上方为弃牌堆顶。</p>
     <div class="battle-discard-list">${cards.map((card, index) => {
       const definition = cardDefinition(card);
-      const poker = card.suit && card.rank ? `${suitSymbol(card.suit)}${card.rank}` : "点数未知";
+      const poker = handCardIdentityLabel(card.suit, card.rank, card.joker) || "牌面未知";
       const position = index === 0 ? "牌堆顶" : index === cards.length - 1 ? "牌堆底" : `第 ${index + 1} 张`;
       return `<article class="battle-discard-row">
         <div class="battle-discard-row__identity">
@@ -3514,9 +3517,10 @@ function showInspection(
   dialogContent.innerHTML = `<div class="battle-card-menu"><h2>${escapeHtml(title)}</h2>
     <div class="battle-inspection">${cards.map((card) => {
       const definition = cardDefinition(card);
-      const poker = card.suit && card.rank ? `${suitSymbol(card.suit)}${card.rank} · ` : "";
+      const identity = handCardIdentityLabel(card.suit, card.rank, card.joker);
+      const poker = identity ? `${identity} · ` : "";
       const img = definition?.kind === "hand"
-        ? handCardImagePath(definition.id, card.suit, card.rank)
+        ? handCardImagePath(definition.id, card.suit, card.rank, card.joker)
         : definition?.imagePath;
       return `<article class="battle-inspection__card" ${card.instanceId ? `data-inspection-card="${card.instanceId}"` : ""}>
         ${img ? `<img src="${img}" alt="" class="battle-inspection__art" />` : ""}

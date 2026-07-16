@@ -1,4 +1,4 @@
-import { escapeHtml, handCardHighResImagePath, handCardImagePath, suitSymbol } from "./battle-format";
+import { escapeHtml, handCardHighResImagePath, handCardIdentityLabel, handCardImagePath } from "./battle-format";
 import type { CardView, CatalogCard } from "./battle-types";
 
 export type CardDetailMode = "detail" | "art";
@@ -41,8 +41,8 @@ export function resolveCardDetail(context: CardDetailContext, form = context.ini
   let highResImagePath = isMega ? definition?.extraHighResImagePath || definition?.highResImagePath : definition?.highResImagePath;
 
   if (definition?.kind === "hand" && card) {
-    imagePath = handCardImagePath(definition.id, card.suit, card.rank) || imagePath;
-    highResImagePath = handCardHighResImagePath(definition.id, card.suit, card.rank) || highResImagePath;
+    imagePath = handCardImagePath(definition.id, card.suit, card.rank, card.joker) || imagePath;
+    highResImagePath = handCardHighResImagePath(definition.id, card.suit, card.rank, card.joker) || highResImagePath;
   }
 
   const [roleName, characterName] = splitCharacterName(displayName);
@@ -78,9 +78,10 @@ export function renderCardArtPreview(view: CardDetailView) {
 export function renderCardDetailBody(view: CardDetailView) {
   const definition = view.definition;
   if (!definition) return `<div class="battle-card-detail__body"><h2>暗置卡牌</h2><p class="battle-card-detail__text">无权限查看这张卡牌的身份与技能。</p></div>`;
-  const handMeta = definition.kind === "hand" && view.card?.suit && view.card.rank
-    ? `<span class="battle-tag">${escapeHtml(`${suitSymbol(view.card.suit)} ${view.card.suit} ${view.card.rank}`)}</span>`
+  const handIdentity = definition.kind === "hand" && view.card
+    ? handCardIdentityLabel(view.card.suit, view.card.rank, view.card.joker)
     : "";
+  const handMeta = handIdentity ? `<span class="battle-tag">${escapeHtml(handIdentity)}</span>` : "";
   return `<div class="battle-card-detail__body">
     ${renderCardDetailTabs(view)}
     <h2>${view.titleHtml}</h2>

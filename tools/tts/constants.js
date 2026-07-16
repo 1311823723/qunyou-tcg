@@ -17,6 +17,11 @@ const SUIT_META = {
   "方块": { symbol: "♦", slug: "diamond", color: "#ff5a72" },
 };
 
+const JOKER_META = {
+  small: { label: "小王", slug: "small_joker", color: "#d9dee8", accent: "#8f99aa", ink: "#151820" },
+  big: { label: "大王", slug: "big_joker", color: "#ffcfaa", accent: "#e24b4f", ink: "#7f1520" },
+};
+
 const ROLE_COLORS = {
   "强攻": "#ff5748",
   "防御": "#4db9ff",
@@ -54,6 +59,7 @@ module.exports = {
   SHEET_ROWS,
   SHEET_MAX_CARDS,
   SUIT_META,
+  JOKER_META,
   ROLE_COLORS,
   ROLE_DARK_COLORS,
   ROLE_TRIM_COLORS,

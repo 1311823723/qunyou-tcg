@@ -5,10 +5,11 @@ import { getExtraFormProgressMax } from "./body-progress";
 
 export { getExtraFormProgressMax } from "./body-progress";
 
-export interface CardEntry {
-  suit: string;
-  rank: string;
-}
+export type JokerKind = "small" | "big";
+
+export type CardEntry =
+  | { suit: string; rank: string; joker?: never }
+  | { joker: JokerKind; suit?: never; rank?: never };
 
 export type HandCardType = "基础" | "行动";
 
@@ -106,6 +107,11 @@ export const SUIT_SYMBOLS: Record<string, string> = {
   "方块": "♦",
 };
 
+export const JOKER_LABELS: Record<JokerKind, string> = {
+  small: "小王",
+  big: "大王",
+};
+
 export function isRedSuit(suit: string): boolean {
   return suit === "红桃" || suit === "方块";
 }
@@ -137,10 +143,14 @@ export function getSuitDistribution(): Record<string, number> {
   const dist: Record<string, number> = {};
   for (const h of allHandCards) {
     for (const c of h.cards) {
-      dist[c.suit] = (dist[c.suit] || 0) + 1;
+      if (c.suit) dist[c.suit] = (dist[c.suit] || 0) + 1;
     }
   }
   return dist;
+}
+
+export function getJokerCount(): number {
+  return allHandCards.reduce((total, hand) => total + hand.cards.filter((card) => card.joker).length, 0);
 }
 
 export const ALL_TAGS = Array.from(
