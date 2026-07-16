@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { pathToFileURL } = require("url");
 const sharp = require("sharp");
 const {
   CARD_WIDTH,
@@ -9,6 +10,11 @@ const {
   ROLE_TRIM_COLORS,
   SUIT_META,
 } = require("./constants");
+
+const HAND_TITLE_FONT_PATH = path.join(__dirname, "assets", "fonts", "SourceHanSerifCN-Heavy.otf");
+const HAND_TITLE_FONT_FACE = fs.existsSync(HAND_TITLE_FONT_PATH)
+  ? `<style>@font-face{font-family:'Qunyou Hand Title';src:url('${pathToFileURL(HAND_TITLE_FONT_PATH).href}') format('opentype');font-weight:900;}</style>`
+  : "";
 
 function escapeXml(value) {
   return String(value ?? "")
@@ -346,30 +352,121 @@ function renderCharacter(card) {
   return cardShell(inner, { accent: roleColor, secondary: "#172b38", variant: "character", paper: "#eee9dd" });
 }
 
+function handCornerFlourish(x, y, rotation, accent) {
+  return `
+    <g transform="translate(${x} ${y}) rotate(${rotation})" fill="none" stroke="${accent}" stroke-linecap="round">
+      <path d="M0 56 V12 Q0 0 12 0 H56" stroke-width="3"/>
+      <path d="M10 48 V19 Q10 10 19 10 H48" stroke-width="1.2" opacity="0.72"/>
+      <path d="M17 39 C17 25 25 17 39 17 C31 22 28 28 28 39 C25 33 22 33 17 39 Z" stroke-width="1.4"/>
+      <circle cx="10" cy="10" r="3" fill="${accent}" stroke="none"/>
+    </g>
+  `;
+}
+
+function handRosette(cx, cy, accent) {
+  return `
+    <g transform="translate(${cx} ${cy})" fill="none" stroke="${accent}">
+      <path d="M-18 0 C-8-3 -5-8 0-18 C5-8 8-3 18 0 C8 3 5 8 0 18 C-5 8-8 3-18 0 Z" opacity="0.74"/>
+      <circle r="3" fill="${accent}" stroke="none"/>
+    </g>
+  `;
+}
+
 function renderHand(card) {
   const suit = SUIT_META[card.suit] ?? { symbol: card.suit, color: "#f4f0e8" };
   const isAction = card.handType === "行动";
-  const accent = isAction ? "#9d6cff" : "#58c7e8";
-  const inner = `
-    <rect x="34" y="34" width="682" height="982" fill="rgba(238,232,216,0.93)" stroke="${accent}" stroke-width="5"/>
-    <rect x="58" y="58" width="116" height="158" fill="#111827" stroke="${suit.color}" stroke-opacity="0.75" stroke-width="3"/>
-    <text x="116" y="126" text-anchor="middle" font-size="54" font-weight="900" fill="${suit.color}">${escapeXml(card.rank)}</text>
-    <text x="116" y="186" text-anchor="middle" font-size="54" font-weight="900" fill="${suit.color}">${escapeXml(suit.symbol)}</text>
-    <rect x="194" y="58" width="472" height="158" fill="#111827" fill-opacity="0.92"/>
-    <text x="430" y="126" text-anchor="middle" font-size="66" font-weight="900" fill="#f4f0e8">${escapeXml(card.name)}</text>
-    <text x="430" y="178" text-anchor="middle" font-size="26" font-weight="900" fill="${accent}">${escapeXml(card.handType)}</text>
-    ${artStage("手牌原画预留", "hand", { x: 58, y: 246, width: 634, height: 390, accent, imageDataUri: card.__ttsArt })}
-    <g transform="translate(78 654)">${tagsSvg(card.tags, 0, 0, { fill: "rgba(0,0,0,0.46)", stroke: "rgba(255,255,255,0.34)", max: 5 })}</g>
-    <g filter="url(#shadow)">
-      <path d="M58 720 H692 V966 H58 Z" fill="rgba(250,247,238,0.90)" stroke="${accent}" stroke-opacity="0.46" stroke-width="3"/>
-      <rect x="84" y="744" width="172" height="42" rx="7" fill="${accent}"/>
-      <text x="170" y="774" text-anchor="middle" font-size="22" font-weight="900" fill="#ffffff">使用时机</text>
-      ${fitTextBlock(card.timing, 280, 774, 370, 38, 22, 17, { fill: "#4a3b2b", weight: 800 })}
-      ${fitTextBlock(card.effectText, 84, 836, 582, 92, 30, 22, { fill: "#25201b", weight: 700 })}
-    </g>
-    <text x="375" y="1000" text-anchor="middle" font-size="15" font-weight="700" fill="#7f7565">${escapeXml(card.physicalId)}</text>
+  const accent = isAction ? "#aa7cff" : "#7bcbd2";
+  const trim = isAction ? "#d8c0ff" : "#a5e5e4";
+  const dark = isAction ? "#24173b" : "#0b3039";
+  const secondary = isAction ? "#160f24" : "#10252c";
+  const suitInk = card.suit === "红桃" || card.suit === "方块" ? "#b82f4d" : "#10252d";
+  const titleLength = Array.from(card.name ?? "").length;
+  const titleSize = titleLength <= 2 ? 70 : titleLength === 3 ? 62 : titleLength === 4 ? 54 : 46;
+  const titleSpacing = titleLength <= 2 ? 5 : titleLength === 3 ? 2 : 0;
+  const tagLabel = (card.tags ?? []).slice(0, 2).join("·") || "通用";
+  const tagSize = tagLabel.length > 5 ? 15 : tagLabel.length > 3 ? 17 : 20;
+  const artImage = card.__ttsArt
+    ? `<image href="${card.__ttsArt}" x="54" y="220" width="642" height="467" preserveAspectRatio="xMidYMid slice"/>`
+    : `<rect x="54" y="220" width="642" height="467" fill="#0a0d16"/><text x="375" y="450" text-anchor="middle" font-size="34" font-weight="900" fill="${accent}">手牌原画预留</text>`;
+
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}">
+      <defs>
+        ${HAND_TITLE_FONT_FACE}
+        <linearGradient id="handNight" x1="0" y1="0" x2="1" y2="1">
+          <stop stop-color="#071117"/><stop offset="0.5" stop-color="${secondary}"/><stop offset="1" stop-color="#05080c"/>
+        </linearGradient>
+        <linearGradient id="handSilver" x1="0" y1="0" x2="1" y2="1">
+          <stop stop-color="#f0f4ed"/><stop offset="0.32" stop-color="${trim}"/><stop offset="0.7" stop-color="${accent}"/><stop offset="1" stop-color="#dceeea"/>
+        </linearGradient>
+        <linearGradient id="handPaper" x1="0" y1="0" x2="0" y2="1">
+          <stop stop-color="#f4f0e5"/><stop offset="0.55" stop-color="#e8e1d3"/><stop offset="1" stop-color="#d7cdbb"/>
+        </linearGradient>
+        <linearGradient id="handHeader" x1="0" y1="0" x2="1" y2="0">
+          <stop stop-color="#091d25"/><stop offset="0.5" stop-color="${dark}"/><stop offset="1" stop-color="#081a21"/>
+        </linearGradient>
+        <linearGradient id="handArtFade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0.62" stop-color="#071117" stop-opacity="0"/><stop offset="1" stop-color="#071117" stop-opacity="0.76"/>
+        </linearGradient>
+        <pattern id="handWeave" width="72" height="36" patternUnits="userSpaceOnUse">
+          <path d="M-18 18 C0-6 18-6 36 18 S72 42 90 18 M-18 18 C0 42 18 42 36 18 S72-6 90 18" fill="none" stroke="${trim}" stroke-opacity="0.12"/>
+          <circle cx="36" cy="18" r="3" fill="none" stroke="#e6f6f4" stroke-opacity="0.14"/>
+        </pattern>
+        <pattern id="handDamask" width="96" height="96" patternUnits="userSpaceOnUse">
+          <path d="M48 5 C43 25 27 27 18 40 C31 37 41 42 48 53 C55 42 65 37 78 40 C69 27 53 25 48 5 Z M48 91 C43 71 27 69 18 56 C31 59 41 54 48 43 C55 54 65 59 78 56 C69 69 53 71 48 91 Z" fill="none" stroke="${trim}" stroke-opacity="0.08" stroke-width="1.4"/>
+        </pattern>
+        <clipPath id="handArtClip"><path d="M54 220 H696 V672 L681 687 H69 L54 672 Z"/></clipPath>
+        <filter id="handShadow"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#000" flood-opacity="0.5"/></filter>
+      </defs>
+      <rect width="750" height="1050" fill="#030609"/>
+      <rect x="10" y="10" width="730" height="1030" rx="18" fill="url(#handNight)" stroke="#244b54" stroke-width="4"/>
+      <rect x="21" y="21" width="708" height="1008" rx="12" fill="none" stroke="url(#handSilver)" stroke-width="2"/>
+      <rect x="31" y="31" width="688" height="988" fill="url(#handDamask)" stroke="${accent}" stroke-opacity="0.42"/>
+      ${handCornerFlourish(31, 31, 0, trim)}
+      ${handCornerFlourish(719, 31, 90, trim)}
+      ${handCornerFlourish(719, 1019, 180, trim)}
+      ${handCornerFlourish(31, 1019, 270, trim)}
+      <path d="M92 24 H658 M92 1026 H658" stroke="#d9eeeb" stroke-opacity="0.55"/>
+      <circle cx="75" cy="24" r="3" fill="${trim}"/><circle cx="675" cy="24" r="3" fill="${trim}"/>
+
+      <path d="M42 54 L66 38 H684 L708 54 V198 H42 Z" fill="url(#handHeader)" stroke="${accent}" stroke-width="2.5"/>
+      <path d="M58 62 H692 V182 H58 Z" fill="url(#handWeave)" stroke="#d5eeeb" stroke-opacity="0.35"/>
+      <path d="M188 54 V194 M572 54 V194" stroke="${trim}" stroke-opacity="0.34"/>
+      <path d="M218 72 H542 M218 164 H542" stroke="#d6ece9" stroke-opacity="0.22"/>
+      ${handRosette(380, 70, trim)}${handRosette(380, 166, trim)}
+
+      <path d="M62 50 H166 L184 68 V172 L166 190 H62 L48 176 V64 Z" fill="#e5ebe6" stroke="url(#handSilver)" stroke-width="4" filter="url(#handShadow)"/>
+      <path d="M73 62 H154 L170 78 V160 L154 176 H73 L62 165 V73 Z" fill="none" stroke="#315a64" stroke-width="1.5"/>
+      <text x="116" y="119" text-anchor="middle" font-family="Georgia, serif" font-size="60" font-weight="700" fill="${suitInk}">${escapeXml(card.rank)}</text>
+      <text x="116" y="165" text-anchor="middle" font-size="41" fill="${suitInk}">${escapeXml(suit.symbol)}</text>
+
+      <text x="380" y="135" text-anchor="middle" font-family="'Qunyou Hand Title', 'Songti SC', serif" font-size="${titleSize}" font-weight="900" letter-spacing="${titleSpacing}" fill="#f3f0e7" stroke="#071117" stroke-width="1.2" paint-order="stroke">${escapeXml(card.name)}</text>
+
+      <path d="M588 50 H688 L702 64 V176 L688 190 H588 L574 176 V64 Z" fill="${dark}" stroke="url(#handSilver)" stroke-width="3" filter="url(#handShadow)"/>
+      <path d="M600 64 H676 L688 76 V164 L676 176 H600 L588 164 V76 Z" fill="url(#handWeave)" stroke="${trim}" stroke-opacity="0.42"/>
+      <text x="638" y="105" text-anchor="middle" font-family="'Qunyou Hand Title', 'Songti SC', serif" font-size="24" font-weight="900" fill="#e7f3ee">${escapeXml(card.handType)}</text>
+      <path d="M608 119 H668" stroke="${accent}"/><circle cx="638" cy="119" r="3" fill="#d6efeb"/>
+      <text x="638" y="151" text-anchor="middle" font-size="${tagSize}" font-weight="800" fill="${trim}">${escapeXml(tagLabel)}</text>
+
+      <g filter="url(#handShadow)">
+        <path d="M48 214 H702 V675 L684 693 H66 L48 675 Z" fill="#05090d" stroke="${accent}" stroke-width="4"/>
+        <g clip-path="url(#handArtClip)">${artImage}<rect x="54" y="220" width="642" height="467" fill="url(#handArtFade)"/></g>
+        <path d="M64 232 V265 M64 232 H97 M686 232 V265 M686 232 H653" fill="none" stroke="#d9eeeb" stroke-width="2" opacity="0.65"/>
+      </g>
+
+      <g filter="url(#handShadow)">
+        <path d="M54 720 L72 704 H678 L696 720 V982 L678 998 H72 L54 982 Z" fill="url(#handPaper)" stroke="${accent}" stroke-width="3"/>
+        <path d="M68 730 L82 716 H668 L682 730 V970 L668 984 H82 L68 970 Z" fill="none" stroke="#48565a" stroke-opacity="0.28"/>
+        <path d="M94 718 H260 L274 732 L260 774 H94 L78 758 Z" fill="${dark}" stroke="${accent}" stroke-width="2"/>
+        <text x="176" y="755" text-anchor="middle" font-size="20" font-weight="900" fill="${trim}">使用时机</text>
+        <path d="M286 728 H650" stroke="#7ca3a5" stroke-opacity="0.42"/>
+        ${fitTextBlock(card.timing, 300, 758, 350, 34, 23, 16, { fill: "#3b352d", weight: 800, lineRatio: 1.2 })}
+        ${fitTextBlock(card.effectText, 88, 824, 574, 126, 27, 18, { fill: "#27231f", weight: 700, lineRatio: 1.45 })}
+        <path d="M88 956 H662" stroke="#786e5f" stroke-opacity="0.22"/>
+        <text x="375" y="980" text-anchor="middle" font-size="13" font-weight="700" fill="#81786a">${escapeXml(card.physicalId)}</text>
+      </g>
+    </svg>
   `;
-  return cardShell(inner, { accent, secondary: "#1b2440", variant: "hand", paper: "#eee9dd" });
 }
 
 function renderBack(type) {
