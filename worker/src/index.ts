@@ -49,6 +49,19 @@ const deckById = new Map(allDecks.map((deck) => [deck.id, deck]));
 const bodyById = new Map(bodies.map((body) => [body.id, body]));
 const characterById = new Map(characters.map((card) => [card.id, card]));
 const handCardById = new Map(handCards.map((card) => [card.id, card]));
+const DECLARATION_VALUES = {
+  suit: ["黑桃", "红桃", "梅花", "方块"],
+  rank: ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "小王", "大王"],
+  face: ["正面", "反面"],
+  characterRole: ["强攻", "防御", "资源", "控制", "支援", "伏击"],
+} as const;
+const DECLARATION_LABELS = {
+  suit: "花色",
+  rank: "点数",
+  face: "正反面",
+  characterRole: "角色类型",
+  handCard: "手牌",
+} as const;
 
 function isOriginAllowed(origin: string, env: Env) {
   if (!origin) return true;
@@ -659,6 +672,10 @@ export class BattleRoom extends DurableObject<Env> {
         }
         return;
       }
+      case "declaration:create":
+        this.requireStarted();
+        this.createDeclaration(player, payload);
+        return;
       case "card:inspect":
         this.requireStarted();
         return this.inspect(player, payload);
@@ -1148,6 +1165,30 @@ export class BattleRoom extends DurableObject<Env> {
       { zone: "characterSlot", ownerId: player.id, slotIndex: located.index },
     );
     return located;
+  }
+
+  private createDeclaration(player: PlayerState, payload: Record<string, unknown>) {
+    const category = cleanText(payload.category, 30) as keyof typeof DECLARATION_LABELS;
+    const value = cleanText(payload.value, 80);
+    let displayValue = value;
+
+    if (category === "handCard") {
+      const handCard = handCardById.get(value);
+      if (!handCard) throw new Error("声明的手牌不存在。");
+      displayValue = handCard.name;
+    } else {
+      const allowedValues = DECLARATION_VALUES[category as keyof typeof DECLARATION_VALUES];
+      if (!allowedValues || !(allowedValues as readonly string[]).includes(value)) {
+        throw new Error("声明选项无效。");
+      }
+    }
+
+    this.addLog(
+      `${player.nickname} 声明：${DECLARATION_LABELS[category]}【${displayValue}】`,
+      player.id,
+      "action",
+      { zone: "declaration", ownerId: player.id },
+    );
   }
 
   private locateCard(instanceId: string): LocatedCard | undefined {

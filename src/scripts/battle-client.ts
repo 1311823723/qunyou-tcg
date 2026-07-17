@@ -74,8 +74,24 @@ const catalog = JSON.parse(catalogNode.textContent || "{}") as Catalog;
 const catalogCards = Object.values(catalog.cards || {});
 const bodyCatalogCards = catalogCards.filter((card) => card.kind === "body");
 const characterCatalogCards = catalogCards.filter((card) => card.kind === "character");
+const declarationHandCards = catalogCards.filter((card) => card.kind === "hand");
 const customRoleFilterOptions = customRoleFilters(characterCatalogCards);
 const customTagFilterOptions = customTagFilters(characterCatalogCards);
+
+type DeclarationCategory = "suit" | "rank" | "face" | "characterRole" | "handCard";
+const DECLARATION_CATEGORIES: Array<{ value: DeclarationCategory; label: string }> = [
+  { value: "suit", label: "花色" },
+  { value: "rank", label: "点数" },
+  { value: "face", label: "正反面" },
+  { value: "characterRole", label: "角色类型" },
+  { value: "handCard", label: "手牌" },
+];
+const DECLARATION_STATIC_OPTIONS: Record<Exclude<DeclarationCategory, "handCard">, string[]> = {
+  suit: ["黑桃", "红桃", "梅花", "方块"],
+  rank: ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "小王", "大王"],
+  face: ["正面", "反面"],
+  characterRole: ["强攻", "防御", "资源", "控制", "支援", "伏击"],
+};
 
 const API_URL = getBattleApiUrl();
 const CUSTOM_DECK_ID = "custom";
@@ -837,6 +853,7 @@ function actionFeedback(type: string, payload: Record<string, unknown>) {
     "card:flip": "已翻转角色",
     "body:flip": "已翻转本体",
     "character:declareSkill": "已声明技能",
+    "declaration:create": "声明已记录",
     "health:set": "体力已调整",
     "megaProgress:set": "Mega 已调整",
     "deck:shuffle": "牌堆已洗混",
@@ -886,6 +903,7 @@ function actionTargetKey(type: string, payload: Record<string, unknown>) {
   if (type === "deck:recycleDiscard") return "handDeckTop";
   if (type === "resolving:discardAll") return "handDiscard";
   if (type === "turn:end") return "battle-center";
+  if (type === "declaration:create") return "battle-center";
   if (type.startsWith("marker:")) {
     const markerOwnerId = typeof payload.markerId === "string"
       ? findBodyMarkerView(payload.markerId)?.player.id
@@ -2480,6 +2498,7 @@ function renderCenter(game: GameView, me: PlayerView, opponent: PlayerView | und
     </div>
     <p class="battle-phase-hint">准备 → 摸牌 → 出牌 → 布阵 → 弃牌 → 结束</p>
     <div class="battle-toolbar">
+      ${isSpectator ? "" : `<button type="button" class="battle-toolbar__declare" data-command="declaration:open">声明</button>`}
       <button type="button" data-command="deck:shuffle" data-deck="hand">洗混共用牌堆</button>
       <button type="button" data-command="hand:randomSelect" data-owner="${opponent?.id || ""}">随机展示对手手牌</button>
       ${activeMoveTargets ? `<button type="button" data-command="move:cancel">取消落点</button>` : ""}
@@ -2957,6 +2976,8 @@ function handleCommand(element: HTMLElement) {
     send(command);
   } else if (command === "body:flip") {
     send(command);
+  } else if (command === "declaration:open") {
+    showDeclarationDialog(element);
   } else if (command === "turn:end") {
     if (element.hasAttribute("disabled")) {
       showError("当前不是你的回合。");
@@ -3024,6 +3045,75 @@ function showHandLimitHelp(returnFocus?: HTMLElement) {
     <button type="button" class="btn btn--primary" data-dialog-cancel autofocus>知道了</button>
   </div>`;
   dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
+  openBattleDialog(returnFocus);
+}
+
+function declarationOptions(category: DeclarationCategory) {
+  if (category === "handCard") {
+    return declarationHandCards.map((card) => ({ value: card.id, label: card.name }));
+  }
+  return DECLARATION_STATIC_OPTIONS[category].map((value) => ({ value, label: value }));
+}
+
+function showDeclarationDialog(returnFocus?: HTMLElement) {
+  let category: DeclarationCategory = "suit";
+  dialogContent.innerHTML = `<div class="battle-card-menu battle-declaration-dialog">
+    <span class="battle-kicker">公开声明</span>
+    <h2>声明一个结果</h2>
+    <p class="battle-dialog-hint">声明只会公开记录到操作日志，不会自动结算技能或移动卡牌。</p>
+    <div class="battle-declaration-types" role="group" aria-label="声明类别">
+      ${DECLARATION_CATEGORIES.map((item, index) => `<button type="button" data-declaration-category="${item.value}" aria-pressed="${String(index === 0)}">${item.label}</button>`).join("")}
+    </div>
+    <label class="battle-dialog-label" for="battle-declaration-value">声明内容
+      <select id="battle-declaration-value"></select>
+    </label>
+    <p class="battle-declaration-preview" aria-live="polite"></p>
+    <div class="battle-card-menu__actions battle-card-menu__actions--row">
+      <button type="button" class="battle-small-btn" data-dialog-cancel>取消</button>
+      <button type="button" class="btn btn--primary" data-dialog-confirm>确认声明</button>
+    </div>
+  </div>`;
+
+  const valueSelect = dialogContent.querySelector<HTMLSelectElement>("#battle-declaration-value");
+  const preview = dialogContent.querySelector<HTMLElement>(".battle-declaration-preview");
+  const confirm = dialogContent.querySelector<HTMLButtonElement>("[data-dialog-confirm]");
+  const renderOptions = () => {
+    const options = declarationOptions(category);
+    if (valueSelect) {
+      valueSelect.innerHTML = options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join("");
+      valueSelect.disabled = options.length === 0;
+    }
+    if (confirm) confirm.disabled = options.length === 0;
+    updatePreview();
+  };
+  const updatePreview = () => {
+    if (!preview || !valueSelect) return;
+    const categoryLabel = DECLARATION_CATEGORIES.find((item) => item.value === category)?.label || "内容";
+    const valueLabel = valueSelect.selectedOptions[0]?.textContent || "未选择";
+    preview.textContent = `日志将记录：${categoryLabel}【${valueLabel}】`;
+  };
+
+  dialogContent.querySelectorAll<HTMLElement>("[data-declaration-category]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const next = button.dataset.declarationCategory as DeclarationCategory;
+      if (!DECLARATION_CATEGORIES.some((item) => item.value === next)) return;
+      category = next;
+      dialogContent.querySelectorAll<HTMLElement>("[data-declaration-category]").forEach((item) => {
+        item.setAttribute("aria-pressed", String(item === button));
+      });
+      renderOptions();
+      valueSelect?.focus();
+    });
+  });
+  valueSelect?.addEventListener("change", updatePreview);
+  dialogContent.querySelector("[data-dialog-cancel]")?.addEventListener("click", () => dialog.close());
+  confirm?.addEventListener("click", () => {
+    if (!valueSelect?.value) return;
+    const actionId = send("declaration:create", { category, value: valueSelect.value });
+    if (actionId) dialog.close();
+  });
+
+  renderOptions();
   openBattleDialog(returnFocus);
 }
 

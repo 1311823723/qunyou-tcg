@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const sharp = require("sharp");
 const {
   DATA_DIR,
   EXPORT_DIR,
@@ -16,7 +17,6 @@ const {
   renderBodyMega,
   renderCharacter,
   renderHand,
-  renderBack,
   writeSvgAsPng,
 } = require("./render-card");
 const { makeSheets } = require("./make-sheets");
@@ -24,6 +24,7 @@ const { writeImportGuide } = require("./write-import-guide");
 const { MAT_WIDTH, MAT_HEIGHT, writeTablemat } = require("./render-tablemat");
 
 const ART_DIR = path.join(__dirname, "assets", "art");
+const BACK_DIR = path.join(__dirname, "assets", "backs");
 const CARD_ART = readJson("card-art.json");
 
 function readJson(relativePath) {
@@ -199,12 +200,35 @@ async function renderBacks() {
     character: path.join(EXPORT_DIR, "backs", "back_character.png"),
     hand: path.join(EXPORT_DIR, "backs", "back_hand.png"),
   };
-  await writeSvgAsPng(renderBack("character"), backs.character);
-  await writeSvgAsPng(renderBack("hand"), backs.hand);
+
+  await Promise.all([
+    writeBackAsset(path.join(BACK_DIR, "character.png"), backs.character),
+    writeBackAsset(path.join(BACK_DIR, "hand.png"), backs.hand),
+  ]);
+
   return {
     character: relFromExport(backs.character),
     hand: relFromExport(backs.hand),
   };
+}
+
+async function writeBackAsset(sourcePath, outPath) {
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error(`Missing card back asset: ${path.relative(process.cwd(), sourcePath)}`);
+  }
+
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  await sharp(sourcePath)
+    .resize({
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
+      fit: "contain",
+      position: "centre",
+      background: "#05050a",
+      kernel: "lanczos3",
+    })
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
+    .toFile(outPath);
 }
 
 async function renderTableAssets() {

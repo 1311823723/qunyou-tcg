@@ -9,6 +9,9 @@ const deckFiles = (await readdir(new URL("data/decks/", root)))
 const presets = await Promise.all(deckFiles.map(async (file) =>
   JSON.parse(await readFile(new URL(`data/decks/${file}`, root), "utf8")),
 ));
+const handDefinitions = JSON.parse(await readFile(new URL("data/cards/hand_cards.json", root), "utf8"));
+const sharedHandDeckSize = handDefinitions.reduce((total, definition) => total + definition.cards.length, 0);
+const publicHandIdentityPattern = /(黑桃|红桃|梅花|方块|小王|大王).+【.+】/;
 const owner = { nickname: "生命周期测试A", token: `owner-${crypto.randomUUID()}`, deckId: "deck_aggro_001" };
 const guest = { nickname: "生命周期测试B", token: `guest-${crypto.randomUUID()}`, deckId: "deck_mizai_001" };
 const step = (label) => console.log(`[battle-smoke] ${label}`);
@@ -344,6 +347,38 @@ assert.equal(JSON.stringify(declarationLog.target).includes("instanceId"), false
 step("character skill declaration logged with full details");
 
 a.messages.length = 0;
+b.messages.length = 0;
+a.send("declaration:create", { category: "suit", value: "红桃" });
+const [ownDeclaration, publicDeclaration] = await Promise.all([a, b].map((connection) =>
+  connection.waitFor((message) =>
+    message.type === "snapshot"
+    && message.snapshot.game.logs.some((log) => log.text.includes("声明：花色【红桃】")),
+  )
+));
+assert.equal(ownDeclaration.snapshot.revision, publicDeclaration.snapshot.revision);
+const publicDeclarationLog = publicDeclaration.snapshot.game.logs.findLast((log) =>
+  log.text.includes("声明：花色【红桃】")
+);
+assert.equal(publicDeclarationLog.actorId, declaredSkill.snapshot.you);
+assert.equal(publicDeclarationLog.kind, "action");
+assert.deepEqual(publicDeclarationLog.target, {
+  zone: "declaration",
+  ownerId: declaredSkill.snapshot.you,
+});
+
+a.messages.length = 0;
+a.send("declaration:create", { category: "handCard", value: "hand_basic_001" });
+await a.waitFor((message) =>
+  message.type === "snapshot"
+  && message.snapshot.game.logs.some((log) => log.text.includes("声明：手牌【出刀】")),
+);
+
+a.messages.length = 0;
+a.send("declaration:create", { category: "suit", value: "彩虹" });
+await a.waitFor((message) => message.type === "error" && /声明选项无效/.test(message.error));
+step("public declarations validated and logged");
+
+a.messages.length = 0;
 a.send("card:move", {
   instanceId: ownerCharacter.instanceId,
   targetZone: "characterHand",
@@ -374,7 +409,7 @@ assert.deepEqual(
   revealedA.cards.map(({ instanceId: _instanceId, ...card }) => card),
   revealedB.cards,
 );
-assert.match(revealedA.title, /(黑桃|红桃|梅花|方块).+【.+】/);
+assert.match(revealedA.title, publicHandIdentityPattern);
 assert.equal(revealedA.viewerId, startedA.snapshot.you);
 assert.deepEqual(revealedA.allowedActions, ["handDeckTop", "handDeckBottom", "handDiscard", "hand"]);
 assert.equal(revealedB.viewerId, startedA.snapshot.you);
@@ -382,7 +417,7 @@ assert.deepEqual(revealedB.allowedActions, []);
 assert.equal(revealedB.cards[0].instanceId, undefined);
 await a.waitFor((message) =>
   message.type === "snapshot"
-  && message.snapshot.game.logs.some((log) => /(黑桃|红桃|梅花|方块).+【.+】/.test(log.text)),
+  && message.snapshot.game.logs.some((log) => publicHandIdentityPattern.test(log.text)),
 );
 step("random reveal verified");
 
@@ -407,7 +442,7 @@ const discardSnapshot = a.messages.find((message) =>
 );
 assert.ok(discardSnapshot.snapshot.game.logs.some((log) =>
   log.text.includes("弃置了")
-  && /(黑桃|红桃|梅花|方块).+【.+】/.test(log.text)
+  && publicHandIdentityPattern.test(log.text)
 ));
 const discardLog = discardSnapshot.snapshot.game.logs.findLast((log) =>
   log.text.includes("弃置了") && log.target?.zone === "handDiscard"
@@ -537,15 +572,17 @@ step("empty character deck rejected without changing the field");
 
 a.messages.length = 0;
 const deckCountBeforeRecycle = a.revision;
+const discardCountBeforeRecycle = characterState.snapshot.game.handDiscard.length;
+const expectedHandDeckCount = characterState.snapshot.game.handDeckCount + discardCountBeforeRecycle;
 a.send("deck:recycleDiscard");
 const recycledDiscard = await a.waitFor((message) =>
   message.type === "snapshot"
   && message.snapshot.revision > deckCountBeforeRecycle
   && message.snapshot.game.handDiscard.length === 0
-  && message.snapshot.game.handDeckCount === 43,
+  && message.snapshot.game.handDeckCount === expectedHandDeckCount,
 );
 assert.ok(recycledDiscard.snapshot.game.logs.some((log) =>
-  log.text.includes("将手牌弃牌区的 1 张牌洗混并放到共用牌堆底")
+  log.text.includes(`将手牌弃牌区的 ${discardCountBeforeRecycle} 张牌洗混并放到共用牌堆底`)
 ));
 step("hand discard recycled to shared deck bottom");
 
@@ -571,7 +608,7 @@ const clearedResolving = await a.waitFor((message) =>
 );
 assert.ok(clearedResolving.snapshot.game.logs.some((log) =>
   log.text.includes("将结算区的 1 张牌全部弃置：")
-  && /(黑桃|红桃|梅花|方块).+【.+】/.test(log.text)
+  && publicHandIdentityPattern.test(log.text)
 ));
 step("resolving zone bulk discard verified");
 
@@ -708,7 +745,7 @@ const [restartedA, restartedB] = await Promise.all([
 step("restart acceptance verified");
 for (const message of [restartedA, restartedB]) {
   assert.equal(message.snapshot.game.started, true);
-  assert.equal(message.snapshot.game.handDeckCount, 42);
+  assert.equal(message.snapshot.game.handDeckCount, sharedHandDeckSize - message.snapshot.players.length * 5);
   for (const player of message.snapshot.players) {
     assert.equal(player.health, 7);
     assert.equal(player.megaProgress, 0);

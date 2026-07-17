@@ -50,6 +50,12 @@ test("body marker logs locate the owning player's marker rack", () => {
   );
 });
 
+test("declaration logs locate the public table", () => {
+  const target = { zone: "declaration", ownerId: "p1" };
+  assert.equal(battleLogTargetKey(target, "p1"), "battle-center");
+  assert.equal(battleLogRegionId(target, "p1"), "battle-center");
+});
+
 test("battle log text is summarized with semantic badges", () => {
   assert.deepEqual(formatBattleLog({
     id: "skill",
@@ -65,4 +71,14 @@ test("battle log text is summarized with semantic badges", () => {
   assert.equal(formatBattleLog({ id: "discard", at: 1, text: "玩家A 弃置了黑桃7【出刀】" }).badge, "弃置");
   assert.equal(formatBattleLog({ id: "rest", at: 1, text: "玩家A 休整了角色牌【忍者-摆子】，置于角色牌堆底" }).badge, "休整");
   assert.equal(formatBattleLog({ id: "view", at: 1, text: "玩家A 查看了 玩家B 的手牌", kind: "inspection" }).badge, "查看");
+  assert.deepEqual(formatBattleLog({
+    id: "declaration",
+    at: 1,
+    text: "玩家A 声明：花色【红桃】",
+    kind: "action",
+  }), {
+    badge: "声明",
+    tone: "declaration",
+    text: "玩家A 声明 花色【红桃】",
+  });
 });

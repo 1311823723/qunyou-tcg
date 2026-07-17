@@ -30,13 +30,14 @@ export function battleLogTargetKey(target, viewerId) {
     retired: `retired${ownerSuffix}`,
     banished: `banished${ownerSuffix}`,
     bodyMarker: `bodyMarker${ownerSuffix}`,
+    declaration: "battle-center",
   };
   return zoneKeys[target.zone];
 }
 
 export function battleLogRegionId(target, viewerId) {
   if (!target?.zone) return undefined;
-  if (["handDeck", "handDeckTop", "handDeckBottom", "handDiscard", "resolving", "turn", "restart", "room"].includes(target.zone)) {
+  if (["handDeck", "handDeckTop", "handDeckBottom", "handDiscard", "resolving", "turn", "restart", "room", "declaration"].includes(target.zone)) {
     return "battle-center";
   }
   if (target.zone === "hand" && target.ownerId === viewerId) return "battle-hand-self";
@@ -48,6 +49,14 @@ export function formatBattleLog(log) {
   const text = log?.text || "";
   if (log?.kind === "inspection" || /查看|随机展示/.test(text)) return { badge: "查看", tone: "inspection", text };
   if (log?.kind === "system" || /牌局开始|牌局已重新开始|规则更新|加入了房间/.test(text)) return { badge: "系统", tone: "system", text };
+  const declaration = text.match(/^(.+?) 声明：(.+?)【(.+?)】$/);
+  if (declaration) {
+    return {
+      badge: "声明",
+      tone: "declaration",
+      text: `${declaration[1]} 声明 ${declaration[2]}【${declaration[3]}】`,
+    };
+  }
   const skill = text.match(/^(.+?) 声明发动角色【(.+?)】的技能【(.+?)】(?:｜(.+))?$/);
   if (skill) {
     return {
