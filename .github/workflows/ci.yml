@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Validate, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      WRANGLER_LOG_PATH: ${{ runner.temp }}/wrangler-ci.log
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate card data
+        run: npm run validate
+
+      - name: Audit card art
+        run: npm run art:audit
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run battle tests
+        run: npm run test:battle
+
+      - name: Check Worker build
+        run: npm run build:battle
+
+      - name: Build website
+        run: npm run build:web

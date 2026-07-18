@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "astro dev",
     "dev:battle": "wrangler dev --config worker/wrangler.jsonc",
-    "build": "npm run cards:sync && astro build",
+    "build": "npm run build:web",
+    "build:web": "astro build",
+    "build:cards": "npm run cards:sync",
+    "build:all": "npm run build:cards && npm run build:web",
     "build:battle": "wrangler deploy --dry-run --config worker/wrangler.jsonc",
     "preview": "astro preview",
     "deploy:battle": "wrangler deploy --config worker/wrangler.jsonc",

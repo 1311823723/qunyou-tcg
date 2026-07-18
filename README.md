@@ -23,7 +23,9 @@ UI 读取以下数据源：
 ```bash
 npm run dev            # 启动本地开发服务器
 npm run dev:battle     # 启动本地实时对战 Worker（端口 8787）
-npm run build          # 构建静态站点
+npm run build          # 只构建静态站点（等同 build:web）
+npm run build:cards    # 重新生成卡面与网页卡图
+npm run build:all      # 重新生成卡面后构建站点
 npm run build:battle   # 检查 Worker 是否可以部署
 npm run preview        # 预览构建产物
 npm run validate       # 校验所有卡牌和预组数据
@@ -34,9 +36,10 @@ npm run cards:sync     # 生成网页缩略图与高清预览图
 npm run test:battle    # 校验在线牌桌的卡组与 Mega 数据
 ```
 
-`npm run build` 会自动执行 `cards:sync`。卡牌数据与原画是唯一源文件，
-`public/cards`（250px）和 `public/cards-hd`（750px）均为自动生成资源，
-无需手工维护多份画质。
+普通站点构建不会重新制卡。修改卡牌数据、卡面模板或原画后先运行
+`npm run build:cards`；需要一次完成制卡和站点构建时运行 `npm run build:all`。
+卡牌数据与原画是唯一源文件，`public/cards`（250px）和
+`public/cards-hd`（750px）均为自动生成资源，无需手工维护多份画质。
 
 ## 技术栈
 
@@ -56,6 +59,19 @@ npm run dev:battle
 前端默认连接 `http://localhost:8787`。线上部署时在 Pages 构建环境设置
 `PUBLIC_BATTLE_API_URL` 为对战 Worker 地址，并执行
 `npm run deploy:battle` 部署实时服务。
+
+## CI 与自动部署
+
+Pull Request 和 `main` 分支推送会运行数据校验、原画审计、类型检查、
+对战测试、Worker 干构建和网站构建。`main` 的 CI 全部通过后，GitHub
+Actions 会自动部署对战 Worker；Cloudflare Pages 继续使用现有 GitHub
+集成构建前端。
+
+在 GitHub 仓库中配置：
+
+- Secret `CLOUDFLARE_API_TOKEN`：具备目标 Worker 编辑权限。
+- Secret `CLOUDFLARE_ACCOUNT_ID`：Cloudflare 账户 ID。
+- Variable `BATTLE_WORKER_URL`：已部署 Worker 的完整公开地址，供部署后检查 `/lobby`。
 
 ## 项目结构
 
