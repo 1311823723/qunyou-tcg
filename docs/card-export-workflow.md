@@ -12,6 +12,8 @@
 
 ## 核心规则
 
+大图存储、Git LFS 和源图缺口处理同时遵循 `docs/asset-storage.md`。
+
 1. **禁止并行注册原画。**
    多个 `npm run art:use` 命令必须串行执行，等上一条命令完成后再执行下一条。
    原因：`tools/use-card-art.js` 会读写同一个 `data/card-art.json`，并行执行可能互相覆盖 manifest。

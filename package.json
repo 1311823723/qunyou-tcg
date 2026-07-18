@@ -19,6 +19,7 @@
     "test:battle:live": "node tools/battle/room-lifecycle.smoke.mjs",
     "print:aggro": "node tools/print-deck.js",
     "art:audit": "node tools/audit-card-art.js",
+    "art:audit:backlog": "node tools/audit-card-art.js --write-source-backlog",
     "art:use": "node tools/use-card-art.js",
     "export:tts": "node tools/tts/export-tts.js",
     "export:cards": "node tools/tts/export-tts.js --cards-only",

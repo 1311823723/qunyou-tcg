@@ -1,0 +1,6 @@
+# Large, irreplaceable art inputs use Git LFS when they are newly added or modified.
+# Existing history is intentionally not rewritten by this policy change.
+src/assets/card-art-source/** filter=lfs diff=lfs merge=lfs -text
+tools/tts/assets/art/** filter=lfs diff=lfs merge=lfs -text
+tools/tts/assets/backs/** filter=lfs diff=lfs merge=lfs -text
+tools/tts/assets/fonts/** filter=lfs diff=lfs merge=lfs -text
