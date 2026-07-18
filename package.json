@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "test:battle": "node --test tools/battle/*.test.mjs",
     "test:battle:live": "node tools/battle/room-lifecycle.smoke.mjs",
+    "test:battle:e2e": "playwright test",
     "print:aggro": "node tools/print-deck.js",
     "art:audit": "node tools/audit-card-art.js",
     "art:audit:backlog": "node tools/audit-card-art.js --write-source-backlog",
@@ -30,6 +31,7 @@
     "vite": "^7"
   },
   "devDependencies": {
+    "@playwright/test": "1.55.0",
     "@tailwindcss/vite": "^4.1.7",
     "@types/node": "^25.0.1",
     "astro": "^5.16.5",

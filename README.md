@@ -34,6 +34,7 @@ npm run print:aggro    # 打印爆杀组预组详情
 npm run export:tts     # 导出 Tabletop Simulator 本地资源
 npm run cards:sync     # 生成网页缩略图与高清预览图
 npm run test:battle    # 校验在线牌桌的卡组与 Mega 数据
+npm run test:battle:e2e # 启动本地站点与 Worker，运行 Chromium 端到端测试
 ```
 
 普通站点构建不会重新制卡。修改卡牌数据、卡面模板或原画后先运行
@@ -63,7 +64,7 @@ npm run dev:battle
 ## CI 与自动部署
 
 Pull Request 和 `main` 分支推送会运行数据校验、原画审计、类型检查、
-对战测试、Worker 干构建和网站构建。`main` 的 CI 全部通过后，GitHub
+对战单元与 Chromium 端到端测试、Worker 干构建和网站构建。`main` 的 CI 全部通过后，GitHub
 Actions 会自动部署对战 Worker；Cloudflare Pages 继续使用现有 GitHub
 集成构建前端。
 

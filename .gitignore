@@ -9,3 +9,5 @@ dist/
 !.env.example
 archive/
 exports/
+playwright-report/
+test-results/
