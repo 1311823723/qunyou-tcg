@@ -25,6 +25,7 @@ import {
 import { migrateRoomState, ROOM_STATE_VERSION } from "./state-migration.mts";
 import { addCounterMarker, appendCardMarker, takeCardMarker } from "./marker-state.mts";
 import { resolveDeclaration } from "./declaration.mts";
+import { buildLobbyRoomSummary, pruneLobbyRooms, sortLobbyRooms } from "./lobby-state.mts";
 import type { LocatedCard } from "./movement";
 import type {
   BattleLogKind,
@@ -188,20 +189,9 @@ export default {
 
 export class BattleLobby extends DurableObject<Env> {
   async listRooms(): Promise<LobbyRoomSummary[]> {
-    const now = Date.now();
-    const rooms = await this.readRooms();
-    let changed = false;
-    for (const [code, room] of Object.entries(rooms)) {
-      if (now - room.updatedAt >= ROOM_TTL_MS) {
-        delete rooms[code];
-        changed = true;
-      }
-    }
-    if (changed) await this.ctx.storage.put("rooms", rooms);
-    return Object.values(rooms).sort((left, right) => {
-      if (left.status !== right.status) return left.status === "waiting" ? -1 : 1;
-      return right.createdAt - left.createdAt;
-    });
+    const result = pruneLobbyRooms(await this.readRooms(), Date.now(), ROOM_TTL_MS);
+    if (result.changed) await this.ctx.storage.put("rooms", result.rooms);
+    return sortLobbyRooms(Object.values(result.rooms));
   }
 
   async upsertRoom(room: LobbyRoomSummary) {
@@ -1689,22 +1679,7 @@ export class BattleRoom extends DurableObject<Env> {
 
   private async syncLobby() {
     if (!this.state) return;
-    const hostConnected = !this.state.players[0]?.disconnectedAt;
-    const summary: LobbyRoomSummary = {
-      roomCode: this.state.roomCode,
-      status: this.state.started ? "playing" : "waiting",
-      players: this.state.players.map((player) => ({
-        nickname: player.nickname,
-        connected: !player.disconnectedAt,
-      })),
-      playerCount: this.state.players.length,
-      capacity: 2,
-      joinable: !this.state.started && this.state.players.length < 2 && hostConnected,
-      spectatorCount: this.state.spectators.length,
-      createdAt: this.state.createdAt,
-      ...(this.state.startedAt ? { startedAt: this.state.startedAt } : {}),
-      updatedAt: Date.now(),
-    };
+    const summary = buildLobbyRoomSummary(this.state, Date.now());
     await this.env.BATTLE_LOBBY.getByName("global").upsertRoom(summary);
   }
 

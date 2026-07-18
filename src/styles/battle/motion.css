@@ -1,0 +1,64 @@
+@keyframes battle-face-up-aura {
+  0%, 100% { box-shadow: 0 4px 12px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(98,217,139,0.18), 0 0 0 rgba(98,217,139,0); }
+  50% { box-shadow: 0 4px 12px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(98,217,139,0.38), 0 0 14px rgba(98,217,139,0.16); }
+}
+
+@keyframes battle-turn-card {
+  0% { transform: translateY(0) scale(1); filter: brightness(1); }
+  38% { transform: translateY(-0.7rem) scale(1.08); filter: brightness(1.35) saturate(1.18); }
+  100% { transform: translateY(0) scale(1); filter: none; }
+}
+
+@keyframes battle-card-flip {
+  0% { transform: perspective(700px) rotateY(0deg) scale(1); filter: brightness(1); }
+  45% { transform: perspective(700px) rotateY(88deg) scale(1.08); filter: brightness(1.6); }
+  55% { transform: perspective(700px) rotateY(92deg) scale(1.08); filter: brightness(1.6); }
+  100% { transform: perspective(700px) rotateY(180deg) scale(1); filter: none; }
+}
+
+@keyframes battle-skill-source {
+  0%, 100% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-0.45rem) scale(1.08); filter: brightness(1.45); box-shadow: 0 0 32px rgba(255,217,138,0.5); }
+}
+
+@keyframes battle-mega-source {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.1); filter: brightness(1.55) saturate(1.3); box-shadow: 0 0 42px rgba(216,183,92,0.62); }
+}
+
+@keyframes battle-skill-declared {
+  0% { transform: translateY(-0.25rem) scale(1.035); filter: brightness(1.18) saturate(1.14); }
+  55% { transform: translateY(-0.4rem) scale(1.055); }
+  100% { transform: translateY(0) scale(1); filter: none; }
+}
+
+@keyframes battle-cinematic-shade {
+  0%, 100% { opacity: 0; }
+  16%, 78% { opacity: 1; }
+}
+
+@keyframes battle-portrait-strike {
+  0% { opacity: 0; transform: translate(-50%, 12%) scale(0.82); filter: blur(8px) brightness(1.5); }
+  28% { opacity: 1; transform: translate(-50%, -2%) scale(1.06); filter: blur(0) brightness(1.2) saturate(1.12); }
+  72% { opacity: 1; transform: translate(-50%, -4%) scale(1.04); }
+  100% { opacity: 0; transform: translate(-50%, -8%) scale(1.1); }
+}
+
+@keyframes battle-caption-strike {
+  0% { opacity: 0; transform: translateX(4rem) skewX(-8deg); }
+  24%, 76% { opacity: 1; transform: translateX(0) skewX(-4deg); }
+  100% { opacity: 0; transform: translateX(-1.2rem) skewX(-4deg); }
+}
+
+@keyframes battle-energy-ring {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.18); }
+  30% { opacity: 0.75; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
+}
+
+@keyframes battle-cinematic-card-flip {
+  0% { opacity: 0; transform: translate(-50%, -45%) perspective(900px) rotateY(0deg) scale(0.65); }
+  20% { opacity: 1; }
+  62% { opacity: 1; transform: translate(-50%, -52%) perspective(900px) rotateY(180deg) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -58%) perspective(900px) rotateY(180deg) scale(1.18); }
+}

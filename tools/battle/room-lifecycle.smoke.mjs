@@ -11,7 +11,7 @@ const presets = await Promise.all(deckFiles.map(async (file) =>
 ));
 const handDefinitions = JSON.parse(await readFile(new URL("data/cards/hand_cards.json", root), "utf8"));
 const sharedHandDeckSize = handDefinitions.reduce((total, definition) => total + definition.cards.length, 0);
-const publicHandIdentityPattern = /(黑桃|红桃|梅花|方块|小王|大王).+【.+】/;
+const publicHandIdentityPattern = /(?:黑桃|红桃|梅花|方块|小王|大王).*【[^】]+】/;
 const owner = { nickname: "生命周期测试A", token: `owner-${crypto.randomUUID()}`, deckId: "deck_aggro_001" };
 const guest = { nickname: "生命周期测试B", token: `guest-${crypto.randomUUID()}`, deckId: "deck_mizai_001" };
 const step = (label) => console.log(`[battle-smoke] ${label}`);

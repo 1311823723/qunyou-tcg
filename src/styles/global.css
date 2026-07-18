@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./battle.css";
+@import "./battle/responsive.css";
 
 @theme {
   --color-bg-deep: #070711;

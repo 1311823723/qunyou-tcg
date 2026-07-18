@@ -1,0 +1,78 @@
+@media (max-width: 430px) {
+  .battle-private-rail__title .battle-hand-summary {
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .battle-player__header {
+    min-width: 0;
+    padding-inline: 0;
+  }
+
+  .battle-counter-wrapper {
+    display: flex;
+    min-width: 0;
+  }
+
+  .battle-counter-wrapper .battle-counter,
+  .battle-counter--hp {
+    min-width: 0;
+  }
+
+  .battle-counter__progress-icons,
+  #battle-app[data-table-mode="compact"] .battle-counter__progress-icons,
+  .battle-counter__hp-icons,
+  #battle-app[data-table-mode="compact"] .battle-counter__hp-icons {
+    min-width: 0;
+  }
+
+  .battle-counter__state {
+    display: none;
+  }
+
+  .battle-counter__activate-btn {
+    min-width: 3.25rem;
+    padding-inline: 0.28rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .battle-counter,
+  #battle-app[data-table-mode="compact"] .battle-counter {
+    gap: 0.22rem;
+  }
+
+  .battle-counter__progress-ring,
+  #battle-app[data-table-mode="compact"] .battle-counter__progress-ring {
+    width: 39px;
+    height: 39px;
+  }
+
+  .battle-counter__progress-icon,
+  #battle-app[data-table-mode="compact"] .battle-counter__progress-icon {
+    width: 11px;
+    height: 11px;
+  }
+}
+
+@media (max-width: 680px) {
+  .battle-move-banner {
+    position: sticky;
+    top: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.42rem;
+    margin: 0 0 0.4rem;
+    padding: 0.48rem;
+  }
+
+  .battle-move-banner__targets {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .battle-move-banner__cancel {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
