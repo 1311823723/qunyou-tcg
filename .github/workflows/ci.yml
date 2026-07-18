@@ -46,6 +46,9 @@ jobs:
       - name: Run battle tests
         run: npm run test:battle
 
+      - name: Validate playtest records
+        run: npm run test:playtest && npm run playtest:report
+
       - name: Check Worker build
         run: npm run build:battle
 

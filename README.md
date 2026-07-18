@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- **版本:** v0.2 Demo
+- **版本:** v0.2.0 Demo
 - **模式:** 1v1 对战
 - **预组:** 上头组 / 密裁组 / 操作组 / 变通组 / 执棋组 / 逆命组 / 幽幕组 / 不落组
 - **站点:** https://qunyou-tcg.pages.dev
@@ -35,6 +35,7 @@ npm run export:tts     # 导出 Tabletop Simulator 本地资源
 npm run cards:sync     # 生成网页缩略图与高清预览图
 npm run test:battle    # 校验在线牌桌的卡组与 Mega 数据
 npm run test:battle:e2e # 启动本地站点与 Worker，运行 Chromium 端到端测试
+npm run playtest:report # 校验实战记录并输出胜率、先手与问题牌统计
 ```
 
 普通站点构建不会重新制卡。修改卡牌数据、卡面模板或原画后先运行
