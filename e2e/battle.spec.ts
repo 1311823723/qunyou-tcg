@@ -111,6 +111,23 @@ test("two players can start, reconnect, declare, manage markers and spectate", a
     await hostPage.locator("[data-dialog-confirm]").click();
     await expect(marker).toHaveCount(0);
 
+    const handCard = hostPage.locator('#battle-hand-self [data-card]').first();
+    await handCard.click();
+    await hostPage.locator('[data-card-action="discard"]').click();
+    const discardZone = hostPage.locator('[data-drop-target="handDiscard"]');
+    await expect(discardZone.locator(".battle-zone-count")).toHaveText("1");
+    await discardZone.locator('[data-zone-browser="handDiscard"]').click();
+    await expect(hostPage.locator(".battle-zone-browser h2")).toHaveText("手牌弃牌区");
+    await expect(hostPage.locator(".battle-zone-browser__card")).toHaveCount(1);
+    await hostPage.locator("[data-zone-browser-search]").fill("不存在的卡");
+    await expect(hostPage.locator(".battle-zone-browser__empty")).toBeVisible();
+    await hostPage.locator("[data-zone-browser-search]").fill("");
+    await hostPage.locator(".battle-zone-browser__card").click();
+    await expect(hostPage.locator("[data-zone-browser-back]")).toBeVisible();
+    await hostPage.locator("[data-zone-browser-back]").click();
+    await expect(hostPage.locator(".battle-zone-browser__card")).toHaveCount(1);
+    await hostPage.locator(".battle-dialog__close").click();
+
     await setProfile(spectatorPage, "E2E-观战");
     await spectatorPage.goto(`/play/room?code=${roomCode}&spectate=true`);
     await waitForRoom(spectatorPage, "game");
@@ -124,6 +141,11 @@ test("two players can start, reconnect, declare, manage markers and spectate", a
     expect(spectatorHandPrivacy.hiddenCards).toBeGreaterThan(0);
     expect(spectatorHandPrivacy.exposedCards).toBe(0);
     await expect(spectatorPage.locator(".battle-log")).toContainText("手牌【出刀】");
+    const spectatorDiscard = spectatorPage.locator('[data-drop-target="handDiscard"]');
+    await spectatorDiscard.locator('[data-zone-browser="handDiscard"]').click();
+    await spectatorPage.locator(".battle-zone-browser__card").click();
+    await expect(spectatorPage.locator(".battle-card-menu__sections button")).toHaveCount(0);
+    await spectatorPage.locator(".battle-dialog__close").click();
 
     await hostPage.setViewportSize({ width: 390, height: 844 });
     await hostPage.locator('[data-command="declaration:open"]').click();

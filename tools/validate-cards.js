@@ -1,7 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 
-const dataDir = path.join(__dirname, "..", "data");
+const projectDir = path.join(__dirname, "..");
+const dataDir = path.join(projectDir, "data");
 
 function readJSON(filename) {
   const filePath = path.join(dataDir, filename);
@@ -44,6 +45,36 @@ for (const [source, data] of formalDataSources) {
   for (const term of legacyFormalTerms) {
     if (serialized.includes(term)) {
       errors.push(`${source} contains legacy card term ${term}`);
+    }
+  }
+}
+
+function collectCopyFiles(entry) {
+  const absolute = path.join(projectDir, entry);
+  if (!fs.existsSync(absolute)) return [];
+  if (fs.statSync(absolute).isFile()) return [absolute];
+  return fs.readdirSync(absolute, { withFileTypes: true }).flatMap((item) => {
+    const child = path.join(entry, item.name);
+    if (item.isDirectory()) return collectCopyFiles(child);
+    return /\.(?:astro|ts|js|mjs|md)$/.test(item.name) ? [path.join(projectDir, child)] : [];
+  });
+}
+
+const currentCopyFiles = [
+  "docs/rules.md",
+  "docs/keywords.md",
+  "docs/archetypes.md",
+  "src/pages",
+  "src/components",
+  "src/lib",
+  "src/scripts",
+].flatMap(collectCopyFiles);
+
+for (const filename of currentCopyFiles) {
+  const content = fs.readFileSync(filename, "utf-8");
+  for (const term of legacyFormalTerms) {
+    if (content.includes(term)) {
+      errors.push(`${path.relative(projectDir, filename)} contains legacy player-facing term ${term}`);
     }
   }
 }

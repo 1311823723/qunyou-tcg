@@ -139,6 +139,14 @@ type ActiveMoveTargets = {
   sourceLabel: string;
 };
 
+type ZoneBrowserState = {
+  zone: "resolving" | "handDiscard" | "retired" | "banished";
+  ownerId: string;
+  query: string;
+  scrollTop: number;
+  focusCardId?: string;
+};
+
 type TableDensity = "dense" | "balanced" | "spacious";
 type NetworkQuality = "unknown" | "good" | "slow" | "weak";
 type NetworkInformationLike = EventTarget & {
@@ -165,6 +173,7 @@ let highlightedSkillUntil = 0;
 let highlightedSkillTimer = 0;
 let logFilter: PreservedUI["logFilter"] = "all";
 let dialogReturnFocus: HTMLElement | null = null;
+let activeZoneBrowser: ZoneBrowserState | null = null;
 let animationMode = readAnimationMode();
 const effectQueue: VisualEffectEvent[] = [];
 const seenEffectIds = new Set<string>();
@@ -384,6 +393,8 @@ dialog.addEventListener("click", (event) => {
 dialog.addEventListener("close", () => {
   dialog.classList.remove("battle-dialog--art");
   dialog.classList.remove("battle-dialog--custom-picker");
+  dialog.classList.remove("battle-dialog--zone-browser");
+  activeZoneBrowser = null;
   const returnTarget = dialogReturnFocus;
   dialogReturnFocus = null;
   if (returnTarget?.isConnected) window.requestAnimationFrame(() => returnTarget.focus());
@@ -2512,15 +2523,19 @@ function renderZone(
   interactive: boolean,
   actions: Array<{ command: string; label: string }> = [],
 ) {
+  const browserLabel = cards.length > 5 ? "查看全部" : "查看";
   return `<article class="battle-zone ${cards.length ? "" : "is-empty"}" data-drop-target="${zone}" data-zone-owner="${owner.id}">
     <header>
       <strong>${title}</strong>
       <span class="battle-zone-count">${cards.length}</span>
-      ${actions.length ? `<div class="battle-zone__actions">${actions.map(({ command, label }) =>
+      ${actions.length || cards.length ? `<div class="battle-zone__actions">${actions.map(({ command, label }) =>
         `<button type="button" class="battle-zone__action" data-command="${command}" ${cards.length ? "" : "disabled"}>${label}</button>`
-      ).join("")}</div>` : ""}
+      ).join("")}${cards.length
+        ? `<button type="button" class="battle-zone__action" data-zone-browser="${zone}" data-zone-browser-owner="${owner.id}">${browserLabel}</button>`
+        : ""}</div>` : ""}
     </header>
     <div class="battle-zone__cards">${cards.slice(-5).map((card) => renderCard(card, { owner, zone, interactive, size: "pile" })).join("")}</div>
+    ${cards.length > 5 ? `<span class="battle-zone__overflow">另有 ${cards.length - 5} 张</span>` : ""}
   </article>`;
 }
 
@@ -2635,6 +2650,15 @@ function bindActions() {
     element.addEventListener("click", (event) => {
       event.stopPropagation();
       handleCommand(element);
+    });
+  });
+  root.querySelectorAll<HTMLElement>("[data-zone-browser]").forEach((element) => {
+    element.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const zone = element.dataset.zoneBrowser as ZoneBrowserState["zone"];
+      const ownerId = element.dataset.zoneBrowserOwner || "";
+      showZoneBrowser(zone, ownerId, element);
     });
   });
   root.querySelectorAll<HTMLElement>("[data-counter-set]").forEach((element) => {
@@ -2905,7 +2929,7 @@ function handleCommand(element: HTMLElement) {
     }
     send(command);
   } else if (command === "discard:viewAll") {
-    showDiscardPile();
+    showZoneBrowser("handDiscard", snapshot?.you || "", element);
   } else if (command === "resolving:discardAll") {
     const count = snapshot?.game.resolving.length || 0;
     if (!count) {
@@ -3273,6 +3297,7 @@ function openCardMenu(element: HTMLElement) {
   const instanceId = element.dataset.card || "";
   const ownerId = element.dataset.owner || "";
   const zone = element.dataset.zone || "";
+  activeZoneBrowser = null;
   renderCardDialog(instanceId, ownerId, zone, "detail");
   openBattleDialog(element);
 }
@@ -3280,6 +3305,7 @@ function openCardMenu(element: HTMLElement) {
 function renderCardDialog(instanceId: string, ownerId: string, zone: string, mode: CardDetailMode, form?: BodyDetailForm) {
   const view = resolveCardDialogView(instanceId, ownerId, form);
   const definition = view.definition;
+  dialog.classList.remove("battle-dialog--zone-browser");
   dialog.classList.toggle("battle-dialog--art", mode === "art");
   if (mode === "art") {
     dialogContent.innerHTML = renderCardArtDialog(view);
@@ -3288,6 +3314,7 @@ function renderCardDialog(instanceId: string, ownerId: string, zone: string, mod
   }
   dialogContent.innerHTML = `
     <div class="battle-card-menu battle-card-menu--rich">
+      ${activeZoneBrowser ? `<button type="button" class="battle-zone-browser__back" data-zone-browser-back>← 返回${escapeHtml(zoneBrowserTitle(activeZoneBrowser))}</button>` : ""}
       <div class="battle-card-detail">
         ${renderCardArtPreview(view)}
         ${renderCardDetailBody(view)}
@@ -3314,6 +3341,9 @@ function bindCardMenuActions(instanceId: string, ownerId: string, zone: string, 
   dialogContent.querySelector<HTMLElement>("[data-card-detail-back]")?.addEventListener("click", () => {
     renderCardDialog(instanceId, ownerId, zone, "detail", form);
   });
+  dialogContent.querySelector<HTMLElement>("[data-zone-browser-back]")?.addEventListener("click", () => {
+    renderZoneBrowser();
+  });
   dialogContent.querySelectorAll<HTMLElement>("[data-card-form]").forEach((button) => {
     button.addEventListener("click", () => renderCardDialog(instanceId, ownerId, zone, "detail", button.dataset.cardForm as BodyDetailForm));
   });
@@ -3339,13 +3369,15 @@ function cardActionDescriptors(instanceId: string, ownerId: string, zone: string
   }
   if (isMine) actions.push({ id: "move-mode", label: "点击落点移动", kind: "moveMode", quick: kind === "hand" });
   if (kind === "hand") {
-    addMove("resolving", "打到结算区", "resolving", true);
-    addMove("discard", "弃置", "handDiscard", true);
-    addMove("deck-top", "放回牌堆顶", "handDeckTop", false);
-    addMove("deck-bottom", "放回牌堆底", "handDeckBottom", false);
-    if (isMine) addMove("opponent-hand", "交给对手", "opponentHand", false);
-    if (isMine) actions.push({ id: "hand-marker", label: "暗置为标记", kind: "marker", quick: false });
-    if (zone === "handDiscard" || zone === "resolving") addMove("my-hand", "加入我的手牌", "hand", true);
+    if (isMine) {
+      addMove("resolving", "打到结算区", "resolving", true);
+      addMove("discard", "弃置", "handDiscard", true);
+      addMove("deck-top", "放回牌堆顶", "handDeckTop", false);
+      addMove("deck-bottom", "放回牌堆底", "handDeckBottom", false);
+      addMove("opponent-hand", "交给对手", "opponentHand", false);
+      actions.push({ id: "hand-marker", label: "暗置为标记", kind: "marker", quick: false });
+      if (zone === "handDiscard" || zone === "resolving") addMove("my-hand", "加入我的手牌", "hand", true);
+    }
   } else if (kind === "character") {
     if (isMine) {
       if (zone.startsWith("slot:")) {
@@ -3361,7 +3393,6 @@ function cardActionDescriptors(instanceId: string, ownerId: string, zone: string
       if (zone === "retired") addMove("shuffle-back", "洗回角色牌堆", "characterDeckShuffle", true);
     }
   }
-  actions.push({ id: "inspect", label: "查看卡牌", kind: "inspect", quick: false });
   return actions;
 }
 
@@ -3447,44 +3478,138 @@ function findVisibleCard(instanceId: string) {
   return [...pools, ...snapshot.game.handDiscard, ...snapshot.game.resolving].find((card) => card?.instanceId === instanceId);
 }
 
-function showDiscardPile() {
-  const cards = [...(snapshot?.game.handDiscard || [])].reverse();
-  if (!cards.length) {
-    showError("手牌弃牌区为空。");
-    return;
+function zoneBrowserCards(state: ZoneBrowserState) {
+  if (!snapshot) return [];
+  if (state.zone === "resolving") return snapshot.game.resolving;
+  if (state.zone === "handDiscard") return snapshot.game.handDiscard;
+  const owner = snapshot.players.find((player) => player.id === state.ownerId);
+  return state.zone === "retired" ? (owner?.retired || []) : (owner?.banished || []);
+}
+
+function zoneBrowserTitle(state: ZoneBrowserState) {
+  if (state.zone === "resolving") return "公共结算区";
+  if (state.zone === "handDiscard") return "手牌弃牌区";
+  const owner = snapshot?.players.find((player) => player.id === state.ownerId);
+  const ownerLabel = owner?.id === snapshot?.you ? "我的" : owner ? `${owner.nickname}的` : "";
+  return `${ownerLabel}${state.zone === "retired" ? "退场区" : "移出游戏区"}`;
+}
+
+function zoneBrowserHint(state: ZoneBrowserState) {
+  if (state.zone === "handDiscard") return "按牌堆顺序显示，最上方为弃牌堆顶。";
+  if (state.zone === "resolving") return "最近进入结算区的牌显示在最上方。";
+  return "最近进入该区域的角色显示在最上方。";
+}
+
+function zoneBrowserImage(card: CardView, definition?: CatalogCard) {
+  if (!definition) return "";
+  if (definition.kind === "hand") {
+    return handCardImagePath(definition.id, card.suit, card.rank, card.joker);
   }
-  dialogContent.innerHTML = `<div class="battle-card-menu battle-discard-browser">
-    <h2>手牌弃牌区 · ${cards.length} 张</h2>
-    <p class="battle-dialog-hint">按牌堆顺序显示，最上方为弃牌堆顶。</p>
-    <div class="battle-discard-list">${cards.map((card, index) => {
-      const definition = cardDefinition(card);
-      const poker = handCardIdentityLabel(card.suit, card.rank, card.joker) || "牌面未知";
-      const position = index === 0 ? "牌堆顶" : index === cards.length - 1 ? "牌堆底" : `第 ${index + 1} 张`;
-      return `<article class="battle-discard-row">
-        <div class="battle-discard-row__identity">
-          <small>${position}</small>
-          <strong>${escapeHtml(definition?.name || "未知手牌")}</strong>
-          <span>${escapeHtml(poker)}</span>
-        </div>
-        <div class="battle-discard-row__actions">
-          <button type="button" data-discard-move="${card.instanceId || ""}" data-target="handDeckTop">牌堆顶</button>
-          <button type="button" data-discard-move="${card.instanceId || ""}" data-target="handDeckBottom">牌堆底</button>
-          <button type="button" data-discard-move="${card.instanceId || ""}" data-target="hand">我的手牌</button>
-          <button type="button" data-discard-move="${card.instanceId || ""}" data-target="opponentHand">对方手牌</button>
-        </div>
-      </article>`;
-    }).join("")}</div>
-  </div>`;
-  openBattleDialog();
-  dialogContent.querySelectorAll<HTMLElement>("[data-discard-move]").forEach((button) => {
+  return definition.imagePath || "";
+}
+
+function zoneBrowserSearchText(card: CardView) {
+  const definition = cardDefinition(card);
+  return [
+    definition?.name,
+    definition?.mainRole,
+    definition?.skillName,
+    definition?.text,
+    card.suit,
+    card.rank,
+    handCardIdentityLabel(card.suit, card.rank, card.joker),
+  ].filter(Boolean).join(" ").toLocaleLowerCase("zh-CN");
+}
+
+function renderZoneBrowserList() {
+  if (!activeZoneBrowser) return;
+  const state = activeZoneBrowser;
+  const allCards = [...zoneBrowserCards(state)].reverse();
+  const query = state.query.trim().toLocaleLowerCase("zh-CN");
+  const cards = query ? allCards.filter((card) => zoneBrowserSearchText(card).includes(query)) : allCards;
+  const list = dialogContent.querySelector<HTMLElement>("[data-zone-browser-list]");
+  const result = dialogContent.querySelector<HTMLElement>("[data-zone-browser-result]");
+  if (result) result.textContent = query ? `找到 ${cards.length} / ${allCards.length} 张` : `共 ${allCards.length} 张`;
+  if (!list) return;
+  list.innerHTML = cards.length ? cards.map((card) => {
+    const definition = cardDefinition(card);
+    const poker = handCardIdentityLabel(card.suit, card.rank, card.joker);
+    const imagePath = zoneBrowserImage(card, definition);
+    const meta = definition?.kind === "hand"
+      ? poker || "牌面未知"
+      : [definition?.mainRole, definition?.skillName].filter(Boolean).join(" · ") || "公开角色牌";
+    const originalIndex = allCards.indexOf(card);
+    const position = state.zone === "handDiscard" && originalIndex === 0
+      ? "牌堆顶"
+      : state.zone === "handDiscard" && originalIndex === allCards.length - 1
+        ? "牌堆底"
+        : `第 ${originalIndex + 1} 张`;
+    return `<button type="button" class="battle-zone-browser__card" data-zone-browser-card="${card.instanceId || ""}">
+      ${imagePath ? `<img src="${imagePath}" width="80" height="112" alt="" loading="lazy" decoding="async" />` : `<span class="battle-zone-browser__placeholder" aria-hidden="true">牌</span>`}
+      <span class="battle-zone-browser__identity">
+        <small>${escapeHtml(position)}</small>
+        <strong>${escapeHtml(definition?.name || "未知卡牌")}</strong>
+        <span>${escapeHtml(meta)}</span>
+      </span>
+      <span class="battle-zone-browser__open">详情 →</span>
+    </button>`;
+  }).join("") : `<p class="battle-zone-browser__empty">没有匹配的卡牌，试试搜索牌名、点数或技能。</p>`;
+  list.scrollTop = state.scrollTop;
+  list.querySelectorAll<HTMLElement>("[data-zone-browser-card]").forEach((button) => {
     button.addEventListener("click", () => {
-      const instanceId = button.dataset.discardMove;
-      const targetZone = button.dataset.target;
-      if (!instanceId || !targetZone) return;
-      send("card:move", { instanceId, targetZone });
-      dialog.close();
+      const instanceId = button.dataset.zoneBrowserCard || "";
+      if (!instanceId) return;
+      state.scrollTop = list.scrollTop;
+      state.focusCardId = instanceId;
+      renderCardDialog(instanceId, state.ownerId, state.zone, "detail");
     });
   });
+}
+
+function renderZoneBrowser() {
+  if (!activeZoneBrowser) return;
+  const state = activeZoneBrowser;
+  const count = zoneBrowserCards(state).length;
+  dialog.classList.remove("battle-dialog--art");
+  dialog.classList.add("battle-dialog--zone-browser");
+  dialogContent.innerHTML = `<div class="battle-card-menu battle-zone-browser">
+    <span class="battle-kicker">公开区域</span>
+    <div class="battle-zone-browser__heading">
+      <div><h2>${escapeHtml(zoneBrowserTitle(state))}</h2><p class="battle-dialog-hint">${escapeHtml(zoneBrowserHint(state))}</p></div>
+      <strong data-zone-browser-result>共 ${count} 张</strong>
+    </div>
+    <label class="battle-zone-browser__search">
+      <span class="battle-sr-only">搜索区域内的卡牌</span>
+      <input type="search" value="${escapeHtml(state.query)}" placeholder="搜索牌名、花色点数、定位或技能…" data-zone-browser-search autocomplete="off" />
+    </label>
+    <div class="battle-zone-browser__list" data-zone-browser-list></div>
+  </div>`;
+  const search = dialogContent.querySelector<HTMLInputElement>("[data-zone-browser-search]");
+  const list = dialogContent.querySelector<HTMLElement>("[data-zone-browser-list]");
+  search?.addEventListener("input", () => {
+    state.query = search.value;
+    state.scrollTop = 0;
+    renderZoneBrowserList();
+  });
+  list?.addEventListener("scroll", () => { state.scrollTop = list.scrollTop; }, { passive: true });
+  renderZoneBrowserList();
+  window.requestAnimationFrame(() => {
+    if (state.focusCardId) {
+      dialogContent.querySelector<HTMLElement>(`[data-zone-browser-card="${CSS.escape(state.focusCardId)}"]`)?.focus();
+      state.focusCardId = undefined;
+    }
+  });
+}
+
+function showZoneBrowser(zone: ZoneBrowserState["zone"], ownerId: string, returnFocus?: HTMLElement) {
+  activeZoneBrowser = { zone, ownerId, query: "", scrollTop: 0 };
+  if (!zoneBrowserCards(activeZoneBrowser).length) {
+    activeZoneBrowser = null;
+    showError("该区域当前没有卡牌。");
+    return;
+  }
+  renderZoneBrowser();
+  openBattleDialog(returnFocus);
 }
 
 function showInspection(

@@ -1047,14 +1047,14 @@
     "cardType": "角色",
     "deck": "行动流",
     "mainRole": "伏击",
-    "tags": ["响应","摸牌"],
+    "tags": ["回收"],
     "cost": {
-      "type": "休整",
-      "amount": 1
+      "type": "休整自身",
+      "text": "休整自身"
     },
-    "timing": "当对手在你的回合内使用手牌响应你的操作后",
-    "skillName": "烟中恶鬼",
-    "effectText": "摸1张手牌。",
+    "timing": "当对手在你的回合内使用手牌响应你使用的牌后",
+    "skillName": "雾隐磨刃",
+    "effectText": "从共用手牌弃牌区选择1张【出刀】加入手牌。",
     "source": "鹅"
   },
   {

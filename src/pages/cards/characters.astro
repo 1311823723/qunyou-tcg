@@ -3,27 +3,46 @@ import Layout from "../../components/Layout.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import CharacterCard from "../../components/CharacterCard.astro";
 import { allCharacters, MAIN_ROLES, ALL_TAGS } from "../../lib/cards";
+import { allDecks, getDeckSlug } from "../../lib/decks";
 
 const roleLabel = "定位";
 const allLabel = "全部";
+const deckFilters = allDecks.map((deck) => ({ id: deck.id, name: deck.name, slug: getDeckSlug(deck) }));
+const characterDeckSlugs = new Map<string, string[]>();
+for (const deck of deckFilters) {
+  const characterIds = allDecks.find((item) => item.id === deck.id)?.characterIds || [];
+  for (const characterId of characterIds) {
+    characterDeckSlugs.set(characterId, [...(characterDeckSlugs.get(characterId) || []), deck.slug]);
+  }
+}
 ---
 
 <Layout title="角色牌">
-  <div class="page-wrap" id="characters-page">
+  <div class="page-wrap" id="characters-page" data-total={allCharacters.length}>
     <PageHeader title="角色牌" subtitle={`${allCharacters.length} 张 · 竖版 TCG 卡面`} />
     <div class="filter-panel scroll-reveal">
-      <input
-        type="search"
-        placeholder="搜索名称、技能…"
-        id="filter-search"
-        class="filter-search"
-        autocomplete="off"
-      />
+      <div class="filter-panel__primary">
+        <input
+          type="search"
+          placeholder="搜索名称、技能…"
+          id="filter-search"
+          class="filter-search"
+          autocomplete="off"
+        />
+        <button type="button" class="filter-reset" id="filter-reset" disabled>清空筛选</button>
+      </div>
       <div class="filter-group filter-group--roles" aria-label="按角色定位筛选">
         <span class="filter-group__label">{roleLabel}</span>
         <button class="filter-chip is-active" data-filter="role" data-value="">{allLabel}</button>
         {MAIN_ROLES.map((r) => (
           <button class="filter-chip" data-filter="role" data-value={r}>{r}</button>
+        ))}
+      </div>
+      <div class="filter-group filter-group--decks" aria-label="按所属预组筛选">
+        <span class="filter-group__label">预组</span>
+        <button class="filter-chip is-active" data-filter="deck" data-value="">{allLabel}</button>
+        {deckFilters.map((deck) => (
+          <button class="filter-chip" data-filter="deck" data-value={deck.slug}>{deck.name}</button>
         ))}
       </div>
       <details class="filter-more" id="tag-filter-panel">
@@ -43,7 +62,19 @@ const allLabel = "全部";
         <button class="filter-chip" data-view="detail">详情模式</button>
         <button class="filter-chip is-active" data-view="card">卡面模式</button>
       </div>
+      <p class="filter-summary" id="filter-summary" aria-live="polite">显示全部 {allCharacters.length} 张角色牌</p>
     </div>
+
+    <section class="recent-characters" id="recent-characters" hidden aria-labelledby="recent-characters-title">
+      <header class="recent-characters__header">
+        <div>
+          <span>本机记录</span>
+          <h2 id="recent-characters-title">最近查看</h2>
+        </div>
+        <button type="button" id="recent-characters-clear">清空记录</button>
+      </header>
+      <div class="recent-characters__list" id="recent-characters-list"></div>
+    </section>
     <div id="filter-empty" class="empty-state" style="display:none;">
       <div class="empty-state__icon">🔍</div>
       <p>没有匹配的角色牌，试试调整筛选条件</p>
@@ -59,6 +90,7 @@ const allLabel = "全部";
           data-name={c.name}
           data-skill={c.skillName}
           data-effect={c.effectText}
+          data-decks={(characterDeckSlugs.get(c.id) || []).join(",")}
           data-id={c.id}
           style={`animation-delay: ${Math.min(i * 0.03, 1)}s`}
         >
@@ -77,6 +109,7 @@ const allLabel = "全部";
           data-name={c.name}
           data-skill={c.skillName}
           data-effect={c.effectText}
+          data-decks={(characterDeckSlugs.get(c.id) || []).join(",")}
           data-id={c.id}
           style={`animation-delay: ${Math.min(i * 0.02, 1)}s`}
         >
@@ -96,216 +129,211 @@ const allLabel = "全部";
       <div id="card-zoom-body"></div>
     </div>
   </dialog>
-
-  <div id="card-compare-panel" class="card-compare-panel" style="display: none;">
-    <div class="card-compare-header">
-      <h3 class="font-bold text-sm" style="color: var(--color-text-highlight);">卡牌对比</h3>
-      <button type="button" id="card-compare-close" class="text-xs" style="color: var(--text-muted);">关闭</button>
-    </div>
-    <div class="card-compare-slots">
-      <div class="card-compare-slot" id="compare-slot-1">
-        <button type="button" class="card-compare-add" data-slot="1">+ 添加卡牌</button>
-      </div>
-      <div class="card-compare-vs">VS</div>
-      <div class="card-compare-slot" id="compare-slot-2">
-        <button type="button" class="card-compare-add" data-slot="2">+ 添加卡牌</button>
-      </div>
-    </div>
-    <div id="card-compare-result" class="card-compare-result"></div>
-  </div>
 </Layout>
 
 <script>
-  // Card compare functionality
-  const compareSlots: { [key: string]: any } = { "1": null, "2": null };
-  let activeSlot: string | null = null;
-
-  // 预组到角色的映射数据
-  const deckCharacterMap: Record<string, string[]> = {};
-
-  // View mode storage key
   const VIEW_STORAGE_KEY = "card-view-mode";
+  const RECENT_STORAGE_KEY = "qunyou-tcg-recent-characters-v1";
+  const RECENT_LIMIT = 12;
+  const page = document.getElementById("characters-page") as HTMLElement | null;
+  const totalCharacters = Number(page?.dataset.total || 0);
+  const viewButtons = document.querySelectorAll<HTMLElement>("[data-view]");
+  const detailGallery = document.getElementById("card-gallery-detail");
+  const cardGallery = document.getElementById("card-gallery-card");
+  const searchInput = document.getElementById("filter-search") as HTMLInputElement | null;
+  const resetButton = document.getElementById("filter-reset") as HTMLButtonElement | null;
+  const filterSummary = document.getElementById("filter-summary");
+  const recentSection = document.getElementById("recent-characters") as HTMLElement | null;
+  const recentList = document.getElementById("recent-characters-list");
+  const recentClear = document.getElementById("recent-characters-clear");
+  const zoomDialog = document.getElementById("card-zoom-dialog") as HTMLDialogElement | null;
+  const zoomBody = document.getElementById("card-zoom-body");
+  const cardButtons = new Map<string, HTMLButtonElement>();
+  let zoomReturnFocus: HTMLElement | null = null;
+
+  document.querySelectorAll<HTMLButtonElement>("#card-gallery-card .thumb-card__btn").forEach((button) => {
+    const id = button.dataset.cardId;
+    if (id) cardButtons.set(id, button);
+  });
+
+  function escapeHTML(value: string) {
+    return value.replace(/[&<>"']/g, (character) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;",
+    })[character] || character);
+  }
 
   function getFilters() {
     const params = new URLSearchParams(window.location.search);
     return {
       role: params.get("role") || "",
       tag: params.get("tag") || "",
+      deck: params.get("deck") || "",
       search: params.get("search") || "",
     };
   }
 
-  function applyFilters() {
-    const { role, tag, search } = getFilters();
-    const currentView = localStorage.getItem(VIEW_STORAGE_KEY) || "card";
-    const activeGallery = currentView === "detail"
-      ? document.getElementById("card-gallery-detail")
-      : document.getElementById("card-gallery-card");
-    const cards = activeGallery ? activeGallery.querySelectorAll(".filter-card") : document.querySelectorAll(".filter-card");
-    const q = search.toLowerCase();
-    let visible = 0;
-
-    cards.forEach((card) => {
-      const el = card as HTMLElement;
-      const cardRole = el.dataset.role || "";
-      const cardTags = (el.dataset.tags || "").split(",");
-      const cardName = (el.dataset.name || "").toLowerCase();
-      const cardSkill = (el.dataset.skill || "").toLowerCase();
-      const cardEffect = (el.dataset.effect || "").toLowerCase();
-
-      const matchRole = !role || cardRole === role;
-      const matchTag = !tag || cardTags.includes(tag);
-      const matchSearch = !q || cardName.includes(q) || cardSkill.includes(q) || cardEffect.includes(q);
-
-      if (matchRole && matchTag && matchSearch) {
-        el.style.display = "";
-        visible++;
-      } else {
-        el.style.display = "none";
-      }
-    });
-
-    const empty = document.getElementById("filter-empty");
-    if (empty) empty.style.display = visible === 0 ? "" : "none";
-
-    // Update subtitle - 使用固定总数 120
-    const header = document.querySelector(".page-header__sub");
-    if (header) header.textContent = `${visible} / 120 张 · 竖版 TCG 卡面`;
-
-    // Sync chip active states
-    document.querySelectorAll<HTMLElement>(".filter-chip").forEach((chip) => {
-      const filterType = chip.dataset.filter;
-      const val = chip.dataset.value || "";
-      if (filterType === "role") chip.classList.toggle("is-active", val === role);
-      if (filterType === "tag") chip.classList.toggle("is-active", val === tag);
-    });
-
-    // Sync search input
-    const input = document.getElementById("filter-search") as HTMLInputElement;
-    if (input && input.value !== search) input.value = search;
-
-    const tagPanel = document.getElementById("tag-filter-panel") as HTMLDetailsElement | null;
-    if (tagPanel && tag) tagPanel.open = true;
+  function filterLabel(type: string, value: string) {
+    const chip = [...document.querySelectorAll<HTMLElement>(`.filter-chip[data-filter="${type}"]`)]
+      .find((item) => (item.dataset.value || "") === value);
+    return chip?.textContent?.trim() || value;
   }
 
-  function updateURL(updates: Record<string, string>) {
+  function applyFilters() {
+    const { role, tag, deck, search } = getFilters();
+    const q = search.toLocaleLowerCase("zh-CN");
+    document.querySelectorAll<HTMLElement>(".filter-card").forEach((card) => {
+      const cardTags = (card.dataset.tags || "").split(",").filter(Boolean);
+      const cardDecks = (card.dataset.decks || "").split(",").filter(Boolean);
+      const searchText = [card.dataset.name, card.dataset.skill, card.dataset.effect].filter(Boolean).join(" ").toLocaleLowerCase("zh-CN");
+      const matches = (!role || card.dataset.role === role)
+        && (!tag || cardTags.includes(tag))
+        && (!deck || cardDecks.includes(deck))
+        && (!q || searchText.includes(q));
+      card.style.display = matches ? "" : "none";
+    });
+
+    const currentView = localStorage.getItem(VIEW_STORAGE_KEY) === "detail" ? "detail" : "card";
+    const activeGallery = currentView === "detail" ? detailGallery : cardGallery;
+    const visible = activeGallery
+      ? [...activeGallery.querySelectorAll<HTMLElement>(".filter-card")].filter((card) => card.style.display !== "none").length
+      : 0;
+    const empty = document.getElementById("filter-empty");
+    if (empty) empty.style.display = visible === 0 ? "" : "none";
+    const header = document.querySelector(".page-header__sub");
+    if (header) header.textContent = `${visible} / ${totalCharacters} 张 · 竖版 TCG 卡面`;
+
+    document.querySelectorAll<HTMLElement>(".filter-chip[data-filter]").forEach((chip) => {
+      const type = chip.dataset.filter || "";
+      const selected = ({ role, tag, deck } as Record<string, string>)[type] || "";
+      chip.classList.toggle("is-active", (chip.dataset.value || "") === selected);
+    });
+    if (searchInput && searchInput.value !== search) searchInput.value = search;
+    const tagPanel = document.getElementById("tag-filter-panel") as HTMLDetailsElement | null;
+    if (tagPanel && tag) tagPanel.open = true;
+
+    const parts = [
+      search ? `搜索“${search}”` : "",
+      role ? `定位：${filterLabel("role", role)}` : "",
+      tag ? `标签：${filterLabel("tag", tag)}` : "",
+      deck ? `预组：${filterLabel("deck", deck)}` : "",
+    ].filter(Boolean);
+    if (filterSummary) {
+      filterSummary.textContent = parts.length
+        ? `${parts.join(" · ")} · 显示 ${visible} / ${totalCharacters} 张`
+        : `显示全部 ${totalCharacters} 张角色牌`;
+    }
+    if (resetButton) resetButton.disabled = parts.length === 0;
+  }
+
+  function updateURL(updates: Record<string, string>, replace = false) {
     const url = new URL(window.location.href);
-    for (const [key, val] of Object.entries(updates)) {
-      if (val) url.searchParams.set(key, val);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value) url.searchParams.set(key, value);
       else url.searchParams.delete(key);
     }
-    // Reset tag when role changes, reset role when tag changes (unless both set together)
-    window.history.pushState({}, "", url.toString());
+    window.history[replace ? "replaceState" : "pushState"]({}, "", url.toString());
     applyFilters();
   }
 
-  // Filter chip clicks
-  document.querySelectorAll(".filter-chip").forEach((chip) => {
+  document.querySelectorAll<HTMLElement>(".filter-chip[data-filter]").forEach((chip) => {
     chip.addEventListener("click", () => {
-      const filterType = (chip as HTMLElement).dataset.filter!;
-      const val = (chip as HTMLElement).dataset.value || "";
-      updateURL({ [filterType]: val });
+      const type = chip.dataset.filter;
+      if (type) updateURL({ [type]: chip.dataset.value || "" });
     });
   });
-
-  // Search input
-  const searchInput = document.getElementById("filter-search");
-  if (searchInput) {
-    searchInput.addEventListener("input", () => {
-      const val = (searchInput as HTMLInputElement).value.trim();
-      updateURL({ search: val });
-    });
-  }
-
-  // Handle browser back/forward
+  searchInput?.addEventListener("input", () => updateURL({ search: searchInput.value.trim() }, true));
+  resetButton?.addEventListener("click", () => updateURL({ role: "", tag: "", deck: "", search: "" }));
   window.addEventListener("popstate", applyFilters);
-
-  // Initial filter from URL
-  applyFilters();
-
-  // View mode switching
-  const viewButtons = document.querySelectorAll("[data-view]");
-  const detailGallery = document.getElementById("card-gallery-detail");
-  const cardGallery = document.getElementById("card-gallery-card");
 
   function setViewMode(mode: string) {
     const normalizedMode = mode === "detail" ? "detail" : "card";
-    // Update button states
-    viewButtons.forEach((btn) => {
-      btn.classList.toggle("is-active", (btn as HTMLElement).dataset.view === normalizedMode);
-    });
-
-    // Toggle gallery visibility
+    viewButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.view === normalizedMode));
     if (detailGallery) detailGallery.style.display = normalizedMode === "detail" ? "" : "none";
     if (cardGallery) cardGallery.style.display = normalizedMode === "card" ? "" : "none";
-
-    // Save preference
     localStorage.setItem(VIEW_STORAGE_KEY, normalizedMode);
     applyFilters();
   }
+  viewButtons.forEach((button) => button.addEventListener("click", () => setViewMode(button.dataset.view || "card")));
 
-  // View button clicks
-  viewButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const mode = (btn as HTMLElement).dataset.view || "detail";
-      setViewMode(mode);
-    });
-  });
+  function readRecentCharacters() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(RECENT_STORAGE_KEY) || "[]");
+      return Array.isArray(stored)
+        ? stored.filter((id): id is string => typeof id === "string" && cardButtons.has(id)).slice(0, RECENT_LIMIT)
+        : [];
+    } catch {
+      return [];
+    }
+  }
 
-  // Restore saved view preference
-  const savedView = localStorage.getItem(VIEW_STORAGE_KEY) || "card";
-  setViewMode(savedView);
+  function saveRecentCharacters(ids: string[]) {
+    localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(ids.slice(0, RECENT_LIMIT)));
+    renderRecentCharacters();
+  }
 
-  // Card thumbnail click to zoom
-  const zoomDialog = document.getElementById("card-zoom-dialog") as HTMLDialogElement | null;
-  const zoomBody = document.getElementById("card-zoom-body");
-  const zoomClose = document.querySelector(".card-zoom-dialog__close");
+  function rememberCharacter(id: string) {
+    if (!cardButtons.has(id)) return;
+    saveRecentCharacters([id, ...readRecentCharacters().filter((item) => item !== id)]);
+  }
 
-  function showCardZoom(id: string, name: string, role: string, skill: string, effect: string, timing: string, cost: string) {
+  function renderRecentCharacters() {
+    if (!recentSection || !recentList) return;
+    const ids = readRecentCharacters();
+    recentSection.hidden = ids.length === 0;
+    recentList.replaceChildren();
+    for (const id of ids) {
+      const source = cardButtons.get(id);
+      if (!source) continue;
+      const item = document.createElement("article");
+      item.className = "recent-character";
+      const openButton = source.cloneNode(true) as HTMLButtonElement;
+      openButton.className = "recent-character__open thumb-card__btn";
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "recent-character__remove";
+      removeButton.dataset.recentRemove = id;
+      removeButton.setAttribute("aria-label", `从最近查看中移除 ${source.dataset.cardName || "该卡牌"}`);
+      removeButton.textContent = "×";
+      item.append(openButton, removeButton);
+      recentList.append(item);
+    }
+  }
+
+  function showCardZoom(button: HTMLElement) {
     if (!zoomDialog || !zoomBody) return;
-
+    const id = button.dataset.cardId || "";
+    const name = button.dataset.cardName || "";
+    const role = button.dataset.cardRole || "";
+    const skill = button.dataset.cardSkill || "";
+    const effect = button.dataset.cardEffect || "";
+    const timing = button.dataset.cardTiming || "";
+    const cost = button.dataset.cardCost || "";
     const roleColorMap: Record<string, string> = {
-      "强攻": "attack",
-      "防御": "defend",
-      "资源": "resource",
-      "控制": "control",
-      "支援": "support",
-      "伏击": "ambush",
+      "强攻": "attack", "防御": "defend", "资源": "resource",
+      "控制": "control", "支援": "support", "伏击": "ambush",
     };
     const roleVar = roleColorMap[role] || "attack";
-
-    zoomBody.innerHTML = `
-      <div class="card-zoom">
-        <div class="card-zoom__image">
-          <img class="card-zoom__image-placeholder" src="/cards/characters/${id}.webp" width="250" height="350" alt="${name}" decoding="async" />
-          <img class="card-zoom__image-hd" src="/cards-hd/characters/${id}.webp" width="750" height="1050" alt="${name} 高清卡图" decoding="async" />
-          <span class="card-zoom__image-loading">正在加载高清卡图…</span>
-        </div>
-        <div class="card-zoom__info">
-          <span class="tag-pill tag-pill--role" style="--role-color: var(--role-${roleVar});">${role}</span>
-          <h2 class="card-zoom__name">${name}</h2>
-          <div class="card-zoom__meta">
-            <div class="card-zoom__meta-item">
-              <span class="card-zoom__meta-label">技能名</span>
-              <span class="card-zoom__meta-value">${skill}</span>
-            </div>
-            <div class="card-zoom__meta-item">
-              <span class="card-zoom__meta-label">费用</span>
-              <span class="card-zoom__meta-value">${cost}</span>
-            </div>
-            <div class="card-zoom__meta-item">
-              <span class="card-zoom__meta-label">时机</span>
-              <span class="card-zoom__meta-value">${timing}</span>
-            </div>
-          </div>
-          <div class="card-zoom__effect-box">
-            <span class="card-zoom__effect-label">效果</span>
-            <p class="card-zoom__effect">${effect}</p>
-          </div>
-        </div>
+    zoomBody.innerHTML = `<div class="card-zoom">
+      <div class="card-zoom__image">
+        <img class="card-zoom__image-placeholder" src="/cards/characters/${encodeURIComponent(id)}.webp" width="250" height="350" alt="${escapeHTML(name)}" decoding="async" />
+        <img class="card-zoom__image-hd" src="/cards-hd/characters/${encodeURIComponent(id)}.webp" width="750" height="1050" alt="${escapeHTML(name)} 高清卡图" decoding="async" />
+        <span class="card-zoom__image-loading">正在加载高清卡图…</span>
       </div>
-    `;
-
+      <div class="card-zoom__info">
+        <span class="tag-pill tag-pill--role" style="--role-color: var(--role-${roleVar});">${escapeHTML(role)}</span>
+        <h2 class="card-zoom__name">${escapeHTML(name)}</h2>
+        <div class="card-zoom__meta">
+          <div class="card-zoom__meta-item"><span class="card-zoom__meta-label">技能名</span><span class="card-zoom__meta-value">${escapeHTML(skill)}</span></div>
+          <div class="card-zoom__meta-item"><span class="card-zoom__meta-label">费用</span><span class="card-zoom__meta-value">${escapeHTML(cost)}</span></div>
+          <div class="card-zoom__meta-item"><span class="card-zoom__meta-label">时机</span><span class="card-zoom__meta-value">${escapeHTML(timing)}</span></div>
+        </div>
+        <div class="card-zoom__effect-box"><span class="card-zoom__effect-label">效果</span><p class="card-zoom__effect">${escapeHTML(effect)}</p></div>
+      </div>
+    </div>`;
     const highResImage = zoomBody.querySelector<HTMLImageElement>(".card-zoom__image-hd");
     const loadingLabel = zoomBody.querySelector<HTMLElement>(".card-zoom__image-loading");
     const revealHighRes = () => {
@@ -318,192 +346,32 @@ const allLabel = "全部";
       highResImage.remove();
       if (loadingLabel) loadingLabel.textContent = "高清图加载失败，已显示普通卡图";
     }, { once: true });
-
+    zoomReturnFocus = button.closest(".recent-character") ? (cardButtons.get(id) || null) : button;
+    rememberCharacter(id);
     zoomDialog.showModal();
   }
 
-  // Bind click events
   document.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
-    const btn = target.closest(".thumb-card__btn") as HTMLElement | null;
-    if (btn) {
-      const id = btn.dataset.cardId || "";
-      const name = btn.dataset.cardName || "";
-      const role = btn.dataset.cardRole || "";
-      const skill = btn.dataset.cardSkill || "";
-      const effect = btn.dataset.cardEffect || "";
-      const timing = btn.dataset.cardTiming || "";
-      const cost = btn.dataset.cardCost || "";
-      showCardZoom(id, name, role, skill, effect, timing, cost);
+    const removeButton = target.closest<HTMLElement>("[data-recent-remove]");
+    if (removeButton) {
+      saveRecentCharacters(readRecentCharacters().filter((id) => id !== removeButton.dataset.recentRemove));
       return;
     }
-
-    // Close dialog
-    if (target === zoomDialog || target === zoomClose || target.closest(".card-zoom-dialog__close")) {
-      zoomDialog?.close();
-    }
-  });
-
-  // Close on Escape key
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && zoomDialog?.open) {
-      zoomDialog.close();
-    }
-  });
-
-  // Card compare functionality
-  function openComparePanel() {
-    const panel = document.getElementById("card-compare-panel");
-    if (panel) panel.style.display = "block";
-  }
-
-  function closeComparePanel() {
-    const panel = document.getElementById("card-compare-panel");
-    if (panel) panel.style.display = "none";
-    activeSlot = null;
-  }
-
-  function selectCardForCompare(cardId: string, slot: string) {
-    const card = document.querySelector(`[data-id="${cardId}"]`);
-    if (!card) return;
-
-    const name = card.getAttribute("data-name") || "";
-    const role = card.getAttribute("data-role") || "";
-    const skill = card.getAttribute("data-skill") || "";
-    const effect = card.getAttribute("data-effect") || "";
-
-    compareSlots[slot] = { id: cardId, name, role, skill, effect };
-    updateCompareSlot(slot);
-    updateCompareResult();
-  }
-
-  function updateCompareSlot(slot: string) {
-    const slotEl = document.getElementById(`compare-slot-${slot}`);
-    if (!slotEl) return;
-
-    const card = compareSlots[slot];
-    if (card) {
-      slotEl.innerHTML = `
-        <div class="card-compare-card">
-          <div class="font-bold text-sm">${card.name}</div>
-          <div class="text-xs" style="color: var(--text-muted);">${card.role}</div>
-          <div class="text-xs mt-1" style="color: var(--text-gold);">${card.skill}</div>
-          <button type="button" class="card-compare-remove" data-slot="${slot}" style="font-size: 0.6rem; color: var(--text-muted); margin-top: 0.25rem;">移除</button>
-        </div>
-      `;
-
-      // Add remove button event
-      const removeBtn = slotEl.querySelector(".card-compare-remove");
-      if (removeBtn) {
-        removeBtn.addEventListener("click", () => {
-          compareSlots[slot] = null;
-          updateCompareSlot(slot);
-          updateCompareResult();
-        });
-      }
-    } else {
-      slotEl.innerHTML = `<button type="button" class="card-compare-add" data-slot="${slot}">+ 添加卡牌</button>`;
-      const addBtn = slotEl.querySelector(".card-compare-add");
-      if (addBtn) {
-        addBtn.addEventListener("click", () => {
-          activeSlot = slot;
-          // Highlight cards for selection
-          document.querySelectorAll(".filter-card").forEach((c) => {
-            (c as HTMLElement).style.cursor = "pointer";
-            (c as HTMLElement).style.outline = "2px solid var(--color-text-highlight)";
-          });
-        });
-      }
-    }
-  }
-
-  function updateCompareResult() {
-    const resultEl = document.getElementById("card-compare-result");
-    if (!resultEl) return;
-
-    const card1 = compareSlots["1"];
-    const card2 = compareSlots["2"];
-
-    if (!card1 || !card2) {
-      resultEl.innerHTML = "";
+    const cardButton = target.closest<HTMLElement>(".thumb-card__btn");
+    if (cardButton) {
+      showCardZoom(cardButton);
       return;
     }
-
-    resultEl.innerHTML = `
-      <div class="card-compare-table">
-        <table class="w-full text-sm">
-          <thead>
-            <tr style="background: rgba(0,0,0,0.3);">
-              <th class="text-left p-2" style="color: var(--text-muted); font-size: 0.7rem;">属性</th>
-              <th class="text-center p-2" style="color: var(--text-muted); font-size: 0.7rem;">${card1.name}</th>
-              <th class="text-center p-2" style="color: var(--text-muted); font-size: 0.7rem;">${card2.name}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="p-2 font-bold" style="color: var(--text-primary);">定位</td>
-              <td class="p-2 text-center">${card1.role}</td>
-              <td class="p-2 text-center">${card2.role}</td>
-            </tr>
-            <tr style="background: rgba(0,0,0,0.15);">
-              <td class="p-2 font-bold" style="color: var(--text-primary);">技能名</td>
-              <td class="p-2 text-center" style="color: var(--text-gold);">${card1.skill}</td>
-              <td class="p-2 text-center" style="color: var(--text-gold);">${card2.skill}</td>
-            </tr>
-            <tr>
-              <td class="p-2 font-bold" style="color: var(--text-primary);">效果</td>
-              <td class="p-2 text-center" style="font-size: 0.75rem;">${card1.effect}</td>
-              <td class="p-2 text-center" style="font-size: 0.75rem;">${card2.effect}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
-
-  // Initialize compare slots
-  updateCompareSlot("1");
-  updateCompareSlot("2");
-
-  // Add click handlers for compare buttons
-  document.querySelectorAll(".card-compare-add").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      activeSlot = (btn as HTMLElement).dataset.slot || "1";
-      document.querySelectorAll(".filter-card").forEach((c) => {
-        (c as HTMLElement).style.cursor = "pointer";
-        (c as HTMLElement).style.outline = "2px solid var(--color-text-highlight)";
-      });
-    });
+    if (target === zoomDialog || target.closest(".card-zoom-dialog__close")) zoomDialog?.close();
+  });
+  recentClear?.addEventListener("click", () => saveRecentCharacters([]));
+  zoomDialog?.addEventListener("close", () => {
+    const target = zoomReturnFocus;
+    zoomReturnFocus = null;
+    if (target?.isConnected) window.requestAnimationFrame(() => target.focus());
   });
 
-  // Add click handlers for cards to select for comparison
-  document.querySelectorAll(".filter-card").forEach((card) => {
-    card.addEventListener("click", () => {
-      if (!activeSlot) return;
-
-      const el = card as HTMLElement;
-      const cardId = el.dataset.id;
-      if (cardId) {
-        selectCardForCompare(cardId, activeSlot);
-        activeSlot = null;
-
-        // Remove highlight
-        document.querySelectorAll(".filter-card").forEach((c) => {
-          (c as HTMLElement).style.cursor = "";
-          (c as HTMLElement).style.outline = "";
-        });
-      }
-    });
-  });
-
-  // Close compare panel
-  const closeBtn = document.getElementById("card-compare-close");
-  if (closeBtn) {
-    closeBtn.addEventListener("click", closeComparePanel);
-  }
-
-  // Open compare panel when any compare button is clicked
-  document.querySelectorAll(".card-compare-add").forEach((btn) => {
-    btn.addEventListener("click", openComparePanel);
-  });
+  setViewMode(localStorage.getItem(VIEW_STORAGE_KEY) || "card");
+  renderRecentCharacters();
 </script>
