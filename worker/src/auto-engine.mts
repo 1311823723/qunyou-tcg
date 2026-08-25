@@ -32,9 +32,12 @@ export const HAND_IDS = {
 
 const handById = new Map(handCardDefinitions.map((card) => [card.id, card]));
 
-export function handLimit(player: AutoPlayerState) {
+export function handLimit(player: AutoPlayerState, state?: AutoRoomState) {
   const revealed = player.characterSlots.filter((slot) => slot && "instanceId" in slot && slot.faceDown === false).length;
-  return Math.min(Math.max(0, player.health), 4) + Math.min(revealed, 2);
+  const penalty = state?.turnModifiers
+    .filter((modifier) => modifier.kind === "blood-hand-limit-down" && modifier.targetPlayerId === player.id)
+    .reduce((total, modifier) => total + modifier.count, 0) || 0;
+  return Math.max(0, Math.min(Math.max(0, player.health), 4) + Math.min(revealed, 2) - penalty);
 }
 
 export function opponentOf(state: AutoRoomState, playerId: string) {
@@ -195,8 +198,8 @@ export function advancePhase(
   if (state.currentPlayerId !== player.id) throw new Error("只有当前回合玩家可以推进阶段。");
   if (state.prompt || state.stack.length) throw new Error("请先完成当前结算或响应。");
   if (state.winnerId) throw new Error("对局已经结束。");
-  if (state.phase === "discard" && player.hand.length > handLimit(player)) {
-    const excess = player.hand.length - handLimit(player);
+  if (state.phase === "discard" && player.hand.length > handLimit(player, state)) {
+    const excess = player.hand.length - handLimit(player, state);
     state.prompt = createPrompt({
       kind: "discard",
       playerId: player.id,

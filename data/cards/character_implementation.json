@@ -87,7 +87,7 @@
     "note": "等离子充能球的降费连锁待实战验证。"
   },
   "char_020_baizi_ironclad": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_021_xiaoapan_warlock": {
@@ -95,7 +95,7 @@
     "review": "confirmed"
   },
   "char_022_weixiaokele_goblin": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_023_arthur_falcon": {
@@ -219,7 +219,7 @@
     "review": "confirmed"
   },
   "char_052_fengyaojing_desert-butcher": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_053_xiaoka_zaun-beast": {
@@ -309,7 +309,7 @@
     "review": "confirmed"
   },
   "char_073_xiaoapan_bee-medic": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_074_huihuan_nameless": {
@@ -365,43 +365,43 @@
     "review": "confirmed"
   },
   "char_087_qindi_vigilante": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_088_horus-lupercal_serial-killer": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_089_kabishou_canadian": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_090_miaosila_medium": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_091_zongzi_vulture": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_092_player_detective": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_093_tutu_snitch": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_094_daidaishou_astral": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_095_pangpanghali_prophet": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_096_kabishou_politician": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_097_horus-lupercal_bird-eater": {

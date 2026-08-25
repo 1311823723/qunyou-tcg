@@ -232,7 +232,7 @@
     ]
   },
   "char_020_baizi_ironclad": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -256,7 +256,7 @@
     ]
   },
   "char_022_weixiaokele_goblin": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -608,7 +608,7 @@
     ]
   },
   "char_052_fengyaojing_desert-butcher": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -856,7 +856,7 @@
     ]
   },
   "char_073_xiaoapan_bee-medic": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -1021,7 +1021,7 @@
     ]
   },
   "char_087_qindi_vigilante": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "damage_after",
       "relation": "target_self",
@@ -1032,7 +1032,7 @@
     ]
   },
   "char_088_horus-lupercal_serial-killer": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "health_lost_after",
       "relation": "source_self",
@@ -1043,7 +1043,7 @@
     ]
   },
   "char_089_kabishou_canadian": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "judgment_resolved",
       "relation": "any",
@@ -1055,7 +1055,7 @@
     ]
   },
   "char_090_miaosila_medium": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "damage_after",
       "relation": "target_self",
@@ -1067,7 +1067,7 @@
     ]
   },
   "char_091_zongzi_vulture": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "hand_discarded",
       "relation": "source_self",
@@ -1079,7 +1079,7 @@
     ]
   },
   "char_092_player_detective": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "judgment_resolved",
       "relation": "source_self",
@@ -1090,7 +1090,7 @@
     ]
   },
   "char_093_tutu_snitch": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "damage_after",
       "relation": "source_opponent",
@@ -1101,7 +1101,7 @@
     ]
   },
   "char_094_daidaishou_astral": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "judgment_revealed",
       "relation": "any",
@@ -1113,7 +1113,7 @@
     ]
   },
   "char_095_pangpanghali_prophet": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "health_recovered",
       "relation": "target_self",
@@ -1126,7 +1126,7 @@
     ]
   },
   "char_096_kabishou_politician": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "judgment_resolved",
       "relation": "any",

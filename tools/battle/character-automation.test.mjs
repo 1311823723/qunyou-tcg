@@ -5,6 +5,7 @@ import implementation from "../../data/cards/character_implementation.json" with
 import aggroDeck from "../../data/decks/aggro.deck.json" with { type: "json" };
 import comboDeck from "../../data/decks/combo.deck.json" with { type: "json" };
 import mizaiDeck from "../../data/decks/mizai.deck.json" with { type: "json" };
+import bloodDeck from "../../data/decks/blood.deck.json" with { type: "json" };
 import {
   characterSkillForId,
   registeredCharacterSkillIds,
@@ -93,11 +94,12 @@ test("本地固定场景可指定牌序和双方角色位", () => {
   assert.equal(scenario.state.handDeck.pop().definitionId, "hand_trick_001");
 });
 
-test("操作组、上头组与密裁组48张角色全部有稳定ID注册模块", () => {
+test("已解锁预组的角色全部有稳定ID注册模块", () => {
   const registered = new Set(registeredCharacterSkillIds());
-  assert.equal(registered.size, 48);
-  assert.deepEqual(new Set([...comboDeck.characterIds, ...aggroDeck.characterIds, ...mizaiDeck.characterIds]), registered);
-  for (const id of [...comboDeck.characterIds, ...aggroDeck.characterIds, ...mizaiDeck.characterIds]) {
+  const expected = new Set([...comboDeck.characterIds, ...aggroDeck.characterIds, ...mizaiDeck.characterIds, ...bloodDeck.characterIds]);
+  assert.equal(registered.size, expected.size);
+  assert.deepEqual(expected, registered);
+  for (const id of expected) {
     assert.ok(characterSkillForId(id));
     assert.equal(implementation[id].automation, "implemented");
   }

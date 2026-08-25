@@ -53,6 +53,7 @@ import type {
   CharacterSkillResolutionItem,
   HandResolutionItem,
   PendingBodyTrigger,
+  PendingJudgment,
   ResolutionItem,
   SkillContinuation,
 } from "./auto-types";
@@ -125,6 +126,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         this.state.turnModifiers ??= [];
         this.state.recentEvents ??= [];
         this.state.pendingBodyTriggers ??= [];
+        this.state.pendingJudgments ??= [];
         this.state.processedActionIds ??= [];
         for (const player of this.state.players) player.bodyState ??= this.newBodyState(player.body?.definitionId);
         this.state.stateVersion = AUTO_STATE_VERSION;
@@ -158,6 +160,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       deployedThisPhase: 0,
       recentEvents: [],
       pendingBodyTriggers: [],
+      pendingJudgments: [],
       revision: 0,
       logs: [],
       processedActionIds: [],
@@ -596,6 +599,17 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!item.cancelled) this.resolveHandEffect(item, effective);
     else if (effective === HAND_IDS.strike && item.cancelledByPlayerId && item.cancellationReason === "dodge") {
       this.emitEvent("strike_dodged", { sourcePlayerId: item.cancelledByPlayerId, targetPlayerId: item.sourcePlayerId, cardDefinitionId: effective });
+      if (item.drawSourceOnDodge) {
+        const source = playerById(this.state, item.sourcePlayerId);
+        if (source) {
+          const amount = drawCards(this.state, source, 1, (items) => this.shuffle(items));
+          if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: source.id, targetPlayerId: source.id, amount, metadata: { outsideDrawPhase: true } });
+        }
+      }
+    }
+    if (effective === HAND_IDS.strike && !item.damagePending && !item.bloodAfterResolved) {
+      this.resolveBloodStrikeAfterDamage(item.sourcePlayerId, Number(item.damageDealt || 0), item);
+      item.bloodAfterResolved = true;
     }
     if (!item.damagePending && item.returnCharacterOnDamageInstanceId && Number(item.damageDealt || 0) > 0) {
       const source = playerById(this.state, item.sourcePlayerId);
@@ -658,6 +672,9 @@ export class AutoBattleRoom extends DurableObject<Env> {
               wasRespondedTo: Boolean(item.wasRespondedTo),
               bodyEffect: item.bodyEffect,
               returnCharacterOnDamageInstanceId: item.returnCharacterOnDamageInstanceId,
+              healSourceOnDamageAtLeast: item.healSourceOnDamageAtLeast,
+              healSourceIfHealthNotHigher: item.healSourceIfHealthNotHigher,
+              healSourceOnAnyDamage: item.healSourceOnAnyDamage,
             },
           });
           if (applied === undefined) item.damagePending = true;
@@ -984,6 +1001,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
       const returnId = cleanText(continuation.returnCharacterOnDamageInstanceId, 80);
       if (applied > 0 && source && returnId) this.shuffleRetiredCharacter(source, returnId);
       if (applied === 0 && continuation.bodyEffect === "aggro-mega-strike" && source) this.loseHealth(source, 1, "【爱至癫狂】未造成伤害");
+      this.resolveBloodStrikeAfterDamage(sourceId, applied, {
+        healSourceOnDamageAtLeast: Number(continuation.healSourceOnDamageAtLeast || 0) || undefined,
+        healSourceIfHealthNotHigher: continuation.healSourceIfHealthNotHigher === true,
+        healSourceOnAnyDamage: continuation.healSourceOnAnyDamage === true,
+      });
       this.resolveMizaiPrediction(
         sourceId,
         cleanText(continuation.cardInstanceId, 80),
@@ -1236,6 +1258,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       });
       return;
     }
+    this.advancePendingJudgment();
   }
 
   private openBodyPrompt(player: AutoPlayerState, trigger: PendingBodyTrigger) {
@@ -1388,14 +1411,21 @@ export class AutoBattleRoom extends DurableObject<Env> {
       if (index < 0) throw new Error("手牌已变化。");
       const [card] = player.hand.splice(index, 1); card.ownerId = undefined; this.state.handDiscard.push(card);
       clear();
-      if (action === "blood-self-discard") draw(1);
+      if (action === "blood-self-discard") {
+        draw(1);
+        this.openNextSkillTrigger();
+      }
       return;
     }
     if (action === "blood-judge") {
-      if (value === "pass") return clear();
+      if (value === "pass") {
+        clear();
+        this.openNextSkillTrigger();
+        return;
+      }
       if (value !== "judge") throw new Error("判定选择无效。");
       this.state.usageCounters[turnKey("blood")] = (this.state.usageCounters[turnKey("blood")] || 0) + 1;
-      clear(); this.resolveBloodJudgment(player); return;
+      clear(); this.startJudgment(player, "blood-body"); return;
     }
     if (action === "defense-reward") {
       if (value === "pass") return clear();
@@ -1424,22 +1454,78 @@ export class AutoBattleRoom extends DurableObject<Env> {
     throw new Error("本体技能选择无效。");
   }
 
-  private resolveBloodJudgment(player: AutoPlayerState) {
+  private judgmentColor(card: CardInstance) {
+    return card.joker === "big" || ["红桃", "方块"].includes(card.suit || "") ? "红色" : "黑色";
+  }
+
+  private startJudgment(player: AutoPlayerState, purpose: PendingJudgment["purpose"] = "generic") {
     if (!this.state) return;
     const [card] = this.takeTopHandCards(1);
     if (!card) return;
     card.ownerId = undefined;
     this.state.handDiscard.push(card);
-    const red = card.joker === "big" || ["红桃", "方块"].includes(card.suit || "");
-    const color = red ? "红色" : "黑色";
+    const judgment: PendingJudgment = {
+      id: crypto.randomUUID(), playerId: player.id, purpose, stage: "revealed", cardInstanceId: card.instanceId,
+    };
+    this.state.pendingJudgments.push(judgment);
+    const color = this.judgmentColor(card);
     this.addLog(`${player.nickname}的判定牌为${color}【${handName(card.definitionId)}】`, player.id, { zone: "handDiscard" });
-    this.emitEvent("judgment_revealed", { sourcePlayerId: player.id, targetPlayerId: player.id, cardDefinitionId: card.definitionId, metadata: { color, bodySkill: true } });
-    this.emitEvent("judgment_resolved", { sourcePlayerId: player.id, targetPlayerId: player.id, cardDefinitionId: card.definitionId, metadata: { color, bodySkill: true } });
+    this.emitEvent("judgment_revealed", {
+      sourcePlayerId: player.id, targetPlayerId: player.id, cardDefinitionId: card.definitionId,
+      metadata: { color, bodySkill: purpose === "blood-body", judgmentId: judgment.id, cardInstanceId: card.instanceId },
+    });
+    this.openNextSkillTrigger();
+  }
+
+  private pendingJudgment(id?: string) {
+    if (!this.state) return undefined;
+    return id
+      ? this.state.pendingJudgments.find((judgment) => judgment.id === id)
+      : this.state.pendingJudgments.at(-1);
+  }
+
+  private pendingJudgmentCard(judgment?: PendingJudgment) {
+    return judgment ? this.state?.handDiscard.find((card) => card.instanceId === judgment.cardInstanceId) : undefined;
+  }
+
+  private advancePendingJudgment() {
+    if (!this.state || this.state.prompt || this.state.stack.length) return;
+    const judgment = this.pendingJudgment();
+    if (!judgment) return this.openNextBodyTrigger();
+    const player = playerById(this.state, judgment.playerId);
+    const card = this.pendingJudgmentCard(judgment);
+    if (!player || !card) {
+      this.state.pendingJudgments = this.state.pendingJudgments.filter((candidate) => candidate.id !== judgment.id);
+      return this.openNextSkillTrigger();
+    }
+    if (judgment.stage === "revealed") {
+      judgment.stage = "resolved";
+      const color = this.judgmentColor(card);
+      this.emitEvent("judgment_resolved", {
+        sourcePlayerId: player.id, targetPlayerId: player.id, cardDefinitionId: card.definitionId,
+        metadata: { color, bodySkill: judgment.purpose === "blood-body", judgmentId: judgment.id, cardInstanceId: card.instanceId },
+      });
+      return this.openNextSkillTrigger();
+    }
+    this.state.pendingJudgments = this.state.pendingJudgments.filter((candidate) => candidate.id !== judgment.id);
+    const red = this.judgmentColor(card) === "红色";
+    if (judgment.purpose === "blood-prophet") {
+      if (red) {
+        const recovered = heal(player, 1);
+        if (recovered) this.emitEvent("health_recovered", { sourcePlayerId: player.id, targetPlayerId: player.id, amount: recovered });
+      } else {
+        this.loseHealth(player, 1, "【命运预视】黑色判定");
+        const amount = drawCards(this.state, player, 2, (items) => this.shuffle(items));
+        if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: true } });
+      }
+      return this.openNextSkillTrigger();
+    }
+    if (judgment.purpose !== "blood-body") return this.openNextSkillTrigger();
     if (red) {
       const amount = drawCards(this.state, player, 2, (items) => this.shuffle(items));
       this.addLog(`${player.nickname}因红色判定摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: player.id });
       if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
-      return;
+      return this.openNextSkillTrigger();
     }
     const opponent = opponentOf(this.state, player.id);
     if (opponent?.hand.length) this.discardRandom(opponent, player.id);
@@ -1451,7 +1537,6 @@ export class AutoBattleRoom extends DurableObject<Env> {
       });
     } else {
       const amount = drawCards(this.state, player, 1, (items) => this.shuffle(items));
-      this.addLog(`${player.nickname}摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: player.id });
       if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
     }
   }
@@ -1608,6 +1693,21 @@ export class AutoBattleRoom extends DurableObject<Env> {
       bodySkillForId(bodyId(player))?.onPhaseEntered?.(this.bodySkillContext(player), phase, _previousPlayer);
     }
     if (phase !== "end" || !current) return;
+    const storedCards = this.state.turnModifiers.filter((modifier) => modifier.kind === "blood-stored-card"
+      && Number(modifier.expiresAtTurnNumber || 0) <= this.state!.turnNumber);
+    for (const modifier of storedCards) {
+      const target = modifier.targetPlayerId ? playerById(this.state, modifier.targetPlayerId) : undefined;
+      const marker = target?.markers.find((entry) => entry.kind === "cards" && entry.cards.some((card) => card.instanceId === modifier.targetCardInstanceId));
+      if (target && marker?.kind === "cards") {
+        const cardIndex = marker.cards.findIndex((card) => card.instanceId === modifier.targetCardInstanceId);
+        const [card] = marker.cards.splice(cardIndex, 1);
+        card.ownerId = target.id;
+        target.hand.push(card);
+        if (!marker.cards.length) target.markers.splice(target.markers.indexOf(marker), 1);
+        this.addLog(`${target.nickname}收回了本回合被封存的1张手牌`, target.id, { zone: "hand", ownerId: target.id });
+      }
+      this.state.turnModifiers.splice(this.state.turnModifiers.findIndex((candidate) => candidate.id === modifier.id), 1);
+    }
     const recoil = this.state.turnModifiers.filter((modifier) => modifier.kind === "aggro-sheriff-recoil" && modifier.targetPlayerId === current.id);
     for (const modifier of recoil) {
       const owner = playerById(this.state, modifier.ownerId);
@@ -1641,9 +1741,15 @@ export class AutoBattleRoom extends DurableObject<Env> {
   }
 
   private loseHealth(player: AutoPlayerState, amount: number, reason: string) {
-    if (!this.state) return;
+    if (!this.state) return 0;
     const lost = damage(this.state, player, amount);
+    if (lost > 0) {
+      const key = `health-reduction-events:${this.state.turnNumber}:${player.id}`;
+      this.state.usageCounters[key] = (this.state.usageCounters[key] || 0) + 1;
+      this.emitEvent("health_lost_after", { sourcePlayerId: player.id, targetPlayerId: player.id, amount: lost });
+    }
     this.addLog(`${player.nickname}因${reason}失去 ${lost} 点体力，当前体力 ${player.health}`, player.id, { zone: "player", ownerId: player.id });
+    return lost;
   }
 
   private findCharacterInstance(player: AutoPlayerState, instanceId: string) {
@@ -1837,10 +1943,68 @@ export class AutoBattleRoom extends DurableObject<Env> {
         }
         return applied;
       },
+      loseHealth: (amount, reason = "角色技能") => this.loseHealth(player, amount, reason),
+      loseOpponentHealth: (amount, reason = "角色技能") => {
+        const target = opponentOf(state, player.id);
+        return target ? this.loseHealth(target, amount, reason) : 0;
+      },
       heal: (amount) => {
         const recovered = heal(player, amount);
         if (recovered) this.emitEvent("health_recovered", { sourcePlayerId: player.id, targetPlayerId: player.id, amount: recovered });
         return recovered;
+      },
+      startJudgment: (purpose = "generic") => this.startJudgment(player, purpose),
+      currentJudgmentCard: () => this.pendingJudgmentCard(this.pendingJudgment(String(event?.metadata?.judgmentId || ""))),
+      replaceCurrentJudgment: (instanceId) => {
+        const judgment = this.pendingJudgment(String(event?.metadata?.judgmentId || ""));
+        const previous = this.pendingJudgmentCard(judgment);
+        const index = player.hand.findIndex((card) => card.instanceId === instanceId);
+        if (!judgment || judgment.stage !== "revealed" || !previous || index < 0) throw new Error("当前判定已无法替换。");
+        const [replacement] = player.hand.splice(index, 1);
+        replacement.ownerId = undefined;
+        state.handDiscard.push(replacement);
+        const previousIndex = state.handDiscard.findIndex((card) => card.instanceId === previous.instanceId);
+        state.handDiscard.splice(previousIndex, 1);
+        previous.ownerId = player.id;
+        player.hand.push(previous);
+        judgment.cardInstanceId = replacement.instanceId;
+        this.addLog(`${player.nickname}用【${handName(replacement.definitionId)}】替换了判定牌`, player.id, { zone: "handDiscard" });
+        return previous;
+      },
+      drawJudgmentCandidate: () => {
+        const [candidate] = this.takeTopHandCards(1);
+        if (!candidate) return undefined;
+        candidate.ownerId = undefined;
+        state.handDiscard.push(candidate);
+        this.addLog(`${player.nickname}进行了第二次判定：${this.judgmentColor(candidate)}【${handName(candidate.definitionId)}】`, player.id, { zone: "handDiscard" });
+        return candidate;
+      },
+      chooseJudgmentCandidate: (instanceId) => {
+        const judgment = this.pendingJudgment(String(event?.metadata?.judgmentId || ""));
+        const card = state.handDiscard.find((candidate) => candidate.instanceId === instanceId);
+        if (!judgment || judgment.stage !== "resolved" || !card) throw new Error("选择的判定牌已无效。");
+        judgment.cardInstanceId = card.instanceId;
+        const resolvedEvent = state.recentEvents.find((candidate) => candidate.id === event?.id);
+        if (resolvedEvent) {
+          resolvedEvent.cardDefinitionId = card.definitionId;
+          resolvedEvent.metadata = { ...resolvedEvent.metadata, color: this.judgmentColor(card), cardInstanceId: card.instanceId };
+        }
+      },
+      useVirtualStrike: (instanceId, options = {}) => this.useVirtualStrike(player, instanceId, options.damage),
+      storeOpponentHandCard: (instanceId, label) => {
+        const target = opponentOf(state, player.id);
+        const index = target?.hand.findIndex((card) => card.instanceId === instanceId) ?? -1;
+        if (!target || index < 0) throw new Error("要封存的手牌已不存在。");
+        const [card] = target.hand.splice(index, 1);
+        card.ownerId = target.id;
+        const marker = target.markers.find((entry) => entry.kind === "cards" && entry.label === label);
+        if (marker?.kind === "cards") marker.cards.push(card);
+        else target.markers.push({ id: crypto.randomUUID(), kind: "cards", label, ownerId: target.id, cards: [card] });
+        state.turnModifiers.push({
+          id: crypto.randomUUID(), ownerId: player.id, kind: "blood-stored-card", count: 1,
+          targetPlayerId: target.id, targetCardInstanceId: card.instanceId, expiresAtTurnNumber: state.turnNumber,
+        });
+        this.emitEvent("hand_lost", { sourcePlayerId: player.id, targetPlayerId: target.id, amount: 1 });
       },
       markerCount: (label) => {
         const marker = player.markers.find((entry) => entry.kind === "counter" && entry.label === label);
@@ -2070,6 +2234,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       return;
     }
     this.continueStack();
+    this.openNextSkillTrigger();
   }
 
   private resumeDyingAfterCharacterSkill(player: AutoPlayerState, context: Record<string, unknown>) {
@@ -2418,6 +2583,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.state.prompt = undefined;
     this.state.recentEvents = [];
     this.state.pendingBodyTriggers = [];
+    this.state.pendingJudgments = [];
     this.state.usageCounters = {};
     this.state.turnModifiers = [];
     for (const player of this.state.players) {
@@ -2461,7 +2627,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
       this.state.handDiscard.push(card);
     }
     if (cards.length) {
-      this.emitEvent("hand_discarded", { sourcePlayerId: actorId, targetPlayerId: target.id, amount: cards.length });
+      this.emitEvent("hand_discarded", {
+        sourcePlayerId: actorId, targetPlayerId: target.id, amount: cards.length,
+        metadata: { cardInstanceIds: cards.map((card) => card.instanceId).join(",") },
+      });
       this.addLog(`${target.nickname}弃置了 ${cards.length} 张手牌`, actorId, { zone: "handDiscard" });
     }
     return cards;
@@ -2560,6 +2729,36 @@ export class AutoBattleRoom extends DurableObject<Env> {
       this.state.turnModifiers.splice(undodgeableIndex, 1);
       item.cannotDodge = true;
       this.addLog(`${source.nickname}的本次【出刀】不可被【闪避】响应`, source.id, { zone: "resolving" });
+    }
+    const dodgeDrawIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === source.id && modifier.kind === "blood-next-strike-dodge-draw");
+    if (dodgeDrawIndex >= 0) {
+      this.state.turnModifiers.splice(dodgeDrawIndex, 1);
+      item.drawSourceOnDodge = true;
+    }
+    if (this.state.turnModifiers.some((modifier) => modifier.ownerId === source.id && modifier.kind === "blood-strike-heal-strong")) {
+      item.healSourceOnDamageAtLeast = 2;
+    }
+    const conditionalIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === source.id && modifier.kind === "blood-next-strike-heal-conditional");
+    if (conditionalIndex >= 0) {
+      const [modifier] = this.state.turnModifiers.splice(conditionalIndex, 1);
+      item.healSourceIfHealthNotHigher = modifier.count === 1;
+      item.healSourceOnAnyDamage = modifier.count === 2;
+    }
+  }
+
+  private resolveBloodStrikeAfterDamage(sourcePlayerId: string, applied: number, flags: Partial<HandResolutionItem>) {
+    if (!this.state || applied <= 0) return;
+    const source = playerById(this.state, sourcePlayerId);
+    const target = source ? opponentOf(this.state, source.id) : undefined;
+    if (!source) return;
+    const shouldHeal = (Number(flags.healSourceOnDamageAtLeast || 0) > 0 && applied >= Number(flags.healSourceOnDamageAtLeast))
+      || flags.healSourceOnAnyDamage === true
+      || (flags.healSourceIfHealthNotHigher === true && Boolean(target && source.health <= target.health));
+    if (!shouldHeal) return;
+    const recovered = heal(source, 1);
+    if (recovered) {
+      this.emitEvent("health_recovered", { sourcePlayerId: source.id, targetPlayerId: source.id, amount: recovered });
+      this.addLog(`${source.nickname}因角色技能回复1点体力`, source.id, { zone: "player", ownerId: source.id });
     }
   }
 
@@ -2700,6 +2899,28 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.addLog(`${opponent.nickname}交出【出刀】，视为由${source.nickname}使用`, source.id, { zone: "resolving" });
   }
 
+  private useVirtualStrike(source: AutoPlayerState, instanceId: string, damageAmount?: number) {
+    if (!this.state) return;
+    const index = source.hand.findIndex((card) => card.instanceId === instanceId);
+    const target = opponentOf(this.state, source.id);
+    if (index < 0 || !target) throw new Error("用于视为【出刀】的手牌已无效。");
+    const [card] = source.hand.splice(index, 1);
+    this.state.resolving.push(card);
+    const item: HandResolutionItem = {
+      kind: "hand", id: crypto.randomUUID(), sourcePlayerId: source.id, card,
+      definitionId: HAND_IDS.strike, targetPlayerId: target.id,
+      ...(damageAmount && damageAmount > 1 ? { damageBonus: damageAmount - 1 } : {}),
+    };
+    this.attachStrikeModifiers(source, item);
+    this.state.stack.push(item);
+    this.emitEvent("card_used", {
+      sourcePlayerId: source.id, targetPlayerId: target.id, cardDefinitionId: HAND_IDS.strike,
+      metadata: { actionCard: false, virtual: true, cardInstanceId: card.instanceId },
+    });
+    this.addLog(`${source.nickname}视为使用了1张【出刀】`, source.id, { zone: "resolving" });
+    beginResponseWindow(this.state, item);
+  }
+
   private applyDamage(
     target: AutoPlayerState,
     amount: number,
@@ -2767,6 +2988,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
       const eventKey = `damage-events-dealt:${this.state.turnNumber}:${sourceId}`;
       this.state.usageCounters[eventKey] = (this.state.usageCounters[eventKey] || 0) + 1;
     }
+    if (applied > 0) {
+      const healthKey = `health-reduction-events:${this.state.turnNumber}:${target.id}`;
+      this.state.usageCounters[healthKey] = (this.state.usageCounters[healthKey] || 0) + 1;
+    }
     this.addLog(`${target.nickname} 受到 ${applied} 点伤害，当前体力 ${target.health}`, sourceId, { zone: "player", ownerId: target.id });
     this.emitEvent("damage_after", { sourcePlayerId: sourceId, targetPlayerId: target.id, cardDefinitionId, amount: applied });
     if (this.state.prompt?.kind === "dying" && options.deferred && options.continuation) {
@@ -2780,7 +3005,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
     const [card] = player.hand.splice(this.randomIndex(player.hand.length), 1);
     card.ownerId = undefined;
     this.state.handDiscard.push(card);
-    this.emitEvent("hand_discarded", { sourcePlayerId: actorId, targetPlayerId: player.id, amount: 1 });
+    this.emitEvent("hand_discarded", {
+      sourcePlayerId: actorId, targetPlayerId: player.id, amount: 1,
+      metadata: { cardInstanceIds: card.instanceId },
+    });
     this.addLog(`${player.nickname} 随机弃置了1张手牌`, actorId, { zone: "handDiscard" });
     return card;
   }
@@ -2931,7 +3159,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (trigger === "strike_used") return event.type === "card_used" && event.cardDefinitionId === HAND_IDS.strike;
     if (trigger === "strike_dodged") return event.type === "strike_dodged";
     if (trigger === "strike_damage_after") return event.type === "damage_after" && event.cardDefinitionId === HAND_IDS.strike;
-    if (trigger === "damage_after" || trigger === "health_lost_after") return event.type === "damage_after";
+    if (trigger === "damage_after") return event.type === "damage_after";
+    if (trigger === "health_lost_after") return event.type === "health_lost_after" || event.type === "damage_after";
     if (trigger === "health_recovered") return event.type === "health_recovered";
     if (trigger === "card_responded") return event.type === "card_responded";
     if (trigger === "character_deployed" || trigger === "opponent_deployment") return event.type === "character_deployed" && (trigger !== "opponent_deployment" || (event.amount || 0) >= 2);

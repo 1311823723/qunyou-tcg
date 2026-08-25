@@ -57,6 +57,11 @@ export interface HandResolutionItem {
   returnCharacterOnDamageInstanceId?: string;
   damageBonus?: number;
   bodyEffect?: "aggro-mega-strike";
+  drawSourceOnDodge?: boolean;
+  healSourceOnDamageAtLeast?: number;
+  healSourceIfHealthNotHigher?: boolean;
+  healSourceOnAnyDamage?: boolean;
+  bloodAfterResolved?: boolean;
 }
 
 export interface CharacterSkillResolutionItem {
@@ -114,7 +119,12 @@ export interface TurnModifier {
     | "aggro-copy-character-skill"
     | "mizai-strike-block"
     | "mizai-next-strike-undodgeable"
-    | "mizai-prediction";
+    | "mizai-prediction"
+    | "blood-next-strike-dodge-draw"
+    | "blood-strike-heal-strong"
+    | "blood-next-strike-heal-conditional"
+    | "blood-hand-limit-down"
+    | "blood-stored-card";
   count: number;
   characterInstanceId?: string;
   sourceDefinitionId?: string;
@@ -128,6 +138,14 @@ export interface TurnModifier {
   declaredHandType?: "basic" | "action";
   predictedDamage?: boolean;
   expiresAtTurnNumber?: number;
+}
+
+export interface PendingJudgment {
+  id: string;
+  playerId: string;
+  purpose: "blood-body" | "blood-prophet" | "generic";
+  stage: "revealed" | "resolved";
+  cardInstanceId: string;
 }
 
 export interface BodyRuntimeState {
@@ -219,6 +237,7 @@ export interface AutoRoomState {
   deployedThisPhase: number;
   recentEvents: AutoBattleEvent[];
   pendingBodyTriggers: PendingBodyTrigger[];
+  pendingJudgments: PendingJudgment[];
   winnerId?: string;
   revision: number;
   logs: BattleLog[];
