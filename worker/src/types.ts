@@ -122,6 +122,7 @@ export interface LobbyPlayerSummary {
 }
 
 export interface LobbyRoomSummary {
+  mode?: "classic" | "auto";
   roomCode: string;
   status: "waiting" | "playing";
   players: LobbyPlayerSummary[];

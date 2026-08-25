@@ -3,6 +3,7 @@ import { allDecks } from "./decks";
 import { getArchetypeBlurb } from "./archetypes";
 import { getBodyArt, getCharacterArt } from "./card-art";
 import { costKind, formatCharacterCost } from "./ui";
+import characterAutomation from "../../data/cards/character_automation.json";
 
 const ARCHETYPE_THEME_SLUG: Record<string, string> = {
   "爆杀流": "aggro",
@@ -62,6 +63,8 @@ export interface BattleCatalogCard {
   skillName?: string;
   archetype?: string;
   hp?: number;
+  automationLevel?: "assisted" | "full";
+  automationTrigger?: string;
 }
 
 export function getBattleCatalog() {
@@ -114,6 +117,8 @@ export function getBattleCatalog() {
       imagePath: `/cards/characters/${card.id}.webp`,
       highResImagePath: `/cards-hd/characters/${card.id}.webp`,
       portraitPath: art?.src,
+      automationLevel: characterAutomation[card.id as keyof typeof characterAutomation]?.level as "assisted" | "full" | undefined,
+      automationTrigger: characterAutomation[card.id as keyof typeof characterAutomation]?.trigger.event,
     };
   }
 

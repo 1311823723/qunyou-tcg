@@ -43,6 +43,9 @@ import type {
   VisualEffectSpec,
   ZoneName,
 } from "./types";
+import { AutoBattleRoom, validAutoLoadout } from "./auto-room";
+
+export { AutoBattleRoom } from "./auto-room";
 
 const ROOM_TTL_MS = 24 * 60 * 60 * 1000;
 const WAITING_DISCONNECT_GRACE_MS = 60 * 1000;
@@ -136,6 +139,54 @@ export default {
       });
     }
 
+    const metaMatch = url.pathname.match(/^\/rooms\/([A-Z0-9]{6})\/meta$/);
+    if (request.method === "GET" && metaMatch) {
+      const lobby = env.BATTLE_LOBBY.getByName("global");
+      const room = await lobby.getRoom(metaMatch[1]);
+      return room
+        ? json({ roomCode: room.roomCode, mode: room.mode || "classic", status: room.status }, { headers })
+        : json({ error: "房间不存在或已经过期。" }, { status: 404, headers });
+    }
+
+    if (request.method === "POST" && url.pathname === "/auto/rooms") {
+      const rate = await env.CREATE_RATE_LIMITER.limit({ key: clientAddress(request) });
+      if (!rate.success) return json({ error: "创建房间过于频繁，请稍后再试。" }, { status: 429, headers });
+      const body = await request.json() as Record<string, unknown>;
+      const nickname = cleanText(body.nickname, 20);
+      const token = cleanText(body.token, 80);
+      const deckId = cleanText(body.deckId, 80);
+      const customDeck = parseCustomDeck(body.customDeck);
+      if (!nickname || !token || !validAutoLoadout(deckId, customDeck)) {
+        return json({ error: "昵称、身份令牌或牌组无效。" }, { status: 400, headers });
+      }
+      const lobby = env.BATTLE_LOBBY.getByName("global");
+      let code = roomCode();
+      for (let attempt = 0; attempt < 4 && await lobby.getRoom(code); attempt += 1) code = roomCode();
+      if (await lobby.getRoom(code)) return json({ error: "暂时无法分配房间码，请稍后重试。" }, { status: 503, headers });
+      const stub = env.AUTO_BATTLE_ROOMS.getByName(code);
+      return json(await stub.createRoom(code, token, nickname, deckId, customDeck), { headers });
+    }
+
+    const autoJoinMatch = url.pathname.match(/^\/auto\/rooms\/([A-Z0-9]{6})\/join$/);
+    if (request.method === "POST" && autoJoinMatch) {
+      const rate = await env.JOIN_RATE_LIMITER.limit({ key: clientAddress(request) });
+      if (!rate.success) return json({ error: "加入房间请求过于频繁，请稍后再试。" }, { status: 429, headers });
+      const body = await request.json() as Record<string, unknown>;
+      const nickname = cleanText(body.nickname, 20);
+      const token = cleanText(body.token, 80);
+      const deckId = cleanText(body.deckId, 80);
+      const customDeck = parseCustomDeck(body.customDeck);
+      if (!nickname || !token || !validAutoLoadout(deckId, customDeck)) return json({ error: "昵称、身份令牌或牌组无效。" }, { status: 400, headers });
+      const result = await env.AUTO_BATTLE_ROOMS.getByName(autoJoinMatch[1]).joinRoom(token, nickname, deckId, customDeck);
+      return json(result.body, { status: result.status, headers });
+    }
+
+    const autoConnectMatch = url.pathname.match(/^\/auto\/rooms\/([A-Z0-9]{6})\/connect$/);
+    if (request.method === "GET" && autoConnectMatch) {
+      if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") return json({ error: "需要 WebSocket 连接。" }, { status: 426, headers });
+      return env.AUTO_BATTLE_ROOMS.getByName(autoConnectMatch[1]).fetch(request);
+    }
+
     if (request.method === "POST" && url.pathname === "/rooms") {
       const rate = await env.CREATE_RATE_LIMITER.limit({ key: clientAddress(request) });
       if (!rate.success) {
@@ -149,7 +200,10 @@ export default {
       if (!nickname || !token || !isLoadoutRequestValid(deckId, customDeck)) {
         return json({ error: "昵称、身份令牌或牌组无效。自组牌组需要 1 张本体和 16 张不重复角色。" }, { status: 400, headers });
       }
-      const code = roomCode();
+      const lobby = env.BATTLE_LOBBY.getByName("global");
+      let code = roomCode();
+      for (let attempt = 0; attempt < 4 && await lobby.getRoom(code); attempt += 1) code = roomCode();
+      if (await lobby.getRoom(code)) return json({ error: "暂时无法分配房间码，请稍后重试。" }, { status: 503, headers });
       const stub = env.BATTLE_ROOMS.getByName(code);
       const result = await stub.createRoom(code, token, nickname, deckId, customDeck);
       return json(result, { headers });
@@ -205,6 +259,11 @@ export class BattleLobby extends DurableObject<Env> {
     if (!rooms[roomCode]) return;
     delete rooms[roomCode];
     await this.ctx.storage.put("rooms", rooms);
+  }
+
+  async getRoom(roomCode: string) {
+    const rooms = await this.readRooms();
+    return rooms[roomCode];
   }
 
   private async readRooms() {

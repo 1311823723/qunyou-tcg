@@ -34,7 +34,9 @@ npm run print:aggro    # 打印爆杀组预组详情
 npm run export:tts     # 导出 Tabletop Simulator 本地资源
 npm run cards:sync     # 生成网页缩略图与高清预览图
 npm run test:battle    # 校验在线牌桌的卡组与 Mega 数据
+npm run test:battle:auto:live # 对本地 Worker 运行自动对战生命周期检查
 npm run test:battle:e2e # 启动本地站点与 Worker，运行 Chromium 端到端测试
+npm run automation:sync # 由角色牌正式文本重新生成辅助结算元数据
 npm run playtest:report # 校验实战记录并输出胜率、先手与问题牌统计
 ```
 
@@ -61,6 +63,15 @@ npm run dev:battle
 前端默认连接 `http://localhost:8787`。线上部署时在 Pages 构建环境设置
 `PUBLIC_BATTLE_API_URL` 为对战 Worker 地址，并执行
 `npm run deploy:battle` 部署实时服务。
+
+大厅同时提供两种互不影响的房间：经典手动对战继续使用 `/play/room` 与
+`BattleRoom`；自动对战 Beta 使用 `/play/auto/room` 与独立的
+`AutoBattleRoom`。自动版由服务端管理阶段、54 张手牌、响应、伤害、濒死与
+胜负；角色技能先采用服务端校验时机和费用的辅助结算。详细范围见
+[`docs/auto-battle-beta.md`](docs/auto-battle-beta.md)。
+
+`worker/wrangler.jsonc` 的 `v3` 迁移会创建 `AutoBattleRoom`。发布自动版时必须
+先部署包含该迁移的 Worker，再让 Pages 上线新入口。
 
 ## CI 与自动部署
 

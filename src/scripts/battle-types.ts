@@ -26,6 +26,8 @@ export type CatalogCard = {
   skillName?: string;
   archetype?: string;
   hp?: number;
+  automationLevel?: "assisted" | "full";
+  automationTrigger?: string;
 };
 
 export type CatalogDeck = {

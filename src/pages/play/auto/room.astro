@@ -1,0 +1,10 @@
+---
+import BattleLayout from "../../../components/BattleLayout.astro";
+import AutoBattleTable from "../../../components/AutoBattleTable.astro";
+import { getBattleCatalog } from "../../../lib/battle-catalog";
+
+const catalog = getBattleCatalog();
+---
+<BattleLayout title="自动对战 Beta" description="宝旅团 TCG 自动规则牌桌">
+  <AutoBattleTable catalog={catalog} />
+</BattleLayout>

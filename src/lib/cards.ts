@@ -73,6 +73,18 @@ export interface CharacterCard {
   notes?: string;
 }
 
+export interface CharacterAutomation {
+  level: "assisted" | "full";
+  trigger: {
+    event: string;
+    relation: "any" | "source_self" | "source_opponent" | "target_self" | "target_opponent";
+    targetMainRole?: string;
+    timingText: string;
+  };
+  usageLimit?: { scope: "event" | "turn" | "game"; count: number };
+  assistedActions: string[];
+}
+
 export interface HandCard {
   id: string;
   name: string;

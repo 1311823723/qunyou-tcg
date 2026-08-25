@@ -53,6 +53,7 @@ test("two players can start, reconnect, declare, manage markers and spectate", a
 
     await setProfile(hostPage, "E2E-房主");
     await hostPage.locator("#battle-create-room").click();
+    await hostPage.locator('[data-create-mode="classic"]').click();
     await hostPage.waitForURL(/\/play\/room\?code=[A-Z0-9]{6}/);
     const roomUrl = hostPage.url();
     const roomCode = new URL(roomUrl).searchParams.get("code");
@@ -61,7 +62,7 @@ test("two players can start, reconnect, declare, manage markers and spectate", a
 
     await setProfile(guestPage, "E2E-对手");
     await guestPage.goto(`/play?room=${roomCode}`);
-    const roomCard = guestPage.locator(`[data-room-code="${roomCode}"]`);
+    const roomCard = guestPage.locator(`[data-room-action][data-room-code="${roomCode}"]`);
     await expect(roomCard).toBeVisible();
     await roomCard.click();
     await guestPage.waitForURL(new RegExp(`/play/room\\?code=${roomCode}`));
@@ -190,6 +191,74 @@ test("two players can start, reconnect, declare, manage markers and spectate", a
       });
     }, roomCode);
     expect(invalidDeclarationError).toContain("声明选项无效");
+  } finally {
+    await attachConsole(testInfo, consoleEntries);
+    await Promise.allSettled([hostContext.close(), guestContext.close(), spectatorContext.close()]);
+  }
+});
+
+test("automatic beta room starts, advances phases and protects spectator privacy", async ({ browser }, testInfo) => {
+  const consoleEntries: string[] = [];
+  const hostContext = await browser.newContext();
+  const guestContext = await browser.newContext();
+  const spectatorContext = await browser.newContext();
+  await Promise.all([skipCoach(hostContext), skipCoach(guestContext), skipCoach(spectatorContext)]);
+
+  try {
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+    const spectatorPage = await spectatorContext.newPage();
+    observePage(hostPage, "auto-host", consoleEntries);
+    observePage(guestPage, "auto-guest", consoleEntries);
+    observePage(spectatorPage, "auto-spectator", consoleEntries);
+
+    await setProfile(hostPage, "E2E-自动房主");
+    await hostPage.locator("#battle-create-room").click();
+    await expect(hostPage.locator("#battle-mode-dialog")).toBeVisible();
+    await hostPage.locator('[data-create-mode="auto"]').click();
+    await hostPage.waitForURL(/\/play\/auto\/room\?code=[A-Z0-9]{6}/);
+    const code = new URL(hostPage.url()).searchParams.get("code");
+    expect(code).toMatch(/^[A-Z0-9]{6}$/);
+    await expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "lobby");
+
+    await setProfile(guestPage, "E2E-自动对手");
+    await guestPage.goto(`/play?room=${code}`);
+    const roomCard = guestPage.locator(`article[data-room-code="${code}"]`);
+    await expect(roomCard).toContainText("自动 Beta");
+    await roomCard.locator("[data-room-action]").click();
+    await guestPage.waitForURL(new RegExp(`/play/auto/room\\?code=${code}`));
+    await expect(guestPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "lobby");
+
+    await guestPage.locator('[data-auto-command="ready"]').click();
+    await hostPage.locator('[data-auto-command="ready"]').click();
+    await Promise.all([
+      expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game"),
+      expect(guestPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game"),
+    ]);
+    await expect(hostPage.locator(".auto-phase strong")).toHaveText("准备阶段");
+
+    const hostTurn = await hostPage.locator(".auto-phase small").textContent() === "你的回合";
+    const currentPage = hostTurn ? hostPage : guestPage;
+    await currentPage.locator("[data-phase-advance]").click();
+    await expect(currentPage.locator(".auto-phase strong")).toHaveText("摸牌阶段");
+    await expect(currentPage.locator(".auto-hand [data-auto-card]")).toHaveCount(7);
+
+    await setProfile(spectatorPage, "E2E-自动观战");
+    await spectatorPage.goto(`/play/auto/room?code=${code}&spectate=true`);
+    await expect(spectatorPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game");
+    await expect(spectatorPage.locator(".auto-hand [data-auto-card]")).toHaveCount(0);
+    await expect(spectatorPage.locator("[data-phase-advance]")).toBeDisabled();
+
+    await currentPage.setViewportSize({ width: 390, height: 844 });
+    const overflow = await currentPage.locator("#auto-battle-app").evaluate((element) => ({
+      app: element.scrollWidth - element.clientWidth,
+      page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    }));
+    expect(overflow.app).toBeLessThanOrEqual(1);
+    expect(overflow.page).toBeLessThanOrEqual(1);
+
+    const revision = await currentPage.locator("#auto-battle-app").getAttribute("data-phase");
+    expect(revision).toBe("game");
   } finally {
     await attachConsole(testInfo, consoleEntries);
     await Promise.allSettled([hostContext.close(), guestContext.close(), spectatorContext.close()]);

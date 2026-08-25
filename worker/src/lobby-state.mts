@@ -25,6 +25,7 @@ export function sortLobbyRooms(rooms: LobbyRoomSummary[]) {
 export function buildLobbyRoomSummary(state: RoomState, now: number): LobbyRoomSummary {
   const hostConnected = !state.players[0]?.disconnectedAt;
   return {
+    mode: "classic",
     roomCode: state.roomCode,
     status: state.started ? "playing" : "waiting",
     players: state.players.map((player) => ({

@@ -7,11 +7,12 @@ interface __BaseEnv_Env {
 	ALLOWED_ORIGINS: "https://qunyou-tcg.pages.dev";
 	BATTLE_ROOMS: DurableObjectNamespace<import("./src/index").BattleRoom>;
 	BATTLE_LOBBY: DurableObjectNamespace<import("./src/index").BattleLobby>;
+	AUTO_BATTLE_ROOMS: DurableObjectNamespace<import("./src/index").AutoBattleRoom>;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./src/index");
-		durableNamespaces: "BattleRoom" | "BattleLobby";
+		durableNamespaces: "BattleRoom" | "BattleLobby" | "AutoBattleRoom";
 	}
 	interface Env extends __BaseEnv_Env {}
 }

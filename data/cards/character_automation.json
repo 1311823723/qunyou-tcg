@@ -1,0 +1,1413 @@
+{
+  "char_001_keke_assassin": {
+    "level": "assisted",
+    "trigger": {
+      "event": "damage_after",
+      "relation": "target_self",
+      "timingText": "当你的本体受到伤害后"
+    },
+    "assistedActions": [
+      "damage"
+    ]
+  },
+  "char_002_weixiaokele_assassin": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "damage"
+    ]
+  },
+  "char_003_qindi_sheriff": {
+    "level": "assisted",
+    "trigger": {
+      "event": "opponent_preparation",
+      "relation": "source_opponent",
+      "timingText": "对手准备阶段"
+    },
+    "assistedActions": [
+      "damage"
+    ]
+  },
+  "char_004_horus-lupercal_pelican": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "damage",
+      "move"
+    ]
+  },
+  "char_005_aichitun_jester": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "damage"
+    ]
+  },
+  "char_006_weixiaokele_ninja": {
+    "level": "assisted",
+    "trigger": {
+      "event": "strike_used",
+      "relation": "source_self",
+      "timingText": "当你的本体使用【出刀】时"
+    },
+    "assistedActions": [
+      "move",
+      "manual"
+    ]
+  },
+  "char_007_baizi_ninja": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_008_baizi_hitman": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "damage",
+      "move"
+    ]
+  },
+  "char_009_weixiaokele_hitman": {
+    "level": "assisted",
+    "trigger": {
+      "event": "damage_before_source",
+      "relation": "source_self",
+      "timingText": "当你将对对手本体造成伤害时"
+    },
+    "assistedActions": [
+      "move"
+    ]
+  },
+  "char_010_weixiaokele_bomber": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "damage",
+      "move",
+      "marker"
+    ]
+  },
+  "char_011_baizi_bomber": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "damage",
+      "move"
+    ]
+  },
+  "char_012_baizi_bird-eater": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "move"
+    ]
+  },
+  "char_013_weixiaokele_morphling": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_014_baizi_party-duck": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_015_weixiaokele_lobbyist": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_016_baizi_gravy": {
+    "level": "assisted",
+    "trigger": {
+      "event": "strike_targeted",
+      "relation": "target_self",
+      "timingText": "当你的本体成为【出刀】的目标时"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_017_huihuan_defect-robot": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "usageLimit": {
+      "scope": "turn",
+      "count": 1
+    },
+    "assistedActions": [
+      "prevent_damage",
+      "marker"
+    ]
+  },
+  "char_018_baizi_defect-robot": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "usageLimit": {
+      "scope": "turn",
+      "count": 1
+    },
+    "assistedActions": [
+      "marker",
+      "manual"
+    ]
+  },
+  "char_019_dong_defect-robot": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "usageLimit": {
+      "scope": "turn",
+      "count": 1
+    },
+    "assistedActions": [
+      "move",
+      "marker"
+    ]
+  },
+  "char_020_baizi_ironclad": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "manual"
+    ]
+  },
+  "char_021_xiaoapan_warlock": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "damage"
+    ]
+  },
+  "char_022_weixiaokele_goblin": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "heal"
+    ]
+  },
+  "char_023_arthur_falcon": {
+    "level": "assisted",
+    "trigger": {
+      "event": "strike_dodged",
+      "relation": "source_self",
+      "timingText": "当你使用【闪避】抵消【出刀】后"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_024_weixiaokele_ironclad": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "prevent_damage",
+      "marker"
+    ]
+  },
+  "char_025_baizi_high-priest": {
+    "level": "assisted",
+    "trigger": {
+      "event": "damage_before",
+      "relation": "target_self",
+      "timingText": "当你的本体受到伤害时"
+    },
+    "assistedActions": [
+      "draw",
+      "prevent_damage",
+      "move"
+    ]
+  },
+  "char_026_miaosila_neo": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_027_weixiaokele_medium": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "deploy",
+      "move"
+    ]
+  },
+  "char_028_arthur_undertaker": {
+    "level": "assisted",
+    "trigger": {
+      "event": "character_retired",
+      "relation": "target_opponent",
+      "timingText": "当对手角色退场后"
+    },
+    "assistedActions": [
+      "move"
+    ]
+  },
+  "char_029_daidaishou_luna": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_030_miaosila_detective": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "inspect"
+    ]
+  },
+  "char_031_arthur_watcher": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "inspect",
+      "move"
+    ]
+  },
+  "char_032_weixiaokele_silent-hunter": {
+    "level": "assisted",
+    "trigger": {
+      "event": "strike_damage_after",
+      "relation": "source_self",
+      "timingText": "当你的本体使用【出刀】造成伤害后"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_033_weixiaokele_watcher": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "manual"
+    ]
+  },
+  "char_034_xiaoapan_avenger": {
+    "level": "assisted",
+    "trigger": {
+      "event": "character_retired",
+      "relation": "any",
+      "timingText": "当你的任意角色退场后"
+    },
+    "assistedActions": [
+      "damage",
+      "move"
+    ]
+  },
+  "char_035_xiaoapan_silent-hunter": {
+    "level": "assisted",
+    "trigger": {
+      "event": "action_used",
+      "relation": "source_opponent",
+      "timingText": "当对手使用行动牌时"
+    },
+    "assistedActions": [
+      "move"
+    ]
+  },
+  "char_036_keke_spy": {
+    "level": "assisted",
+    "trigger": {
+      "event": "preparation",
+      "relation": "any",
+      "timingText": "准备阶段"
+    },
+    "assistedActions": [
+      "prevent_damage",
+      "inspect",
+      "manual"
+    ]
+  },
+  "char_037_keke_seer": {
+    "level": "assisted",
+    "trigger": {
+      "event": "strike_used",
+      "relation": "source_self",
+      "timingText": "当你使用【出刀】或【危机破坏】指定对手后"
+    },
+    "assistedActions": [
+      "draw",
+      "inspect"
+    ]
+  },
+  "char_038_keke_avenger": {
+    "level": "assisted",
+    "trigger": {
+      "event": "damage_after",
+      "relation": "source_self",
+      "timingText": "当你在一个回合内第二次造成伤害后"
+    },
+    "assistedActions": [
+      "move",
+      "extra_strike"
+    ]
+  },
+  "char_039_keke_judge": {
+    "level": "assisted",
+    "trigger": {
+      "event": "basic_card_needed",
+      "relation": "source_self",
+      "timingText": "当你需要使用或打出基本牌时"
+    },
+    "assistedActions": [
+      "draw",
+      "deploy",
+      "move"
+    ]
+  },
+  "char_040_fengyaojing_detective": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "inspect"
+    ]
+  },
+  "char_041_baizi_watcher": {
+    "level": "assisted",
+    "trigger": {
+      "event": "preparation",
+      "relation": "any",
+      "timingText": "准备阶段开始时"
+    },
+    "assistedActions": [
+      "draw",
+      "inspect",
+      "move"
+    ]
+  },
+  "char_042_xiaoapan_neo": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "inspect"
+    ]
+  },
+  "char_043_baizi_falcon": {
+    "level": "assisted",
+    "trigger": {
+      "event": "strike_dodged",
+      "relation": "source_self",
+      "timingText": "当你使用【闪避】抵消【出刀】后"
+    },
+    "assistedActions": [
+      "inspect",
+      "move"
+    ]
+  },
+  "char_044_arthur_sheriff": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_045_guamao_assassin": {
+    "level": "assisted",
+    "trigger": {
+      "event": "strike_used",
+      "relation": "source_opponent",
+      "timingText": "当对手使用【出刀】时"
+    },
+    "assistedActions": [
+      "draw",
+      "inspect"
+    ]
+  },
+  "char_046_fengyaojing_watcher": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "inspect",
+      "move"
+    ]
+  },
+  "char_047_miaosila_ironclad": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_048_xiaoka_high-priest": {
+    "level": "assisted",
+    "trigger": {
+      "event": "strike_targeted",
+      "relation": "target_self",
+      "timingText": "当你的本体成为【出刀】的目标时"
+    },
+    "assistedActions": [
+      "draw",
+      "inspect"
+    ]
+  },
+  "char_049_xiaoapan_undertaker": {
+    "level": "assisted",
+    "trigger": {
+      "event": "character_retired",
+      "relation": "any",
+      "timingText": "当任意角色退场时"
+    },
+    "assistedActions": [
+      "draw",
+      "move"
+    ]
+  },
+  "char_050_dong_bomber": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "damage"
+    ]
+  },
+  "char_051_baizi_lobbyist": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_052_fengyaojing_desert-butcher": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "heal",
+      "manual"
+    ]
+  },
+  "char_053_xiaoka_zaun-beast": {
+    "level": "assisted",
+    "trigger": {
+      "event": "damage_after",
+      "relation": "target_opponent",
+      "timingText": "当对手本体受到伤害后"
+    },
+    "assistedActions": [
+      "deploy",
+      "move",
+      "extra_strike"
+    ]
+  },
+  "char_054_xiangcai_prophet": {
+    "level": "assisted",
+    "trigger": {
+      "event": "preparation",
+      "relation": "any",
+      "timingText": "准备阶段"
+    },
+    "assistedActions": [
+      "inspect",
+      "move"
+    ]
+  },
+  "char_055_xiaoapan_judge": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "usageLimit": {
+      "scope": "turn",
+      "count": 1
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_056_huihuan_watcher": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "inspect"
+    ]
+  },
+  "char_057_guamao_silent-hunter": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_058_xiangcai_politician": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_059_dong_justice": {
+    "level": "assisted",
+    "trigger": {
+      "event": "action_resolved",
+      "relation": "source_self",
+      "timingText": "当你使用行动牌后"
+    },
+    "assistedActions": [
+      "inspect"
+    ]
+  },
+  "char_060_linglong_defect-robot": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "usageLimit": {
+      "scope": "turn",
+      "count": 1
+    },
+    "assistedActions": [
+      "damage",
+      "marker"
+    ]
+  },
+  "char_061_xiangcai_watcher": {
+    "level": "assisted",
+    "trigger": {
+      "event": "action_resolved",
+      "relation": "source_self",
+      "timingText": "当你使用的行动牌结算后"
+    },
+    "assistedActions": [
+      "draw",
+      "move"
+    ]
+  },
+  "char_062_guamao_morphling": {
+    "level": "assisted",
+    "trigger": {
+      "event": "action_resolved",
+      "relation": "source_self",
+      "timingText": "当你使用行动牌后"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_063_dong_assassin": {
+    "level": "assisted",
+    "trigger": {
+      "event": "action_resolved",
+      "relation": "source_opponent",
+      "timingText": "当对方使用行动牌结算后"
+    },
+    "assistedActions": [
+      "damage"
+    ]
+  },
+  "char_064_huihuan_pelican": {
+    "level": "assisted",
+    "trigger": {
+      "event": "action_used",
+      "relation": "source_opponent",
+      "timingText": "当对手使用行动牌时"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_065_dong_high-priest": {
+    "level": "assisted",
+    "trigger": {
+      "event": "action_resolved",
+      "relation": "target_self",
+      "timingText": "当对方对你使用的行动牌结算后"
+    },
+    "assistedActions": [
+      "heal"
+    ]
+  },
+  "char_066_linglong_ninja": {
+    "level": "assisted",
+    "trigger": {
+      "event": "card_responded",
+      "relation": "source_opponent",
+      "timingText": "当对手于你的出牌阶段使用手牌响应你使用的牌后"
+    },
+    "assistedActions": [
+      "extra_strike"
+    ]
+  },
+  "char_067_xiangcai_neo": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_068_huihuan_bird-eater": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "move"
+    ]
+  },
+  "char_069_dong_sheriff": {
+    "level": "assisted",
+    "trigger": {
+      "event": "opponent_preparation",
+      "relation": "source_opponent",
+      "timingText": "对手准备阶段"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_070_huihuan_silent-hunter": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "inspect"
+    ]
+  },
+  "char_071_xiangcai_lover": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "damage"
+    ]
+  },
+  "char_072_guamao_lover": {
+    "level": "assisted",
+    "trigger": {
+      "event": "character_retired",
+      "relation": "target_self",
+      "timingText": "当你的另一张角色退场后"
+    },
+    "assistedActions": [
+      "move"
+    ]
+  },
+  "char_073_xiaoapan_bee-medic": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "heal"
+    ]
+  },
+  "char_074_huihuan_nameless": {
+    "level": "assisted",
+    "trigger": {
+      "event": "character_revealed",
+      "relation": "source_opponent",
+      "timingText": "对手明置角色牌时"
+    },
+    "assistedActions": [
+      "move"
+    ]
+  },
+  "char_075_baizi_weilong": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_076_daidaishou_hackclaw": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "inspect"
+    ]
+  },
+  "char_077_xiaoapan_shepherd": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "move"
+    ]
+  },
+  "char_078_huihuan_deep-blue": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_079_xiaoka_visionary-painter": {
+    "level": "assisted",
+    "trigger": {
+      "event": "basic_card_needed",
+      "relation": "source_self",
+      "timingText": "当你需要使用或打出基本牌时"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_080_huihuan_visionary-painter": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "draw",
+      "inspect",
+      "manual"
+    ]
+  },
+  "char_081_aichitun_morphling": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "usageLimit": {
+      "scope": "turn",
+      "count": 1
+    },
+    "assistedActions": [
+      "deploy"
+    ]
+  },
+  "char_082_aichitun_embalmer": {
+    "level": "assisted",
+    "trigger": {
+      "event": "character_retired",
+      "relation": "target_self",
+      "timingText": "当你的另一张角色退场后"
+    },
+    "assistedActions": [
+      "deploy"
+    ]
+  },
+  "char_083_aichitun_detective": {
+    "level": "assisted",
+    "trigger": {
+      "event": "character_revealed",
+      "relation": "source_opponent",
+      "timingText": "当对手通过明置角色发动技能后"
+    },
+    "assistedActions": [
+      "draw",
+      "inspect"
+    ]
+  },
+  "char_084_keke_watcher": {
+    "level": "assisted",
+    "trigger": {
+      "event": "character_deployed",
+      "relation": "source_self",
+      "timingText": "当你一回合内第二张角色上阵后"
+    },
+    "assistedActions": [
+      "deploy",
+      "move"
+    ]
+  },
+  "char_085_aichitun_bodyguard": {
+    "level": "assisted",
+    "trigger": {
+      "event": "character_leave_before",
+      "relation": "source_self",
+      "timingText": "当另一张己方角色将因对手的牌或技能休整、退场或移出游戏时"
+    },
+    "assistedActions": [
+      "draw",
+      "move"
+    ]
+  },
+  "char_086_aichitun_sheriff": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "move",
+      "manual"
+    ]
+  },
+  "char_087_qindi_vigilante": {
+    "level": "assisted",
+    "trigger": {
+      "event": "damage_after",
+      "relation": "target_self",
+      "timingText": "当你受到伤害后"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_088_horus-lupercal_serial-killer": {
+    "level": "assisted",
+    "trigger": {
+      "event": "health_lost_after",
+      "relation": "source_self",
+      "timingText": "当你一回合内第二次体力减少后"
+    },
+    "assistedActions": [
+      "heal"
+    ]
+  },
+  "char_089_kabishou_canadian": {
+    "level": "assisted",
+    "trigger": {
+      "event": "judgment_resolved",
+      "relation": "any",
+      "timingText": "判定结算后"
+    },
+    "assistedActions": [
+      "draw",
+      "judge"
+    ]
+  },
+  "char_090_miaosila_medium": {
+    "level": "assisted",
+    "trigger": {
+      "event": "damage_after",
+      "relation": "target_self",
+      "timingText": "当你受到伤害后"
+    },
+    "assistedActions": [
+      "draw",
+      "move"
+    ]
+  },
+  "char_091_zongzi_vulture": {
+    "level": "assisted",
+    "trigger": {
+      "event": "hand_discarded",
+      "relation": "source_self",
+      "timingText": "对手因你的技能弃置手牌后"
+    },
+    "assistedActions": [
+      "draw",
+      "heal"
+    ]
+  },
+  "char_092_player_detective": {
+    "level": "assisted",
+    "trigger": {
+      "event": "judgment_resolved",
+      "relation": "source_self",
+      "timingText": "当你的判定结果为黑色后"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_093_tutu_snitch": {
+    "level": "assisted",
+    "trigger": {
+      "event": "damage_after",
+      "relation": "source_opponent",
+      "timingText": "当对手对你的本体造成伤害后"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_094_daidaishou_astral": {
+    "level": "assisted",
+    "trigger": {
+      "event": "judgment_revealed",
+      "relation": "any",
+      "timingText": "判定牌展示后"
+    },
+    "assistedActions": [
+      "draw",
+      "judge"
+    ]
+  },
+  "char_095_pangpanghali_prophet": {
+    "level": "assisted",
+    "trigger": {
+      "event": "health_recovered",
+      "relation": "target_self",
+      "timingText": "当你回复体力后"
+    },
+    "assistedActions": [
+      "draw",
+      "heal",
+      "judge"
+    ]
+  },
+  "char_096_kabishou_politician": {
+    "level": "assisted",
+    "trigger": {
+      "event": "judgment_resolved",
+      "relation": "any",
+      "timingText": "判定结算后"
+    },
+    "assistedActions": [
+      "judge"
+    ]
+  },
+  "char_097_horus-lupercal_bird-eater": {
+    "level": "assisted",
+    "trigger": {
+      "event": "health_recovered",
+      "relation": "target_opponent",
+      "timingText": "当对手回复体力时"
+    },
+    "assistedActions": [
+      "heal"
+    ]
+  },
+  "char_098_qindi_silencer": {
+    "level": "assisted",
+    "trigger": {
+      "event": "second_skill_used",
+      "relation": "source_opponent",
+      "timingText": "当对手一回合内发动第二个角色技能时"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_099_kabishou_invisible-duck": {
+    "level": "assisted",
+    "trigger": {
+      "event": "inspection",
+      "relation": "source_opponent",
+      "timingText": "当对手将观看己方暗置角色时"
+    },
+    "assistedActions": [
+      "deploy",
+      "inspect",
+      "move"
+    ]
+  },
+  "char_100_miaosila_demolitionist": {
+    "level": "assisted",
+    "trigger": {
+      "event": "opponent_deployment",
+      "relation": "source_opponent",
+      "timingText": "当对手布阵阶段上阵第二张角色后"
+    },
+    "assistedActions": [
+      "deploy",
+      "move"
+    ]
+  },
+  "char_101_pangpanghali_identity-thief": {
+    "level": "assisted",
+    "trigger": {
+      "event": "character_revealed",
+      "relation": "source_opponent",
+      "timingText": "当对手暗置角色明置并发动技能后"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_102_miaosila_dodo": {
+    "level": "assisted",
+    "trigger": {
+      "event": "hand_discarded",
+      "relation": "target_self",
+      "timingText": "当对手的牌或技能令你弃置手牌后"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_103_zongzi_snitch": {
+    "level": "assisted",
+    "trigger": {
+      "event": "opponent_extra_draw",
+      "relation": "source_opponent",
+      "timingText": "当对手在摸牌阶段外摸牌后"
+    },
+    "assistedActions": [
+      "move"
+    ]
+  },
+  "char_104_player_falcon": {
+    "level": "assisted",
+    "trigger": {
+      "event": "strike_dodged",
+      "relation": "source_opponent",
+      "timingText": "当对手使用【闪避】响应你的【出刀】时"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_105_tutu_professional": {
+    "level": "assisted",
+    "trigger": {
+      "event": "high_cost_skill_used",
+      "relation": "source_opponent",
+      "timingText": "当对手发动费用为【休整2】或更高的角色技能时"
+    },
+    "assistedActions": [
+      "move"
+    ]
+  },
+  "char_106_qindi_vulture": {
+    "level": "assisted",
+    "trigger": {
+      "event": "hand_discarded",
+      "relation": "target_opponent",
+      "timingText": "对手弃置手牌后"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_107_daidaishou_engineer": {
+    "level": "assisted",
+    "trigger": {
+      "event": "skill_cost_rest_after",
+      "relation": "source_self",
+      "targetMainRole": "伏击",
+      "timingText": "当己方伏击角色因支付技能费用而休整后"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_108_tutu_birdwatcher": {
+    "level": "assisted",
+    "trigger": {
+      "event": "deployment",
+      "relation": "any",
+      "timingText": "布阵阶段开始时"
+    },
+    "assistedActions": [
+      "inspect",
+      "move"
+    ]
+  },
+  "char_109_qindi_bodyguard": {
+    "level": "assisted",
+    "trigger": {
+      "event": "damage_before",
+      "relation": "target_self",
+      "timingText": "当你将受到伤害时"
+    },
+    "assistedActions": [
+      "prevent_damage",
+      "heal",
+      "move"
+    ]
+  },
+  "char_110_pangpanghali_canadian": {
+    "level": "assisted",
+    "trigger": {
+      "event": "strike_damage_after",
+      "relation": "target_self",
+      "timingText": "当你受到【出刀】造成的伤害后"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_111_horus-lupercal_adventurer": {
+    "level": "assisted",
+    "trigger": {
+      "event": "damage_before",
+      "relation": "target_self",
+      "timingText": "当你将受到非【出刀】造成的伤害时"
+    },
+    "assistedActions": [
+      "prevent_damage"
+    ]
+  },
+  "char_112_miaosila_locksmith": {
+    "level": "assisted",
+    "trigger": {
+      "event": "hand_lost_before",
+      "relation": "target_self",
+      "timingText": "当对手的牌或技能将令你失去手牌时"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_113_miaosila_celebrity": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_114_zongzi_bodyguard": {
+    "level": "assisted",
+    "trigger": {
+      "event": "skill_targeted_character",
+      "relation": "source_self",
+      "timingText": "当另一张己方角色成为对手角色技能的目标时"
+    },
+    "assistedActions": [
+      "move"
+    ]
+  },
+  "char_115_player_mimic": {
+    "level": "assisted",
+    "trigger": {
+      "event": "strike_targeted",
+      "relation": "target_self",
+      "timingText": "当你的本体成为【出刀】的目标时"
+    },
+    "assistedActions": [
+      "draw"
+    ]
+  },
+  "char_116_tutu_vigilante": {
+    "level": "assisted",
+    "trigger": {
+      "event": "damage_prevented",
+      "relation": "source_self",
+      "timingText": "己方效果防止或减少伤害后"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_117_daidaishou_medium": {
+    "level": "assisted",
+    "trigger": {
+      "event": "skill_cost_rest_after",
+      "relation": "source_self",
+      "targetMainRole": "防御",
+      "timingText": "当另一张己方防御角色因支付费用而休整后"
+    },
+    "assistedActions": [
+      "manual"
+    ]
+  },
+  "char_118_qindi_birdwatcher": {
+    "level": "assisted",
+    "trigger": {
+      "event": "body_targeted_by_hand",
+      "relation": "target_self",
+      "timingText": "当你的本体成为手牌的目标时"
+    },
+    "assistedActions": [
+      "draw",
+      "prevent_damage",
+      "judge"
+    ]
+  },
+  "char_119_pangpanghali_politician": {
+    "level": "assisted",
+    "trigger": {
+      "event": "play_phase",
+      "relation": "any",
+      "timingText": "出牌阶段"
+    },
+    "assistedActions": [
+      "prevent_damage"
+    ]
+  },
+  "char_120_player_astral": {
+    "level": "assisted",
+    "trigger": {
+      "event": "preparation",
+      "relation": "any",
+      "timingText": "准备阶段"
+    },
+    "assistedActions": [
+      "inspect"
+    ]
+  }
+}

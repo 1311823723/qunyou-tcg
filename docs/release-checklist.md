@@ -20,6 +20,8 @@
 - [ ] `npm run build:web`
 - [ ] 对战或 UI 变更后运行 `npm run test:battle:e2e`。
 - [ ] Worker 行为变更后启动本地 Worker，运行 `npm run test:battle:live`。
+- [ ] 自动对战 Worker 行为变更后运行 `npm run test:battle:auto:live`。
+- [ ] 涉及自动房迁移时，确认 Worker 先于 Pages 部署。
 - [ ] 卡面变更后运行 `npm run build:cards` 并抽查本体、角色、手牌和 JOKER。
 
 ## 发布与回滚

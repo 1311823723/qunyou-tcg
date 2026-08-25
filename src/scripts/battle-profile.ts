@@ -6,7 +6,8 @@ export const ACTIVE_ROOMS_KEY = "qunyou-battle-active-rooms-v1";
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export type BattleProfile = { nickname: string };
-export type ActiveRoomRecord = { role: "player"; joinedAt: number };
+export type BattleRoomMode = "classic" | "auto";
+export type ActiveRoomRecord = { role: "player"; joinedAt: number; mode?: BattleRoomMode };
 
 function readJson<T>(storage: StorageLike, key: string, fallback: T): T {
   try {
@@ -63,10 +64,14 @@ export function readActiveRooms(storage: StorageLike = localStorage) {
 }
 
 export function markActiveRoom(roomCode: string, storage: StorageLike = localStorage) {
+  return markActiveRoomWithMode(roomCode, "classic", storage);
+}
+
+export function markActiveRoomWithMode(roomCode: string, mode: BattleRoomMode, storage: StorageLike = localStorage) {
   const code = roomCode.trim().toUpperCase();
   if (!code) return;
   const rooms = readActiveRooms(storage);
-  rooms[code] = { role: "player", joinedAt: Date.now() };
+  rooms[code] = { role: "player", joinedAt: Date.now(), mode };
   storage.setItem(ACTIVE_ROOMS_KEY, JSON.stringify(rooms));
 }
 
@@ -78,6 +83,10 @@ export function clearActiveRoom(roomCode: string, storage: StorageLike = localSt
 
 export function isActivePlayerRoom(roomCode: string, storage: StorageLike = localStorage) {
   return readActiveRooms(storage)[roomCode.trim().toUpperCase()]?.role === "player";
+}
+
+export function activeRoomMode(roomCode: string, storage: StorageLike = localStorage): BattleRoomMode {
+  return readActiveRooms(storage)[roomCode.trim().toUpperCase()]?.mode || "classic";
 }
 
 export function nextLobbyPollDelay(roomCount: number) {

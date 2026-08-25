@@ -1,0 +1,31 @@
+---
+import type { getBattleCatalog } from "../lib/battle-catalog";
+import packageJson from "../../package.json";
+
+export interface Props {
+  catalog: ReturnType<typeof getBattleCatalog>;
+}
+
+const { catalog } = Astro.props;
+---
+<div class="auto-battle" id="auto-battle-app" data-client-version={packageJson.version}>
+  <header class="auto-battle__topbar">
+    <a href="/play" class="battle-topbar__back" data-auto-exit>← <span>退出</span></a>
+    <div><span>AUTO BETA</span><strong id="auto-room-code">------</strong></div>
+    <p>服务端自动结算 · 角色技能辅助模式</p>
+    <span id="auto-connection" class="battle-connection" data-state="connecting"><i class="battle-connection__dot"></i><b>连接中</b></span>
+  </header>
+  <main id="auto-battle-root" class="auto-battle__root">
+    <section class="battle-loading hud-panel">
+      <span class="battle-kicker">CONNECTING TO AUTO TABLE</span>
+      <h1>正在连接自动牌桌</h1>
+      <p>正在恢复房间模式、座位与规则状态。</p>
+    </section>
+  </main>
+  <div id="auto-toast" class="battle-toast" role="status" aria-live="polite" hidden></div>
+  <script id="auto-battle-catalog" type="application/json" set:html={JSON.stringify(catalog)}></script>
+</div>
+
+<script>
+  import "../scripts/auto-battle-client";
+</script>

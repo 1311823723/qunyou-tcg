@@ -29,7 +29,7 @@ const catalog = getBattleCatalog();
       <article class="hud-panel battle-hall__action battle-hall__action--create">
         <span class="battle-entry__step">01</span>
         <div><small>HOST A MATCH</small><h2>创建房间</h2><p>创建后进入现有准备室选择阵容。</p></div>
-        <button type="button" class="btn btn--primary" id="battle-create-room">创建新房间</button>
+        <button type="button" class="btn btn--primary" id="battle-create-room">选择对战模式</button>
         <p class="battle-form__status" id="battle-create-status" aria-live="polite" hidden></p>
       </article>
 
@@ -83,6 +83,23 @@ const catalog = getBattleCatalog();
     </form>
   </dialog>
 
+  <dialog id="battle-mode-dialog" class="battle-dialog battle-mode-dialog" aria-labelledby="battle-mode-title">
+    <form method="dialog" class="battle-mode-form">
+      <span class="battle-kicker">CREATE A ROOM</span>
+      <h2 id="battle-mode-title">选择对战模式</h2>
+      <p>房间创建后模式不可切换。自动对战仍处于 Beta，经典牌桌会继续保留。</p>
+      <div class="battle-mode-options">
+        <button type="button" class="battle-mode-option is-featured" data-create-mode="auto">
+          <span>推荐 · BETA</span><strong>自动对战</strong><small>自动阶段、手牌、伤害、濒死和胜负，角色技能辅助结算。</small>
+        </button>
+        <button type="button" class="battle-mode-option" data-create-mode="classic">
+          <span>CLASSIC</span><strong>经典对战</strong><small>保留现有手动牌桌，由双方自行声明和结算全部效果。</small>
+        </button>
+      </div>
+      <button type="button" class="battle-small-btn" data-mode-cancel>取消</button>
+    </form>
+  </dialog>
+
   <script id="battle-entry-catalog" type="application/json" set:html={JSON.stringify(catalog)}></script>
 </Layout>
 
@@ -93,6 +110,7 @@ const catalog = getBattleCatalog();
     getBattleToken,
     isActivePlayerRoom,
     markActiveRoom,
+    markActiveRoomWithMode,
     nextLobbyPollDelay,
     normalizeNickname,
     readPending,
@@ -101,6 +119,7 @@ const catalog = getBattleCatalog();
   } from "../../scripts/battle-profile";
 
   type LobbyRoom = {
+    mode?: "classic" | "auto";
     roomCode: string;
     status: "waiting" | "playing";
     players: Array<{ nickname: string; connected: boolean }>;
@@ -215,15 +234,16 @@ const catalog = getBattleCatalog();
           ? `<span class="${player.connected ? "is-online" : "is-away"}"><i></i><b>${escapeHtml(player.nickname)}</b><small>${player.connected ? "在线" : "暂离"}</small></span>`
           : `<span class="is-empty"><i></i><b>等待加入</b><small>空位</small></span>`;
       }).join("");
-      return `<article class="battle-room-card ${room.status === "playing" ? "is-playing" : "is-waiting"} ${invited ? "is-invited" : ""}">
-        <header><span class="battle-room-card__status"><i></i>${room.status === "playing" ? "对局中" : "等待中"}</span><code>${escapeHtml(room.roomCode)}</code></header>
+      const mode = room.mode || "classic";
+      return `<article class="battle-room-card ${room.status === "playing" ? "is-playing" : "is-waiting"} ${invited ? "is-invited" : ""}" data-room-code="${escapeHtml(room.roomCode)}">
+        <header><span class="battle-room-card__status"><i></i>${room.status === "playing" ? "对局中" : "等待中"}</span><span class="battle-room-card__mode is-${mode}">${mode === "auto" ? "自动 Beta" : "经典"}</span><code>${escapeHtml(room.roomCode)}</code></header>
         <div class="battle-room-card__players">${playerSeats}</div>
         <div class="battle-room-card__meta"><span>${room.playerCount} / ${room.capacity} 玩家</span><span>${room.spectatorCount} 人观战</span><span>${relativeTime(room.createdAt)}</span></div>
-        <button type="button" class="btn ${room.status === "playing" ? "btn--secondary" : "btn--primary"}" data-room-action="${action.mode}" data-room-code="${escapeHtml(room.roomCode)}" ${action.disabled ? "disabled" : ""}>${action.label}</button>
+        <button type="button" class="btn ${room.status === "playing" ? "btn--secondary" : "btn--primary"}" data-room-action="${action.mode}" data-room-code="${escapeHtml(room.roomCode)}" data-room-mode="${mode}" ${action.disabled ? "disabled" : ""}>${action.label}</button>
       </article>`;
     }).join("");
     roomList.querySelectorAll<HTMLButtonElement>("[data-room-action]").forEach((button) => {
-      button.addEventListener("click", () => enterRoom(button.dataset.roomCode || "", button.dataset.roomAction === "spectator"));
+      button.addEventListener("click", () => enterRoom(button.dataset.roomCode || "", button.dataset.roomAction === "spectator", button.dataset.roomMode === "auto" ? "auto" : "classic"));
     });
   }
 
@@ -256,11 +276,11 @@ const catalog = getBattleCatalog();
     }
   }
 
-  function enterRoom(code: string, spectator: boolean) {
+  function enterRoom(code: string, spectator: boolean, mode: "classic" | "auto" = "classic") {
     const normalized = code.trim().toUpperCase();
     if (!/^[A-Z0-9]{6}$/.test(normalized) || !currentProfile) return;
     savePendingProfile();
-    location.href = `/play/room?code=${normalized}${spectator ? "&spectate=true" : ""}`;
+    location.href = `${mode === "auto" ? "/play/auto/room" : "/play/room"}?code=${normalized}${spectator ? "&spectate=true" : ""}`;
   }
 
   function openProfileEditor() {
@@ -295,7 +315,7 @@ const catalog = getBattleCatalog();
   codeInput?.addEventListener("input", () => {
     codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
   });
-  codeForm?.addEventListener("submit", (event) => {
+  codeForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const code = normalizeNickname(codeInput?.value).toUpperCase();
     const status = codeForm.querySelector<HTMLElement>("[data-form-status]");
@@ -304,20 +324,33 @@ const catalog = getBattleCatalog();
       return;
     }
     const room = rooms.find((item) => item.roomCode === code);
-    const spectator = room?.status === "playing" && !isActivePlayerRoom(code);
+    let resolvedRoom = room;
+    if (!resolvedRoom) {
+      const response = await fetch(`${API_URL}/rooms/${code}/meta`);
+      const meta = await response.json().catch(() => ({})) as { mode?: "classic" | "auto"; status?: "waiting" | "playing"; error?: string };
+      if (!response.ok) return setStatus(status, meta.error || "房间不存在或已经过期。", "error");
+      resolvedRoom = { roomCode: code, mode: meta.mode, status: meta.status || "waiting", players: [], playerCount: 0, capacity: 2, joinable: true, spectatorCount: 0, createdAt: Date.now(), updatedAt: Date.now() };
+    }
+    const spectator = resolvedRoom.status === "playing" && !isActivePlayerRoom(code);
     setStatus(status, spectator ? "正在进入观战模式。" : "正在进入房间。", "loading");
-    enterRoom(code, spectator);
+    enterRoom(code, spectator, resolvedRoom.mode || "classic");
   });
 
-  document.querySelector<HTMLButtonElement>("#battle-create-room")?.addEventListener("click", async (event) => {
-    const button = event.currentTarget;
+  const modeDialog = document.querySelector<HTMLDialogElement>("#battle-mode-dialog");
+  document.querySelector<HTMLButtonElement>("#battle-create-room")?.addEventListener("click", () => {
+    if (!currentProfile) return openProfileEditor();
+    modeDialog?.showModal();
+  });
+  modeDialog?.querySelector<HTMLElement>("[data-mode-cancel]")?.addEventListener("click", () => modeDialog.close());
+  modeDialog?.querySelectorAll<HTMLButtonElement>("[data-create-mode]").forEach((button) => button.addEventListener("click", async () => {
+    const mode = button.dataset.createMode === "auto" ? "auto" : "classic";
     const status = document.querySelector<HTMLElement>("#battle-create-status");
     if (!currentProfile) return openProfileEditor();
     const loadout = bootstrapLoadout();
     button.disabled = true;
     setStatus(status, "正在创建房间…", "loading");
     try {
-      const response = await fetch(`${API_URL}/rooms`, {
+      const response = await fetch(`${API_URL}${mode === "auto" ? "/auto" : ""}/rooms`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ nickname: currentProfile.nickname, ...handshakeLoadout(), token: getBattleToken() }),
@@ -325,13 +358,14 @@ const catalog = getBattleCatalog();
       const result = await response.json().catch(() => ({})) as { roomCode?: string; error?: string };
       if (!response.ok || !result.roomCode) throw new Error(result.error || "创建房间失败。");
       localStorage.setItem(PENDING_KEY, JSON.stringify({ nickname: currentProfile.nickname, ...loadout }));
-      markActiveRoom(result.roomCode);
-      location.href = `/play/room?code=${result.roomCode}`;
+      if (mode === "auto") markActiveRoomWithMode(result.roomCode, "auto");
+      else markActiveRoom(result.roomCode);
+      location.href = `${mode === "auto" ? "/play/auto/room" : "/play/room"}?code=${result.roomCode}`;
     } catch (error) {
       setStatus(status, error instanceof Error ? error.message : "创建房间失败。", "error");
       button.disabled = false;
     }
-  });
+  }));
 
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") refreshLobby();

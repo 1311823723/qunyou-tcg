@@ -1,6 +1,7 @@
 @import "./battle/declaration.css";
 @import "./battle/log.css";
 @import "./battle/motion.css";
+@import "./battle/auto.css";
 
 /* Online battle — entry, lobby, table, dialogs */
 .battle-entry { padding-top: 2rem; }

@@ -18,6 +18,7 @@ let errors = [];
 const bodies = readJSON("cards/bodies.json");
 const characters = readJSON("cards/characters.json");
 const handCards = readJSON("cards/hand_cards.json");
+const characterAutomation = readJSON("cards/character_automation.json");
 const tagTaxonomy = readJSON("tag-taxonomy.json");
 const archetypes = readJSON("archetypes.json");
 const aggroDeck = readJSON("decks/aggro.deck.json");
@@ -257,6 +258,22 @@ for (const char of characters) {
   if (char.cost?.type === "退场" && !char.cost.text) {
     errors.push(`Character "${char.id}" cost.type 退场 requires text`);
   }
+}
+
+for (const char of characters) {
+  const automation = characterAutomation[char.id];
+  if (!automation) {
+    errors.push(`Character "${char.id}" missing automation metadata`);
+    continue;
+  }
+  if (!['assisted', 'full'].includes(automation.level)) errors.push(`Character "${char.id}" has invalid automation level`);
+  if (!automation.trigger?.event || automation.trigger?.timingText !== char.timing) errors.push(`Character "${char.id}" automation timing is stale`);
+  if (!['any', 'source_self', 'source_opponent', 'target_self', 'target_opponent'].includes(automation.trigger?.relation)) errors.push(`Character "${char.id}" has invalid automation trigger relation`);
+  if (automation.usageLimit && (!['event', 'turn', 'game'].includes(automation.usageLimit.scope) || !Number.isInteger(automation.usageLimit.count))) errors.push(`Character "${char.id}" has invalid automation usage limit`);
+  if (!Array.isArray(automation.assistedActions) || automation.assistedActions.length === 0) errors.push(`Character "${char.id}" has no assisted actions`);
+}
+for (const id of Object.keys(characterAutomation)) {
+  if (!characters.some((char) => char.id === id)) errors.push(`Automation metadata references missing character "${id}"`);
 }
 
 if (errors.length > 0) {

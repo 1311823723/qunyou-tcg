@@ -45,6 +45,7 @@ test("room summaries only allow joining an online host with an open waiting seat
     spectators: [],
   };
   const open = buildLobbyRoomSummary(state, 200);
+  assert.equal(open.mode, "classic");
   assert.equal(open.joinable, true);
   assert.equal(open.status, "waiting");
   assert.deepEqual(open.players, [{ nickname: "房主", connected: true }]);

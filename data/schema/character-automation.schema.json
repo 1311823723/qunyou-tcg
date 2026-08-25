@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "角色技能自动化元数据",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": ["level", "trigger", "assistedActions"],
+    "properties": {
+      "level": { "type": "string", "enum": ["assisted", "full"] },
+      "trigger": {
+        "type": "object",
+        "required": ["event", "relation", "timingText"],
+        "properties": {
+          "event": { "type": "string" },
+          "relation": { "type": "string", "enum": ["any", "source_self", "source_opponent", "target_self", "target_opponent"] },
+          "targetMainRole": { "type": "string", "enum": ["强攻", "防御", "资源", "控制", "支援", "伏击"] },
+          "timingText": { "type": "string" }
+        }
+      },
+      "usageLimit": {
+        "type": "object",
+        "required": ["scope", "count"],
+        "properties": {
+          "scope": { "type": "string", "enum": ["event", "turn", "game"] },
+          "count": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "assistedActions": {
+        "type": "array",
+        "items": { "type": "string", "enum": ["draw", "damage", "prevent_damage", "heal", "deploy", "judge", "inspect", "move", "marker", "extra_strike", "manual"] }
+      }
+    }
+  }
+}

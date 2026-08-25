@@ -42,6 +42,9 @@ test("active player rooms support reconnect lookup and cleanup", () => {
   const storage = memoryStorage();
   profile.markActiveRoom("abc123", storage);
   assert.equal(profile.isActivePlayerRoom("ABC123", storage), true);
+  assert.equal(profile.activeRoomMode("ABC123", storage), "classic");
+  profile.markActiveRoomWithMode("AUTO01", "auto", storage);
+  assert.equal(profile.activeRoomMode("AUTO01", storage), "auto");
   profile.clearActiveRoom("ABC123", storage);
   assert.equal(profile.isActivePlayerRoom("ABC123", storage), false);
 });

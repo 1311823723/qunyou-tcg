@@ -71,9 +71,13 @@ test("battle worker registers room and lobby durable objects", () => {
   assert.deepEqual(workerConfig.durable_objects.bindings.map(({ name, class_name }) => ({ name, class_name })), [
     { name: "BATTLE_ROOMS", class_name: "BattleRoom" },
     { name: "BATTLE_LOBBY", class_name: "BattleLobby" },
+    { name: "AUTO_BATTLE_ROOMS", class_name: "AutoBattleRoom" },
   ]);
   assert.ok(workerConfig.migrations.some((migration) =>
     migration.tag === "v2" && migration.new_sqlite_classes?.includes("BattleLobby")
+  ));
+  assert.ok(workerConfig.migrations.some((migration) =>
+    migration.tag === "v3" && migration.new_sqlite_classes?.includes("AutoBattleRoom")
   ));
 });
 

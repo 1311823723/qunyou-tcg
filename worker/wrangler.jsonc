@@ -34,6 +34,10 @@
       {
         "name": "BATTLE_LOBBY",
         "class_name": "BattleLobby"
+      },
+      {
+        "name": "AUTO_BATTLE_ROOMS",
+        "class_name": "AutoBattleRoom"
       }
     ]
   },
@@ -45,6 +49,10 @@
     {
       "tag": "v2",
       "new_sqlite_classes": ["BattleLobby"]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["AutoBattleRoom"]
     }
   ],
   "observability": {

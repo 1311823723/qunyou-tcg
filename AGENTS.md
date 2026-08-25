@@ -58,3 +58,4 @@
 21. **Python 环境：** 项目 Python 依赖安装在根目录 `.venv`。执行 Python 脚本或安装依赖时，Codex 必须优先使用 `.venv/bin/python`、`.venv/bin/pip` 或 `.venv/bin/python -m pip`，不要把依赖安装到系统 Python；安装依赖时加 `--cache-dir .venv/.pip-cache`，避免使用不可写的用户级 pip 缓存。
 22. **基础牌正式名称：** 统一使用【出刀】【闪避】【急救】。不得在新卡牌、规则或玩家可见文案中重新使用旧牌名；“红桃”“爆杀流”“杀手”“闪电”等正常词语不受影响。
 23. **手牌牌种名称：** 手牌分为“基础牌”与“行动牌”，原“锦囊牌”统一称为“行动牌”；对应流派称为“行动流”，预组名“操作组”不变。
+24. **角色辅助结算元数据：** 修改角色牌 `timing`、`cost` 或次数限制文本后，必须运行 `npm run automation:sync` 并提交 `data/cards/character_automation.json`；`npm run validate` 会检查 120 张角色是否完整且与正式数据同步。
