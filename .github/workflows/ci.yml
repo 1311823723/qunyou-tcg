@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      WRANGLER_LOG_PATH: ${{ runner.temp }}/wrangler-ci.log
+      WRANGLER_LOG_PATH: /tmp/wrangler-ci.log
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      WRANGLER_LOG_PATH: ${{ runner.temp }}/wrangler-e2e.log
+      WRANGLER_LOG_PATH: /tmp/wrangler-e2e.log
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -91,6 +91,6 @@ jobs:
           path: |
             playwright-report/
             test-results/
-            ${{ runner.temp }}/wrangler-e2e.log
+            /tmp/wrangler-e2e.log
           if-no-files-found: ignore
           retention-days: 7
