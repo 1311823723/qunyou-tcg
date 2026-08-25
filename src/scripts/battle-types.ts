@@ -40,6 +40,9 @@ export type CatalogDeck = {
   characterIds: string[];
   roleDistribution: Record<string, number>;
   tagDistribution: Record<string, number>;
+  autoImplemented: number;
+  autoTotal: number;
+  autoReady: boolean;
 };
 
 export type CustomDeckConfig = {

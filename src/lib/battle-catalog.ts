@@ -4,6 +4,7 @@ import { getArchetypeBlurb } from "./archetypes";
 import { getBodyArt, getCharacterArt } from "./card-art";
 import { costKind, formatCharacterCost } from "./ui";
 import characterAutomation from "../../data/cards/character_automation.json";
+import characterImplementation from "../../data/cards/character_implementation.json";
 
 const ARCHETYPE_THEME_SLUG: Record<string, string> = {
   "爆杀流": "aggro",
@@ -155,6 +156,8 @@ export function getBattleCatalog() {
           }
         }
       }
+      const autoImplemented = deck.characterIds.filter((id) => characterImplementation[id as keyof typeof characterImplementation]?.automation === "implemented").length;
+      const autoBlocked = deck.characterIds.some((id) => characterImplementation[id as keyof typeof characterImplementation]?.review === "needs_confirmation");
 
       return {
         id: deck.id,
@@ -166,6 +169,9 @@ export function getBattleCatalog() {
         characterIds: deck.characterIds,
         roleDistribution,
         tagDistribution,
+        autoImplemented,
+        autoTotal: deck.characterIds.length,
+        autoReady: autoImplemented === deck.characterIds.length && !autoBlocked,
       };
     }),
   };

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  AUTO_STATE_VERSION,
   HAND_IDS,
   advancePhase,
+  canUseInPlay,
   deployTopCharacter,
   drawCards,
   handLimit,
@@ -13,9 +15,11 @@ function card(instanceId, definitionId, ownerId = "p1") {
   return { instanceId, definitionId, ownerId, kind: definitionId.startsWith("hand_") ? "hand" : "character" };
 }
 
-function player(id) {
+function player(id, bodyDefinitionId = "body_aggro_001") {
   return {
     id, token: id, nickname: id, ready: true, health: 7, maxHealth: 7,
+    body: card(`${id}-body`, bodyDefinitionId, id),
+    bodyState: { progress: 0, progressMax: 6, flipped: false, extraFormUsed: false, trackedCharacterInstanceIds: [] },
     hand: [], characterDeck: [], characterSlots: [null, null, null, null], markers: [], retired: [], banished: [],
   };
 }
@@ -24,11 +28,11 @@ function state() {
   const p1 = player("p1");
   const p2 = player("p2");
   return {
-    stateVersion: 1, mode: "auto", roomCode: "AUTO01", createdAt: 0, lastActivityAt: 0,
+    stateVersion: AUTO_STATE_VERSION, mode: "auto", roomCode: "AUTO01", createdAt: 0, lastActivityAt: 0,
     started: true, players: [p1, p2], spectators: [], handDeck: [], handDiscard: [], resolving: [],
     currentPlayerId: "p1", firstPlayerId: "p1", turnNumber: 1, phase: "preparation", stack: [],
     consecutivePasses: 0, usageCounters: {}, turnModifiers: [], deployedThisPhase: 0,
-    recentEvents: [],
+    recentEvents: [], pendingBodyTriggers: [],
     revision: 0, logs: [], processedActionIds: [],
   };
 }
@@ -86,7 +90,7 @@ test("response legality keeps private hand choices scoped to current responder",
     card("meeting", HAND_IDS.meeting, "p2"),
     card("joker", HAND_IDS.impersonate, "p2"),
   ];
-  room.stack = [{ id: "strike", sourcePlayerId: "p1", targetPlayerId: "p2", card: card("s", HAND_IDS.strike), definitionId: HAND_IDS.strike }];
+  room.stack = [{ kind: "hand", id: "strike", sourcePlayerId: "p1", targetPlayerId: "p2", card: card("s", HAND_IDS.strike), definitionId: HAND_IDS.strike }];
   room.responsePlayerId = "p2";
   room.prompt = { id: "prompt", kind: "response", playerId: "p2", title: "响应", message: "响应" };
   assert.deepEqual(legalResponseCards(room, room.players[1]).map((item) => item.instanceId).sort(), ["dodge", "joker", "meeting"]);
@@ -104,10 +108,30 @@ test("turn advancement preserves game limits and clears turn-scoped counters", (
   room.phase = "end";
   room.usageCounters = {
     "skill:game:p1:limited": 1,
+    "body:game:p1:z-used": 1,
     "skill:turn:1:p1:once": 1,
     "skill-actions:1:p1": 2,
   };
   assert.equal(advancePhase(room, room.players[0], (items) => items), "preparation");
-  assert.deepEqual(room.usageCounters, { "skill:game:p1:limited": 1 });
+  assert.deepEqual(room.usageCounters, { "skill:game:p1:limited": 1, "body:game:p1:z-used": 1 });
   assert.equal(room.currentPlayerId, "p2");
+});
+
+test("间谍的无出刀分支只封锁本回合主动出刀", () => {
+  const room = state();
+  room.phase = "play";
+  room.turnModifiers.push({ id: "spy", ownerId: "p1", kind: "mizai-strike-block", count: 1 });
+  assert.equal(canUseInPlay(room, room.players[0], HAND_IDS.strike), false);
+  assert.equal(canUseInPlay(room, room.players[0], HAND_IDS.draw), true);
+});
+
+test("拟态的本回合费用减免会过期，执棋Z招式的下一次减免会保留", () => {
+  const room = state();
+  room.phase = "end";
+  room.turnModifiers = [
+    { id: "trans", ownerId: "p1", kind: "body-next-skill-cost-rest-one", count: 1, characterInstanceId: "c1", expiresAtTurnNumber: 2 },
+    { id: "dispatch", ownerId: "p1", kind: "body-next-skill-cost-rest-one", count: 1, characterInstanceId: "c2" },
+  ];
+  advancePhase(room, room.players[0], (items) => items);
+  assert.deepEqual(room.turnModifiers.map((modifier) => modifier.id), ["dispatch"]);
 });

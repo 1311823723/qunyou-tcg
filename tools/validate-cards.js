@@ -19,6 +19,7 @@ const bodies = readJSON("cards/bodies.json");
 const characters = readJSON("cards/characters.json");
 const handCards = readJSON("cards/hand_cards.json");
 const characterAutomation = readJSON("cards/character_automation.json");
+const characterImplementation = readJSON("cards/character_implementation.json");
 const tagTaxonomy = readJSON("tag-taxonomy.json");
 const archetypes = readJSON("archetypes.json");
 const aggroDeck = readJSON("decks/aggro.deck.json");
@@ -30,6 +31,13 @@ const bloodDeck = readJSON("decks/blood.deck.json");
 const ambushDeck = readJSON("decks/ambush.deck.json");
 const defenseDeck = readJSON("decks/defense.deck.json");
 const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck, dispatchDeck, bloodDeck, ambushDeck, defenseDeck];
+const characterSkillDir = path.join(projectDir, "worker/src/skills/characters");
+const characterSkillSource = fs.existsSync(characterSkillDir)
+  ? fs.readdirSync(characterSkillDir, { recursive: true })
+    .filter((file) => String(file).endsWith(".mts"))
+    .map((file) => fs.readFileSync(path.join(characterSkillDir, String(file)), "utf8"))
+    .join("\n")
+  : "";
 
 const legacyFormalTerms = ["【杀】", "【闪】", "【桃】", "锦囊"];
 const formalDataSources = [
@@ -262,11 +270,27 @@ for (const char of characters) {
 
 for (const char of characters) {
   const automation = characterAutomation[char.id];
+  const implementation = characterImplementation[char.id];
+  if (!implementation) {
+    errors.push(`Character "${char.id}" missing implementation status`);
+  } else {
+    const extraKeys = Object.keys(implementation).filter((key) => !["automation", "review", "note"].includes(key));
+    if (extraKeys.length) errors.push(`Character "${char.id}" implementation status has unknown fields: ${extraKeys.join(", ")}`);
+    if (!["pending", "in_progress", "implemented"].includes(implementation.automation)) errors.push(`Character "${char.id}" has invalid implementation status`);
+    if (!["confirmed", "needs_confirmation", "needs_testing", "needs_optimization"].includes(implementation.review)) errors.push(`Character "${char.id}" has invalid review status`);
+    if (implementation.note !== undefined && (typeof implementation.note !== "string" || implementation.note.length > 240)) errors.push(`Character "${char.id}" has invalid implementation note`);
+    if (implementation.review === "needs_confirmation" && implementation.automation === "implemented") errors.push(`Character "${char.id}" cannot be implemented while rules need confirmation`);
+  }
   if (!automation) {
     errors.push(`Character "${char.id}" missing automation metadata`);
     continue;
   }
+  if (implementation?.automation === "implemented" && !characterSkillSource.includes(`"${char.id}"`)) {
+    errors.push(`Character "${char.id}" is implemented but has no registered skill module source`);
+  }
   if (!['assisted', 'full'].includes(automation.level)) errors.push(`Character "${char.id}" has invalid automation level`);
+  const expectedLevel = implementation?.automation === "implemented" ? "full" : "assisted";
+  if (automation.level !== expectedLevel) errors.push(`Character "${char.id}" automation level does not match implementation status`);
   if (!automation.trigger?.event || automation.trigger?.timingText !== char.timing) errors.push(`Character "${char.id}" automation timing is stale`);
   if (!['any', 'source_self', 'source_opponent', 'target_self', 'target_opponent'].includes(automation.trigger?.relation)) errors.push(`Character "${char.id}" has invalid automation trigger relation`);
   if (automation.usageLimit && (!['event', 'turn', 'game'].includes(automation.usageLimit.scope) || !Number.isInteger(automation.usageLimit.count))) errors.push(`Character "${char.id}" has invalid automation usage limit`);
@@ -274,6 +298,9 @@ for (const char of characters) {
 }
 for (const id of Object.keys(characterAutomation)) {
   if (!characters.some((char) => char.id === id)) errors.push(`Automation metadata references missing character "${id}"`);
+}
+for (const id of Object.keys(characterImplementation)) {
+  if (!characters.some((char) => char.id === id)) errors.push(`Implementation status references missing character "${id}"`);
 }
 
 if (errors.length > 0) {

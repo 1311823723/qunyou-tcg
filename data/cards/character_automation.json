@@ -1,6 +1,6 @@
 {
   "char_001_keke_assassin": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "damage_after",
       "relation": "target_self",
@@ -11,7 +11,7 @@
     ]
   },
   "char_002_weixiaokele_assassin": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -23,7 +23,7 @@
     ]
   },
   "char_003_qindi_sheriff": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "opponent_preparation",
       "relation": "source_opponent",
@@ -34,7 +34,7 @@
     ]
   },
   "char_004_horus-lupercal_pelican": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -46,7 +46,7 @@
     ]
   },
   "char_005_aichitun_jester": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -58,7 +58,7 @@
     ]
   },
   "char_006_weixiaokele_ninja": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "strike_used",
       "relation": "source_self",
@@ -70,7 +70,7 @@
     ]
   },
   "char_007_baizi_ninja": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -81,7 +81,7 @@
     ]
   },
   "char_008_baizi_hitman": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -93,7 +93,7 @@
     ]
   },
   "char_009_weixiaokele_hitman": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "damage_before_source",
       "relation": "source_self",
@@ -104,7 +104,7 @@
     ]
   },
   "char_010_weixiaokele_bomber": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -117,7 +117,7 @@
     ]
   },
   "char_011_baizi_bomber": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -129,7 +129,7 @@
     ]
   },
   "char_012_baizi_bird-eater": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -140,7 +140,7 @@
     ]
   },
   "char_013_weixiaokele_morphling": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -151,7 +151,7 @@
     ]
   },
   "char_014_baizi_party-duck": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -162,7 +162,7 @@
     ]
   },
   "char_015_weixiaokele_lobbyist": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -173,7 +173,7 @@
     ]
   },
   "char_016_baizi_gravy": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "strike_targeted",
       "relation": "target_self",
@@ -418,7 +418,7 @@
     ]
   },
   "char_036_keke_spy": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "preparation",
       "relation": "any",
@@ -431,7 +431,7 @@
     ]
   },
   "char_037_keke_seer": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "strike_used",
       "relation": "source_self",
@@ -443,7 +443,7 @@
     ]
   },
   "char_038_keke_avenger": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "damage_after",
       "relation": "source_self",
@@ -455,7 +455,7 @@
     ]
   },
   "char_039_keke_judge": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "basic_card_needed",
       "relation": "source_self",
@@ -468,7 +468,7 @@
     ]
   },
   "char_040_fengyaojing_detective": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -479,7 +479,7 @@
     ]
   },
   "char_041_baizi_watcher": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "preparation",
       "relation": "any",
@@ -492,7 +492,7 @@
     ]
   },
   "char_042_xiaoapan_neo": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -504,7 +504,7 @@
     ]
   },
   "char_043_baizi_falcon": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "strike_dodged",
       "relation": "source_self",
@@ -516,7 +516,7 @@
     ]
   },
   "char_044_arthur_sheriff": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -527,7 +527,7 @@
     ]
   },
   "char_045_guamao_assassin": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "strike_used",
       "relation": "source_opponent",
@@ -539,7 +539,7 @@
     ]
   },
   "char_046_fengyaojing_watcher": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -551,7 +551,7 @@
     ]
   },
   "char_047_miaosila_ironclad": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -562,7 +562,7 @@
     ]
   },
   "char_048_xiaoka_high-priest": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "strike_targeted",
       "relation": "target_self",
@@ -574,7 +574,7 @@
     ]
   },
   "char_049_xiaoapan_undertaker": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "character_retired",
       "relation": "any",
@@ -586,7 +586,7 @@
     ]
   },
   "char_050_dong_bomber": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -597,7 +597,7 @@
     ]
   },
   "char_051_baizi_lobbyist": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -633,7 +633,7 @@
     ]
   },
   "char_054_xiangcai_prophet": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "preparation",
       "relation": "any",
@@ -660,7 +660,7 @@
     ]
   },
   "char_056_huihuan_watcher": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -672,7 +672,7 @@
     ]
   },
   "char_057_guamao_silent-hunter": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -683,7 +683,7 @@
     ]
   },
   "char_058_xiangcai_politician": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -694,7 +694,7 @@
     ]
   },
   "char_059_dong_justice": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "action_resolved",
       "relation": "source_self",
@@ -705,7 +705,7 @@
     ]
   },
   "char_060_linglong_defect-robot": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -721,7 +721,7 @@
     ]
   },
   "char_061_xiangcai_watcher": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "action_resolved",
       "relation": "source_self",
@@ -733,7 +733,7 @@
     ]
   },
   "char_062_guamao_morphling": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "action_resolved",
       "relation": "source_self",
@@ -744,7 +744,7 @@
     ]
   },
   "char_063_dong_assassin": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "action_resolved",
       "relation": "source_opponent",
@@ -755,7 +755,7 @@
     ]
   },
   "char_064_huihuan_pelican": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "action_used",
       "relation": "source_opponent",
@@ -766,7 +766,7 @@
     ]
   },
   "char_065_dong_high-priest": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "action_resolved",
       "relation": "target_self",
@@ -777,7 +777,7 @@
     ]
   },
   "char_066_linglong_ninja": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "card_responded",
       "relation": "source_opponent",
@@ -788,7 +788,7 @@
     ]
   },
   "char_067_xiangcai_neo": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -799,7 +799,7 @@
     ]
   },
   "char_068_huihuan_bird-eater": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -811,7 +811,7 @@
     ]
   },
   "char_069_dong_sheriff": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "opponent_preparation",
       "relation": "source_opponent",
@@ -822,7 +822,7 @@
     ]
   },
   "char_070_huihuan_silent-hunter": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",

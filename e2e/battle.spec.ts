@@ -220,6 +220,11 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     const code = new URL(hostPage.url()).searchParams.get("code");
     expect(code).toMatch(/^[A-Z0-9]{6}$/);
     await expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "lobby");
+    await hostPage.locator("#auto-deck-select").selectOption("deck_combo_001");
+    await expect(hostPage.locator("#auto-deck-select")).toHaveValue("deck_combo_001");
+    await expect(hostPage.locator("#auto-deck-select option:not([disabled])")).toHaveCount(3);
+    await expect(hostPage.locator("#auto-deck-select option[disabled]")).toHaveCount(5);
+    expect((await hostPage.locator("#auto-deck-select option").allTextContents()).join(" ")).not.toContain("自选");
 
     await setProfile(guestPage, "E2E-自动对手");
     await guestPage.goto(`/play?room=${code}`);
@@ -228,6 +233,8 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     await roomCard.locator("[data-room-action]").click();
     await guestPage.waitForURL(new RegExp(`/play/auto/room\\?code=${code}`));
     await expect(guestPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "lobby");
+    await guestPage.locator("#auto-deck-select").selectOption("deck_mizai_001");
+    await expect(guestPage.locator("#auto-deck-select")).toHaveValue("deck_mizai_001");
 
     await guestPage.locator('[data-auto-command="ready"]').click();
     await hostPage.locator('[data-auto-command="ready"]').click();
@@ -236,6 +243,17 @@ test("automatic beta room starts, advances phases and protects spectator privacy
       expect(guestPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game"),
     ]);
     await expect(hostPage.locator(".auto-phase strong")).toHaveText("准备阶段");
+    await expect(hostPage.locator(".auto-body-status")).toHaveCount(2);
+    await expect(hostPage.locator(".auto-body-status", { hasText: "Mega 0 / 6" })).toHaveCount(1);
+    await expect(hostPage.locator(".auto-body-status", { hasText: "Mega 0 / 5" })).toHaveCount(1);
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const hostPass = hostPage.locator('.auto-prompt.is-mine [data-prompt-value="pass"]');
+      const guestPass = guestPage.locator('.auto-prompt.is-mine [data-prompt-value="pass"]');
+      if (await hostPass.isVisible().catch(() => false)) await hostPass.click();
+      else if (await guestPass.isVisible().catch(() => false)) await guestPass.click();
+      else break;
+    }
 
     const hostTurn = await hostPage.locator(".auto-phase small").textContent() === "你的回合";
     const currentPage = hostTurn ? hostPage : guestPage;
@@ -247,6 +265,10 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     await spectatorPage.goto(`/play/auto/room?code=${code}&spectate=true`);
     await expect(spectatorPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game");
     await expect(spectatorPage.locator(".auto-hand [data-auto-card]")).toHaveCount(0);
+    await expect(spectatorPage.locator(".auto-hand")).toHaveCount(0);
+    await expect(spectatorPage.locator(".auto-player")).toHaveCount(2);
+    await expect(spectatorPage.getByText("玩家 A ·", { exact: false })).toBeVisible();
+    await expect(spectatorPage.getByText("玩家 B ·", { exact: false })).toBeVisible();
     await expect(spectatorPage.locator("[data-phase-advance]")).toBeDisabled();
 
     await currentPage.setViewportSize({ width: 390, height: 844 });

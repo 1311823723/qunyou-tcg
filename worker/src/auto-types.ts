@@ -17,7 +17,11 @@ export type AutoPromptKind =
   | "crisis-choice"
   | "reveal-choice"
   | "recall"
-  | "assisted-skill";
+  | "assisted-skill"
+  | "body-skill"
+  | "character-skill"
+  | "character-trigger"
+  | "damage-before";
 
 export interface AutoPrompt {
   id: string;
@@ -28,11 +32,13 @@ export interface AutoPrompt {
   min?: number;
   max?: number;
   cardInstanceIds?: string[];
+  selectableCards?: CardInstance[];
   options?: Array<{ value: string; label: string }>;
   context?: Record<string, unknown>;
 }
 
-export interface ResolutionItem {
+export interface HandResolutionItem {
+  kind: "hand";
   id: string;
   sourcePlayerId: string;
   card: CardInstance;
@@ -45,14 +51,114 @@ export interface ResolutionItem {
   cancellationReason?: "dodge" | "counter" | "meeting" | "skill";
   cancelled?: boolean;
   wasRespondedTo?: boolean;
+  damageDealt?: number;
+  damagePending?: boolean;
+  cannotDodge?: boolean;
+  returnCharacterOnDamageInstanceId?: string;
+  damageBonus?: number;
+  bodyEffect?: "aggro-mega-strike";
+}
+
+export interface CharacterSkillResolutionItem {
+  kind: "character-skill";
+  id: string;
+  sourcePlayerId: string;
+  sourceInstanceId: string;
+  definitionId: string;
+  handlerId: string;
+  eventId?: string;
+  resumeResponse?: boolean;
+  dyingPromptContext?: Record<string, unknown>;
+}
+
+export type ResolutionItem = HandResolutionItem | CharacterSkillResolutionItem;
+
+export interface SkillContinuation {
+  handlerId: string;
+  sourceDefinitionId: string;
+  sourceInstanceId: string;
+  step: string;
+  eventId?: string;
+  data?: Record<string, unknown>;
+}
+
+export interface AutoLegalAction {
+  type: string;
+  payload?: Record<string, string | number | boolean | string[]>;
+  selection?: {
+    kind: "cards" | "skill-cost" | "order";
+    cardInstanceIds: string[];
+    min: number;
+    max: number;
+  };
 }
 
 export interface TurnModifier {
   id: string;
   ownerId: string;
-  kind: "next-skill-cost-rest-one" | "extra-strike" | "damage-shield";
+  kind:
+    | "next-skill-cost-rest-one"
+    | "extra-strike"
+    | "damage-shield"
+    | "body-next-skill-cost-rest-one"
+    | "combo-next-action-draw"
+    | "combo-counter-action-draw"
+    | "combo-next-other-skill-damage"
+    | "combo-declare-hand-type"
+    | "combo-direct-disrupt"
+    | "aggro-sheriff-recoil"
+    | "aggro-return-character"
+    | "aggro-reveal-lock"
+    | "aggro-bomb"
+    | "aggro-next-strike-damage"
+    | "aggro-copy-character-skill"
+    | "mizai-strike-block"
+    | "mizai-next-strike-undodgeable"
+    | "mizai-prediction";
   count: number;
+  characterInstanceId?: string;
+  sourceDefinitionId?: string;
+  targetCardInstanceId?: string;
+  targetPlayerId?: string;
+  targetCharacterInstanceId?: string;
+  targetSlotIndex?: number;
+  markerId?: string;
+  storedFaceDown?: boolean;
+  copiedDefinitionId?: string;
+  declaredHandType?: "basic" | "action";
+  predictedDamage?: boolean;
   expiresAtTurnNumber?: number;
+}
+
+export interface BodyRuntimeState {
+  progress: number;
+  progressMax: number;
+  flipped: boolean;
+  extraFormUsed: boolean;
+  trackedCharacterInstanceIds: string[];
+  ambushWindow?: {
+    remaining: number;
+    expiresAtTurnNumber: number;
+  };
+}
+
+export type PendingBodyTriggerKind =
+  | "aggro-draw"
+  | "aggro-mega-end-strike"
+  | "mizai-inspection"
+  | "combo-action"
+  | "trans-deploy"
+  | "dispatch-reveal"
+  | "blood-judgment"
+  | "ambush-refill"
+  | "defense-reward";
+
+export interface PendingBodyTrigger {
+  id: string;
+  kind: PendingBodyTriggerKind;
+  playerId: string;
+  eventId: string;
+  context?: Record<string, string | number | boolean | string[] | undefined>;
 }
 
 export interface AutoBattleEvent {
@@ -78,6 +184,7 @@ export interface AutoPlayerState {
   health: number;
   maxHealth: number;
   body?: CardInstance;
+  bodyState: BodyRuntimeState;
   hand: CardInstance[];
   characterDeck: CardInstance[];
   characterSlots: Array<CardInstance | Marker | null>;
@@ -111,6 +218,7 @@ export interface AutoRoomState {
   turnModifiers: TurnModifier[];
   deployedThisPhase: number;
   recentEvents: AutoBattleEvent[];
+  pendingBodyTriggers: PendingBodyTrigger[];
   winnerId?: string;
   revision: number;
   logs: BattleLog[];

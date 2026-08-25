@@ -3,7 +3,9 @@ import bodies from "../../data/cards/bodies.json";
 import characters from "../../data/cards/characters.json";
 import handCards from "../../data/cards/hand_cards.json";
 import characterAutomation from "../../data/cards/character_automation.json";
+import characterImplementation from "../../data/cards/character_implementation.json";
 import { allDecks } from "../../src/lib/decks";
+import { getExtraFormProgressMax } from "../../src/lib/body-progress";
 import {
   AUTO_STATE_VERSION,
   HAND_IDS,
@@ -18,6 +20,7 @@ import {
   handLimit,
   handName,
   heal,
+  isHandResolutionItem,
   isActionCard,
   legalResponseCards,
   moveResolvedCardToDiscard,
@@ -25,13 +28,33 @@ import {
   playerById,
   validPlayDefinition,
 } from "./auto-engine.mts";
+import {
+  BODY_IDS,
+  bodyId,
+  bodyProgressDelta,
+  bodyUsageKey,
+  triggerKindForBody,
+} from "./body-automation.mts";
+import { bodySkillForId } from "./skills/body-registry.mts";
+import type { BodySkillRuntimeContext } from "./skills/body-skill.mts";
+import { characterSkillForId } from "./skills/character-registry.mts";
+import type { CharacterSkillRuntimeContext } from "./skills/character-skill.mts";
+import { AGGRO_CHARACTER_IDS } from "./skills/characters/aggro.mts";
+import { COMBO_CHARACTER_IDS } from "./skills/characters/combo.mts";
+import { MIZAI_CHARACTER_IDS } from "./skills/characters/mizai.mts";
 import type {
   AutoBattleEvent,
+  AutoLegalAction,
   AutoClientMessage,
   AutoPlayerState,
   AutoRoomState,
   AutoSocketAttachment,
+  BodyRuntimeState,
+  CharacterSkillResolutionItem,
+  HandResolutionItem,
+  PendingBodyTrigger,
   ResolutionItem,
+  SkillContinuation,
 } from "./auto-types";
 import type { BattleLogTarget, CardInstance, CustomDeckConfig, LobbyRoomSummary } from "./types";
 
@@ -41,7 +64,19 @@ const CUSTOM_DECK_ID = "custom";
 const deckById = new Map(allDecks.map((deck) => [deck.id, deck]));
 const bodyById = new Map(bodies.map((body) => [body.id, body]));
 const characterById = new Map(characters.map((card) => [card.id, card]));
-const automationById = new Map(Object.entries(characterAutomation));
+type CharacterAutomationEntry = {
+  level: "assisted" | "full";
+  trigger: { event: string; relation: string; timingText: string; targetMainRole?: string };
+  usageLimit?: { scope: "event" | "turn" | "game"; count: number };
+  assistedActions: string[];
+};
+const automationById = new Map(Object.entries(characterAutomation) as Array<[string, CharacterAutomationEntry]>);
+const unlockedAutoDeckIds = new Set(allDecks
+  .filter((deck) => deck.characterIds.every((id) => {
+    const status = characterImplementation[id as keyof typeof characterImplementation];
+    return status?.automation === "implemented" && status.review !== "needs_confirmation";
+  }))
+  .map((deck) => deck.id));
 
 function json(data: unknown, init: ResponseInit = {}) {
   return Response.json(data, init);
@@ -71,25 +106,28 @@ function validCustomDeck(deck?: CustomDeckConfig): deck is CustomDeckConfig {
 }
 
 export function validAutoLoadout(deckId: string, customDeck?: CustomDeckConfig) {
-  return deckId === CUSTOM_DECK_ID ? validCustomDeck(customDeck) : deckById.has(deckId);
+  void customDeck;
+  return deckId !== CUSTOM_DECK_ID && unlockedAutoDeckIds.has(deckId);
 }
 
 export class AutoBattleRoom extends DurableObject<Env> {
   private state?: AutoRoomState;
-  private readonly env: Env;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.env = env;
     ctx.blockConcurrencyWhile(async () => {
       this.state = await ctx.storage.get<AutoRoomState>("room");
       if (this.state) {
         this.state.mode = "auto";
         this.state.stack ??= [];
+        for (const item of this.state.stack) item.kind ??= "hand";
         this.state.usageCounters ??= {};
         this.state.turnModifiers ??= [];
         this.state.recentEvents ??= [];
+        this.state.pendingBodyTriggers ??= [];
         this.state.processedActionIds ??= [];
+        for (const player of this.state.players) player.bodyState ??= this.newBodyState(player.body?.definitionId);
+        this.state.stateVersion = AUTO_STATE_VERSION;
         await this.syncLobby();
       }
     });
@@ -97,6 +135,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
 
   async createRoom(code: string, token: string, nickname: string, deckId: string, customDeck?: CustomDeckConfig) {
     if (this.state) return { roomCode: this.state.roomCode, mode: "auto" as const };
+    if (!validAutoLoadout(deckId, customDeck)) throw new Error("自动对战只能使用已完成角色技能自动化的预组。");
     const now = Date.now();
     this.state = {
       stateVersion: AUTO_STATE_VERSION,
@@ -118,6 +157,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       turnModifiers: [],
       deployedThisPhase: 0,
       recentEvents: [],
+      pendingBodyTriggers: [],
       revision: 0,
       logs: [],
       processedActionIds: [],
@@ -135,6 +175,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       if (this.state.started) return { status: 409, body: { error: "牌局已经开始，请使用观战模式进入。" } };
       if (this.state.players[0]?.disconnectedAt) return { status: 409, body: { error: "房主暂时离线，请等待其重连。" } };
       if (this.state.players.length >= 2) return { status: 409, body: { error: "房间已满，无法加入。" } };
+      if (!validAutoLoadout(deckId, customDeck)) return { status: 400, body: { error: "自动对战只能使用已解锁预组。" } };
       player = this.newPlayer("p2", token, nickname, deckId, customDeck);
       this.state.players.push(player);
       this.addLog(`${nickname} 加入了自动对战房间`, player.id, { zone: "lobby", ownerId: player.id });
@@ -209,6 +250,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       const stateBeforeAction = structuredClone(this.state);
       try {
         await this.applyAction(player, message);
+        this.openNextSkillTrigger();
       } catch (error) {
         this.state = stateBeforeAction;
         throw error;
@@ -282,7 +324,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         if (this.state.started || player.ready) throw new Error("当前不能更换预组。");
         const deckId = cleanText(payload.deckId, 80);
         const customDeck = parseCustomDeck(payload.customDeck);
-        if (!validAutoLoadout(deckId, customDeck)) throw new Error("牌组无效。");
+        if (!validAutoLoadout(deckId, customDeck)) throw new Error("该预组的角色技能尚未全部实现。");
         player.deckId = deckId;
         player.customDeck = deckId === CUSTOM_DECK_ID ? customDeck : undefined;
         return;
@@ -300,6 +342,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
         const next = advancePhase(this.state, player, (items) => this.shuffle(items));
         this.state.recentEvents = [];
         this.addLog(`${player.nickname} 将阶段从${this.phaseLabel(previous)}推进至${this.phaseLabel(next)}`, player.id, { zone: "turn" });
+        this.onPhaseEntered(next, player);
+        this.openNextSkillTrigger();
         return;
       }
       case "character:deploy": {
@@ -319,10 +363,32 @@ export class AutoBattleRoom extends DurableObject<Env> {
         const slot = Number(payload.slotIndex);
         const card = player.characterSlots[slot];
         if (!card || !("instanceId" in card) || !card.faceDown) throw new Error("只能明置自己的暗置角色。");
+        if (this.isCharacterRevealLocked(player, card.instanceId)) throw new Error("该角色本回合不能明置。");
         this.state.recentEvents = [];
         card.faceDown = false;
         this.emitEvent("character_revealed", { sourcePlayerId: player.id, targetPlayerId: player.id, characterDefinitionId: card.definitionId });
         this.addLog(`${player.nickname} 明置了角色【${characterById.get(card.definitionId)?.name || card.definitionId}】`, player.id, { zone: "characterSlot", ownerId: player.id, slotIndex: slot });
+        this.openNextSkillTrigger();
+        return;
+      }
+      case "bomb:remove": {
+        this.requireTurn(player, "play");
+        if (this.state.prompt || this.state.stack.length) throw new Error("请先完成当前结算。");
+        const markerId = cleanText(payload.markerId, 80);
+        const modifierIndex = this.state.turnModifiers.findIndex((modifier) => modifier.kind === "aggro-bomb"
+          && modifier.targetPlayerId === player.id && modifier.markerId === markerId);
+        const modifier = this.state.turnModifiers[modifierIndex];
+        const marker = modifier ? player.characterSlots[Number(modifier.targetSlotIndex)] : undefined;
+        if (!modifier || !marker || "instanceId" in marker || marker.id !== markerId) throw new Error("炸弹标记已经不在角色区。");
+        const ids = Array.isArray(payload.costCharacterIds) ? payload.costCharacterIds.map((id) => cleanText(id, 80)) : [];
+        if (ids.length !== 1) throw new Error("请选择1张角色支付休整费用。");
+        const cost = player.characterSlots.find((slot) => slot && "instanceId" in slot && slot.instanceId === ids[0]);
+        if (!cost || !("instanceId" in cost)) throw new Error("休整费用中的角色无效。");
+        this.restCard(player, cost, false, player.id, true);
+        const slotIndex = Number(modifier.targetSlotIndex);
+        player.characterSlots[slotIndex] = null;
+        this.state.turnModifiers.splice(modifierIndex, 1);
+        this.addLog(`${player.nickname}休整1张角色，拆除了「炸弹」`, player.id, { zone: "characterSlot", ownerId: player.id, slotIndex });
         return;
       }
       case "hand:play":
@@ -333,6 +399,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
         return this.passResponse(player);
       case "choice:submit":
         return this.submitChoice(player, payload);
+      case "body:activate":
+        return this.activateBodyExtra(player, payload);
       case "skill:activate":
         return this.activateAssistedSkill(player, payload);
       case "assisted:action":
@@ -341,12 +409,15 @@ export class AutoBattleRoom extends DurableObject<Env> {
         if (this.state.prompt?.kind !== "assisted-skill" || this.state.prompt.playerId !== player.id) throw new Error("当前没有由你处理的辅助技能。");
         this.addLog(`${player.nickname} 完成了辅助技能结算`, player.id, { zone: "resolving" });
         const resumeResponse = Boolean(this.state.prompt.context?.resumeResponse);
+        const retiredAmbushInstanceId = cleanText(this.state.prompt.context?.retiredAmbushInstanceId, 80);
         this.state.prompt = undefined;
+        if (retiredAmbushInstanceId) this.finishRetiredAmbushSkill(player, retiredAmbushInstanceId);
         if (resumeResponse && this.state.stack.length) {
           const top = this.state.stack[this.state.stack.length - 1];
-          if (top?.cancelled) this.continueStack();
+          if (isHandResolutionItem(top) && top.cancelled) this.continueStack();
           else this.restoreResponseAfterSkill(player.id);
         }
+        this.openNextSkillTrigger();
         return;
       }
       default:
@@ -364,6 +435,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!validPlayDefinition(card.definitionId, resolvedAs)) throw new Error("基础牌转化选择无效。");
 
     if (response) {
+      if (this.state.prompt?.context?.skillOnly === true) throw new Error("当前窗口只能发动对应角色技能或放弃。");
       if (!legalResponseCards(this.state, player).some((item) => item.instanceId === card.instanceId)) throw new Error("这张牌不能在当前窗口响应。");
       if (card.definitionId === HAND_IDS.impersonate && resolvedAs !== HAND_IDS.dodge) throw new Error("【冒名顶替】响应【出刀】时必须视为【闪避】。");
     } else if (!canUseInPlay(this.state, player, card.definitionId, resolvedAs)) {
@@ -385,8 +457,9 @@ export class AutoBattleRoom extends DurableObject<Env> {
     player.hand.splice(index, 1);
     this.state.resolving.push(card);
     const target = response ? this.state.stack[this.state.stack.length - 1] : undefined;
-    if (target) target.wasRespondedTo = true;
+    if (isHandResolutionItem(target)) target.wasRespondedTo = true;
     const item: ResolutionItem = {
+      kind: "hand",
       id: crypto.randomUUID(),
       sourcePlayerId: player.id,
       card,
@@ -396,19 +469,26 @@ export class AutoBattleRoom extends DurableObject<Env> {
       targetSlotIndex,
       ...(target ? { countersItemId: target.id } : {}),
     };
+    if (isHandResolutionItem(item) && effective === HAND_IDS.strike) this.attachStrikeModifiers(player, item);
     this.state.stack.push(item);
     this.emitEvent(response ? "card_responded" : "card_used", {
       sourcePlayerId: player.id,
       targetPlayerId,
       cardDefinitionId: effective,
-      metadata: response && target ? { targetCardDefinitionId: effectiveDefinition(target) } : undefined,
+      metadata: {
+        actionCard: isActionCard(card.definitionId),
+        ...(response && isHandResolutionItem(target) ? { targetCardDefinitionId: effectiveDefinition(target) } : {}),
+      },
     });
     if (effective === HAND_IDS.strike && !response) {
       const key = `turn:${this.state.turnNumber}:${player.id}:strike`;
       this.state.usageCounters[key] = (this.state.usageCounters[key] || 0) + 1;
     }
     this.addLog(`${player.nickname}${response ? "响应使用" : "使用"}了【${handName(effective)}】`, player.id, { zone: "resolving" });
-    if (effective === HAND_IDS.strike || isActionCard(card.definitionId)) beginResponseWindow(this.state, item);
+    if (effective === HAND_IDS.strike || isActionCard(card.definitionId)) {
+      if (!response && this.openSourceSkillBeforeResponse(item)) return;
+      beginResponseWindow(this.state, item);
+    }
     else {
       this.state.prompt = undefined;
       this.state.responsePlayerId = undefined;
@@ -441,14 +521,41 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.resolveTop();
   }
 
-  private resolveTop() {
+  private openSourceSkillBeforeResponse(item: HandResolutionItem) {
+    if (!this.state || ![HAND_IDS.strike, HAND_IDS.crisis].includes(effectiveDefinition(item) as never)) return false;
+    const source = playerById(this.state, item.sourcePlayerId);
+    if (!source) return false;
+    const candidate = source.characterSlots.find((slot) => {
+      if (!slot || !("instanceId" in slot) || (slot.faceDown && this.isCharacterRevealLocked(source, slot.instanceId))) return false;
+      const registered = this.registeredCharacterSkill(source, slot);
+      if (!registered || registered.module.trigger.event !== "prediction_targeted") return false;
+      const key = this.characterEventUsageKey(item.id, source.id, `${slot.instanceId}:${registered.handlerId}`);
+      return (this.state?.usageCounters[key] || 0) === 0;
+    });
+    if (!candidate || !("instanceId" in candidate)) return false;
+    this.state.responsePlayerId = source.id;
+    this.state.consecutivePasses = 0;
+    this.state.prompt = createPrompt({
+      kind: "response",
+      playerId: source.id,
+      title: "指定目标后的技能窗口",
+      message: "你可以发动符合时机的角色技能，或放弃并让对手开始响应。",
+      cardInstanceIds: [],
+      options: [{ value: "pass", label: "放弃发动" }],
+      context: { itemId: item.id, skillOnly: true },
+    });
+    return true;
+  }
+
+  private resolveTop(): void {
     if (!this.state || !this.state.stack.length || this.state.prompt) return;
     const item = this.state.stack.pop();
     if (!item) return;
+    if (!isHandResolutionItem(item)) return this.resolveCharacterSkillItem(item);
     const effective = effectiveDefinition(item);
 
     if (item.countersItemId) {
-      const target = this.state.stack.find((entry) => entry.id === item.countersItemId);
+      const target = this.state.stack.find((entry): entry is HandResolutionItem => entry.id === item.countersItemId && isHandResolutionItem(entry));
       if (target && !item.cancelled) {
         target.cancelled = true;
         target.cancelledByPlayerId = item.sourcePlayerId;
@@ -469,7 +576,18 @@ export class AutoBattleRoom extends DurableObject<Env> {
         }
         this.addLog("【紧急会议】抵消了牌并结束出牌阶段，双方角色区已补满", item.sourcePlayerId, { zone: "resolving" });
       }
-      if (isActionCard(item.definitionId)) this.emitEvent("card_resolved", { sourcePlayerId: item.sourcePlayerId, targetPlayerId: target?.sourcePlayerId, cardDefinitionId: item.definitionId });
+      if (isActionCard(item.definitionId)) this.emitEvent("card_resolved", {
+        sourcePlayerId: item.sourcePlayerId,
+        targetPlayerId: target?.sourcePlayerId,
+        cardDefinitionId: item.definitionId,
+        metadata: {
+          actionCard: true,
+          causedDamage: Number(item.damageDealt || 0) > 0,
+          cardInstanceId: item.card.instanceId,
+          targetSlotIndex: item.targetSlotIndex,
+          cancelled: Boolean(item.cancelled),
+        },
+      });
       moveResolvedCardToDiscard(this.state, item.card);
       this.continueStack();
       return;
@@ -479,44 +597,72 @@ export class AutoBattleRoom extends DurableObject<Env> {
     else if (effective === HAND_IDS.strike && item.cancelledByPlayerId && item.cancellationReason === "dodge") {
       this.emitEvent("strike_dodged", { sourcePlayerId: item.cancelledByPlayerId, targetPlayerId: item.sourcePlayerId, cardDefinitionId: effective });
     }
+    if (!item.damagePending && item.returnCharacterOnDamageInstanceId && Number(item.damageDealt || 0) > 0) {
+      const source = playerById(this.state, item.sourcePlayerId);
+      if (source) this.shuffleRetiredCharacter(source, item.returnCharacterOnDamageInstanceId);
+    }
+    if (!item.damagePending && item.bodyEffect === "aggro-mega-strike" && Number(item.damageDealt || 0) === 0) {
+      const source = playerById(this.state, item.sourcePlayerId);
+      if (source) this.loseHealth(source, 1, "【爱至癫狂】未造成伤害");
+    }
     moveResolvedCardToDiscard(this.state, item.card);
     if (this.state.prompt) return;
-    if (isActionCard(item.definitionId)) this.emitEvent("card_resolved", { sourcePlayerId: item.sourcePlayerId, targetPlayerId: item.targetPlayerId, cardDefinitionId: item.definitionId });
-    if (item.wasRespondedTo) {
-      const source = playerById(this.state, item.sourcePlayerId);
-      const recall = source?.hand.find((card) => card.definitionId === HAND_IDS.recall);
-      if (source && recall) {
-        this.state.prompt = createPrompt({
-          kind: "recall",
-          playerId: source.id,
-          title: "撤回",
-          message: `是否使用【撤回】取回【${handName(effective)}】？`,
-          cardInstanceIds: [recall.instanceId],
-          options: [{ value: "pass", label: "不撤回" }],
-          context: { targetCardId: item.card.instanceId, targetDefinitionId: effective },
-        });
-        return;
-      }
+    if (isActionCard(item.definitionId)) this.emitEvent("card_resolved", {
+      sourcePlayerId: item.sourcePlayerId,
+      targetPlayerId: item.targetPlayerId,
+      cardDefinitionId: item.definitionId,
+      metadata: {
+        actionCard: true,
+        causedDamage: Number(item.damageDealt || 0) > 0,
+        cardInstanceId: item.card.instanceId,
+        targetSlotIndex: item.targetSlotIndex,
+        cancelled: Boolean(item.cancelled),
+      },
+    });
+    if ([HAND_IDS.strike, HAND_IDS.crisis].includes(effective as never)) {
+      this.resolveMizaiPrediction(
+        item.sourcePlayerId,
+        item.card.instanceId,
+        Number(item.damageDealt || 0) > 0,
+        effective,
+        Boolean(item.wasRespondedTo),
+      );
+      if (this.state.prompt) return;
     }
+    if (item.wasRespondedTo && this.openRecallForResolved(item.sourcePlayerId, item.card.instanceId, effective)) return;
     this.continueStack();
   }
 
-  private continueStack() {
+  private continueStack(): void {
     if (!this.state || this.state.prompt) return;
     const top = this.state.stack[this.state.stack.length - 1];
     if (!top) return;
+    if (!isHandResolutionItem(top)) return this.resolveTop();
     if (top.cancelled) this.resolveTop();
     else beginResponseWindow(this.state, top);
   }
 
-  private resolveHandEffect(item: ResolutionItem, effective: string) {
+  private resolveHandEffect(item: HandResolutionItem, effective: string) {
     if (!this.state) return;
     const source = playerById(this.state, item.sourcePlayerId);
     const target = item.targetPlayerId ? playerById(this.state, item.targetPlayerId) : undefined;
     if (!source) return;
     switch (effective) {
       case HAND_IDS.strike:
-        if (target) this.applyDamage(target, 1, source.id, effective);
+        if (target) {
+          const applied = this.applyDamage(target, 1 + Number(item.damageBonus || 0), source.id, effective, {
+            continuation: {
+              kind: "hand-strike",
+              sourcePlayerId: source.id,
+              cardInstanceId: item.card.instanceId,
+              wasRespondedTo: Boolean(item.wasRespondedTo),
+              bodyEffect: item.bodyEffect,
+              returnCharacterOnDamageInstanceId: item.returnCharacterOnDamageInstanceId,
+            },
+          });
+          if (applied === undefined) item.damagePending = true;
+          else item.damageDealt = (item.damageDealt || 0) + applied;
+        }
         break;
       case HAND_IDS.aid:
         {
@@ -533,10 +679,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
         }
         break;
       case HAND_IDS.sabotage:
-        if (target?.hand.length) this.discardRandom(target, source.id);
+        if (target?.hand.length && !this.openDirectDisruptPrompt(source, target, item, "sabotage")) this.discardRandom(target, source.id);
         break;
       case HAND_IDS.steal:
-        if (target?.hand.length) {
+        if (target?.hand.length && !this.openDirectDisruptPrompt(source, target, item, "steal")) {
           const index = this.randomIndex(target.hand.length);
           const [card] = target.hand.splice(index, 1);
           card.ownerId = source.id;
@@ -552,7 +698,13 @@ export class AutoBattleRoom extends DurableObject<Env> {
           title: "危机破坏",
           message: "选择休整该角色，或令本体受到1点伤害。",
           options: [{ value: "rest", label: "休整角色" }, { value: "damage", label: "受到1点伤害" }],
-          context: { sourcePlayerId: source.id, targetSlotIndex: item.targetSlotIndex, cardDefinitionId: HAND_IDS.crisis },
+          context: {
+            sourcePlayerId: source.id,
+            targetSlotIndex: item.targetSlotIndex,
+            cardDefinitionId: HAND_IDS.crisis,
+            cardInstanceId: item.card.instanceId,
+            wasRespondedTo: Boolean(item.wasRespondedTo),
+          },
         });
         break;
       case HAND_IDS.inspire:
@@ -578,6 +730,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
             targetSlotIndex: item.targetSlotIndex,
             sourcePlayerId: source.id,
             cardDefinitionId: HAND_IDS.inspect,
+            cardInstanceId: item.card.instanceId,
             inspectedCard: inspectedCard && "instanceId" in inspectedCard ? inspectedCard : undefined,
           },
         });
@@ -612,6 +765,51 @@ export class AutoBattleRoom extends DurableObject<Env> {
       this.addLog(`${player.nickname} 在弃牌阶段弃置了 ${ids.length} 张手牌`, player.id, { zone: "handDiscard" });
       return;
     }
+    if (prompt.kind === "damage-before") {
+      const pending = prompt.context?.pendingDamage as {
+        targetPlayerId?: string;
+        sourcePlayerId?: string;
+        amount?: number;
+        cardDefinitionId?: string;
+        continuation?: Record<string, unknown>;
+      } | undefined;
+      const source = pending?.sourcePlayerId ? playerById(this.state, pending.sourcePlayerId) : undefined;
+      const target = pending?.targetPlayerId ? playerById(this.state, pending.targetPlayerId) : undefined;
+      if (!pending || !source || !target || source.id !== player.id) throw new Error("待处理伤害已经失效。");
+      this.state.prompt = undefined;
+      let applied = 0;
+      if (value === "pass") {
+        applied = this.applyDamage(target, Number(pending.amount || 0), source.id, pending.cardDefinitionId, {
+          skipReplacement: true,
+          deferred: true,
+          continuation: pending.continuation,
+        }) || 0;
+        if ((this.state.prompt as AutoRoomState["prompt"])?.kind === "dying") return;
+      } else {
+        const match = value.match(/^replace:([^:]+):(\d+)$/);
+        const hitman = match ? this.findCharacterInstance(source, match[1]) : undefined;
+        const slotIndex = match ? Number(match[2]) : -1;
+        const targetRole = target.characterSlots[slotIndex];
+        if (!hitman || (hitman.definitionId !== AGGRO_CHARACTER_IDS.weixiaokeleHitman
+          && this.copiedCharacterDefinitionId(source, hitman) !== AGGRO_CHARACTER_IDS.weixiaokeleHitman)
+          || !source.characterSlots.some((slot) => slot && "instanceId" in slot && slot.instanceId === hitman.instanceId)
+          || !targetRole || !("instanceId" in targetRole)) throw new Error("伤害替换目标已经失效。");
+        const definition = characterById.get(AGGRO_CHARACTER_IDS.weixiaokeleHitman);
+        if (!definition) throw new Error("专业杀手数据不存在。");
+        if (hitman.faceDown) hitman.faceDown = false;
+        this.paySkillCost(source, hitman, definition.cost, { costCharacterIds: [hitman.instanceId] });
+        this.emitEvent("skill_used", {
+          sourcePlayerId: source.id,
+          characterDefinitionId: hitman.definitionId,
+          metadata: { costType: definition.cost.type, costAmount: definition.cost.amount || 0, mainRole: definition.mainRole },
+        });
+        this.restCharacter(target, slotIndex, source.id);
+        this.emitEvent("skill_resolved", { sourcePlayerId: source.id, characterDefinitionId: hitman.definitionId });
+        this.addLog(`${source.nickname}发动【专业处理】，将伤害改为休整对手1张角色`, source.id, { zone: "resolving" });
+      }
+      this.resumeDamageContinuation(pending.continuation, applied);
+      return;
+    }
     if (prompt.kind === "dying") {
       if (value === "pass") {
         const winner = opponentOf(this.state, player.id);
@@ -631,8 +829,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
       heal(player, 1);
       this.emitEvent("health_recovered", { sourcePlayerId: player.id, targetPlayerId: player.id, amount: 1 });
       if (player.health >= 1) {
+        const continuation = prompt.context?.damageContinuation as Record<string, unknown> | undefined;
+        const applied = Number(prompt.context?.appliedDamage || 0);
         this.state.prompt = undefined;
-        this.continueStack();
+        if (continuation) this.resumeDamageContinuation(continuation, applied);
+        else this.continueStack();
       } else {
         prompt.cardInstanceIds = player.hand.filter((item) => item.definitionId === HAND_IDS.aid || item.definitionId === HAND_IDS.impersonate).map((item) => item.instanceId);
       }
@@ -641,10 +842,47 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (prompt.kind === "crisis-choice") {
       if (!prompt.options?.some((option) => option.value === value)) throw new Error("危机破坏选择无效。");
       const slotIndex = Number(prompt.context?.targetSlotIndex);
+      let causedDamage = false;
       if (value === "rest") this.restCharacter(player, slotIndex, cleanText(prompt.context?.sourcePlayerId, 20));
-      else this.applyDamage(player, 1, cleanText(prompt.context?.sourcePlayerId, 20), HAND_IDS.crisis);
-      this.emitEvent("card_resolved", { sourcePlayerId: cleanText(prompt.context?.sourcePlayerId, 20), targetPlayerId: player.id, cardDefinitionId: HAND_IDS.crisis });
+      else {
+        const applied = this.applyDamage(player, 1, cleanText(prompt.context?.sourcePlayerId, 20), HAND_IDS.crisis, {
+          continuation: {
+            kind: "crisis",
+            sourcePlayerId: cleanText(prompt.context?.sourcePlayerId, 20),
+            targetPlayerId: player.id,
+            cardInstanceId: cleanText(prompt.context?.cardInstanceId, 80),
+            targetSlotIndex: Number(prompt.context?.targetSlotIndex),
+          },
+        });
+        if (applied === undefined) return;
+        causedDamage = applied > 0;
+      }
+      this.emitEvent("card_resolved", {
+        sourcePlayerId: cleanText(prompt.context?.sourcePlayerId, 20),
+        targetPlayerId: player.id,
+        cardDefinitionId: HAND_IDS.crisis,
+        metadata: {
+          actionCard: true,
+          causedDamage,
+          cardInstanceId: cleanText(prompt.context?.cardInstanceId, 80),
+          targetSlotIndex: Number(prompt.context?.targetSlotIndex),
+        },
+      });
       if (this.state.prompt?.id === prompt.id) this.state.prompt = undefined;
+      this.resolveMizaiPrediction(
+        cleanText(prompt.context?.sourcePlayerId, 20),
+        cleanText(prompt.context?.cardInstanceId, 80),
+        causedDamage,
+        HAND_IDS.crisis,
+        prompt.context?.wasRespondedTo === true,
+      );
+      if (!this.state.prompt && prompt.context?.wasRespondedTo === true) {
+        this.openRecallForResolved(
+          cleanText(prompt.context?.sourcePlayerId, 20),
+          cleanText(prompt.context?.cardInstanceId, 80),
+          HAND_IDS.crisis,
+        );
+      }
       this.continueStack();
       return;
     }
@@ -655,9 +893,47 @@ export class AutoBattleRoom extends DurableObject<Env> {
         const card = owner?.characterSlots[Number(prompt.context?.targetSlotIndex)];
         if (card && "instanceId" in card) card.faceDown = false;
       }
-      this.emitEvent("card_resolved", { sourcePlayerId: cleanText(prompt.context?.sourcePlayerId, 20), targetPlayerId: cleanText(prompt.context?.targetPlayerId, 20), cardDefinitionId: HAND_IDS.inspect });
+      this.emitEvent("card_resolved", {
+        sourcePlayerId: cleanText(prompt.context?.sourcePlayerId, 20),
+        targetPlayerId: cleanText(prompt.context?.targetPlayerId, 20),
+        cardDefinitionId: HAND_IDS.inspect,
+        metadata: {
+          actionCard: true,
+          causedDamage: false,
+          cardInstanceId: cleanText(prompt.context?.cardInstanceId, 80),
+          targetSlotIndex: Number(prompt.context?.targetSlotIndex),
+        },
+      });
       this.state.prompt = undefined;
       this.continueStack();
+      return;
+    }
+    if (prompt.kind === "character-skill") return this.submitCharacterChoice(player, prompt, payload);
+    if (prompt.kind === "character-trigger") {
+      if (value.startsWith("body:")) {
+        const triggerId = value.slice(5);
+        const allowed = Array.isArray(prompt.context?.bodyTriggerIds) ? prompt.context.bodyTriggerIds.map(String) : [];
+        const index = this.state.pendingBodyTriggers.findIndex((trigger) => trigger.id === triggerId && trigger.playerId === player.id);
+        if (!allowed.includes(triggerId) || index < 0) throw new Error("本体技能触发选择无效。");
+        const [trigger] = this.state.pendingBodyTriggers.splice(index, 1);
+        this.state.prompt = undefined;
+        if (!this.openBodyPrompt(player, trigger)) this.openNextSkillTrigger();
+        return;
+      }
+      if (value !== "pass") throw new Error("同时触发选择无效。");
+      const eventId = cleanText(prompt.context?.eventId, 80);
+      const eligibleIds = Array.isArray(prompt.context?.eligibleInstanceIds)
+        ? prompt.context.eligibleInstanceIds.map((id) => cleanText(id, 80))
+        : [];
+      for (const instanceId of eligibleIds) {
+        const role = this.findCharacterInstance(player, instanceId);
+        const registered = role ? this.registeredCharacterSkill(player, role) : undefined;
+        if (role && registered) this.state.usageCounters[this.characterEventUsageKey(eventId, player.id, `${role.instanceId}:${registered.handlerId}`)] = 1;
+      }
+      const bodyTriggerIds = Array.isArray(prompt.context?.bodyTriggerIds) ? prompt.context.bodyTriggerIds.map(String) : [];
+      this.state.pendingBodyTriggers = this.state.pendingBodyTriggers.filter((trigger) => !bodyTriggerIds.includes(trigger.id));
+      this.state.prompt = undefined;
+      this.openNextSkillTrigger();
       return;
     }
     if ((prompt.kind as string) === "recall") {
@@ -681,19 +957,1263 @@ export class AutoBattleRoom extends DurableObject<Env> {
       this.continueStack();
       return;
     }
+    if (prompt.kind === "body-skill") return this.submitBodyChoice(player, prompt, payload);
     throw new Error("选择类型无效。");
+  }
+
+  private resumeDamageContinuation(continuation: Record<string, unknown> | undefined, applied: number) {
+    if (!this.state || !continuation) {
+      this.openNextSkillTrigger();
+      return;
+    }
+    const kind = cleanText(continuation.kind, 40);
+    if (kind === "character-skill") {
+      const item = continuation.item as CharacterSkillResolutionItem | undefined;
+      if (!item) return this.openNextSkillTrigger();
+      const source = playerById(this.state, item.sourcePlayerId);
+      if (applied > 0 && continuation.after === "return-self-if-target-health-at-most-3") {
+        const target = opponentOf(this.state, item.sourcePlayerId);
+        if (target && target.health <= 3 && source) this.shuffleRetiredCharacter(source, item.sourceInstanceId);
+      }
+      if (source) this.finishCharacterSkill(item, source);
+      return;
+    }
+    if (kind === "hand-strike") {
+      const sourceId = cleanText(continuation.sourcePlayerId, 20);
+      const source = playerById(this.state, sourceId);
+      const returnId = cleanText(continuation.returnCharacterOnDamageInstanceId, 80);
+      if (applied > 0 && source && returnId) this.shuffleRetiredCharacter(source, returnId);
+      if (applied === 0 && continuation.bodyEffect === "aggro-mega-strike" && source) this.loseHealth(source, 1, "【爱至癫狂】未造成伤害");
+      this.resolveMizaiPrediction(
+        sourceId,
+        cleanText(continuation.cardInstanceId, 80),
+        applied > 0,
+        HAND_IDS.strike,
+        continuation.wasRespondedTo === true,
+      );
+      if (!this.state.prompt && continuation.wasRespondedTo === true) {
+        this.openRecallForResolved(sourceId, cleanText(continuation.cardInstanceId, 80), HAND_IDS.strike);
+      }
+      this.continueStack();
+      this.openNextSkillTrigger();
+      return;
+    }
+    if (kind === "crisis") {
+      this.emitEvent("card_resolved", {
+        sourcePlayerId: cleanText(continuation.sourcePlayerId, 20),
+        targetPlayerId: cleanText(continuation.targetPlayerId, 20),
+        cardDefinitionId: HAND_IDS.crisis,
+        metadata: {
+          actionCard: true,
+          causedDamage: applied > 0,
+          cardInstanceId: cleanText(continuation.cardInstanceId, 80),
+          targetSlotIndex: Number(continuation.targetSlotIndex),
+        },
+      });
+      this.resolveMizaiPrediction(
+        cleanText(continuation.sourcePlayerId, 20),
+        cleanText(continuation.cardInstanceId, 80),
+        applied > 0,
+        HAND_IDS.crisis,
+        continuation.wasRespondedTo === true,
+      );
+      if (!this.state.prompt && continuation.wasRespondedTo === true) {
+        this.openRecallForResolved(
+          cleanText(continuation.sourcePlayerId, 20),
+          cleanText(continuation.cardInstanceId, 80),
+          HAND_IDS.crisis,
+        );
+      }
+      this.continueStack();
+      this.openNextSkillTrigger();
+      return;
+    }
+    if (kind === "bomb") {
+      const target = playerById(this.state, cleanText(continuation.targetPlayerId, 20));
+      if (target) this.discardRandom(target, cleanText(continuation.sourcePlayerId, 20));
+      this.openNextSkillTrigger();
+      return;
+    }
+    this.openNextSkillTrigger();
+  }
+
+  private newBodyState(definitionId?: string): BodyRuntimeState {
+    const definition = bodyById.get(definitionId || "");
+    return {
+      progress: 0,
+      progressMax: definition ? getExtraFormProgressMax(definition) || 0 : 0,
+      flipped: false,
+      extraFormUsed: false,
+      trackedCharacterInstanceIds: [],
+    };
+  }
+
+  private bodySkillContext(player: AutoPlayerState): BodySkillRuntimeContext {
+    if (!this.state) throw new Error("房间状态不存在。");
+    const state = this.state;
+    const usageKey = (scope: "turn" | "game", suffix: string) => bodyUsageKey(scope, state.turnNumber, player.id, suffix);
+    return {
+      state,
+      player,
+      opponent: () => opponentOf(state, player.id),
+      skillName: (extraForm = false) => {
+        const definition = bodyById.get(bodyId(player));
+        return extraForm ? definition?.extraForm?.skillName || definition?.skillName || "本体技能" : definition?.skillName || "本体技能";
+      },
+      usage: (scope, suffix) => state.usageCounters[usageKey(scope, suffix)] || 0,
+      incrementUsage: (scope, suffix, amount = 1) => {
+        const key = usageKey(scope, suffix);
+        state.usageCounters[key] = (state.usageCounters[key] || 0) + amount;
+        return state.usageCounters[key];
+      },
+      enqueueTrigger: (kind, eventId, context) => {
+        if (state.pendingBodyTriggers.some((trigger) => trigger.playerId === player.id && trigger.kind === kind && trigger.eventId === eventId)) return;
+        state.pendingBodyTriggers.push({ id: crypto.randomUUID(), kind, playerId: player.id, eventId, context });
+      },
+      setPrompt: (prompt) => { state.prompt = createPrompt(prompt); },
+      clearPrompt: (promptId) => { if (state.prompt?.id === promptId) state.prompt = undefined; },
+      draw: (count) => {
+        const amount = drawCards(state, player, count, (items) => this.shuffle(items));
+        this.addLog(`${player.nickname}摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: player.id });
+        if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: state.phase !== "draw" } });
+        return amount;
+      },
+      takeTopHandCards: (count) => this.takeTopHandCards(count),
+      discardHandCard: (owner, instanceId) => {
+        const index = owner.hand.findIndex((card) => card.instanceId === instanceId);
+        if (index < 0) return undefined;
+        const [card] = owner.hand.splice(index, 1);
+        card.ownerId = undefined;
+        state.handDiscard.push(card);
+        return card;
+      },
+      gainHandCard: (card) => {
+        card.ownerId = player.id;
+        player.hand.push(card);
+      },
+      discardLooseCard: (card) => {
+        card.ownerId = undefined;
+        state.handDiscard.push(card);
+      },
+      handName,
+      addLog: (message, actorId, target) => this.addLog(message, actorId, target),
+      emitEvent: (type, details = {}) => this.emitEvent(type, details),
+      legalStrikeCards: () => player.hand.filter((card) => card.definitionId === HAND_IDS.strike || card.definitionId === HAND_IDS.impersonate),
+      startBodyStrike: (targetPlayerId, cardInstanceId) => {
+        const target = playerById(state, targetPlayerId);
+        const index = player.hand.findIndex((card) => card.instanceId === cardInstanceId);
+        if (!target || index < 0) throw new Error("额外【出刀】目标或手牌无效。");
+        const [card] = player.hand.splice(index, 1);
+        if (![HAND_IDS.strike, HAND_IDS.impersonate].includes(card.definitionId as never)) throw new Error("该牌不能当【出刀】使用。");
+        state.resolving.push(card);
+        const item: ResolutionItem = {
+          kind: "hand",
+          id: crypto.randomUUID(), sourcePlayerId: player.id, targetPlayerId: target.id, card,
+          definitionId: card.definitionId,
+          resolvedAs: card.definitionId === HAND_IDS.impersonate ? HAND_IDS.strike : undefined,
+          bodyEffect: "aggro-mega-strike",
+        };
+        if (isHandResolutionItem(item)) this.attachStrikeModifiers(player, item);
+        state.stack.push(item);
+        this.emitEvent("card_used", { sourcePlayerId: player.id, targetPlayerId: target.id, cardDefinitionId: HAND_IDS.strike, metadata: { actionCard: false, bodySkill: true } });
+        state.responsePlayerId = target.id;
+        state.consecutivePasses = 0;
+        state.prompt = createPrompt({
+          kind: "response", playerId: target.id, title: "响应窗口", message: "是否响应本体技能使用的【出刀】？",
+          cardInstanceIds: [], options: [{ value: "pass", label: "放弃响应" }], context: { itemId: item.id },
+        });
+        state.prompt.cardInstanceIds = legalResponseCards(state, target).map((candidate) => candidate.instanceId);
+      },
+    };
+  }
+
+  private handleBodyEvent(event: AutoBattleEvent) {
+    if (!this.state?.started) return;
+    const playersInResolutionOrder = [...this.state.players].sort((left, right) => {
+      const leftIsCurrent = left.id === this.state?.currentPlayerId;
+      const rightIsCurrent = right.id === this.state?.currentPlayerId;
+      return Number(leftIsCurrent) - Number(rightIsCurrent);
+    });
+    for (const player of playersInResolutionOrder) {
+      const skill = bodySkillForId(bodyId(player));
+      const context = skill ? this.bodySkillContext(player) : undefined;
+      const delta = skill ? skill.progressDelta(player, event) : bodyProgressDelta(player, event);
+      if (delta > 0 && !player.bodyState.flipped) {
+        const previous = player.bodyState.progress;
+        player.bodyState.progress = Math.min(player.bodyState.progressMax, previous + delta);
+        if (player.bodyState.progress !== previous) {
+          this.addLog(`${player.nickname}的额外形态进度 ${player.bodyState.progress}/${player.bodyState.progressMax}`, player.id, { zone: "body", ownerId: player.id });
+        }
+        if (player.bodyState.progressMax > 0 && player.bodyState.progress >= player.bodyState.progressMax) {
+          player.bodyState.flipped = true;
+          const form = bodyById.get(bodyId(player))?.extraForm?.type === "mega" ? "Mega" : "Z招式就绪";
+          this.addLog(`${player.nickname}已达成${form}条件`, player.id, { zone: "body", ownerId: player.id });
+        }
+      }
+
+      const triggerSpec = skill && context ? skill.collectTrigger(context, event) : undefined;
+      const kind = skill ? triggerSpec?.kind : triggerKindForBody(player, event);
+      if (!kind) continue;
+      const trigger: PendingBodyTrigger = {
+        id: crypto.randomUUID(),
+        kind,
+        playerId: player.id,
+        eventId: event.id,
+        context: {
+          sourcePlayerId: event.sourcePlayerId,
+          targetPlayerId: event.targetPlayerId,
+          characterDefinitionId: event.characterDefinitionId,
+          causedDamage: event.metadata?.causedDamage === true,
+          ...triggerSpec?.context,
+        },
+      };
+      if (!this.state.pendingBodyTriggers.some((queued) => queued.playerId === player.id && queued.kind === kind && queued.eventId === event.id)) {
+        this.state.pendingBodyTriggers.push(trigger);
+      }
+    }
+  }
+
+  private openNextBodyTrigger() {
+    if (!this.state?.started || this.state.prompt || this.state.stack.length || this.state.winnerId) return;
+    while (this.state.pendingBodyTriggers.length) {
+      const trigger = this.state.pendingBodyTriggers.shift();
+      if (!trigger) return;
+      const player = playerById(this.state, trigger.playerId);
+      if (!player) continue;
+      if (this.openBodyPrompt(player, trigger)) return;
+    }
+  }
+
+  private openNextSkillTrigger(): void {
+    if (!this.state?.started || this.state.prompt || this.state.stack.length || this.state.winnerId) return;
+    const playersInResolutionOrder = [...this.state.players].sort((left, right) => {
+      const leftIsCurrent = left.id === this.state?.currentPlayerId;
+      const rightIsCurrent = right.id === this.state?.currentPlayerId;
+      return Number(leftIsCurrent) - Number(rightIsCurrent);
+    });
+    for (const player of playersInResolutionOrder) {
+      const pendingBody = this.state.pendingBodyTriggers.filter((trigger) => trigger.playerId === player.id);
+      const candidates = player.characterSlots.flatMap((slot) => {
+        if (!slot || !("instanceId" in slot)) return [];
+        if (slot.faceDown && this.isCharacterRevealLocked(player, slot.instanceId)) return [];
+        const registered = this.registeredCharacterSkill(player, slot);
+        const module = registered?.module;
+        if (!module || ["play_phase", "basic_card_needed", "prediction_targeted"].includes(module.trigger.event)) return [];
+        const trigger = this.skillTriggerContext(module.trigger.event, module.trigger.relation, undefined, player, false);
+        if (!trigger) return [];
+        const event = "type" in trigger ? trigger as AutoBattleEvent : undefined;
+        const eventId = event?.id || trigger.id;
+        if ((this.state!.usageCounters[this.characterEventUsageKey(eventId, player.id, `${slot.instanceId}:${registered.handlerId}`)] || 0) > 0) return [];
+        const context = this.characterSkillContext(player, slot, event);
+        if (module.canActivate && !module.canActivate(context)) return [];
+        return [{ slot, eventId }];
+      });
+      if (!candidates.length && !pendingBody.length) continue;
+      const eventId = pendingBody[0]?.eventId || candidates[0]?.eventId;
+      const sameEvent = candidates.filter((candidate) => candidate.eventId === eventId);
+      const sameEventBody = pendingBody.filter((trigger) => trigger.eventId === eventId);
+      if (!sameEvent.length && sameEventBody.length === 1) {
+        const triggerIndex = this.state.pendingBodyTriggers.findIndex((trigger) => trigger.id === sameEventBody[0].id);
+        const [trigger] = this.state.pendingBodyTriggers.splice(triggerIndex, 1);
+        if (this.openBodyPrompt(player, trigger)) return;
+        return this.openNextSkillTrigger();
+      }
+      const bodyName = bodyById.get(bodyId(player))?.skillName || "本体技能";
+      this.state.prompt = createPrompt({
+        kind: "character-trigger",
+        playerId: player.id,
+        title: "同时触发结算",
+        message: "选择先发动的技能，或放弃该玩家在本次事件的其余可选触发。",
+        options: [
+          ...sameEventBody.map((trigger) => ({ value: `body:${trigger.id}`, label: `发动本体技能【${bodyName}】` })),
+          { value: "pass", label: "放弃本次其余触发" },
+        ],
+        context: {
+          eventId,
+          eligibleInstanceIds: sameEvent.map((candidate) => candidate.slot.instanceId),
+          bodyTriggerIds: sameEventBody.map((trigger) => trigger.id),
+        },
+      });
+      return;
+    }
+  }
+
+  private openBodyPrompt(player: AutoPlayerState, trigger: PendingBodyTrigger) {
+    if (!this.state) return false;
+    const registeredSkill = bodySkillForId(bodyId(player));
+    if (registeredSkill) return registeredSkill.openPrompt(this.bodySkillContext(player), trigger);
+    const make = (message: string, options: Array<{ value: string; label: string }>, action: string) => {
+      this.state!.prompt = createPrompt({
+        kind: "body-skill",
+        playerId: player.id,
+        title: bodyById.get(bodyId(player))?.skillName || "本体技能",
+        message,
+        options,
+        context: { action, triggerId: trigger.id, ...trigger.context },
+      });
+      return true;
+    };
+    const turnKey = (suffix: string) => bodyUsageKey("turn", this.state!.turnNumber, player.id, suffix);
+    switch (trigger.kind) {
+      case "trans-deploy":
+        if ((this.state.usageCounters[turnKey("trans")] || 0) >= (player.bodyState.flipped ? 2 : 1)) return false;
+        if (!player.characterSlots.includes(null) || !player.characterDeck.length) return false;
+        return make("你完成了拟态或虚拟牌操作，是否从角色牌堆顶暗置上阵1张角色？", [{ value: "deploy", label: "暗置上阵" }, { value: "pass", label: "不发动" }], "trans-deploy");
+      case "dispatch-reveal":
+        if ((this.state.usageCounters[turnKey("dispatch")] || 0) >= 1 || !player.characterDeck.length) return false;
+        return this.openDispatchSortPrompt(player, trigger);
+      case "blood-judgment":
+        if ((this.state.usageCounters[turnKey("blood")] || 0) >= 2) return false;
+        return make("你受到了伤害，是否发动【红黑谜案大推理】进行判定？", [{ value: "judge", label: "进行判定" }, { value: "pass", label: "不发动" }], "blood-judge");
+      case "ambush-refill":
+        if ((this.state.usageCounters[turnKey("ambush-refill")] || 0) >= 1 || !player.characterSlots.includes(null) || !player.characterDeck.length) return false;
+        return make("己方伏击角色因支付费用离场，是否暗置补位1张角色？", [{ value: "deploy", label: "暗置补位" }, { value: "pass", label: "不发动" }], "ambush-refill");
+      case "defense-reward":
+        if ((this.state.usageCounters[turnKey("defense")] || 0) >= 3) return false;
+        return make("你成功抵消、防止或减少了伤害，是否摸1张手牌并观看对手1张暗置角色？", [{ value: "reward", label: "摸牌并观看" }, { value: "pass", label: "不发动" }], "defense-reward");
+      default:
+        return false;
+    }
+  }
+
+  private takeTopHandCards(count: number) {
+    if (!this.state) return [];
+    const cards: CardInstance[] = [];
+    while (cards.length < count) {
+      if (!this.state.handDeck.length) {
+        if (!this.state.handDiscard.length) break;
+        this.state.handDeck = this.shuffle(this.state.handDiscard.splice(0).map((card) => ({ ...card, ownerId: undefined })));
+      }
+      const card = this.state.handDeck.pop();
+      if (!card) break;
+      cards.push(card);
+    }
+    return cards;
+  }
+
+  private openDispatchSortPrompt(player: AutoPlayerState, trigger: PendingBodyTrigger) {
+    if (!this.state) return false;
+    const cards: CardInstance[] = [];
+    while (cards.length < 3 && player.characterDeck.length) {
+      const card = player.characterDeck.pop();
+      if (card) cards.push(card);
+    }
+    if (!cards.length) return false;
+    const permutations = <T,>(items: T[]): T[][] => items.length <= 1
+      ? [items]
+      : items.flatMap((item, index) => permutations([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [item, ...rest]));
+    const options: Array<{ value: string; label: string }> = [{ value: "pass", label: "不发动（原顺序放回）" }];
+    const indexes = cards.map((_, index) => index);
+    for (const order of permutations(indexes)) {
+      options.push({ value: `b:-1|o:${order.join(",")}`, label: `牌堆顶顺序：${order.map((index) => characterById.get(cards[index].definitionId)?.name || cards[index].definitionId).join(" → ")}` });
+    }
+    if (cards.length > 1) for (const bottom of indexes) {
+      const rest = indexes.filter((index) => index !== bottom);
+      for (const order of permutations(rest)) {
+        options.push({ value: `b:${bottom}|o:${order.join(",")}`, label: `${characterById.get(cards[bottom].definitionId)?.name || cards[bottom].definitionId}置底；顶部：${order.map((index) => characterById.get(cards[index].definitionId)?.name || cards[index].definitionId).join(" → ")}` });
+      }
+    }
+    this.state.prompt = createPrompt({
+      kind: "body-skill", playerId: player.id, title: "洞察全局",
+      message: "观看角色牌堆顶3张，可将至多1张置底，并选择其余牌的顶部顺序。",
+      selectableCards: cards, options,
+      context: { action: "dispatch-sort", cardIds: cards.map((card) => card.instanceId), revealedByOpponent: trigger.context?.sourcePlayerId !== player.id },
+    });
+    return true;
+  }
+
+  private submitBodyChoice(player: AutoPlayerState, prompt: NonNullable<AutoRoomState["prompt"]>, payload: Record<string, unknown>) {
+    if (!this.state) return;
+    const registeredSkill = bodySkillForId(bodyId(player));
+    if (registeredSkill?.resolveChoice(this.bodySkillContext(player), prompt, payload)) return;
+    const action = cleanText(prompt.context?.action, 80);
+    const value = cleanText(payload.value, 400);
+    const selectedIds = Array.isArray(payload.cardInstanceIds) ? payload.cardInstanceIds.map((id) => cleanText(id, 80)) : [];
+    const turnKey = (suffix: string) => bodyUsageKey("turn", this.state!.turnNumber, player.id, suffix);
+    const clear = () => { if (this.state?.prompt?.id === prompt.id) this.state.prompt = undefined; };
+    const draw = (count: number) => {
+      const amount = drawCards(this.state!, player, count, (items) => this.shuffle(items));
+      this.addLog(`${player.nickname}摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: player.id });
+      if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state!.phase !== "draw" } });
+    };
+
+    if (action === "trans-deploy" || action === "ambush-refill") {
+      clear();
+      if (value === "pass") return;
+      if (value !== "deploy") throw new Error("上阵选择无效。");
+      const suffix = action === "trans-deploy" ? "trans" : "ambush-refill";
+      this.state.usageCounters[turnKey(suffix)] = (this.state.usageCounters[turnKey(suffix)] || 0) + 1;
+      const deployed = deployTopCharacter(player);
+      if (!deployed) throw new Error("角色区已满或角色牌堆为空。");
+      this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId);
+      if (action === "trans-deploy") {
+        player.bodyState.trackedCharacterInstanceIds.push(deployed.card.instanceId);
+        if (player.bodyState.flipped) this.state.turnModifiers.push({
+          id: crypto.randomUUID(), ownerId: player.id, kind: "body-next-skill-cost-rest-one", count: 1,
+          characterInstanceId: deployed.card.instanceId, expiresAtTurnNumber: this.state.turnNumber + 1,
+        });
+      }
+      this.addLog(`${player.nickname}因本体技能暗置上阵1张角色`, player.id, { zone: "characterSlot", ownerId: player.id, slotIndex: deployed.slotIndex });
+      return;
+    }
+    if (action === "dispatch-sort") {
+      const cards = prompt.selectableCards || [];
+      let bottom = -1;
+      let order = cards.map((_, index) => index);
+      if (value !== "pass") {
+        const match = value.match(/^b:(-?\d+)\|o:([\d,]*)$/);
+        if (!match) throw new Error("牌堆顺序选择无效。");
+        bottom = Number(match[1]);
+        order = match[2] ? match[2].split(",").map(Number) : [];
+        const expected = cards.map((_, index) => index).filter((index) => index !== bottom).sort();
+        if (JSON.stringify([...order].sort()) !== JSON.stringify(expected)) throw new Error("牌堆顺序不完整。");
+      }
+      if (bottom >= 0) player.characterDeck.unshift(cards[bottom]);
+      for (const index of [...order].reverse()) player.characterDeck.push(cards[index]);
+      if (value !== "pass") this.state.usageCounters[turnKey("dispatch")] = (this.state.usageCounters[turnKey("dispatch")] || 0) + 1;
+      clear();
+      if (value !== "pass" && prompt.context?.revealedByOpponent === true) {
+        draw(1);
+        this.state.prompt = createPrompt({
+          kind: "body-skill", playerId: player.id, title: "洞察全局", message: "对手角色明置：请弃置1张手牌。",
+          min: 1, max: 1, cardInstanceIds: player.hand.map((card) => card.instanceId), selectableCards: player.hand,
+          context: { action: "dispatch-discard" },
+        });
+      }
+      return;
+    }
+    if (action === "dispatch-discard" || action === "blood-self-discard") {
+      if (selectedIds.length !== 1 || !prompt.cardInstanceIds?.includes(selectedIds[0])) throw new Error("请选择1张手牌弃置。");
+      const index = player.hand.findIndex((card) => card.instanceId === selectedIds[0]);
+      if (index < 0) throw new Error("手牌已变化。");
+      const [card] = player.hand.splice(index, 1); card.ownerId = undefined; this.state.handDiscard.push(card);
+      clear();
+      if (action === "blood-self-discard") draw(1);
+      return;
+    }
+    if (action === "blood-judge") {
+      if (value === "pass") return clear();
+      if (value !== "judge") throw new Error("判定选择无效。");
+      this.state.usageCounters[turnKey("blood")] = (this.state.usageCounters[turnKey("blood")] || 0) + 1;
+      clear(); this.resolveBloodJudgment(player); return;
+    }
+    if (action === "defense-reward") {
+      if (value === "pass") return clear();
+      if (value !== "reward") throw new Error("守势循环选择无效。");
+      this.state.usageCounters[turnKey("defense")] = (this.state.usageCounters[turnKey("defense")] || 0) + 1;
+      clear(); draw(1);
+      const opponent = opponentOf(this.state, player.id);
+      const hidden = opponent?.characterSlots.flatMap((slot, index) => slot && "instanceId" in slot && slot.faceDown ? [{ slot, index }] : []) || [];
+      if (hidden.length) this.state.prompt = createPrompt({
+        kind: "body-skill", playerId: player.id, title: "守势循环", message: "选择观看对手1张暗置角色。",
+        options: hidden.map(({ index }) => ({ value: String(index), label: `观看角色位 ${index + 1}` })), context: { action: "defense-inspect", opponentId: opponent?.id },
+      });
+      return;
+    }
+    if (action === "defense-inspect") {
+      const opponent = playerById(this.state, cleanText(prompt.context?.opponentId, 20));
+      const slot = opponent?.characterSlots[Number(value)];
+      if (!slot || !("instanceId" in slot) || !slot.faceDown) throw new Error("该角色已不是暗置状态。");
+      this.state.prompt = createPrompt({ kind: "body-skill", playerId: player.id, title: "守势循环·观看", message: "你观看了这张暗置角色。", selectableCards: [slot], options: [{ value: "done", label: "完成" }], context: { action: "defense-inspect-done" } });
+      return;
+    }
+    if (action === "defense-inspect-done") { if (value !== "done") throw new Error("请完成观看。"); return clear(); }
+    if (action === "dispatch-z-select") return this.resolveDispatchZSelection(player, prompt, selectedIds);
+    if (action === "dispatch-z-reveal") return this.resolveDispatchZReveal(player, prompt, selectedIds);
+    if (action === "blood-z-pick") return this.resolveBloodZSelection(player, prompt, selectedIds);
+    throw new Error("本体技能选择无效。");
+  }
+
+  private resolveBloodJudgment(player: AutoPlayerState) {
+    if (!this.state) return;
+    const [card] = this.takeTopHandCards(1);
+    if (!card) return;
+    card.ownerId = undefined;
+    this.state.handDiscard.push(card);
+    const red = card.joker === "big" || ["红桃", "方块"].includes(card.suit || "");
+    const color = red ? "红色" : "黑色";
+    this.addLog(`${player.nickname}的判定牌为${color}【${handName(card.definitionId)}】`, player.id, { zone: "handDiscard" });
+    this.emitEvent("judgment_revealed", { sourcePlayerId: player.id, targetPlayerId: player.id, cardDefinitionId: card.definitionId, metadata: { color, bodySkill: true } });
+    this.emitEvent("judgment_resolved", { sourcePlayerId: player.id, targetPlayerId: player.id, cardDefinitionId: card.definitionId, metadata: { color, bodySkill: true } });
+    if (red) {
+      const amount = drawCards(this.state, player, 2, (items) => this.shuffle(items));
+      this.addLog(`${player.nickname}因红色判定摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: player.id });
+      if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
+      return;
+    }
+    const opponent = opponentOf(this.state, player.id);
+    if (opponent?.hand.length) this.discardRandom(opponent, player.id);
+    if (player.hand.length) {
+      this.state.prompt = createPrompt({
+        kind: "body-skill", playerId: player.id, title: "红黑谜案大推理", message: "黑色判定：请弃置1张手牌，然后摸1张。",
+        min: 1, max: 1, cardInstanceIds: player.hand.map((item) => item.instanceId), selectableCards: player.hand,
+        context: { action: "blood-self-discard" },
+      });
+    } else {
+      const amount = drawCards(this.state, player, 1, (items) => this.shuffle(items));
+      this.addLog(`${player.nickname}摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: player.id });
+      if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
+    }
+  }
+
+  private activateBodyExtra(player: AutoPlayerState, _payload: Record<string, unknown>) {
+    if (!this.state) return;
+    this.requireTurn(player, "play");
+    if (this.state.prompt || this.state.stack.length) throw new Error("请先完成当前结算。");
+    const definition = bodyById.get(bodyId(player));
+    if (!definition?.extraForm || definition.extraForm.type !== "z-move") throw new Error("该本体没有可主动发动的Z招式。");
+    if (!player.bodyState.flipped) throw new Error("Z招式尚未就绪。");
+    if (player.bodyState.extraFormUsed) throw new Error("Z招式本局已使用。");
+    const id = bodyId(player);
+    if (id === BODY_IDS.defense) throw new Error("该Z招式会在致命伤害前自动触发。");
+    player.bodyState.extraFormUsed = true;
+    this.addLog(`${player.nickname}发动了Z招式【${definition.extraForm.skillName}】`, player.id, { zone: "body", ownerId: player.id });
+
+    if (id === BODY_IDS.dispatch) {
+      const roles = player.characterSlots.flatMap((slot) => slot && "instanceId" in slot ? [slot] : []);
+      const min = player.characterSlots.includes(null) ? 0 : 1;
+      this.state.prompt = createPrompt({
+        kind: "body-skill", playerId: player.id, title: definition.extraForm.skillName,
+        message: `选择要洗回角色牌堆的角色（${min ? "至少1张" : "可不选"}）。`,
+        min, max: roles.length, cardInstanceIds: roles.map((card) => card.instanceId), selectableCards: roles,
+        context: { action: "dispatch-z-select" },
+      });
+      return;
+    }
+    if (id === BODY_IDS.blood) {
+      const max = Math.min(3, player.maxHealth - player.health);
+      const cards = [...this.state.handDiscard];
+      if (!max || !cards.length) {
+        const recovered = heal(player, 1);
+        this.addLog(`${player.nickname}回复了 ${recovered} 点体力`, player.id, { zone: "player", ownerId: player.id });
+        return;
+      }
+      this.state.prompt = createPrompt({
+        kind: "body-skill", playerId: player.id, title: definition.extraForm.skillName,
+        message: `从弃牌区选择至多 ${max} 张不同名称的牌加入手牌，然后回复1点体力。`,
+        min: 0, max, cardInstanceIds: cards.map((card) => card.instanceId), selectableCards: cards,
+        options: [{ value: "none", label: "不获得牌，直接回复" }], context: { action: "blood-z-pick" },
+      });
+      return;
+    }
+    if (id === BODY_IDS.ambush) {
+      player.bodyState.ambushWindow = { remaining: 2, expiresAtTurnNumber: this.state.turnNumber + 2 };
+      this.addLog(`${player.nickname}的退场伏击角色在下个回合开始前可至多免费发动2次`, player.id, { zone: "retired", ownerId: player.id });
+      return;
+    }
+    throw new Error("该Z招式尚未接入自动结算。");
+  }
+
+  private resolveDispatchZSelection(player: AutoPlayerState, prompt: NonNullable<AutoRoomState["prompt"]>, selectedIds: string[]) {
+    if (!this.state) return;
+    if (selectedIds.length < Number(prompt.min || 0) || selectedIds.length > Number(prompt.max || 0) || new Set(selectedIds).size !== selectedIds.length
+      || selectedIds.some((id) => !prompt.cardInstanceIds?.includes(id))) throw new Error("换阵角色选择无效。");
+    const returning: CardInstance[] = [];
+    for (let index = 0; index < player.characterSlots.length; index += 1) {
+      const slot = player.characterSlots[index];
+      if (slot && "instanceId" in slot && selectedIds.includes(slot.instanceId)) {
+        player.characterSlots[index] = null; slot.faceDown = undefined; returning.push(slot);
+      }
+    }
+    player.characterDeck = this.shuffle([...player.characterDeck, ...returning]);
+    const deployed: CardInstance[] = [];
+    const desired = selectedIds.length + 1;
+    for (let count = 0; count < desired; count += 1) {
+      const result = deployTopCharacter(player);
+      if (!result) break;
+      deployed.push(result.card); this.recordCharacterDeployment(player.id, player.id, result.card.definitionId);
+    }
+    this.state.prompt = createPrompt({
+      kind: "body-skill", playerId: player.id, title: "终局换阵", message: "可立即明置以此法上阵的1张角色，使其下一次【休整X】费用-1。",
+      min: 0, max: 1, cardInstanceIds: deployed.map((card) => card.instanceId), selectableCards: deployed,
+      options: [{ value: "none", label: "不立即明置" }], context: { action: "dispatch-z-reveal" },
+    });
+  }
+
+  private resolveDispatchZReveal(player: AutoPlayerState, prompt: NonNullable<AutoRoomState["prompt"]>, selectedIds: string[]) {
+    if (!this.state) return;
+    if (selectedIds.length > 1 || (selectedIds[0] && !prompt.cardInstanceIds?.includes(selectedIds[0]))) throw new Error("至多选择1张换阵角色。");
+    if (selectedIds[0]) {
+      const role = player.characterSlots.find((slot) => slot && "instanceId" in slot && slot.instanceId === selectedIds[0]);
+      if (!role || !("instanceId" in role)) throw new Error("换阵角色已不在场。");
+      role.faceDown = false;
+      this.emitEvent("character_revealed", { sourcePlayerId: player.id, targetPlayerId: player.id, characterDefinitionId: role.definitionId });
+      this.addLog(`${player.nickname}因Z招式立即明置了【${characterById.get(role.definitionId)?.name || role.definitionId}】`, player.id, { zone: "characterSlot", ownerId: player.id });
+      this.state.turnModifiers.push({ id: crypto.randomUUID(), ownerId: player.id, kind: "body-next-skill-cost-rest-one", count: 1, characterInstanceId: role.instanceId });
+    }
+    this.state.prompt = undefined;
+  }
+
+  private resolveBloodZSelection(player: AutoPlayerState, prompt: NonNullable<AutoRoomState["prompt"]>, selectedIds: string[]) {
+    if (!this.state) return;
+    if (selectedIds.length > Number(prompt.max || 0) || new Set(selectedIds).size !== selectedIds.length || selectedIds.some((id) => !prompt.cardInstanceIds?.includes(id))) throw new Error("Z招式选牌无效。");
+    const names = new Set<string>();
+    for (const id of selectedIds) {
+      const index = this.state.handDiscard.findIndex((card) => card.instanceId === id);
+      if (index < 0) throw new Error("弃牌区状态已变化。");
+      const definitionId = this.state.handDiscard[index].definitionId;
+      if (names.has(definitionId)) throw new Error("选择的牌名称必须不同。");
+      names.add(definitionId);
+      const [card] = this.state.handDiscard.splice(index, 1); card.ownerId = player.id; player.hand.push(card);
+    }
+    const recovered = heal(player, 1);
+    this.state.prompt = undefined;
+    this.addLog(`${player.nickname}从弃牌区获得 ${selectedIds.length} 张牌并回复 ${recovered} 点体力`, player.id, { zone: "handDiscard" });
+  }
+
+  private onPhaseEntered(phase: AutoRoomState["phase"], _previousPlayer: AutoPlayerState) {
+    if (!this.state) return;
+    const current = this.state.currentPlayerId ? playerById(this.state, this.state.currentPlayerId) : undefined;
+    if (phase === "preparation" && current) {
+      const returning = this.state.turnModifiers.filter((modifier) => modifier.kind === "aggro-return-character"
+        && modifier.ownerId === current.id && Number(modifier.expiresAtTurnNumber || 0) <= this.state!.turnNumber);
+      for (const modifier of returning) {
+        const target = modifier.targetPlayerId ? playerById(this.state, modifier.targetPlayerId) : undefined;
+        const banishedIndex = target?.banished.findIndex((card) => card.instanceId === modifier.targetCharacterInstanceId) ?? -1;
+        const slotIndex = Number(modifier.targetSlotIndex);
+        const marker = target?.characterSlots[slotIndex];
+        if (target && banishedIndex >= 0 && marker && !("instanceId" in marker) && marker.id === modifier.markerId) {
+          const [card] = target.banished.splice(banishedIndex, 1);
+          card.faceDown = modifier.storedFaceDown;
+          target.characterSlots[slotIndex] = card;
+          this.addLog(`【${characterById.get(card.definitionId)?.name || card.definitionId}】从移出游戏区返回角色位`, current.id, { zone: "characterSlot", ownerId: target.id, slotIndex });
+        }
+        this.state.turnModifiers.splice(this.state.turnModifiers.findIndex((candidate) => candidate.id === modifier.id), 1);
+      }
+    }
+    if (phase === "play" && current) {
+      const bombs = this.state.turnModifiers.filter((modifier) => modifier.kind === "aggro-bomb"
+        && modifier.ownerId === current.id && Number(modifier.expiresAtTurnNumber || 0) <= this.state!.turnNumber);
+      for (const modifier of bombs) {
+        const target = modifier.targetPlayerId ? playerById(this.state, modifier.targetPlayerId) : undefined;
+        const slotIndex = Number(modifier.targetSlotIndex);
+        const marker = target?.characterSlots[slotIndex];
+        this.state.turnModifiers.splice(this.state.turnModifiers.findIndex((candidate) => candidate.id === modifier.id), 1);
+        if (!target || !marker || "instanceId" in marker || marker.id !== modifier.markerId) continue;
+        target.characterSlots[slotIndex] = null;
+        this.addLog(`${current.nickname}的「炸弹」爆炸`, current.id, { zone: "characterSlot", ownerId: target.id, slotIndex });
+        const applied = this.applyDamage(target, 1, current.id, undefined, {
+          deferred: true,
+          continuation: { kind: "bomb", sourcePlayerId: current.id, targetPlayerId: target.id },
+        });
+        if (applied === undefined || this.state.prompt?.kind === "dying") return;
+        this.discardRandom(target, current.id);
+      }
+    }
+    if (phase === "preparation" && current?.bodyState.ambushWindow && this.state.turnNumber >= current.bodyState.ambushWindow.expiresAtTurnNumber) {
+      current.bodyState.ambushWindow = undefined;
+      this.addLog(`${current.nickname}的【万劫暗夜】持续时间结束`, current.id, { zone: "body", ownerId: current.id });
+    }
+    for (const player of this.state.players) {
+      bodySkillForId(bodyId(player))?.onPhaseEntered?.(this.bodySkillContext(player), phase, _previousPlayer);
+    }
+    if (phase !== "end" || !current) return;
+    const recoil = this.state.turnModifiers.filter((modifier) => modifier.kind === "aggro-sheriff-recoil" && modifier.targetPlayerId === current.id);
+    for (const modifier of recoil) {
+      const owner = playerById(this.state, modifier.ownerId);
+      if (owner && (this.state.usageCounters[`damage-dealt:${this.state.turnNumber}:${current.id}`] || 0) === 0) {
+        this.loseHealth(owner, 1, "【执法追责】反噬");
+      }
+      this.state.turnModifiers.splice(this.state.turnModifiers.findIndex((candidate) => candidate.id === modifier.id), 1);
+    }
+    for (const player of this.state.players) {
+      if (bodyId(player) === BODY_IDS.trans && player.bodyState.trackedCharacterInstanceIds.length) {
+        for (const instanceId of [...player.bodyState.trackedCharacterInstanceIds]) {
+          const role = player.characterSlots.find((slot) => slot && "instanceId" in slot && slot.instanceId === instanceId);
+          if (role && "instanceId" in role) this.restCard(player, role, false, player.id);
+        }
+        player.bodyState.trackedCharacterInstanceIds = [];
+      }
+    }
+  }
+
+  private finishRetiredAmbushSkill(player: AutoPlayerState, instanceId: string) {
+    if (!this.state) return;
+    const index = player.retired.findIndex((card) => card.instanceId === instanceId);
+    if (index < 0) return;
+    const [card] = player.retired.splice(index, 1); card.faceDown = undefined;
+    player.characterDeck = this.shuffle([...player.characterDeck, card]);
+    if (player.bodyState.ambushWindow) {
+      player.bodyState.ambushWindow.remaining -= 1;
+      if (player.bodyState.ambushWindow.remaining <= 0) player.bodyState.ambushWindow = undefined;
+    }
+    this.addLog(`${player.nickname}将已免费发动的伏击角色洗回角色牌堆`, player.id, { zone: "retired", ownerId: player.id });
+  }
+
+  private loseHealth(player: AutoPlayerState, amount: number, reason: string) {
+    if (!this.state) return;
+    const lost = damage(this.state, player, amount);
+    this.addLog(`${player.nickname}因${reason}失去 ${lost} 点体力，当前体力 ${player.health}`, player.id, { zone: "player", ownerId: player.id });
+  }
+
+  private findCharacterInstance(player: AutoPlayerState, instanceId: string) {
+    return player.characterSlots.find((slot): slot is CardInstance => Boolean(slot && "instanceId" in slot && slot.instanceId === instanceId))
+      || player.retired.find((card) => card.instanceId === instanceId)
+      || player.characterDeck.find((card) => card.instanceId === instanceId)
+      || player.banished.find((card) => card.instanceId === instanceId);
+  }
+
+  private characterEventUsageKey(eventId: string, playerId: string, definitionId: string) {
+    return `skill:event:${eventId}:${playerId}:${definitionId}`;
+  }
+
+  private characterUsageKey(player: AutoPlayerState, definitionId: string, eventId: string, scope: "turn" | "game" | "event") {
+    if (!this.state) return "";
+    if (scope === "game") return `skill:game:${player.id}:${definitionId}`;
+    if (scope === "event") return this.characterEventUsageKey(eventId, player.id, definitionId);
+    return `skill:turn:${this.state.turnNumber}:${player.id}:${definitionId}`;
+  }
+
+  private copiedCharacterDefinitionId(player: AutoPlayerState, role: CardInstance) {
+    return this.state?.turnModifiers.find((modifier) => modifier.kind === "aggro-copy-character-skill"
+      && modifier.ownerId === player.id && modifier.characterInstanceId === role.instanceId)?.copiedDefinitionId;
+  }
+
+  private registeredCharacterSkill(player: AutoPlayerState, role: CardInstance) {
+    const handlerId = this.copiedCharacterDefinitionId(player, role) || role.definitionId;
+    const module = characterSkillForId(handlerId);
+    const definition = characterById.get(handlerId);
+    return module && definition ? { handlerId, module, definition } : undefined;
+  }
+
+  private isCharacterRevealLocked(player: AutoPlayerState, instanceId: string) {
+    return Boolean(this.state?.turnModifiers.some((modifier) => modifier.kind === "aggro-reveal-lock"
+      && modifier.targetPlayerId === player.id && modifier.targetCharacterInstanceId === instanceId));
+  }
+
+  private characterSkillContext(
+    player: AutoPlayerState,
+    role: CardInstance,
+    event?: AutoBattleEvent,
+    continuation?: SkillContinuation,
+    resolutionItem?: CharacterSkillResolutionItem,
+  ): CharacterSkillRuntimeContext {
+    if (!this.state) throw new Error("房间状态不存在。");
+    const state = this.state;
+    const setContinuationPrompt: CharacterSkillRuntimeContext["setPrompt"] = (step, prompt, data = {}, decisionPlayerId = player.id) => {
+      const handlerId = resolutionItem?.handlerId || continuation?.handlerId || role.definitionId;
+      state.prompt = createPrompt({
+        ...prompt,
+        kind: "character-skill",
+        playerId: decisionPlayerId,
+        context: {
+          continuation: {
+            handlerId,
+            sourceDefinitionId: role.definitionId,
+            sourceInstanceId: role.instanceId,
+            step,
+            eventId: event?.id,
+            data: {
+              ...data,
+              ...(resolutionItem ? { resumeResponse: Boolean(resolutionItem.resumeResponse) } : {}),
+              ...(resolutionItem?.dyingPromptContext ? { dyingPromptContext: resolutionItem.dyingPromptContext } : {}),
+            },
+          } satisfies SkillContinuation,
+        },
+      });
+    };
+    return {
+      state,
+      player,
+      role,
+      event,
+      continuation,
+      opponent: () => opponentOf(state, player.id),
+      setPrompt: setContinuationPrompt,
+      clearPrompt: (promptId) => { if (state.prompt?.id === promptId) state.prompt = undefined; },
+      draw: (count) => {
+        const amount = drawCards(state, player, count, (items) => this.shuffle(items));
+        if (amount) {
+          this.addLog(`${player.nickname}摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: player.id });
+          this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: state.phase !== "draw" } });
+        }
+        return amount;
+      },
+      drawOpponent: (count) => {
+        const target = opponentOf(state, player.id);
+        if (!target) return 0;
+        const amount = drawCards(state, target, count, (items) => this.shuffle(items));
+        if (amount) {
+          this.addLog(`${target.nickname}摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: target.id });
+          this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: target.id, amount, metadata: { outsideDrawPhase: state.phase !== "draw" } });
+        }
+        return amount;
+      },
+      discardOwnHand: (instanceIds) => this.discardSelectedHand(player, instanceIds, player.id),
+      discardOpponentHand: (instanceIds) => {
+        const target = opponentOf(state, player.id);
+        return target ? this.discardSelectedHand(target, instanceIds, player.id) : [];
+      },
+      discardRandomOpponent: (count) => {
+        const target = opponentOf(state, player.id);
+        if (!target) return [];
+        const discarded: CardInstance[] = [];
+        while (discarded.length < count && target.hand.length) {
+          const card = this.discardRandom(target, player.id);
+          if (card) discarded.push(card);
+        }
+        return discarded;
+      },
+      gainRandomOpponentHand: () => {
+        const target = opponentOf(state, player.id);
+        if (!target?.hand.length) return undefined;
+        const index = this.randomIndex(target.hand.length);
+        const [card] = target.hand.splice(index, 1);
+        card.ownerId = player.id;
+        player.hand.push(card);
+        this.emitEvent("hand_lost", { sourcePlayerId: player.id, targetPlayerId: target.id, amount: 1 });
+        this.addLog(`${player.nickname}随机获得了${target.nickname}的1张手牌`, player.id, { zone: "hand", ownerId: target.id });
+        return card;
+      },
+      canUseBasic: (definitionId) => {
+        if (definitionId === HAND_IDS.aid) return player.health < player.maxHealth;
+        return canUseInPlay({ ...state, prompt: undefined } as AutoRoomState, player, definitionId);
+      },
+      randomOpponentHand: () => {
+        const target = opponentOf(state, player.id);
+        return target?.hand.length ? target.hand[this.randomIndex(target.hand.length)] : undefined;
+      },
+      takeTopHandCards: (count) => this.takeTopHandCards(count),
+      putHandDeckTop: (cards) => {
+        for (const card of [...cards].reverse()) { card.ownerId = undefined; state.handDeck.push(card); }
+      },
+      putHandDeckBottom: (cards) => {
+        for (const card of [...cards].reverse()) { card.ownerId = undefined; state.handDeck.unshift(card); }
+      },
+      gainFromHandDiscard: (instanceIds) => {
+        const gained: CardInstance[] = [];
+        for (const id of instanceIds) {
+          const index = state.handDiscard.findIndex((card) => card.instanceId === id);
+          if (index < 0) throw new Error("弃牌区中已找不到选中的牌。");
+          const [card] = state.handDiscard.splice(index, 1);
+          card.ownerId = player.id;
+          player.hand.push(card);
+          gained.push(card);
+        }
+        return gained;
+      },
+      shuffleFromHandDiscard: (instanceIds) => {
+        const returned: CardInstance[] = [];
+        for (const id of instanceIds) {
+          const index = state.handDiscard.findIndex((card) => card.instanceId === id);
+          if (index < 0) throw new Error("弃牌区中已找不到选中的牌。");
+          const [card] = state.handDiscard.splice(index, 1);
+          card.ownerId = undefined;
+          returned.push(card);
+        }
+        state.handDeck = this.shuffle([...state.handDeck, ...returned]);
+        return returned;
+      },
+      addModifier: (modifier) => { state.turnModifiers.push({ id: crypto.randomUUID(), ownerId: player.id, ...modifier }); },
+      counterCurrentHand: () => {
+        const target = [...state.stack].reverse().find(isHandResolutionItem);
+        if (!target || target.cancelled) return false;
+        target.cancelled = true;
+        target.cancelledByPlayerId = player.id;
+        target.cancellationReason = "skill";
+        return true;
+      },
+      damageOpponent: (amount, options) => {
+        const target = opponentOf(state, player.id);
+        if (!target) return 0;
+        const applied = this.applyDamage(target, amount, player.id, undefined, {
+          continuation: {
+            kind: "character-skill",
+            item: resolutionItem || {
+              kind: "character-skill",
+              id: crypto.randomUUID(),
+              sourcePlayerId: player.id,
+              sourceInstanceId: role.instanceId,
+              definitionId: role.definitionId,
+              handlerId: continuation?.handlerId || role.definitionId,
+              eventId: continuation?.eventId,
+              resumeResponse: continuation?.data?.resumeResponse === true,
+            },
+            after: options?.after,
+          },
+        });
+        if (applied !== undefined && applied > 0 && options?.after === "return-self-if-target-health-at-most-3" && target.health <= 3) {
+          this.shuffleRetiredCharacter(player, role.instanceId);
+        }
+        return applied;
+      },
+      heal: (amount) => {
+        const recovered = heal(player, amount);
+        if (recovered) this.emitEvent("health_recovered", { sourcePlayerId: player.id, targetPlayerId: player.id, amount: recovered });
+        return recovered;
+      },
+      markerCount: (label) => {
+        const marker = player.markers.find((entry) => entry.kind === "counter" && entry.label === label);
+        return marker?.kind === "counter" ? marker.count : 0;
+      },
+      addCounterMarker: (label, amount = 1) => {
+        const marker = player.markers.find((entry) => entry.kind === "counter" && entry.label === label);
+        if (marker?.kind === "counter") marker.count = Math.min(99, marker.count + amount);
+        else player.markers.push({ id: crypto.randomUUID(), kind: "counter", label, ownerId: player.id, count: Math.min(99, amount) });
+        return marker?.kind === "counter" ? marker.count : Math.min(99, amount);
+      },
+      removeCounterMarker: (label, amount = 1) => {
+        const index = player.markers.findIndex((entry) => entry.kind === "counter" && entry.label === label);
+        const marker = player.markers[index];
+        if (!marker || marker.kind !== "counter" || marker.count < amount) return 0;
+        marker.count -= amount;
+        const remaining = marker.count;
+        if (marker.count <= 0) player.markers.splice(index, 1);
+        return remaining + amount;
+      },
+      copyActionEffect: (definitionId, targetSlotIndex) => this.copyActionEffect(player, role, definitionId, targetSlotIndex, event),
+      restOpponentCharacter: (slotIndex) => {
+        const target = opponentOf(state, player.id);
+        if (!target) throw new Error("对手不存在。");
+        this.restCharacter(target, slotIndex, player.id);
+      },
+      revealOpponentCharacter: (slotIndex) => {
+        const target = opponentOf(state, player.id);
+        const card = target?.characterSlots[slotIndex];
+        if (!target || !card || !("instanceId" in card) || !card.faceDown) throw new Error("目标已不是暗置角色。");
+        card.faceDown = false;
+        this.emitEvent("character_revealed", { sourcePlayerId: player.id, targetPlayerId: target.id, characterDefinitionId: card.definitionId });
+        this.addLog(`${player.nickname}明置了对手角色【${characterById.get(card.definitionId)?.name || card.definitionId}】`, player.id, { zone: "characterSlot", ownerId: target.id, slotIndex });
+        return card;
+      },
+      banishOpponentCharacterUntilNextPreparation: (slotIndex) => this.banishOpponentCharacterUntilNextPreparation(player, slotIndex),
+      lockOpponentCharacterReveal: (slotIndex) => this.lockOpponentCharacterReveal(player, slotIndex),
+      placeOpponentBomb: (slotIndex) => this.placeOpponentBomb(player, slotIndex),
+      shuffleSelfFromRetired: () => this.shuffleRetiredCharacter(player, role.instanceId),
+      shuffleOwnRetired: (instanceId) => this.shuffleRetiredCharacter(player, instanceId),
+      banishOpponentRetired: (instanceId) => {
+        const target = opponentOf(state, player.id);
+        if (!target) return false;
+        const index = target.retired.findIndex((card) => card.instanceId === instanceId);
+        if (index < 0) return false;
+        const [card] = target.retired.splice(index, 1);
+        card.faceDown = false;
+        target.banished.push(card);
+        this.addLog(`${player.nickname}将对手退场区的【${characterById.get(card.definitionId)?.name || card.definitionId}】移出游戏`, player.id, { zone: "banished", ownerId: target.id });
+        return true;
+      },
+      makeCurrentStrikeUndodgeable: (returnSelfOnDamage = false) => {
+        const target = [...state.stack].reverse().find((item) => isHandResolutionItem(item)
+          && effectiveDefinition(item) === HAND_IDS.strike && item.sourcePlayerId === player.id);
+        if (!target || !isHandResolutionItem(target)) return false;
+        target.cannotDodge = true;
+        if (returnSelfOnDamage) target.returnCharacterOnDamageInstanceId = role.instanceId;
+        if (state.prompt?.kind === "response") state.prompt.cardInstanceIds = legalResponseCards(state, playerById(state, state.prompt.playerId)!).map((card) => card.instanceId);
+        return true;
+      },
+      boostNextStrikeDamage: (amount = 1) => {
+        state.turnModifiers.push({ id: crypto.randomUUID(), ownerId: player.id, kind: "aggro-next-strike-damage", count: Math.max(1, amount), sourceDefinitionId: role.definitionId });
+      },
+      useOpponentBasic: (instanceId, definitionId) => this.useOpponentBasic(player, instanceId, definitionId),
+      copyOpponentCharacterSkill: (slotIndex) => this.copyOpponentCharacterSkill(player, role, slotIndex),
+      dodgeCurrentStrike: () => {
+        const target = [...state.stack].reverse().find((item) => isHandResolutionItem(item)
+          && effectiveDefinition(item) === HAND_IDS.strike && item.targetPlayerId === player.id);
+        if (!target || !isHandResolutionItem(target) || target.cancelled || target.cannotDodge) return false;
+        target.cancelled = true;
+        target.cancelledByPlayerId = player.id;
+        target.cancellationReason = "dodge";
+        return true;
+      },
+      isActionCard,
+      handName,
+      addLog: (message, actorId, target) => this.addLog(message, actorId, target),
+      emitEvent: (type, details = {}) => this.emitEvent(type, details),
+    };
+  }
+
+  private activateFullCharacterSkill(player: AutoPlayerState, role: CardInstance, payload: Record<string, unknown>) {
+    if (!this.state) return;
+    const registered = this.registeredCharacterSkill(player, role);
+    if (!registered) throw new Error("该角色技能尚未实现。");
+    const { module, definition, handlerId } = registered;
+    const responseActivation = this.state.prompt?.kind === "response" && this.state.responsePlayerId === player.id && this.state.stack.length > 0;
+    const dyingActivation = this.state.prompt?.kind === "dying" && this.state.prompt.playerId === player.id;
+    const dyingPromptContext = dyingActivation ? { ...(this.state.prompt?.context || {}) } : undefined;
+    const trigger = this.skillTriggerContext(module.trigger.event, module.trigger.relation, undefined, player, responseActivation);
+    const promptedEventId = this.state.prompt?.kind === "character-trigger" ? cleanText(this.state.prompt.context?.eventId, 80) : "";
+    const event = promptedEventId
+      ? this.state.recentEvents.find((candidate) => candidate.id === promptedEventId)
+      : trigger && "type" in trigger ? trigger as AutoBattleEvent : undefined;
+    const eventId = event?.id || trigger?.id || `phase:${this.state.turnNumber}:${module.trigger.event}`;
+    if (!trigger && !promptedEventId) throw new Error(`当前不满足技能时机：${definition.timing}`);
+    const context = this.characterSkillContext(player, role, event);
+    if (module.canActivate && !module.canActivate(context)) throw new Error("当前没有可结算的技能对象。");
+    const limit = module.usageLimit;
+    if (limit) {
+      const key = this.characterUsageKey(player, `${role.instanceId}:${handlerId}`, eventId, limit.scope);
+      if ((this.state.usageCounters[key] || 0) >= limit.count) throw new Error("该技能已达到当前次数上限。");
+      this.state.usageCounters[key] = (this.state.usageCounters[key] || 0) + 1;
+    }
+    if (!["play_phase", "basic_card_needed"].includes(module.trigger.event)) {
+      const key = this.characterEventUsageKey(eventId, player.id, `${role.instanceId}:${handlerId}`);
+      if ((this.state.usageCounters[key] || 0) > 0) throw new Error("该角色已处理过本次触发。");
+      this.state.usageCounters[key] = 1;
+    }
+    if (responseActivation) {
+      const respondingTo = this.state.stack[this.state.stack.length - 1];
+      if (isHandResolutionItem(respondingTo)) respondingTo.wasRespondedTo = true;
+    }
+    if (role.faceDown) role.faceDown = false;
+    this.paySkillCost(player, role, definition.cost, payload, { id: eventId, metadata: event?.metadata });
+    const skillCountKey = `skill-actions:${this.state.turnNumber}:${player.id}`;
+    this.state.usageCounters[skillCountKey] = (this.state.usageCounters[skillCountKey] || 0) + 1;
+    this.emitEvent("skill_used", {
+      sourcePlayerId: player.id,
+      characterDefinitionId: role.definitionId,
+      amount: this.state.usageCounters[skillCountKey],
+      metadata: { costType: definition.cost.type, costAmount: definition.cost.amount || 0, mainRole: definition.mainRole },
+    });
+    this.state.prompt = undefined;
+    const item: CharacterSkillResolutionItem = {
+      kind: "character-skill",
+      id: crypto.randomUUID(),
+      sourcePlayerId: player.id,
+      sourceInstanceId: role.instanceId,
+      definitionId: role.definitionId,
+      handlerId,
+      eventId: event?.id,
+      resumeResponse: responseActivation,
+      dyingPromptContext,
+    };
+    this.state.stack.push(item);
+    const sourceName = characterById.get(role.definitionId)?.name || role.definitionId;
+    const copied = handlerId !== role.definitionId ? `（复制自【${definition.name}】）` : "";
+    this.addLog(`${player.nickname}发动了角色【${sourceName}】的技能【${definition.skillName}】${copied}`, player.id, { zone: "resolving" });
+    this.resolveTop();
+  }
+
+  private resolveCharacterSkillItem(item: CharacterSkillResolutionItem): void {
+    if (!this.state) return;
+    const player = playerById(this.state, item.sourcePlayerId);
+    const role = player ? this.findCharacterInstance(player, item.sourceInstanceId) : undefined;
+    const module = characterSkillForId(item.handlerId);
+    if (!player || !role || !module) return this.continueStack();
+    const event = item.eventId ? this.state.recentEvents.find((candidate) => candidate.id === item.eventId) : undefined;
+    module.activate(this.characterSkillContext(player, role, event, undefined, item));
+    if (!this.state.prompt || this.state.prompt.kind === "dying") this.finishCharacterSkill(item, player);
+  }
+
+  private submitCharacterChoice(player: AutoPlayerState, prompt: NonNullable<AutoRoomState["prompt"]>, payload: Record<string, unknown>) {
+    if (!this.state) return;
+    const continuation = prompt.context?.continuation as SkillContinuation | undefined;
+    if (!continuation) throw new Error("技能选择缺少可恢复状态。");
+    const owner = this.state.players.find((candidate) => this.findCharacterInstance(candidate, continuation.sourceInstanceId));
+    const role = owner && this.findCharacterInstance(owner, continuation.sourceInstanceId);
+    const module = characterSkillForId(continuation.handlerId);
+    if (!owner || !role || !module?.resolveChoice) throw new Error("技能结算器已不可用。");
+    const event = continuation.eventId ? this.state.recentEvents.find((candidate) => candidate.id === continuation.eventId) : undefined;
+    const continuationItem: CharacterSkillResolutionItem = {
+      kind: "character-skill",
+      id: crypto.randomUUID(),
+      sourcePlayerId: owner.id,
+      sourceInstanceId: role.instanceId,
+      definitionId: continuation.sourceDefinitionId,
+      handlerId: continuation.handlerId,
+      eventId: continuation.eventId,
+      resumeResponse: continuation.data?.resumeResponse === true,
+      dyingPromptContext: continuation.data?.dyingPromptContext && typeof continuation.data.dyingPromptContext === "object"
+        ? continuation.data.dyingPromptContext as Record<string, unknown>
+        : undefined,
+    };
+    const completed = module.resolveChoice(this.characterSkillContext(owner, role, event, continuation, continuationItem), prompt, payload);
+    if (!completed) throw new Error("技能选择与当前结算步骤不匹配。");
+    if (this.state.prompt) return;
+    if (continuation.data?.finishMode === "action") {
+      this.emitEvent("card_resolved", {
+        sourcePlayerId: cleanText(continuation.data.sourcePlayerId, 20),
+        targetPlayerId: cleanText(continuation.data.targetPlayerId, 20),
+        cardDefinitionId: cleanText(continuation.data.cardDefinitionId, 80),
+        metadata: {
+          actionCard: true,
+          causedDamage: false,
+          cardInstanceId: cleanText(continuation.data.cardInstanceId, 80),
+        },
+      });
+      this.continueStack();
+      return;
+    }
+    if (continuationItem.dyingPromptContext) {
+      this.emitEvent("skill_resolved", { sourcePlayerId: owner.id, characterDefinitionId: role.definitionId });
+      this.resumeDyingAfterCharacterSkill(owner, continuationItem.dyingPromptContext);
+      return;
+    }
+    const postPredictionRecall = continuation.data?.postPredictionRecall;
+    if (postPredictionRecall && typeof postPredictionRecall === "object") {
+      const recall = postPredictionRecall as Record<string, unknown>;
+      this.emitEvent("skill_resolved", { sourcePlayerId: owner.id, characterDefinitionId: role.definitionId });
+      if (!this.openRecallForResolved(
+        cleanText(recall.sourcePlayerId, 20),
+        cleanText(recall.cardInstanceId, 80),
+        cleanText(recall.effectiveDefinitionId, 80),
+      )) {
+        this.continueStack();
+        this.openNextSkillTrigger();
+      }
+      return;
+    }
+    this.finishCharacterSkill(continuationItem, owner);
+  }
+
+  private finishCharacterSkill(item: CharacterSkillResolutionItem, player: AutoPlayerState) {
+    if (!this.state) return;
+    this.emitEvent("skill_resolved", { sourcePlayerId: player.id, characterDefinitionId: item.definitionId });
+    if (this.state.prompt?.kind === "dying") return;
+    if (item.dyingPromptContext) {
+      this.resumeDyingAfterCharacterSkill(player, item.dyingPromptContext);
+      return;
+    }
+    if (item.resumeResponse && this.state.stack.length) {
+      const top = this.state.stack[this.state.stack.length - 1];
+      if (isHandResolutionItem(top) && top.cancelled) this.continueStack();
+      else this.restoreResponseAfterSkill(player.id);
+      return;
+    }
+    this.continueStack();
+  }
+
+  private resumeDyingAfterCharacterSkill(player: AutoPlayerState, context: Record<string, unknown>) {
+    if (!this.state) return;
+    this.state.prompt = undefined;
+    if (player.health >= 1) {
+      const continuation = context.damageContinuation as Record<string, unknown> | undefined;
+      const applied = Number(context.appliedDamage || 0);
+      if (continuation) this.resumeDamageContinuation(continuation, applied);
+      else this.continueStack();
+      return;
+    }
+    const aidCards = player.hand.filter((card) => card.definitionId === HAND_IDS.aid || card.definitionId === HAND_IDS.impersonate);
+    this.state.prompt = createPrompt({
+      kind: "dying",
+      playerId: player.id,
+      title: "濒死",
+      message: "使用【急救】将体力回复至1点或以上，或放弃并结束对局。",
+      cardInstanceIds: aidCards.map((card) => card.instanceId),
+      options: [{ value: "pass", label: "放弃急救" }],
+      context,
+    });
+  }
+
+  private openDirectDisruptPrompt(source: AutoPlayerState, target: AutoPlayerState, item: HandResolutionItem, operation: "sabotage" | "steal") {
+    if (!this.state) return false;
+    const modifierIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === source.id && modifier.kind === "combo-direct-disrupt");
+    if (modifierIndex < 0) return false;
+    const [modifier] = this.state.turnModifiers.splice(modifierIndex, 1);
+    const role = modifier.characterInstanceId ? this.findCharacterInstance(source, modifier.characterInstanceId) : undefined;
+    if (!role) return false;
+    this.state.prompt = createPrompt({
+      kind: "character-skill",
+      playerId: source.id,
+      title: "定点处理",
+      message: operation === "steal" ? "观看对手手牌，选择1张获得。" : "观看对手手牌，选择1张弃置。",
+      min: 1,
+      max: 1,
+      cardInstanceIds: target.hand.map((card) => card.instanceId),
+      selectableCards: target.hand,
+      context: {
+        continuation: {
+          handlerId: role.definitionId,
+          sourceDefinitionId: role.definitionId,
+          sourceInstanceId: role.instanceId,
+          step: "direct-disrupt",
+          data: {
+            operation,
+            finishMode: "action",
+            sourcePlayerId: source.id,
+            targetPlayerId: target.id,
+            cardDefinitionId: item.definitionId,
+            cardInstanceId: item.card.instanceId,
+          },
+        } satisfies SkillContinuation,
+      },
+    });
+    return true;
+  }
+
+  private copyActionEffect(player: AutoPlayerState, role: CardInstance, definitionId: string, targetSlotIndex?: number, event?: AutoBattleEvent) {
+    if (!this.state || !isActionCard(definitionId)) return false;
+    const target = opponentOf(this.state, player.id);
+    if (!target) return false;
+    if (definitionId === HAND_IDS.draw) return this.characterSkillContext(player, role, event).draw(2) >= 0;
+    if (definitionId === HAND_IDS.sabotage) { if (!target.hand.length) return false; this.discardRandom(target, player.id); return true; }
+    if (definitionId === HAND_IDS.steal) {
+      if (!target.hand.length) return false;
+      const [card] = target.hand.splice(this.randomIndex(target.hand.length), 1);
+      card.ownerId = player.id;
+      player.hand.push(card);
+      this.emitEvent("hand_lost", { sourcePlayerId: player.id, targetPlayerId: target.id, amount: 1 });
+      return true;
+    }
+    if (definitionId === HAND_IDS.inspire) {
+      this.state.turnModifiers.push({ id: crypto.randomUUID(), ownerId: player.id, kind: "next-skill-cost-rest-one", count: 1 });
+      return true;
+    }
+    if (definitionId === HAND_IDS.deploy) {
+      const deployed = deployTopCharacter(player);
+      if (!deployed) return false;
+      this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId);
+      return true;
+    }
+    if ([HAND_IDS.crisis, HAND_IDS.inspect].includes(definitionId as never)) {
+      const legal = target.characterSlots.flatMap((slot, index) => slot && "instanceId" in slot
+        && (definitionId === HAND_IDS.crisis ? !slot.faceDown : Boolean(slot.faceDown)) ? [index] : []);
+      if (!legal.length) return false;
+      if (targetSlotIndex === undefined) {
+        this.characterSkillContext(player, role, event).setPrompt("copy-target", {
+          title: "拟态复制目标",
+          message: `为复制的【${handName(definitionId)}】重新选择合法目标。`,
+          options: legal.map((index) => ({ value: String(index), label: `对手角色位 ${index + 1}` })),
+        }, { copiedDefinitionId: definitionId });
+        return true;
+      }
+      if (!legal.includes(targetSlotIndex)) return false;
+      if (definitionId === HAND_IDS.crisis) {
+        this.characterSkillContext(player, role, event).setPrompt("copy-crisis-choice", {
+          title: "复制·危机破坏",
+          message: "选择休整该角色，或令本体受到1点伤害。",
+          options: [{ value: "rest", label: "休整角色" }, { value: "damage", label: "受到1点伤害" }],
+        }, { copiedDefinitionId: definitionId, targetSlotIndex }, target.id);
+      } else {
+        const targetRole = target.characterSlots[targetSlotIndex];
+        this.characterSkillContext(player, role, event).setPrompt("copy-inspect-choice", {
+          title: "复制·看破",
+          message: "你已查看该暗置角色，是否令其明置？",
+          selectableCards: targetRole && "instanceId" in targetRole ? [targetRole] : undefined,
+          options: [{ value: "reveal", label: "令其明置" }, { value: "keep", label: "保持暗置" }],
+        }, { copiedDefinitionId: definitionId, targetSlotIndex });
+      }
+      return true;
+    }
+    return false;
   }
 
   private activateAssistedSkill(player: AutoPlayerState, payload: Record<string, unknown>) {
     if (!this.state) throw new Error("房间状态不存在。");
     const responseActivation = this.state.prompt?.kind === "response" && this.state.responsePlayerId === player.id && this.state.stack.length > 0;
-    if ((this.state.prompt || this.state.stack.length) && !responseActivation) throw new Error("请先完成当前结算。");
+    const triggerActivation = this.state.prompt?.kind === "character-trigger" && this.state.prompt.playerId === player.id;
+    const dyingActivation = this.state.prompt?.kind === "dying" && this.state.prompt.playerId === player.id;
+    if ((this.state.prompt || this.state.stack.length) && !responseActivation && !triggerActivation && !dyingActivation) throw new Error("请先完成当前结算。");
     const instanceId = cleanText(payload.instanceId, 80);
     const slotIndex = player.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === instanceId);
-    const role = player.characterSlots[slotIndex];
-    if (!role || !("instanceId" in role)) throw new Error("角色不在你的角色区。");
+    const retiredIndex = player.retired.findIndex((card) => card.instanceId === instanceId);
+    const fromRetired = slotIndex < 0 && retiredIndex >= 0;
+    const role = fromRetired ? player.retired[retiredIndex] : player.characterSlots[slotIndex];
+    if (!role || !("instanceId" in role)) throw new Error("角色不在你的角色区或可发动的退场区。");
+    if (triggerActivation) {
+      const eligible = Array.isArray(this.state.prompt?.context?.eligibleInstanceIds)
+        ? this.state.prompt.context.eligibleInstanceIds.map(String)
+        : [];
+      if (!eligible.includes(role.instanceId)) throw new Error("该角色不在当前可发动的触发队列中。");
+    }
+    if (!fromRetired && characterSkillForId(role.definitionId)) return this.activateFullCharacterSkill(player, role, payload);
     const definition = characterById.get(role.definitionId);
     if (!definition) throw new Error("角色数据不存在。");
+    if (fromRetired) {
+      const window = player.bodyState.ambushWindow;
+      const usedKey = bodyUsageKey("game", this.state.turnNumber, player.id, `ambush-z:${role.instanceId}`);
+      if (!window || window.remaining <= 0 || definition.mainRole !== "伏击" || (this.state.usageCounters[usedKey] || 0) > 0) throw new Error("该退场伏击角色当前不能免费发动。");
+      this.state.usageCounters[usedKey] = 1;
+    }
     const automation = automationById.get(role.definitionId);
     if (!automation) throw new Error("该角色缺少自动化元数据。");
     const triggerContext = this.skillTriggerContext(automation.trigger.event, automation.trigger.relation, automation.trigger.targetMainRole, player, responseActivation);
@@ -708,10 +2228,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (usageKey && (this.state.usageCounters[usageKey] || 0) >= automation.usageLimit!.count) throw new Error("该技能已达到当前次数上限。");
     if (responseActivation) {
       const respondingTo = this.state.stack[this.state.stack.length - 1];
-      if (respondingTo) respondingTo.wasRespondedTo = true;
+      if (isHandResolutionItem(respondingTo)) respondingTo.wasRespondedTo = true;
     }
     if (role.faceDown) role.faceDown = false;
-    this.paySkillCost(player, role, definition.cost, payload, triggerContext);
+    if (!fromRetired) this.paySkillCost(player, role, definition.cost, payload, triggerContext);
+    const leftFieldForCost = !fromRetired && !player.characterSlots.some((slot) => slot && "instanceId" in slot && slot.instanceId === role.instanceId);
     if (usageKey) this.state.usageCounters[usageKey] = (this.state.usageCounters[usageKey] || 0) + 1;
     const skillCountKey = `skill-actions:${this.state.turnNumber}:${player.id}`;
     this.state.usageCounters[skillCountKey] = (this.state.usageCounters[skillCountKey] || 0) + 1;
@@ -720,7 +2241,14 @@ export class AutoBattleRoom extends DurableObject<Env> {
       sourcePlayerId: player.id,
       characterDefinitionId: role.definitionId,
       amount: usedThisTurn,
-      metadata: { costType: definition.cost.type, costAmount: definition.cost.amount || 0 },
+      metadata: {
+        costType: definition.cost.type,
+        costAmount: definition.cost.amount || 0,
+        mainRole: definition.mainRole,
+        leftFieldForCost,
+        virtualCard: /当作|视为|虚拟牌/.test(definition.effectText),
+        freeFromRetired: fromRetired,
+      },
     });
     this.state.prompt = createPrompt({
       kind: "assisted-skill",
@@ -728,9 +2256,9 @@ export class AutoBattleRoom extends DurableObject<Env> {
       title: `${definition.skillName} · 辅助结算`,
       message: definition.effectText,
       options: automation.assistedActions.map((action) => ({ value: action, label: this.assistedActionLabel(action) })),
-      context: { characterId: definition.id, characterInstanceId: role.instanceId, allowedActions: automation.assistedActions, resumeResponse: responseActivation },
+      context: { characterId: definition.id, characterInstanceId: role.instanceId, allowedActions: automation.assistedActions, resumeResponse: responseActivation, ...(fromRetired ? { retiredAmbushInstanceId: role.instanceId } : {}) },
     });
-    this.addLog(`${player.nickname} 发动了角色【${definition.name}】的技能【${definition.skillName}】（辅助结算）`, player.id, { zone: "characterSlot", ownerId: player.id, slotIndex });
+    this.addLog(`${player.nickname} ${fromRetired ? "从退场区免费" : ""}发动了角色【${definition.name}】的技能【${definition.skillName}】（辅助结算）`, player.id, fromRetired ? { zone: "retired", ownerId: player.id } : { zone: "characterSlot", ownerId: player.id, slotIndex });
   }
 
   private paySkillCost(
@@ -743,6 +2271,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!this.state) return;
     let type = cost.type || "无";
     let amount = Number(cost.amount || 0);
+    const bodyModifierIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === player.id && modifier.kind === "body-next-skill-cost-rest-one" && modifier.characterInstanceId === role.instanceId);
+    if (bodyModifierIndex >= 0) {
+      this.state.turnModifiers.splice(bodyModifierIndex, 1);
+      if (type === "休整") amount = Math.max(0, amount - 1);
+    }
     const modifierIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === player.id && modifier.kind === "next-skill-cost-rest-one");
     if (modifierIndex >= 0 && type !== "退场") {
       type = "休整";
@@ -777,7 +2310,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     });
     const includesSelf = cards.some((card) => card.instanceId === role.instanceId);
     for (const card of cards) this.restCard(player, card, false, player.id, true);
-    if (includesSelf) drawCards(this.state, player, 1, (items) => this.shuffle(items));
+    if (includesSelf) this.drawForRestingSkillSource(player);
   }
 
   private applyAssistedAction(player: AutoPlayerState, payload: Record<string, unknown>) {
@@ -794,7 +2327,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     else if (action === "damage") this.applyDamage(target, amount, player.id);
     else if (action === "prevent_damage") {
       const top = this.state.stack[this.state.stack.length - 1];
-      if (top) {
+      if (isHandResolutionItem(top)) {
         top.cancelled = true;
         top.cancelledByPlayerId = player.id;
         top.cancellationReason = "skill";
@@ -845,8 +2378,26 @@ export class AutoBattleRoom extends DurableObject<Env> {
       const existing = this.state.turnModifiers.find((modifier) => modifier.ownerId === target.id && modifier.kind === "extra-strike");
       if (existing) existing.count += 1;
       else this.state.turnModifiers.push({ id: crypto.randomUUID(), ownerId: target.id, kind: "extra-strike", count: 1 });
-    } else if (action === "inspect" || action === "manual") {
-      // These effects still rely on table agreement; the public log preserves accountability.
+    } else if (action === "inspect") {
+      const inspectionKind = cleanText(payload.inspectionKind, 30) || "characterRole";
+      if (!["handDeckTop", "opponentHand", "characterRole"].includes(inspectionKind)) throw new Error("观看类型无效。");
+      let inspected: CardInstance[] = [];
+      if (inspectionKind === "handDeckTop") {
+        const card = this.state.handDeck.at(-1);
+        if (card) inspected = [card];
+      } else if (inspectionKind === "opponentHand") {
+        if (target.id === player.id) throw new Error("请选择对手的手牌。");
+        inspected = [...target.hand];
+      } else {
+        const slotIndex = Number(payload.slotIndex);
+        const role = target.characterSlots[slotIndex];
+        if (role && "instanceId" in role) inspected = [role];
+      }
+      if (!inspected.length) throw new Error("当前没有可观看的牌。");
+      this.state.prompt.selectableCards = inspected;
+      this.emitEvent("inspection", { sourcePlayerId: player.id, targetPlayerId: target.id, metadata: { inspectionKind } });
+    } else if (action === "manual") {
+      // The public log preserves accountability for effects that still need table agreement.
     } else throw new Error("辅助结算操作无效。");
     this.addLog(`${player.nickname} 执行了辅助结算：${action} ${amount}`, player.id, { zone: "resolving" });
   }
@@ -866,6 +2417,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.state.stack = [];
     this.state.prompt = undefined;
     this.state.recentEvents = [];
+    this.state.pendingBodyTriggers = [];
     this.state.usageCounters = {};
     this.state.turnModifiers = [];
     for (const player of this.state.players) {
@@ -875,6 +2427,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       player.maxHealth = body?.hp || 7;
       player.health = player.maxHealth;
       player.body = { instanceId: crypto.randomUUID(), definitionId: loadout.bodyId, kind: "body", ownerId: player.id };
+      player.bodyState = this.newBodyState(loadout.bodyId);
       player.hand = [];
       player.characterDeck = this.shuffle(loadout.characterIds.map((definitionId) => ({ instanceId: crypto.randomUUID(), definitionId, kind: "character" as const, ownerId: player.id })));
       player.characterSlots = [null, null, null, null];
@@ -895,8 +2448,300 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.addLog(`自动对战开始，${first.nickname} 为先手`, undefined, { zone: "turn" });
   }
 
-  private applyDamage(target: AutoPlayerState, amount: number, sourceId?: string, cardDefinitionId?: string) {
+  private discardSelectedHand(target: AutoPlayerState, instanceIds: string[], actorId?: string) {
+    if (!this.state || new Set(instanceIds).size !== instanceIds.length) throw new Error("弃牌选择无效。");
+    const cards = instanceIds.map((instanceId) => {
+      const card = target.hand.find((candidate) => candidate.instanceId === instanceId);
+      if (!card) throw new Error("弃牌选择中包含无效手牌。");
+      return card;
+    });
+    for (const card of cards) {
+      target.hand.splice(target.hand.findIndex((candidate) => candidate.instanceId === card.instanceId), 1);
+      card.ownerId = undefined;
+      this.state.handDiscard.push(card);
+    }
+    if (cards.length) {
+      this.emitEvent("hand_discarded", { sourcePlayerId: actorId, targetPlayerId: target.id, amount: cards.length });
+      this.addLog(`${target.nickname}弃置了 ${cards.length} 张手牌`, actorId, { zone: "handDiscard" });
+    }
+    return cards;
+  }
+
+  private shuffleRetiredCharacter(player: AutoPlayerState, instanceId: string) {
+    const index = player.retired.findIndex((card) => card.instanceId === instanceId);
+    if (index < 0) return false;
+    const [card] = player.retired.splice(index, 1);
+    card.faceDown = undefined;
+    player.characterDeck = this.shuffle([...player.characterDeck, card]);
+    this.addLog(`${player.nickname}将【${characterById.get(card.definitionId)?.name || card.definitionId}】洗回角色牌堆`, player.id, { zone: "retired", ownerId: player.id });
+    return true;
+  }
+
+  private banishOpponentCharacterUntilNextPreparation(source: AutoPlayerState, slotIndex: number) {
+    if (!this.state) throw new Error("房间状态不存在。");
+    const target = opponentOf(this.state, source.id);
+    const card = target?.characterSlots[slotIndex];
+    if (!target || !card || !("instanceId" in card)) throw new Error("目标角色已不在角色区。");
+    const markerId = crypto.randomUUID();
+    target.characterSlots[slotIndex] = { id: markerId, label: "暂离", ownerId: target.id };
+    target.banished.push(card);
+    this.state.turnModifiers.push({
+      id: crypto.randomUUID(),
+      ownerId: source.id,
+      kind: "aggro-return-character",
+      count: 1,
+      targetPlayerId: target.id,
+      targetCharacterInstanceId: card.instanceId,
+      targetSlotIndex: slotIndex,
+      markerId,
+      storedFaceDown: card.faceDown,
+      expiresAtTurnNumber: this.state.turnNumber + 2,
+      sourceDefinitionId: AGGRO_CHARACTER_IDS.pelican,
+    });
+    this.emitEvent("character_banished", { sourcePlayerId: source.id, targetPlayerId: target.id, characterDefinitionId: card.definitionId });
+    this.addLog(`${source.nickname}将对手角色【${characterById.get(card.definitionId)?.name || card.definitionId}】暂时移出游戏`, source.id, { zone: "banished", ownerId: target.id });
+    return card;
+  }
+
+  private lockOpponentCharacterReveal(source: AutoPlayerState, slotIndex: number) {
     if (!this.state) return;
+    const target = opponentOf(this.state, source.id);
+    const card = target?.characterSlots[slotIndex];
+    if (!target || !card || !("instanceId" in card) || !card.faceDown) throw new Error("只能封锁暗置角色。");
+    this.state.turnModifiers.push({
+      id: crypto.randomUUID(), ownerId: source.id, kind: "aggro-reveal-lock", count: 1,
+      targetPlayerId: target.id, targetCharacterInstanceId: card.instanceId,
+      expiresAtTurnNumber: this.state.turnNumber + 1, sourceDefinitionId: AGGRO_CHARACTER_IDS.baiziNinja,
+    });
+    this.addLog(`${source.nickname}令对手角色位 ${slotIndex + 1} 本回合不能明置`, source.id, { zone: "characterSlot", ownerId: target.id, slotIndex });
+  }
+
+  private placeOpponentBomb(source: AutoPlayerState, slotIndex: number) {
+    if (!this.state) return;
+    const target = opponentOf(this.state, source.id);
+    if (!target || target.characterSlots[slotIndex] !== null) throw new Error("只能在空角色位放置炸弹。");
+    const markerId = crypto.randomUUID();
+    target.characterSlots[slotIndex] = { id: markerId, label: "炸弹", ownerId: target.id };
+    this.state.turnModifiers.push({
+      id: crypto.randomUUID(), ownerId: source.id, kind: "aggro-bomb", count: 1,
+      targetPlayerId: target.id, targetSlotIndex: slotIndex, markerId,
+      expiresAtTurnNumber: this.state.turnNumber + 2, sourceDefinitionId: AGGRO_CHARACTER_IDS.weixiaokeleBomber,
+    });
+    this.addLog(`${source.nickname}在对手角色位 ${slotIndex + 1} 放置了「炸弹」`, source.id, { zone: "characterSlot", ownerId: target.id, slotIndex });
+  }
+
+  private copyOpponentCharacterSkill(source: AutoPlayerState, morphling: CardInstance, slotIndex: number) {
+    if (!this.state) return;
+    const target = opponentOf(this.state, source.id);
+    const card = target?.characterSlots[slotIndex];
+    if (!target || !card || !("instanceId" in card) || card.faceDown !== false) throw new Error("只能复制对手已明置角色的技能。");
+    if (!characterSkillForId(card.definitionId)) throw new Error("该角色技能尚未实现，不能复制。");
+    this.state.turnModifiers = this.state.turnModifiers.filter((modifier) => modifier.kind !== "aggro-copy-character-skill" || modifier.characterInstanceId !== morphling.instanceId);
+    this.state.turnModifiers.push({
+      id: crypto.randomUUID(), ownerId: source.id, kind: "aggro-copy-character-skill", count: 1,
+      characterInstanceId: morphling.instanceId, copiedDefinitionId: card.definitionId,
+      expiresAtTurnNumber: this.state.turnNumber + 1, sourceDefinitionId: morphling.definitionId,
+    });
+    this.addLog(`${source.nickname}令【变形鸭-微笑尅乐】获得【${characterById.get(card.definitionId)?.name || card.definitionId}】的技能`, source.id, { zone: "characterSlot", ownerId: source.id });
+  }
+
+  private attachStrikeModifiers(source: AutoPlayerState, item: HandResolutionItem) {
+    if (!this.state) return;
+    const damageModifiers = this.state.turnModifiers.filter((modifier) => modifier.ownerId === source.id && modifier.kind === "aggro-next-strike-damage");
+    if (damageModifiers.length) {
+      const modifierIds = new Set(damageModifiers.map((modifier) => modifier.id));
+      const amount = damageModifiers.reduce((total, modifier) => total + modifier.count, 0);
+      this.state.turnModifiers = this.state.turnModifiers.filter((modifier) => !modifierIds.has(modifier.id));
+      item.damageBonus = Number(item.damageBonus || 0) + amount;
+      this.addLog(`${source.nickname}强化了本次【出刀】，伤害+${amount}`, source.id, { zone: "resolving" });
+    }
+    const undodgeableIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === source.id && modifier.kind === "mizai-next-strike-undodgeable");
+    if (undodgeableIndex >= 0) {
+      this.state.turnModifiers.splice(undodgeableIndex, 1);
+      item.cannotDodge = true;
+      this.addLog(`${source.nickname}的本次【出刀】不可被【闪避】响应`, source.id, { zone: "resolving" });
+    }
+  }
+
+  private resolveMizaiPrediction(
+    sourcePlayerId: string,
+    cardInstanceId: string,
+    causedDamage: boolean,
+    effectiveDefinitionId: string,
+    wasRespondedTo: boolean,
+  ) {
+    if (!this.state || !cardInstanceId) return false;
+    const index = this.state.turnModifiers.findIndex((modifier) => modifier.kind === "mizai-prediction"
+      && modifier.ownerId === sourcePlayerId
+      && modifier.targetCardInstanceId === cardInstanceId);
+    if (index < 0) return false;
+    const [modifier] = this.state.turnModifiers.splice(index, 1);
+    const owner = playerById(this.state, sourcePlayerId);
+    if (!owner) return false;
+    if (modifier.predictedDamage !== causedDamage) {
+      this.addLog(`${owner.nickname}的【预言成真】未命中`, owner.id, { zone: "player", ownerId: owner.id });
+      return false;
+    }
+    const role = modifier.characterInstanceId ? this.findCharacterInstance(owner, modifier.characterInstanceId) : undefined;
+    const opponent = opponentOf(this.state, owner.id);
+    if (!role || !opponent) return false;
+    this.addLog(`${owner.nickname}的【预言成真】命中`, owner.id, { zone: "player", ownerId: owner.id });
+    this.state.prompt = createPrompt({
+      kind: "character-skill",
+      playerId: owner.id,
+      title: "预言成真",
+      message: "预言命中。观看对手所有手牌，然后摸1张牌。",
+      selectableCards: opponent.hand,
+      options: [{ value: "done", label: "完成观看并摸1张" }],
+      context: {
+        continuation: {
+          handlerId: MIZAI_CHARACTER_IDS.seer,
+          sourceDefinitionId: role.definitionId,
+          sourceInstanceId: role.instanceId,
+          step: "seer-inspect",
+          data: {
+            ...(wasRespondedTo ? {
+              postPredictionRecall: {
+                sourcePlayerId,
+                cardInstanceId,
+                effectiveDefinitionId,
+              },
+            } : {}),
+          },
+        } satisfies SkillContinuation,
+      },
+    });
+    return true;
+  }
+
+  private openRecallForResolved(sourcePlayerId: string, targetCardId: string, effectiveDefinitionId: string) {
+    if (!this.state) return false;
+    const source = playerById(this.state, sourcePlayerId);
+    const recall = source?.hand.find((card) => card.definitionId === HAND_IDS.recall);
+    if (!source || !recall) return false;
+    this.state.prompt = createPrompt({
+      kind: "recall",
+      playerId: source.id,
+      title: "撤回",
+      message: `是否使用【撤回】取回【${handName(effectiveDefinitionId)}】？`,
+      cardInstanceIds: [recall.instanceId],
+      options: [{ value: "pass", label: "不撤回" }],
+      context: { targetCardId, targetDefinitionId: effectiveDefinitionId },
+    });
+    return true;
+  }
+
+  private useOpponentBasic(source: AutoPlayerState, instanceId: string, definitionId: string) {
+    if (!this.state || ![HAND_IDS.strike, HAND_IDS.dodge, HAND_IDS.aid].includes(definitionId as never)) {
+      throw new Error("审判声明的基础牌无效。");
+    }
+    const opponent = opponentOf(this.state, source.id);
+    const cardIndex = opponent?.hand.findIndex((card) => card.instanceId === instanceId && card.definitionId === definitionId) ?? -1;
+    if (!opponent || cardIndex < 0) throw new Error("对手已无法交出声明的基础牌。");
+
+    if (definitionId === HAND_IDS.strike && !canUseInPlay({ ...this.state, prompt: undefined } as AutoRoomState, source, definitionId)) {
+      throw new Error("当前不能再使用【出刀】。");
+    }
+    if (definitionId === HAND_IDS.dodge) {
+      const target = [...this.state.stack].reverse().find((item) => isHandResolutionItem(item)
+        && effectiveDefinition(item) === HAND_IDS.strike
+        && item.targetPlayerId === source.id);
+      if (!target || !isHandResolutionItem(target) || target.cancelled || target.cannotDodge) throw new Error("当前没有可用【闪避】响应的【出刀】。");
+      const [card] = opponent.hand.splice(cardIndex, 1);
+      this.emitEvent("hand_lost", { sourcePlayerId: source.id, targetPlayerId: opponent.id, amount: 1 });
+      card.ownerId = undefined;
+      this.state.handDiscard.push(card);
+      target.cancelled = true;
+      target.cancelledByPlayerId = source.id;
+      target.cancellationReason = "dodge";
+      target.wasRespondedTo = true;
+      this.emitEvent("card_responded", {
+        sourcePlayerId: source.id,
+        targetPlayerId: target.sourcePlayerId,
+        cardDefinitionId: HAND_IDS.dodge,
+        metadata: { targetCardDefinitionId: HAND_IDS.strike },
+      });
+      this.addLog(`${opponent.nickname}交出【闪避】，视为由${source.nickname}打出`, source.id, { zone: "handDiscard" });
+      return;
+    }
+
+    const [card] = opponent.hand.splice(cardIndex, 1);
+    this.emitEvent("hand_lost", { sourcePlayerId: source.id, targetPlayerId: opponent.id, amount: 1 });
+    if (definitionId === HAND_IDS.aid) {
+      card.ownerId = undefined;
+      this.state.handDiscard.push(card);
+      const recovered = heal(source, 1);
+      if (recovered) this.emitEvent("health_recovered", { sourcePlayerId: source.id, targetPlayerId: source.id, amount: recovered });
+      this.addLog(`${opponent.nickname}交出【急救】，视为由${source.nickname}使用并回复 ${recovered} 点体力`, source.id, { zone: "handDiscard" });
+      return;
+    }
+
+    card.ownerId = source.id;
+    this.state.resolving.push(card);
+    const target = opponentOf(this.state, source.id);
+    const item: HandResolutionItem = {
+      kind: "hand",
+      id: crypto.randomUUID(),
+      sourcePlayerId: source.id,
+      card,
+      definitionId: HAND_IDS.strike,
+      targetPlayerId: target?.id,
+    };
+    this.attachStrikeModifiers(source, item);
+    this.state.stack.push(item);
+    const key = `turn:${this.state.turnNumber}:${source.id}:strike`;
+    this.state.usageCounters[key] = (this.state.usageCounters[key] || 0) + 1;
+    this.emitEvent("card_used", {
+      sourcePlayerId: source.id,
+      targetPlayerId: target?.id,
+      cardDefinitionId: HAND_IDS.strike,
+      metadata: { actionCard: false },
+    });
+    this.addLog(`${opponent.nickname}交出【出刀】，视为由${source.nickname}使用`, source.id, { zone: "resolving" });
+  }
+
+  private applyDamage(
+    target: AutoPlayerState,
+    amount: number,
+    sourceId?: string,
+    cardDefinitionId?: string,
+    options: { skipReplacement?: boolean; deferred?: boolean; continuation?: Record<string, unknown> } = {},
+  ): number | undefined {
+    if (!this.state) return 0;
+    const source = sourceId ? playerById(this.state, sourceId) : undefined;
+    if (!options.skipReplacement && source && source.id !== target.id) {
+      const hitmen = source.characterSlots.flatMap((slot) => slot && "instanceId" in slot
+        && (slot.definitionId === AGGRO_CHARACTER_IDS.weixiaokeleHitman
+          || this.copiedCharacterDefinitionId(source, slot) === AGGRO_CHARACTER_IDS.weixiaokeleHitman) ? [slot] : []);
+      const targets = target.characterSlots.flatMap((slot, slotIndex) => slot && "instanceId" in slot ? [{ slot, slotIndex }] : []);
+      if (hitmen.length && targets.length) {
+        this.state.prompt = createPrompt({
+          kind: "damage-before",
+          playerId: source.id,
+          title: "伤害替换",
+          message: "是否发动【专业处理】，将此次伤害改为休整对手1张角色？",
+          options: [
+            ...hitmen.flatMap((hitman) => targets.map(({ slot, slotIndex }) => ({
+              value: `replace:${hitman.instanceId}:${slotIndex}`,
+              label: slot.faceDown
+                ? `发动专业杀手，休整对手角色位 ${slotIndex + 1}`
+                : `发动专业杀手，休整【${characterById.get(slot.definitionId)?.name || `角色位 ${slotIndex + 1}`}】`,
+            }))),
+            { value: "pass", label: "不发动，正常造成伤害" },
+          ],
+          context: {
+            pendingDamage: {
+              targetPlayerId: target.id,
+              sourcePlayerId: source.id,
+              amount,
+              cardDefinitionId,
+              continuation: options.continuation,
+            },
+          },
+        });
+        return undefined;
+      }
+    }
     let finalAmount = amount;
     const shieldIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === target.id && modifier.kind === "damage-shield" && modifier.count > 0);
     if (shieldIndex >= 0 && finalAmount > 0) {
@@ -907,18 +2752,37 @@ export class AutoBattleRoom extends DurableObject<Env> {
       this.emitEvent("damage_prevented", { sourcePlayerId: target.id, targetPlayerId: target.id, amount: 1 });
       this.addLog(`${target.nickname} 的防护令伤害-1`, target.id, { zone: "player", ownerId: target.id });
     }
+    if (finalAmount > 0 && bodyId(target) === BODY_IDS.defense && target.bodyState.flipped && !target.bodyState.extraFormUsed && target.health - finalAmount <= 0) {
+      target.bodyState.extraFormUsed = true;
+      this.emitEvent("damage_prevented", { sourcePlayerId: target.id, targetPlayerId: target.id, amount: finalAmount, metadata: { bodyZMove: true } });
+      const recovered = heal(target, 2);
+      this.addLog(`${target.nickname}发动【绝境神铠·不灭灵魂究极再临】，防止致命伤害并回复 ${recovered} 点体力`, target.id, { zone: "body", ownerId: target.id });
+      if (recovered > 0) this.emitEvent("health_recovered", { sourcePlayerId: target.id, targetPlayerId: target.id, amount: recovered });
+      return 0;
+    }
     const applied = damage(this.state, target, finalAmount, sourceId);
+    if (sourceId && applied > 0) {
+      const key = `damage-dealt:${this.state.turnNumber}:${sourceId}`;
+      this.state.usageCounters[key] = (this.state.usageCounters[key] || 0) + applied;
+      const eventKey = `damage-events-dealt:${this.state.turnNumber}:${sourceId}`;
+      this.state.usageCounters[eventKey] = (this.state.usageCounters[eventKey] || 0) + 1;
+    }
     this.addLog(`${target.nickname} 受到 ${applied} 点伤害，当前体力 ${target.health}`, sourceId, { zone: "player", ownerId: target.id });
     this.emitEvent("damage_after", { sourcePlayerId: sourceId, targetPlayerId: target.id, cardDefinitionId, amount: applied });
+    if (this.state.prompt?.kind === "dying" && options.deferred && options.continuation) {
+      this.state.prompt.context = { ...this.state.prompt.context, damageContinuation: options.continuation, appliedDamage: applied };
+    }
+    return applied;
   }
 
   private discardRandom(player: AutoPlayerState, actorId?: string) {
-    if (!this.state || !player.hand.length) return;
+    if (!this.state || !player.hand.length) return undefined;
     const [card] = player.hand.splice(this.randomIndex(player.hand.length), 1);
     card.ownerId = undefined;
     this.state.handDiscard.push(card);
     this.emitEvent("hand_discarded", { sourcePlayerId: actorId, targetPlayerId: player.id, amount: 1 });
     this.addLog(`${player.nickname} 随机弃置了1张手牌`, actorId, { zone: "handDiscard" });
+    return card;
   }
 
   private restCharacter(player: AutoPlayerState, slotIndex: number, sourcePlayerId?: string) {
@@ -932,16 +2796,29 @@ export class AutoBattleRoom extends DurableObject<Env> {
     const index = player.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === card.instanceId);
     if (index < 0) throw new Error("要休整的角色不在角色区。");
     player.characterSlots[index] = null;
+    this.state.turnModifiers = this.state.turnModifiers.filter((modifier) => modifier.characterInstanceId !== card.instanceId);
     card.faceDown = undefined;
     player.characterDeck.unshift(card);
     this.emitEvent("character_rested", { sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId, metadata: { skillCost } });
-    if (drawForSelf) drawCards(this.state, player, 1, (items) => this.shuffle(items));
+    if (drawForSelf) this.drawForRestingSkillSource(player);
+  }
+
+  private drawForRestingSkillSource(player: AutoPlayerState) {
+    if (!this.state) return 0;
+    const amount = drawCards(this.state, player, 1, (items) => this.shuffle(items));
+    if (amount > 0) {
+      this.addLog(`${player.nickname}因休整发动技能的角色摸1张牌`, player.id, { zone: "hand", ownerId: player.id });
+      this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
+    }
+    return amount;
   }
 
   private retireCard(player: AutoPlayerState, card: CardInstance, sourcePlayerId = player.id) {
+    if (!this.state) return;
     const index = player.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === card.instanceId);
     if (index < 0) throw new Error("要退场的角色不在角色区。");
     player.characterSlots[index] = null;
+    this.state.turnModifiers = this.state.turnModifiers.filter((modifier) => modifier.characterInstanceId !== card.instanceId);
     card.faceDown = false;
     player.retired.push(card);
     this.emitEvent("character_retired", { sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId });
@@ -954,6 +2831,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       ready: false,
       health: 7,
       maxHealth: 7,
+      bodyState: this.newBodyState(),
       hand: [], characterDeck: [], characterSlots: [null, null, null, null], markers: [], retired: [], banished: [],
     };
   }
@@ -979,17 +2857,62 @@ export class AutoBattleRoom extends DurableObject<Env> {
 
   private skillTriggerContext(event: string, relation: string, targetMainRole: string | undefined, player: AutoPlayerState, responseActivation: boolean) {
     if (!this.state) return undefined;
+    if (event === "basic_card_needed" && this.state.prompt?.kind === "dying" && this.state.prompt.playerId === player.id) {
+      return {
+        id: this.state.prompt.id,
+        type: "basic_card_needed",
+        turnNumber: this.state.turnNumber,
+        sourcePlayerId: player.id,
+        targetPlayerId: player.id,
+        metadata: { neededDefinitionId: HAND_IDS.aid },
+      } satisfies AutoBattleEvent;
+    }
+    if (event === "basic_card_needed" && this.state.currentPlayerId === player.id && this.state.phase === "play" && !this.state.prompt && !this.state.stack.length) {
+      return { id: `phase:${this.state.turnNumber}:basic-card`, type: "basic_card_needed", turnNumber: this.state.turnNumber, sourcePlayerId: player.id } satisfies AutoBattleEvent;
+    }
     if (event === "play_phase" && this.state.currentPlayerId === player.id && this.state.phase === "play" && !responseActivation) return { id: `phase:${this.state.turnNumber}:play` };
     if (event === "preparation" && this.state.currentPlayerId === player.id && this.state.phase === "preparation" && !this.state.prompt) return { id: `phase:${this.state.turnNumber}:preparation` };
     if (event === "opponent_preparation" && this.state.currentPlayerId !== player.id && this.state.phase === "preparation" && !this.state.prompt) return { id: `phase:${this.state.turnNumber}:opponent-preparation` };
     if (event === "deployment" && this.state.currentPlayerId === player.id && this.state.phase === "deployment" && !this.state.prompt) return { id: `phase:${this.state.turnNumber}:deployment` };
     if (responseActivation) {
       const top = this.state.stack[this.state.stack.length - 1];
-      const effective = top ? effectiveDefinition(top) : "";
-      const promptId = this.state.prompt?.id || `response:${top?.id}`;
+      if (!isHandResolutionItem(top)) return undefined;
+      const effective = effectiveDefinition(top);
+      const promptId = top.id;
+      if (event === "prediction_targeted" && top.sourcePlayerId === player.id
+        && [HAND_IDS.strike, HAND_IDS.crisis].includes(effective as never)) {
+        return {
+          id: promptId,
+          type: "prediction_targeted",
+          turnNumber: this.state.turnNumber,
+          sourcePlayerId: player.id,
+          targetPlayerId: top.targetPlayerId,
+          cardDefinitionId: effective,
+          metadata: { cardInstanceId: top.card.instanceId },
+        } satisfies AutoBattleEvent;
+      }
       if (effective === HAND_IDS.strike) {
-        if (["strike_targeted", "damage_before", "body_targeted_by_hand", "basic_card_needed"].includes(event) && top.targetPlayerId === player.id) return { id: promptId };
-        if (["strike_used", "damage_before_source"].includes(event) && top.sourcePlayerId === player.id) return { id: promptId };
+        if (event === "basic_card_needed" && top.targetPlayerId === player.id) return {
+          id: promptId,
+          type: "basic_card_needed",
+          turnNumber: this.state.turnNumber,
+          sourcePlayerId: player.id,
+          targetPlayerId: player.id,
+          metadata: { neededDefinitionId: HAND_IDS.dodge },
+        } satisfies AutoBattleEvent;
+        if (["strike_targeted", "damage_before", "body_targeted_by_hand"].includes(event) && top.targetPlayerId === player.id) return { id: promptId };
+        if (event === "strike_used" && this.relationMatches(relation, top.sourcePlayerId, top.targetPlayerId, player.id)) {
+          return {
+            id: promptId,
+            type: "card_used",
+            turnNumber: this.state.turnNumber,
+            sourcePlayerId: top.sourcePlayerId,
+            targetPlayerId: top.targetPlayerId,
+            cardDefinitionId: HAND_IDS.strike,
+            metadata: { cardInstanceId: top.card.instanceId },
+          } satisfies AutoBattleEvent;
+        }
+        if (event === "damage_before_source" && top.sourcePlayerId === player.id) return { id: promptId };
       }
       if (isActionCard(top?.definitionId || "")) {
         if (event === "action_used" && this.relationMatches(relation, top?.sourcePlayerId, top?.targetPlayerId, player.id)) return { id: promptId };
@@ -1036,8 +2959,68 @@ export class AutoBattleRoom extends DurableObject<Env> {
 
   private emitEvent(type: string, details: Omit<AutoBattleEvent, "id" | "type" | "turnNumber"> = {}) {
     if (!this.state) return;
-    this.state.recentEvents.push({ id: crypto.randomUUID(), type, turnNumber: this.state.turnNumber, ...details });
+    const event = { id: crypto.randomUUID(), type, turnNumber: this.state.turnNumber, ...details } satisfies AutoBattleEvent;
+    this.state.recentEvents.push(event);
     this.state.recentEvents = this.state.recentEvents.slice(-12);
+    this.handleCharacterModifiers(event);
+    this.handleBodyEvent(event);
+  }
+
+  private handleCharacterModifiers(event: AutoBattleEvent) {
+    if (!this.state) return;
+    if (event.type === "card_resolved" && isActionCard(event.cardDefinitionId || "")) {
+      const index = this.state.turnModifiers.findIndex((modifier) => modifier.kind === "combo-next-action-draw" && modifier.ownerId === event.sourcePlayerId);
+      if (index >= 0) {
+        const [modifier] = this.state.turnModifiers.splice(index, 1);
+        const owner = playerById(this.state, modifier.ownerId);
+        if (owner) {
+          const amount = drawCards(this.state, owner, 1, (items) => this.shuffle(items));
+          if (amount) {
+            this.addLog(`${owner.nickname}因政治家的效果摸1张牌`, owner.id, { zone: "hand", ownerId: owner.id });
+            this.emitEvent("cards_drawn", { sourcePlayerId: owner.id, targetPlayerId: owner.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
+          }
+        }
+      }
+      const counterIndex = this.state.turnModifiers.findIndex((modifier) => modifier.kind === "combo-counter-action-draw"
+        && modifier.targetCardInstanceId === event.metadata?.cardInstanceId);
+      if (counterIndex >= 0) {
+        const [modifier] = this.state.turnModifiers.splice(counterIndex, 1);
+        const owner = playerById(this.state, modifier.ownerId);
+        if (owner) {
+          const amount = drawCards(this.state, owner, 1, (items) => this.shuffle(items));
+          if (amount) {
+            this.addLog(`${owner.nickname}因鹈鹕的效果摸1张牌`, owner.id, { zone: "hand", ownerId: owner.id });
+            this.emitEvent("cards_drawn", { sourcePlayerId: owner.id, targetPlayerId: owner.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
+          }
+        }
+      }
+    }
+    if (event.type === "skill_resolved" && event.sourcePlayerId) {
+      const index = this.state.turnModifiers.findIndex((modifier) => modifier.kind === "combo-next-other-skill-damage"
+        && modifier.ownerId === event.sourcePlayerId && modifier.sourceDefinitionId !== event.characterDefinitionId);
+      if (index >= 0) {
+        const [modifier] = this.state.turnModifiers.splice(index, 1);
+        const owner = playerById(this.state, modifier.ownerId);
+        const target = owner ? opponentOf(this.state, owner.id) : undefined;
+        if (owner && target) this.applyDamage(target, 1, owner.id);
+      }
+    }
+    if (event.type === "card_used" && event.sourcePlayerId) {
+      const handType = isActionCard(event.cardDefinitionId || "") ? "action" : "basic";
+      const index = this.state.turnModifiers.findIndex((modifier) => modifier.kind === "combo-declare-hand-type"
+        && modifier.targetPlayerId === event.sourcePlayerId && modifier.declaredHandType === handType);
+      if (index >= 0) {
+        const [modifier] = this.state.turnModifiers.splice(index, 1);
+        const owner = playerById(this.state, modifier.ownerId);
+        if (owner) {
+          const amount = drawCards(this.state, owner, 1, (items) => this.shuffle(items));
+          if (amount) {
+            this.addLog(`${owner.nickname}因宣言命中摸1张牌`, owner.id, { zone: "hand", ownerId: owner.id });
+            this.emitEvent("cards_drawn", { sourcePlayerId: owner.id, targetPlayerId: owner.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
+          }
+        }
+      }
+    }
   }
 
   private recordCharacterDeployment(sourcePlayerId: string, targetPlayerId: string, characterDefinitionId: string) {
@@ -1050,9 +3033,31 @@ export class AutoBattleRoom extends DurableObject<Env> {
   private legalSkillInstanceIds(player: AutoPlayerState) {
     if (!this.state || this.state.winnerId) return [];
     const responseActivation = this.state.prompt?.kind === "response" && this.state.responsePlayerId === player.id && this.state.stack.length > 0;
-    if ((this.state.prompt || this.state.stack.length) && !responseActivation) return [];
-    return player.characterSlots.flatMap((slot) => {
+    const triggerPrompt = this.state.prompt?.kind === "character-trigger" && this.state.prompt.playerId === player.id;
+    const dyingActivation = this.state.prompt?.kind === "dying" && this.state.prompt.playerId === player.id;
+    if ((this.state.prompt || this.state.stack.length) && !responseActivation && !triggerPrompt && !dyingActivation) return [];
+    const promptedIds = triggerPrompt && Array.isArray(this.state.prompt?.context?.eligibleInstanceIds)
+      ? new Set(this.state.prompt.context.eligibleInstanceIds.map(String))
+      : undefined;
+    const field = player.characterSlots.flatMap((slot) => {
       if (!slot || !("instanceId" in slot)) return [];
+      if (slot.faceDown && this.isCharacterRevealLocked(player, slot.instanceId)) return [];
+      const skill = this.registeredCharacterSkill(player, slot);
+      const registered = skill?.module;
+      if (registered && skill) {
+        if (promptedIds) return promptedIds.has(slot.instanceId) ? [slot.instanceId] : [];
+        const trigger = this.skillTriggerContext(registered.trigger.event, registered.trigger.relation, undefined, player, responseActivation);
+        if (!trigger) return [];
+        const event = "type" in trigger ? trigger as AutoBattleEvent : undefined;
+        const eventId = event?.id || trigger.id;
+        if (!["play_phase", "basic_card_needed"].includes(registered.trigger.event)
+          && (this.state!.usageCounters[this.characterEventUsageKey(eventId, player.id, `${slot.instanceId}:${skill.handlerId}`)] || 0) > 0) return [];
+        if (registered.usageLimit) {
+          const key = this.characterUsageKey(player, `${slot.instanceId}:${skill.handlerId}`, eventId, registered.usageLimit.scope);
+          if ((this.state!.usageCounters[key] || 0) >= registered.usageLimit.count) return [];
+        }
+        return !registered.canActivate || registered.canActivate(this.characterSkillContext(player, slot, event)) ? [slot.instanceId] : [];
+      }
       const automation = automationById.get(slot.definitionId);
       if (!automation) return [];
       const trigger = this.skillTriggerContext(automation.trigger.event, automation.trigger.relation, automation.trigger.targetMainRole, player, responseActivation);
@@ -1067,6 +3072,121 @@ export class AutoBattleRoom extends DurableObject<Env> {
       }
       return [slot.instanceId];
     });
+    const window = player.bodyState.ambushWindow;
+    if (!window || window.remaining <= 0) return field;
+    const retired = player.retired.flatMap((role) => {
+      const definition = characterById.get(role.definitionId);
+      const automation = automationById.get(role.definitionId);
+      if (!definition || definition.mainRole !== "伏击" || !automation) return [];
+      if ((this.state!.usageCounters[bodyUsageKey("game", this.state!.turnNumber, player.id, `ambush-z:${role.instanceId}`)] || 0) > 0) return [];
+      return this.skillTriggerContext(automation.trigger.event, automation.trigger.relation, automation.trigger.targetMainRole, player, responseActivation) ? [role.instanceId] : [];
+    });
+    return [...field, ...retired];
+  }
+
+  private canActivateBodyExtra(player: AutoPlayerState) {
+    if (!this.state || this.state.winnerId || this.state.prompt || this.state.stack.length) return false;
+    if (this.state.currentPlayerId !== player.id || this.state.phase !== "play" || !player.bodyState.flipped || player.bodyState.extraFormUsed) return false;
+    const id = bodyId(player);
+    return [BODY_IDS.dispatch, BODY_IDS.blood, BODY_IDS.ambush].includes(id as never);
+  }
+
+  private legalActionsFor(player: AutoPlayerState, legalHandCardIds: string[], legalSkillInstanceIds: string[]): AutoLegalAction[] {
+    if (!this.state || this.state.winnerId) return [];
+    const actions: AutoLegalAction[] = [];
+    const prompt = this.state.prompt;
+    if (prompt) {
+      if (prompt.playerId !== player.id) return [];
+      if (prompt.kind === "response") {
+        actions.push({ type: "response:pass" });
+        for (const instanceId of prompt.cardInstanceIds || []) {
+          const card = player.hand.find((candidate) => candidate.instanceId === instanceId);
+          if (card) actions.push({ type: "response:play", payload: { instanceId, ...(card.definitionId === HAND_IDS.impersonate ? { resolvedAs: HAND_IDS.dodge } : {}) } });
+        }
+        for (const instanceId of legalSkillInstanceIds) actions.push({ type: "skill:activate", payload: { instanceId }, selection: this.skillCostSelection(player, instanceId) });
+      } else if (prompt.kind === "dying") {
+        actions.push({ type: "choice:submit", payload: { value: "pass" } });
+        for (const instanceId of prompt.cardInstanceIds || []) actions.push({ type: "choice:submit", payload: { value: "aid", instanceId } });
+        for (const instanceId of legalSkillInstanceIds) actions.push({ type: "skill:activate", payload: { instanceId }, selection: this.skillCostSelection(player, instanceId) });
+      } else if ((prompt.kind as string) === "recall") {
+        actions.push({ type: "choice:submit", payload: { value: "pass" } });
+        for (const instanceId of prompt.cardInstanceIds || []) actions.push({ type: "choice:submit", payload: { value: "recall", instanceId } });
+      } else if (prompt.kind === "discard") {
+        actions.push({
+          type: "choice:submit",
+          selection: { kind: "cards", cardInstanceIds: prompt.cardInstanceIds || [], min: Number(prompt.min || 0), max: Number(prompt.max || 0) },
+        });
+      } else {
+        for (const option of prompt.options || []) actions.push({ type: prompt.kind === "assisted-skill" ? "assisted:action" : "choice:submit", payload: prompt.kind === "assisted-skill" ? { action: option.value } : { value: option.value } });
+        if (prompt.cardInstanceIds?.length && prompt.max !== undefined) actions.push({
+          type: "choice:submit",
+          selection: { kind: "cards", cardInstanceIds: prompt.cardInstanceIds, min: Number(prompt.min || 0), max: Number(prompt.max || 0) },
+        });
+        const continuation = prompt.context?.continuation as SkillContinuation | undefined;
+        if (continuation?.step === "prophet-order") actions.push({
+          type: "choice:submit",
+          selection: { kind: "order", cardInstanceIds: prompt.cardInstanceIds || [], min: prompt.cardInstanceIds?.length || 0, max: prompt.cardInstanceIds?.length || 0 },
+        });
+        if (prompt.kind === "character-trigger") {
+          for (const instanceId of legalSkillInstanceIds) actions.push({ type: "skill:activate", payload: { instanceId }, selection: this.skillCostSelection(player, instanceId) });
+        }
+        if (prompt.kind === "assisted-skill") actions.push({ type: "assisted:finish" });
+      }
+      return actions;
+    }
+    if (this.state.stack.length || this.state.currentPlayerId !== player.id) return [];
+    actions.push({ type: "phase:advance" });
+    if (this.state.phase === "deployment") {
+      if (this.state.deployedThisPhase < 2 && player.characterSlots.includes(null) && player.characterDeck.length) actions.push({ type: "character:deploy" });
+      player.characterSlots.forEach((slot, slotIndex) => {
+        if (slot && "instanceId" in slot && slot.faceDown && !this.isCharacterRevealLocked(player, slot.instanceId)) actions.push({ type: "character:reveal", payload: { slotIndex } });
+      });
+    }
+    for (const instanceId of legalSkillInstanceIds) actions.push({ type: "skill:activate", payload: { instanceId }, selection: this.skillCostSelection(player, instanceId) });
+    if (this.canActivateBodyExtra(player)) actions.push({ type: "body:activate" });
+    if (this.state.phase === "play") {
+      const costIds = player.characterSlots.flatMap((slot) => slot && "instanceId" in slot ? [slot.instanceId] : []);
+      for (const modifier of this.state.turnModifiers.filter((candidate) => candidate.kind === "aggro-bomb" && candidate.targetPlayerId === player.id)) {
+        const marker = player.characterSlots[Number(modifier.targetSlotIndex)];
+        if (marker && !("instanceId" in marker) && marker.id === modifier.markerId && costIds.length) {
+          actions.push({
+            type: "bomb:remove",
+            payload: { markerId: modifier.markerId || "" },
+            selection: { kind: "skill-cost", cardInstanceIds: costIds, min: 1, max: 1 },
+          });
+        }
+      }
+    }
+    for (const instanceId of legalHandCardIds) {
+      const card = player.hand.find((candidate) => candidate.instanceId === instanceId);
+      if (!card) continue;
+      if (card.definitionId === HAND_IDS.impersonate) {
+        if (canUseInPlay(this.state, player, card.definitionId, HAND_IDS.strike)) actions.push({ type: "hand:play", payload: { instanceId, resolvedAs: HAND_IDS.strike } });
+        if (canUseInPlay(this.state, player, card.definitionId, HAND_IDS.aid)) actions.push({ type: "hand:play", payload: { instanceId, resolvedAs: HAND_IDS.aid } });
+        continue;
+      }
+      if ([HAND_IDS.crisis, HAND_IDS.inspect].includes(card.definitionId as never)) {
+        const opponent = opponentOf(this.state, player.id);
+        opponent?.characterSlots.forEach((slot, targetSlotIndex) => {
+          if (!slot || !("instanceId" in slot)) return;
+          if (card.definitionId === HAND_IDS.crisis ? !slot.faceDown : Boolean(slot.faceDown)) actions.push({ type: "hand:play", payload: { instanceId, targetSlotIndex } });
+        });
+      } else actions.push({ type: "hand:play", payload: { instanceId } });
+    }
+    return actions;
+  }
+
+  private skillCostSelection(player: AutoPlayerState, instanceId: string): AutoLegalAction["selection"] | undefined {
+    const role = this.findCharacterInstance(player, instanceId);
+    const definition = role ? this.registeredCharacterSkill(player, role)?.definition || characterById.get(role.definitionId) : undefined;
+    if (!role || !definition) return undefined;
+    if (definition.cost.type === "退场" || definition.cost.type === "无") return undefined;
+    if (definition.cost.type === "休整自身") return { kind: "skill-cost", cardInstanceIds: [instanceId], min: 1, max: 1 };
+    const available = player.characterSlots.flatMap((slot) => slot && "instanceId" in slot ? [slot.instanceId] : []);
+    const nextCostOne = this.state?.turnModifiers.some((modifier) => modifier.ownerId === player.id && modifier.kind === "next-skill-cost-rest-one");
+    const bodyReduction = this.state?.turnModifiers.some((modifier) => modifier.ownerId === player.id && modifier.kind === "body-next-skill-cost-rest-one" && modifier.characterInstanceId === instanceId);
+    const amount = nextCostOne ? 1 : definition.cost.type === "休整" ? Math.max(0, Number(definition.cost.amount || 0) - (bodyReduction ? 1 : 0)) : 0;
+    return amount > 0 ? { kind: "skill-cost", cardInstanceIds: available, min: amount, max: amount } : undefined;
   }
 
   private restoreResponseAfterSkill(skillOwnerId: string) {
@@ -1112,6 +3232,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
             : canUseInPlay(this.state!, viewer, card.definitionId)).map((card) => card.instanceId)
           : [];
     const legalSkillInstanceIds = spectator || !viewer ? [] : this.legalSkillInstanceIds(viewer);
+    const legalActions = spectator || !viewer ? [] : this.legalActionsFor(viewer, legalHandCardIds, legalSkillInstanceIds);
     return {
       mode: "auto",
       roomCode: this.state.roomCode,
@@ -1127,6 +3248,14 @@ export class AutoBattleRoom extends DurableObject<Env> {
         health: player.health,
         maxHealth: player.maxHealth,
         body: player.body,
+        bodyState: {
+          progress: player.bodyState.progress,
+          progressMax: player.bodyState.progressMax,
+          flipped: player.bodyState.flipped,
+          extraFormUsed: player.bodyState.extraFormUsed,
+          trackedCharacterInstanceIds: player.id === viewerId && !spectator ? player.bodyState.trackedCharacterInstanceIds : [],
+          ...(player.bodyState.ambushWindow ? { ambushWindow: player.bodyState.ambushWindow } : {}),
+        },
         hand: player.id === viewerId && !spectator ? player.hand : player.hand.map(() => ({ ownerId: player.id, faceDown: true })),
         handCount: player.hand.length,
         characterDeckCount: player.characterDeck.length,
@@ -1149,7 +3278,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         handDeckCount: this.state.handDeck.length,
         handDiscard: this.state.handDiscard,
         resolving: this.state.resolving,
-        stack: this.state.stack.map((item) => ({ ...item, card: { ...item.card } })),
+        stack: this.state.stack.map((item) => isHandResolutionItem(item) ? { ...item, card: { ...item.card } } : { ...item }),
         prompt: visiblePrompt,
         responsePlayerId: this.state.responsePlayerId,
         winnerId: this.state.winnerId,
@@ -1162,6 +3291,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
         })),
         legalHandCardIds,
         legalSkillInstanceIds,
+        legalActions,
+        legalBodyActionPlayerIds: !spectator && viewer && this.canActivateBodyExtra(viewer) ? [viewer.id] : [],
+        skillCostRestReductionByCharacterId: spectator || !viewer ? {} : Object.fromEntries(this.state.turnModifiers
+          .filter((modifier) => modifier.ownerId === viewer.id && modifier.kind === "body-next-skill-cost-rest-one" && modifier.characterInstanceId)
+          .map((modifier) => [modifier.characterInstanceId!, 1])),
         logs: this.state.logs,
       },
       isSpectator: spectator,

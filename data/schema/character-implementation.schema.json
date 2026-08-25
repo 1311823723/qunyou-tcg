@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "角色技能自动化实现状态",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": ["automation", "review"],
+    "properties": {
+      "automation": {
+        "type": "string",
+        "enum": ["pending", "in_progress", "implemented"]
+      },
+      "review": {
+        "type": "string",
+        "enum": ["confirmed", "needs_confirmation", "needs_testing", "needs_optimization"]
+      },
+      "note": {
+        "type": "string",
+        "maxLength": 240
+      }
+    },
+    "additionalProperties": false
+  }
+}

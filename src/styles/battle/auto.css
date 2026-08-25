@@ -32,10 +32,21 @@
 .auto-player header span, .auto-player header em { color: var(--text-secondary); font-size: .7rem; font-style: normal; }
 .auto-health { color: #70e1b5; }
 .auto-player__field { display: grid; grid-template-columns: minmax(4.8rem,6.4rem) 1fr; align-items: center; gap: .7rem; }
+.auto-body-wrap { display: grid; align-self: stretch; align-content: center; gap: .42rem; min-width: 0; }
 .auto-body-card { width: min(6.4rem, 100%); }
+.auto-body-status { display: grid; gap: .24rem; padding: .42rem; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: rgba(255,255,255,.035); }
+.auto-body-status > span { overflow: hidden; color: #d8cdf0; font: 800 .55rem var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.auto-body-status > div { height: .28rem; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.08); }
+.auto-body-status > div i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#8064c8,#d8b75c); transition: width .25s ease; }
+.auto-body-status small { display: -webkit-box; overflow: hidden; color: var(--text-secondary); font-size: .52rem; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.auto-body-status.is-ready { border-color: rgba(216,183,92,.42); background: rgba(216,183,92,.07); box-shadow: 0 0 18px rgba(216,183,92,.07); }
+.auto-body-status.is-ready > div i { background: linear-gradient(90deg,#d8b75c,#fff0a8); }
+.auto-body-status.is-used { opacity: .7; }
+.auto-body-activate { width: 100%; min-height: 1.8rem; padding: .3rem .45rem; font-size: .58rem; }
 .auto-slots { display: grid; grid-template-columns: repeat(4,minmax(4.5rem,7rem)); justify-content: center; gap: .6rem; }
 .auto-slot { min-width: 0; min-height: 6.2rem; border: 0; border-radius: 10px; background: rgba(255,255,255,.025); }
 .auto-slot--empty { color: rgba(255,255,255,.28); border: 1px dashed rgba(255,255,255,.12); }
+.auto-slot--marker { display: grid; place-items: center; padding: .5rem; border: 1px solid rgba(227,151,70,.45); color: #ffd59f; background: radial-gradient(circle,rgba(227,151,70,.16),rgba(45,28,22,.72)); font: 800 .72rem var(--font-display); text-align: center; }
 .auto-card { position: relative; display: grid; align-content: end; width: 100%; min-width: 0; aspect-ratio: 5/7; padding: .35rem; overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 9px; color: white; text-align: left; background: #151426; cursor: pointer; }
 .auto-card:disabled { cursor: default; }
 .auto-hand .auto-card:disabled { filter: saturate(.45) brightness(.62); opacity: .72; }
@@ -64,6 +75,9 @@
 .auto-prompt__cards { display: grid; grid-template-columns: repeat(auto-fill,minmax(4.2rem,5.2rem)); gap: .45rem; }
 .auto-prompt__inspection { width: min(7rem, 28vw); }
 .auto-prompt__actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.auto-retired { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: .55rem; margin-top: .55rem; padding-top: .55rem; border-top: 1px solid rgba(255,255,255,.08); }
+.auto-retired > span { color: var(--text-secondary); font: 800 .58rem var(--font-mono); }
+.auto-retired > div { display: grid; grid-template-columns: repeat(auto-fill,minmax(3.5rem,4.4rem)); gap: .35rem; }
 .auto-hand { grid-column: 1; padding: .75rem; }
 .auto-hand header { display: flex; justify-content: space-between; margin-bottom: .6rem; }
 .auto-hand header span { color: var(--text-secondary); font-size: .7rem; }
@@ -83,7 +97,11 @@
   .auto-command-center { grid-template-columns: 1fr 1fr; }
   .auto-stack, .auto-prompt { grid-column: 1/-1; border-left: 0; }
   .auto-slots { grid-template-columns: repeat(4,minmax(3.8rem,1fr)); gap: .3rem; }
-  .auto-player__field { grid-template-columns: 4.1rem minmax(0,1fr); gap: .35rem; }
+  .auto-player__field { grid-template-columns: 4.5rem minmax(0,1fr); gap: .35rem; }
+  .auto-body-status { padding: .3rem; }
+  .auto-body-status > span { white-space: normal; }
+  .auto-body-status small { display: none; }
+  .auto-retired { grid-template-columns: 1fr; }
   .auto-battle__root { padding: .45rem; overflow-x: hidden; }
   .auto-player header { flex-wrap: wrap; gap: .45rem; }
 }

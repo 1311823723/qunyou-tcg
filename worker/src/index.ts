@@ -176,7 +176,7 @@ export default {
       const token = cleanText(body.token, 80);
       const deckId = cleanText(body.deckId, 80);
       const customDeck = parseCustomDeck(body.customDeck);
-      if (!nickname || !token || !validAutoLoadout(deckId, customDeck)) return json({ error: "昵称、身份令牌或牌组无效。" }, { status: 400, headers });
+      if (!nickname || !token) return json({ error: "昵称或身份令牌无效。" }, { status: 400, headers });
       const result = await env.AUTO_BATTLE_ROOMS.getByName(autoJoinMatch[1]).joinRoom(token, nickname, deckId, customDeck);
       return json(result.body, { status: result.status, headers });
     }
@@ -273,11 +273,9 @@ export class BattleLobby extends DurableObject<Env> {
 
 export class BattleRoom extends DurableObject<Env> {
   private state?: RoomState;
-  private readonly env: Env;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.env = env;
     ctx.blockConcurrencyWhile(async () => {
       this.state = await ctx.storage.get<RoomState>("room");
       if (this.state) {
@@ -995,9 +993,9 @@ export class BattleRoom extends DurableObject<Env> {
         instanceId: crypto.randomUUID(),
         definitionId: definition.id,
         kind: "hand" as const,
-        suit: entry.suit,
-        rank: entry.rank,
-        joker: entry.joker,
+        suit: "suit" in entry ? entry.suit : undefined,
+        rank: "rank" in entry ? entry.rank : undefined,
+        joker: "joker" in entry ? entry.joker as "small" | "big" : undefined,
       })),
     ));
     this.state.handDiscard = [];

@@ -3,6 +3,7 @@ import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
 const characters = JSON.parse(fs.readFileSync(path.join(root, "data/cards/characters.json"), "utf8"));
+const implementation = JSON.parse(fs.readFileSync(path.join(root, "data/cards/character_implementation.json"), "utf8"));
 
 function eventFor(timing) {
   if (timing === "出牌阶段") return "play_phase";
@@ -79,7 +80,7 @@ function usageLimit(effect) {
 const registry = Object.fromEntries(characters.map((card) => {
   const limit = usageLimit(card.effectText);
   return [card.id, {
-    level: "assisted",
+    level: implementation[card.id]?.automation === "implemented" ? "full" : "assisted",
     trigger: {
       event: eventFor(card.timing),
       relation: relationFor(card.timing),

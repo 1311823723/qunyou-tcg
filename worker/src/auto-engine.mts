@@ -5,10 +5,12 @@ import type {
   AutoPrompt,
   AutoRoomState,
   BattlePhase,
+  HandResolutionItem,
   ResolutionItem,
 } from "./auto-types";
+import { extraStrikeAllowance } from "./skills/body-registry.mts";
 
-export const AUTO_STATE_VERSION = 1;
+export const AUTO_STATE_VERSION = 3;
 export const PHASES: BattlePhase[] = ["preparation", "draw", "play", "deployment", "discard", "end"];
 
 export const HAND_IDS = {
@@ -92,7 +94,11 @@ export function validPlayDefinition(definitionId: string, resolvedAs?: string) {
   return [HAND_IDS.strike, HAND_IDS.dodge, HAND_IDS.aid].includes(resolvedAs as never);
 }
 
-export function effectiveDefinition(item: ResolutionItem) {
+export function isHandResolutionItem(item: ResolutionItem | undefined): item is HandResolutionItem {
+  return Boolean(item && item.kind === "hand");
+}
+
+export function effectiveDefinition(item: HandResolutionItem) {
   return item.definitionId === HAND_IDS.impersonate ? item.resolvedAs || "" : item.definitionId;
 }
 
@@ -106,11 +112,12 @@ export function canUseInPlay(state: AutoRoomState, player: AutoPlayerState, defi
   const effective = definitionId === HAND_IDS.impersonate ? resolvedAs : definitionId;
   if (effective === HAND_IDS.dodge) return false;
   if (effective === HAND_IDS.strike) {
+    if (state.turnModifiers.some((modifier) => modifier.ownerId === player.id && modifier.kind === "mizai-strike-block")) return false;
     const used = state.usageCounters[`turn:${state.turnNumber}:${player.id}:strike`] || 0;
     const extra = state.turnModifiers
       .filter((modifier) => modifier.ownerId === player.id && modifier.kind === "extra-strike")
       .reduce((total, modifier) => total + modifier.count, 0);
-    return used < 1 + extra;
+    return used < 1 + extra + extraStrikeAllowance(player);
   }
   return effective !== HAND_IDS.counter && effective !== HAND_IDS.meeting && effective !== HAND_IDS.recall;
 }
@@ -118,10 +125,11 @@ export function canUseInPlay(state: AutoRoomState, player: AutoPlayerState, defi
 export function legalResponseCards(state: AutoRoomState, player: AutoPlayerState) {
   if (!state.stack.length || state.responsePlayerId !== player.id || state.prompt?.kind !== "response") return [];
   const top = state.stack[state.stack.length - 1];
+  if (!isHandResolutionItem(top)) return [];
   const effective = effectiveDefinition(top);
   return player.hand.filter((card) => {
-    if (card.definitionId === HAND_IDS.impersonate) return effective === HAND_IDS.strike && top.targetPlayerId === player.id;
-    if (card.definitionId === HAND_IDS.dodge) return effective === HAND_IDS.strike && top.targetPlayerId === player.id;
+    if (card.definitionId === HAND_IDS.impersonate) return effective === HAND_IDS.strike && top.targetPlayerId === player.id && !top.cannotDodge;
+    if (card.definitionId === HAND_IDS.dodge) return effective === HAND_IDS.strike && top.targetPlayerId === player.id && !top.cannotDodge;
     if (card.definitionId === HAND_IDS.counter) return isActionCard(top.definitionId);
     if (card.definitionId === HAND_IDS.meeting) {
       return top.sourcePlayerId !== player.id && (effective === HAND_IDS.strike || isActionCard(top.definitionId));
@@ -130,7 +138,7 @@ export function legalResponseCards(state: AutoRoomState, player: AutoPlayerState
   });
 }
 
-export function beginResponseWindow(state: AutoRoomState, item: ResolutionItem) {
+export function beginResponseWindow(state: AutoRoomState, item: HandResolutionItem) {
   const opponent = opponentOf(state, item.sourcePlayerId);
   if (!opponent) return;
   state.responsePlayerId = opponent.id;
@@ -209,9 +217,12 @@ export function advancePhase(
     state.turnNumber += 1;
     state.phase = "preparation";
     state.usageCounters = Object.fromEntries(
-      Object.entries(state.usageCounters).filter(([key]) => key.startsWith("skill:game:")),
+      Object.entries(state.usageCounters).filter(([key]) => key.startsWith("skill:game:") || key.startsWith("body:game:")),
     );
-    state.turnModifiers = state.turnModifiers.filter((modifier) => Boolean(modifier.expiresAtTurnNumber && modifier.expiresAtTurnNumber > state.turnNumber));
+    state.turnModifiers = state.turnModifiers.filter((modifier) => ["aggro-return-character", "aggro-bomb"].includes(modifier.kind)
+      || (modifier.kind === "body-next-skill-cost-rest-one"
+        ? !modifier.expiresAtTurnNumber || modifier.expiresAtTurnNumber > state.turnNumber
+        : Boolean(modifier.expiresAtTurnNumber && modifier.expiresAtTurnNumber > state.turnNumber)));
     state.deployedThisPhase = 0;
     return state.phase;
   }

@@ -29,14 +29,15 @@ npm run build:all      # 重新生成卡面后构建站点
 npm run build:battle   # 检查 Worker 是否可以部署
 npm run preview        # 预览构建产物
 npm run validate       # 校验所有卡牌和预组数据
-npm run typecheck      # 检查前端 TypeScript 类型
+npm run typecheck      # 检查前端与 Worker TypeScript 类型
 npm run print:aggro    # 打印爆杀组预组详情
 npm run export:tts     # 导出 Tabletop Simulator 本地资源
 npm run cards:sync     # 生成网页缩略图与高清预览图
 npm run test:battle    # 校验在线牌桌的卡组与 Mega 数据
 npm run test:battle:auto:live # 对本地 Worker 运行自动对战生命周期检查
 npm run test:battle:e2e # 启动本地站点与 Worker，运行 Chromium 端到端测试
-npm run automation:sync # 由角色牌正式文本重新生成辅助结算元数据
+npm run automation:sync # 根据角色数据与实现状态同步结构化自动化元数据
+npm run automation:report # 更新 120 张角色实现状态文档
 npm run playtest:report # 校验实战记录并输出胜率、先手与问题牌统计
 ```
 
@@ -67,8 +68,11 @@ npm run dev:battle
 大厅同时提供两种互不影响的房间：经典手动对战继续使用 `/play/room` 与
 `BattleRoom`；自动对战 Beta 使用 `/play/auto/room` 与独立的
 `AutoBattleRoom`。自动版由服务端管理阶段、54 张手牌、响应、伤害、濒死与
-胜负；角色技能先采用服务端校验时机和费用的辅助结算。详细范围见
-[`docs/auto-battle-beta.md`](docs/auto-battle-beta.md)。
+胜负，8 张本体的正面技能、Mega 与 Z 招式也由服务端自动结算。当前【操作组】与【上头组】共 32 张角色已完成全自动并解锁；其他预组达到 16/16 后再开放，自动模式不提供自选卡组。详细范围见
+[`docs/auto-battle-beta.md`](docs/auto-battle-beta.md)。彻底自动结算的产品基线见
+[`docs/auto-battle-product.md`](docs/auto-battle-product.md)，技能模块和持久化结算的开发规范见
+[`docs/auto-battle-skill-engine.md`](docs/auto-battle-skill-engine.md)，角色完成度见
+[`docs/auto-battle-character-status.md`](docs/auto-battle-character-status.md)。
 
 `worker/wrangler.jsonc` 的 `v3` 迁移会创建 `AutoBattleRoom`。发布自动版时必须
 先部署包含该迁移的 Worker，再让 Pages 上线新入口。
