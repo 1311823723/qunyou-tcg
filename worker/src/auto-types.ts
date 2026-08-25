@@ -124,7 +124,9 @@ export interface TurnModifier {
     | "blood-strike-heal-strong"
     | "blood-next-strike-heal-conditional"
     | "blood-hand-limit-down"
-    | "blood-stored-card";
+    | "blood-stored-card"
+    | "defense-protected-hand"
+    | "defense-skill-lock";
   count: number;
   characterInstanceId?: string;
   sourceDefinitionId?: string;
@@ -143,9 +145,10 @@ export interface TurnModifier {
 export interface PendingJudgment {
   id: string;
   playerId: string;
-  purpose: "blood-body" | "blood-prophet" | "generic";
+  purpose: "blood-body" | "blood-prophet" | "defense-birdwatcher" | "generic";
   stage: "revealed" | "resolved";
   cardInstanceId: string;
+  resumeResponsePlayerId?: string;
 }
 
 export interface BodyRuntimeState {

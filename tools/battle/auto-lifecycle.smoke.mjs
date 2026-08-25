@@ -153,10 +153,13 @@ if (skillInstanceId) {
   while (afterSkill.snapshot.game.prompt?.kind === "character-skill") {
     const prompt = afterSkill.snapshot.game.prompt;
     const revision = afterSkill.snapshot.revision;
-    const payload = prompt.options?.length
-      ? { value: prompt.options[0].value }
+    const actor = byPlayerId(prompt.playerId);
+    await actor.waitFor((message) => message.type === "snapshot" && message.snapshot.revision >= revision);
+    const simpleOption = prompt.options?.find((option) => ["allow", "done", "none", "pass"].includes(option.value)) || prompt.options?.[0];
+    const payload = simpleOption
+      ? { value: simpleOption.value }
       : { cardInstanceIds: (prompt.cardInstanceIds || []).slice(0, Number(prompt.min || 0)) };
-    byPlayerId(prompt.playerId).send("choice:submit", payload);
+    actor.send("choice:submit", payload);
     afterSkill = await current.waitFor((message) => message.type === "snapshot" && message.snapshot.revision > revision);
   }
   assert.ok(afterSkill.snapshot.game.logs.some((log) => log.text.includes("发动了角色")));

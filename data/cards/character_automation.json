@@ -267,7 +267,7 @@
     ]
   },
   "char_023_arthur_falcon": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "strike_dodged",
       "relation": "source_self",
@@ -290,7 +290,7 @@
     ]
   },
   "char_025_baizi_high-priest": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "damage_before",
       "relation": "target_self",
@@ -997,7 +997,7 @@
     ]
   },
   "char_085_aichitun_bodyguard": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "character_leave_before",
       "relation": "source_self",
@@ -1274,7 +1274,7 @@
     ]
   },
   "char_109_qindi_bodyguard": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "damage_before",
       "relation": "target_self",
@@ -1287,7 +1287,7 @@
     ]
   },
   "char_110_pangpanghali_canadian": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "strike_damage_after",
       "relation": "target_self",
@@ -1298,7 +1298,7 @@
     ]
   },
   "char_111_horus-lupercal_adventurer": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "damage_before",
       "relation": "target_self",
@@ -1309,7 +1309,7 @@
     ]
   },
   "char_112_miaosila_locksmith": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "hand_lost_before",
       "relation": "target_self",
@@ -1331,7 +1331,7 @@
     ]
   },
   "char_114_zongzi_bodyguard": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "skill_targeted_character",
       "relation": "source_self",
@@ -1342,7 +1342,7 @@
     ]
   },
   "char_115_player_mimic": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "strike_targeted",
       "relation": "target_self",
@@ -1353,7 +1353,7 @@
     ]
   },
   "char_116_tutu_vigilante": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "damage_prevented",
       "relation": "source_self",
@@ -1364,7 +1364,7 @@
     ]
   },
   "char_117_daidaishou_medium": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "skill_cost_rest_after",
       "relation": "source_self",
@@ -1376,7 +1376,7 @@
     ]
   },
   "char_118_qindi_birdwatcher": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "body_targeted_by_hand",
       "relation": "target_self",
@@ -1389,7 +1389,7 @@
     ]
   },
   "char_119_pangpanghali_politician": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -1400,7 +1400,7 @@
     ]
   },
   "char_120_player_astral": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "preparation",
       "relation": "any",

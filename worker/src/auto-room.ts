@@ -700,8 +700,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
         break;
       case HAND_IDS.steal:
         if (target?.hand.length && !this.openDirectDisruptPrompt(source, target, item, "steal")) {
-          const index = this.randomIndex(target.hand.length);
-          const [card] = target.hand.splice(index, 1);
+          const available = target.hand.filter((card) => !this.state!.turnModifiers.some((modifier) => modifier.kind === "defense-protected-hand"
+            && modifier.ownerId === target.id && modifier.targetCardInstanceId === card.instanceId));
+          if (!available.length) break;
+          const selected = available[this.randomIndex(available.length)];
+          const [card] = target.hand.splice(target.hand.findIndex((candidate) => candidate.instanceId === selected.instanceId), 1);
           card.ownerId = source.id;
           source.hand.push(card);
           this.emitEvent("hand_lost", { sourcePlayerId: source.id, targetPlayerId: target.id, amount: 1 });
@@ -1207,7 +1210,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
   }
 
   private openNextSkillTrigger(): void {
-    if (!this.state?.started || this.state.prompt || this.state.stack.length || this.state.winnerId) return;
+    if (!this.state?.started || this.state.prompt
+      || (this.state.stack.length && !this.state.pendingJudgments.length) || this.state.winnerId) return;
     const playersInResolutionOrder = [...this.state.players].sort((left, right) => {
       const leftIsCurrent = left.id === this.state?.currentPlayerId;
       const rightIsCurrent = right.id === this.state?.currentPlayerId;
@@ -1218,6 +1222,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       const candidates = player.characterSlots.flatMap((slot) => {
         if (!slot || !("instanceId" in slot)) return [];
         if (slot.faceDown && this.isCharacterRevealLocked(player, slot.instanceId)) return [];
+        if (this.isCharacterSkillLocked(player, slot.instanceId)) return [];
         const registered = this.registeredCharacterSkill(player, slot);
         const module = registered?.module;
         if (!module || ["play_phase", "basic_card_needed", "prediction_targeted"].includes(module.trigger.event)) return [];
@@ -1458,7 +1463,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     return card.joker === "big" || ["红桃", "方块"].includes(card.suit || "") ? "红色" : "黑色";
   }
 
-  private startJudgment(player: AutoPlayerState, purpose: PendingJudgment["purpose"] = "generic") {
+  private startJudgment(player: AutoPlayerState, purpose: PendingJudgment["purpose"] = "generic", resumeResponsePlayerId?: string) {
     if (!this.state) return;
     const [card] = this.takeTopHandCards(1);
     if (!card) return;
@@ -1466,6 +1471,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.state.handDiscard.push(card);
     const judgment: PendingJudgment = {
       id: crypto.randomUUID(), playerId: player.id, purpose, stage: "revealed", cardInstanceId: card.instanceId,
+      ...(resumeResponsePlayerId ? { resumeResponsePlayerId } : {}),
     };
     this.state.pendingJudgments.push(judgment);
     const color = this.judgmentColor(card);
@@ -1489,7 +1495,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
   }
 
   private advancePendingJudgment() {
-    if (!this.state || this.state.prompt || this.state.stack.length) return;
+    if (!this.state || this.state.prompt || this.state.stack.some((item) => item.kind === "character-skill")) return;
     const judgment = this.pendingJudgment();
     if (!judgment) return this.openNextBodyTrigger();
     const player = playerById(this.state, judgment.playerId);
@@ -1519,6 +1525,19 @@ export class AutoBattleRoom extends DurableObject<Env> {
         if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: true } });
       }
       return this.openNextSkillTrigger();
+    }
+    if (judgment.purpose === "defense-birdwatcher") {
+      if (red) this.state.turnModifiers.push({
+        id: crypto.randomUUID(), ownerId: player.id, kind: "damage-shield", count: 1,
+        sourceDefinitionId: "char_118_qindi_birdwatcher",
+      });
+      else {
+        const amount = drawCards(this.state, player, 1, (items) => this.shuffle(items));
+        if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: true } });
+      }
+      if (judgment.resumeResponsePlayerId) this.restoreResponseAfterSkill(judgment.resumeResponsePlayerId);
+      else this.openNextSkillTrigger();
+      return;
     }
     if (judgment.purpose !== "blood-body") return this.openNextSkillTrigger();
     if (red) {
@@ -1787,6 +1806,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
       && modifier.targetPlayerId === player.id && modifier.targetCharacterInstanceId === instanceId));
   }
 
+  private isCharacterSkillLocked(player: AutoPlayerState, instanceId: string) {
+    return Boolean(this.state?.turnModifiers.some((modifier) => modifier.kind === "defense-skill-lock"
+      && modifier.targetPlayerId === player.id && modifier.targetCharacterInstanceId === instanceId));
+  }
+
   private characterSkillContext(
     player: AutoPlayerState,
     role: CardInstance,
@@ -1862,9 +1886,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
       },
       gainRandomOpponentHand: () => {
         const target = opponentOf(state, player.id);
-        if (!target?.hand.length) return undefined;
-        const index = this.randomIndex(target.hand.length);
-        const [card] = target.hand.splice(index, 1);
+        const available = target?.hand.filter((card) => !state.turnModifiers.some((modifier) => modifier.kind === "defense-protected-hand"
+          && modifier.ownerId === target.id && modifier.targetCardInstanceId === card.instanceId)) || [];
+        if (!target || !available.length) return undefined;
+        const selected = available[this.randomIndex(available.length)];
+        const [card] = target.hand.splice(target.hand.findIndex((candidate) => candidate.instanceId === selected.instanceId), 1);
         card.ownerId = player.id;
         player.hand.push(card);
         this.emitEvent("hand_lost", { sourcePlayerId: player.id, targetPlayerId: target.id, amount: 1 });
@@ -1953,7 +1979,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         if (recovered) this.emitEvent("health_recovered", { sourcePlayerId: player.id, targetPlayerId: player.id, amount: recovered });
         return recovered;
       },
-      startJudgment: (purpose = "generic") => this.startJudgment(player, purpose),
+      startJudgment: (purpose = "generic") => this.startJudgment(player, purpose, resolutionItem?.resumeResponse ? player.id : undefined),
       currentJudgmentCard: () => this.pendingJudgmentCard(this.pendingJudgment(String(event?.metadata?.judgmentId || ""))),
       replaceCurrentJudgment: (instanceId) => {
         const judgment = this.pendingJudgment(String(event?.metadata?.judgmentId || ""));
@@ -2005,6 +2031,42 @@ export class AutoBattleRoom extends DurableObject<Env> {
           targetPlayerId: target.id, targetCardInstanceId: card.instanceId, expiresAtTurnNumber: state.turnNumber,
         });
         this.emitEvent("hand_lost", { sourcePlayerId: player.id, targetPlayerId: target.id, amount: 1 });
+      },
+      restOwnCharacter: (slotIndex) => this.restCharacter(player, slotIndex, player.id),
+      protectOwnHandCard: (instanceId) => {
+        if (!player.hand.some((card) => card.instanceId === instanceId)) throw new Error("要保护的手牌已不存在。");
+        state.turnModifiers.push({
+          id: crypto.randomUUID(), ownerId: player.id, kind: "defense-protected-hand", count: 1,
+          targetCardInstanceId: instanceId, expiresAtTurnNumber: state.turnNumber,
+        });
+      },
+      lockOpponentCharacterSkill: (slotIndex) => {
+        const target = opponentOf(state, player.id);
+        const card = target?.characterSlots[slotIndex];
+        if (!target || !card || !("instanceId" in card) || card.faceDown !== false) throw new Error("只能警戒对手已明置角色。");
+        state.turnModifiers.push({
+          id: crypto.randomUUID(), ownerId: player.id, kind: "defense-skill-lock", count: 1,
+          targetPlayerId: target.id, targetCharacterInstanceId: card.instanceId,
+          expiresAtTurnNumber: state.turnNumber,
+        });
+      },
+      restorePreventedCharacter: () => {
+        const targetId = String(event?.targetPlayerId || "");
+        const target = playerById(state, targetId);
+        const instanceId = String(event?.metadata?.characterInstanceId || "");
+        const slotIndex = Number(event?.metadata?.slotIndex);
+        if (!target || !instanceId || !Number.isInteger(slotIndex) || target.characterSlots[slotIndex] !== null) return undefined;
+        const zones = [target.characterDeck, target.retired, target.banished];
+        for (const zone of zones) {
+          const index = zone.findIndex((card) => card.instanceId === instanceId);
+          if (index < 0) continue;
+          const [card] = zone.splice(index, 1);
+          card.ownerId = target.id;
+          card.faceDown = event?.metadata?.wasFaceDown === true;
+          target.characterSlots[slotIndex] = card;
+          return card;
+        }
+        return undefined;
       },
       markerCount: (label) => {
         const marker = player.markers.find((entry) => entry.kind === "counter" && entry.label === label);
@@ -2090,6 +2152,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!this.state) return;
     const registered = this.registeredCharacterSkill(player, role);
     if (!registered) throw new Error("该角色技能尚未实现。");
+    if (this.isCharacterSkillLocked(player, role.instanceId)) throw new Error("该角色本回合不能发动技能。");
     const { module, definition, handlerId } = registered;
     const responseActivation = this.state.prompt?.kind === "response" && this.state.responsePlayerId === player.id && this.state.stack.length > 0;
     const dyingActivation = this.state.prompt?.kind === "dying" && this.state.prompt.playerId === player.id;
@@ -2228,6 +2291,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
       return;
     }
     if (item.resumeResponse && this.state.stack.length) {
+      if (this.state.pendingJudgments.some((judgment) => judgment.resumeResponsePlayerId === player.id)) {
+        this.openNextSkillTrigger();
+        return;
+      }
       const top = this.state.stack[this.state.stack.length - 1];
       if (isHandResolutionItem(top) && top.cancelled) this.continueStack();
       else this.restoreResponseAfterSkill(player.id);
@@ -2266,6 +2333,9 @@ export class AutoBattleRoom extends DurableObject<Env> {
     const [modifier] = this.state.turnModifiers.splice(modifierIndex, 1);
     const role = modifier.characterInstanceId ? this.findCharacterInstance(source, modifier.characterInstanceId) : undefined;
     if (!role) return false;
+    const available = target.hand.filter((card) => !this.state!.turnModifiers.some((entry) => entry.kind === "defense-protected-hand"
+      && entry.ownerId === target.id && entry.targetCardInstanceId === card.instanceId));
+    if (!available.length) return false;
     this.state.prompt = createPrompt({
       kind: "character-skill",
       playerId: source.id,
@@ -2273,8 +2343,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
       message: operation === "steal" ? "观看对手手牌，选择1张获得。" : "观看对手手牌，选择1张弃置。",
       min: 1,
       max: 1,
-      cardInstanceIds: target.hand.map((card) => card.instanceId),
-      selectableCards: target.hand,
+      cardInstanceIds: available.map((card) => card.instanceId),
+      selectableCards: available,
       context: {
         continuation: {
           handlerId: role.definitionId,
@@ -2302,8 +2372,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (definitionId === HAND_IDS.draw) return this.characterSkillContext(player, role, event).draw(2) >= 0;
     if (definitionId === HAND_IDS.sabotage) { if (!target.hand.length) return false; this.discardRandom(target, player.id); return true; }
     if (definitionId === HAND_IDS.steal) {
-      if (!target.hand.length) return false;
-      const [card] = target.hand.splice(this.randomIndex(target.hand.length), 1);
+      const available = target.hand.filter((card) => !this.state!.turnModifiers.some((modifier) => modifier.kind === "defense-protected-hand"
+        && modifier.ownerId === target.id && modifier.targetCardInstanceId === card.instanceId));
+      if (!available.length) return false;
+      const selected = available[this.randomIndex(available.length)];
+      const [card] = target.hand.splice(target.hand.findIndex((candidate) => candidate.instanceId === selected.instanceId), 1);
       card.ownerId = player.id;
       player.hand.push(card);
       this.emitEvent("hand_lost", { sourcePlayerId: player.id, targetPlayerId: target.id, amount: 1 });
@@ -2619,6 +2692,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
     const cards = instanceIds.map((instanceId) => {
       const card = target.hand.find((candidate) => candidate.instanceId === instanceId);
       if (!card) throw new Error("弃牌选择中包含无效手牌。");
+      if (actorId && actorId !== target.id && this.state?.turnModifiers.some((modifier) => modifier.kind === "defense-protected-hand"
+        && modifier.ownerId === target.id && modifier.targetCardInstanceId === card.instanceId)) throw new Error("该手牌已被保护。");
       return card;
     });
     for (const card of cards) {
@@ -3002,7 +3077,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
 
   private discardRandom(player: AutoPlayerState, actorId?: string) {
     if (!this.state || !player.hand.length) return undefined;
-    const [card] = player.hand.splice(this.randomIndex(player.hand.length), 1);
+    const available = player.hand.filter((candidate) => !this.state?.turnModifiers.some((modifier) => modifier.kind === "defense-protected-hand"
+      && modifier.ownerId === player.id && modifier.targetCardInstanceId === candidate.instanceId));
+    if (!available.length) return undefined;
+    const selected = available[this.randomIndex(available.length)];
+    const [card] = player.hand.splice(player.hand.findIndex((candidate) => candidate.instanceId === selected.instanceId), 1);
     card.ownerId = undefined;
     this.state.handDiscard.push(card);
     this.emitEvent("hand_discarded", {
@@ -3023,10 +3102,15 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!this.state) return;
     const index = player.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === card.instanceId);
     if (index < 0) throw new Error("要休整的角色不在角色区。");
+    const wasFaceDown = card.faceDown === true;
     player.characterSlots[index] = null;
     this.state.turnModifiers = this.state.turnModifiers.filter((modifier) => modifier.characterInstanceId !== card.instanceId);
     card.faceDown = undefined;
     player.characterDeck.unshift(card);
+    if (sourcePlayerId !== player.id && !skillCost) this.emitEvent("character_leave_before", {
+      sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId,
+      metadata: { characterInstanceId: card.instanceId, slotIndex: index, leaveKind: "rest", wasFaceDown },
+    });
     this.emitEvent("character_rested", { sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId, metadata: { skillCost } });
     if (drawForSelf) this.drawForRestingSkillSource(player);
   }
@@ -3045,10 +3129,15 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!this.state) return;
     const index = player.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === card.instanceId);
     if (index < 0) throw new Error("要退场的角色不在角色区。");
+    const wasFaceDown = card.faceDown === true;
     player.characterSlots[index] = null;
     this.state.turnModifiers = this.state.turnModifiers.filter((modifier) => modifier.characterInstanceId !== card.instanceId);
     card.faceDown = false;
     player.retired.push(card);
+    if (sourcePlayerId !== player.id) this.emitEvent("character_leave_before", {
+      sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId,
+      metadata: { characterInstanceId: card.instanceId, slotIndex: index, leaveKind: "retire", wasFaceDown },
+    });
     this.emitEvent("character_retired", { sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId });
   }
 
@@ -3107,6 +3196,15 @@ export class AutoBattleRoom extends DurableObject<Env> {
       if (!isHandResolutionItem(top)) return undefined;
       const effective = effectiveDefinition(top);
       const promptId = top.id;
+      if (event === "damage_before" && top.targetPlayerId === player.id
+        && (effective === HAND_IDS.strike || isActionCard(top.definitionId))) return {
+          id: promptId,
+          type: "damage_before",
+          turnNumber: this.state.turnNumber,
+          sourcePlayerId: top.sourcePlayerId,
+          targetPlayerId: player.id,
+          cardDefinitionId: effective,
+        } satisfies AutoBattleEvent;
       if (event === "prediction_targeted" && top.sourcePlayerId === player.id
         && [HAND_IDS.strike, HAND_IDS.crisis].includes(effective as never)) {
         return {
@@ -3271,6 +3369,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     const field = player.characterSlots.flatMap((slot) => {
       if (!slot || !("instanceId" in slot)) return [];
       if (slot.faceDown && this.isCharacterRevealLocked(player, slot.instanceId)) return [];
+      if (this.isCharacterSkillLocked(player, slot.instanceId)) return [];
       const skill = this.registeredCharacterSkill(player, slot);
       const registered = skill?.module;
       if (registered && skill) {

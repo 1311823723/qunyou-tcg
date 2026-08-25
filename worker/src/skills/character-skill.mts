@@ -38,13 +38,17 @@ export interface CharacterSkillRuntimeContext {
   loseHealth(amount: number, reason?: string): number;
   loseOpponentHealth(amount: number, reason?: string): number;
   heal(amount: number): number;
-  startJudgment(purpose?: "blood-prophet" | "generic"): void;
+  startJudgment(purpose?: "blood-prophet" | "defense-birdwatcher" | "generic"): void;
   currentJudgmentCard(): CardInstance | undefined;
   replaceCurrentJudgment(instanceId: string): CardInstance;
   drawJudgmentCandidate(): CardInstance | undefined;
   chooseJudgmentCandidate(instanceId: string): void;
   useVirtualStrike(instanceId: string, options?: { damage?: number }): void;
   storeOpponentHandCard(instanceId: string, label: string): void;
+  restOwnCharacter(slotIndex: number): void;
+  protectOwnHandCard(instanceId: string): void;
+  lockOpponentCharacterSkill(slotIndex: number): void;
+  restorePreventedCharacter(): CardInstance | undefined;
   markerCount(label: string): number;
   addCounterMarker(label: string, amount?: number): number;
   removeCounterMarker(label: string, amount?: number): number;

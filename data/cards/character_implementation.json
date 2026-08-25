@@ -99,7 +99,7 @@
     "review": "confirmed"
   },
   "char_023_arthur_falcon": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_024_weixiaokele_ironclad": {
@@ -107,7 +107,7 @@
     "review": "confirmed"
   },
   "char_025_baizi_high-priest": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_026_miaosila_neo": {
@@ -357,7 +357,7 @@
     "review": "confirmed"
   },
   "char_085_aichitun_bodyguard": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_086_aichitun_sheriff": {
@@ -454,19 +454,19 @@
     "review": "confirmed"
   },
   "char_109_qindi_bodyguard": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_110_pangpanghali_canadian": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_111_horus-lupercal_adventurer": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_112_miaosila_locksmith": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_113_miaosila_celebrity": {
@@ -474,32 +474,32 @@
     "review": "confirmed"
   },
   "char_114_zongzi_bodyguard": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "needs_testing",
     "note": "同等费用取消技能的交换效率待实战验证。"
   },
   "char_115_player_mimic": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_116_tutu_vigilante": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_117_daidaishou_medium": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_118_qindi_birdwatcher": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_119_pangpanghali_politician": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_120_player_astral": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   }
 }
