@@ -62,6 +62,7 @@ export interface HandResolutionItem {
   healSourceIfHealthNotHigher?: boolean;
   healSourceOnAnyDamage?: boolean;
   bloodAfterResolved?: boolean;
+  banishOnResolve?: boolean;
 }
 
 export interface CharacterSkillResolutionItem {
@@ -74,6 +75,7 @@ export interface CharacterSkillResolutionItem {
   eventId?: string;
   resumeResponse?: boolean;
   dyingPromptContext?: Record<string, unknown>;
+  revealedFromFaceDown?: boolean;
 }
 
 export type ResolutionItem = HandResolutionItem | CharacterSkillResolutionItem;
@@ -226,6 +228,7 @@ export interface AutoRoomState {
   spectators: string[];
   handDeck: CardInstance[];
   handDiscard: CardInstance[];
+  handBanished: CardInstance[];
   resolving: CardInstance[];
   currentPlayerId?: string;
   firstPlayerId?: string;

@@ -23,7 +23,6 @@ import {
   isHandResolutionItem,
   isActionCard,
   legalResponseCards,
-  moveResolvedCardToDiscard,
   opponentOf,
   playerById,
   validPlayDefinition,
@@ -127,6 +126,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         this.state.recentEvents ??= [];
         this.state.pendingBodyTriggers ??= [];
         this.state.pendingJudgments ??= [];
+        this.state.handBanished ??= [];
         this.state.processedActionIds ??= [];
         for (const player of this.state.players) player.bodyState ??= this.newBodyState(player.body?.definitionId);
         this.state.stateVersion = AUTO_STATE_VERSION;
@@ -150,6 +150,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       spectators: [],
       handDeck: [],
       handDiscard: [],
+      handBanished: [],
       resolving: [],
       turnNumber: 0,
       phase: "preparation",
@@ -472,6 +473,20 @@ export class AutoBattleRoom extends DurableObject<Env> {
       targetSlotIndex,
       ...(target ? { countersItemId: target.id } : {}),
     };
+    if (response && effective === HAND_IDS.dodge && isHandResolutionItem(target) && isHandResolutionItem(item)) {
+      const striker = playerById(this.state, target.sourcePlayerId);
+      const falcon = striker?.characterSlots.find((slot) => slot && "instanceId" in slot && slot.definitionId === "char_104_player_falcon");
+      if (striker && falcon && "instanceId" in falcon) {
+        if (falcon.faceDown) falcon.faceDown = false;
+        this.restCard(striker, falcon, true, striker.id, true);
+        item.cancelled = true;
+        item.cancelledByPlayerId = striker.id;
+        item.cancellationReason = "skill";
+        this.emitEvent("skill_used", { sourcePlayerId: striker.id, characterDefinitionId: falcon.definitionId, metadata: { costType: "休整自身", mainRole: "伏击" } });
+        this.emitEvent("skill_resolved", { sourcePlayerId: striker.id, characterDefinitionId: falcon.definitionId });
+        this.addLog(`${striker.nickname}发动【凌空绝杀】，令此次【闪避】无效`, striker.id, { zone: "resolving" });
+      }
+    }
     if (isHandResolutionItem(item) && effective === HAND_IDS.strike) this.attachStrikeModifiers(player, item);
     this.state.stack.push(item);
     this.emitEvent(response ? "card_responded" : "card_used", {
@@ -591,7 +606,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
           cancelled: Boolean(item.cancelled),
         },
       });
-      moveResolvedCardToDiscard(this.state, item.card);
+      this.finishHandCard(item);
       this.continueStack();
       return;
     }
@@ -619,7 +634,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       const source = playerById(this.state, item.sourcePlayerId);
       if (source) this.loseHealth(source, 1, "【爱至癫狂】未造成伤害");
     }
-    moveResolvedCardToDiscard(this.state, item.card);
+    this.finishHandCard(item);
     if (this.state.prompt) return;
     if (isActionCard(item.definitionId)) this.emitEvent("card_resolved", {
       sourcePlayerId: item.sourcePlayerId,
@@ -654,6 +669,17 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!isHandResolutionItem(top)) return this.resolveTop();
     if (top.cancelled) this.resolveTop();
     else beginResponseWindow(this.state, top);
+  }
+
+  private finishHandCard(item: HandResolutionItem) {
+    if (!this.state) return;
+    const index = this.state.resolving.findIndex((card) => card.instanceId === item.card.instanceId);
+    if (index >= 0) this.state.resolving.splice(index, 1);
+    item.card.ownerId = undefined;
+    if (item.banishOnResolve) {
+      this.state.handBanished.push(item.card);
+      this.addLog(`【${handName(effectiveDefinition(item))}】被移出了游戏`, item.cancelledByPlayerId, { zone: "resolving" });
+    } else this.state.handDiscard.push(item.card);
   }
 
   private resolveHandEffect(item: HandResolutionItem, effective: string) {
@@ -1945,6 +1971,15 @@ export class AutoBattleRoom extends DurableObject<Env> {
         target.cancellationReason = "skill";
         return true;
       },
+      banishCurrentHand: () => {
+        const target = [...state.stack].reverse().find(isHandResolutionItem);
+        if (!target || target.cancelled) return false;
+        target.cancelled = true;
+        target.cancelledByPlayerId = player.id;
+        target.cancellationReason = "skill";
+        target.banishOnResolve = true;
+        return true;
+      },
       damageOpponent: (amount, options) => {
         const target = opponentOf(state, player.id);
         if (!target) return 0;
@@ -2181,8 +2216,20 @@ export class AutoBattleRoom extends DurableObject<Env> {
       const respondingTo = this.state.stack[this.state.stack.length - 1];
       if (isHandResolutionItem(respondingTo)) respondingTo.wasRespondedTo = true;
     }
+    const revealedFromFaceDown = role.faceDown === true;
     if (role.faceDown) role.faceDown = false;
-    this.paySkillCost(player, role, definition.cost, payload, { id: eventId, metadata: event?.metadata });
+    let effectiveCost = definition.cost;
+    const opponent = opponentOf(this.state, player.id);
+    const professional = definition.cost.type === "休整" && Number(definition.cost.amount || 0) >= 2
+      ? opponent?.characterSlots.find((slot) => slot && "instanceId" in slot && slot.definitionId === "char_105_tutu_professional")
+      : undefined;
+    if (professional && "instanceId" in professional) {
+      if (professional.faceDown) professional.faceDown = false;
+      this.retireCard(opponent!, professional, opponent!.id);
+      effectiveCost = { type: "退场", text: "退场自身" };
+      this.addLog(`${opponent!.nickname}发动【专业灭口】，将对手技能费用改为【退场自身】`, opponent!.id, { zone: "resolving" });
+    }
+    this.paySkillCost(player, role, effectiveCost, payload, { id: eventId, metadata: event?.metadata });
     const skillCountKey = `skill-actions:${this.state.turnNumber}:${player.id}`;
     this.state.usageCounters[skillCountKey] = (this.state.usageCounters[skillCountKey] || 0) + 1;
     this.emitEvent("skill_used", {
@@ -2191,6 +2238,19 @@ export class AutoBattleRoom extends DurableObject<Env> {
       amount: this.state.usageCounters[skillCountKey],
       metadata: { costType: definition.cost.type, costAmount: definition.cost.amount || 0, mainRole: definition.mainRole },
     });
+    const silencer = this.state.usageCounters[skillCountKey] === 2
+      ? opponent?.characterSlots.find((slot) => slot && "instanceId" in slot && slot.definitionId === "char_098_qindi_silencer")
+      : undefined;
+    if (silencer && "instanceId" in silencer) {
+      if (silencer.faceDown) silencer.faceDown = false;
+      this.retireCard(opponent!, silencer, opponent!.id);
+      const amount = drawCards(this.state, player, 1, (items) => this.shuffle(items));
+      if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: opponent!.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: true } });
+      this.state.prompt = undefined;
+      this.emitEvent("skill_resolved", { sourcePlayerId: player.id, characterDefinitionId: role.definitionId, metadata: { cancelledBySilencer: true } });
+      this.addLog(`${opponent!.nickname}发动【禁声令】，令${player.nickname}的第二个角色技能失效`, opponent!.id, { zone: "resolving" });
+      return;
+    }
     this.state.prompt = undefined;
     const item: CharacterSkillResolutionItem = {
       kind: "character-skill",
@@ -2202,6 +2262,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       eventId: event?.id,
       resumeResponse: responseActivation,
       dyingPromptContext,
+      revealedFromFaceDown,
     };
     this.state.stack.push(item);
     const sourceName = characterById.get(role.definitionId)?.name || role.definitionId;
@@ -2284,7 +2345,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
 
   private finishCharacterSkill(item: CharacterSkillResolutionItem, player: AutoPlayerState) {
     if (!this.state) return;
-    this.emitEvent("skill_resolved", { sourcePlayerId: player.id, characterDefinitionId: item.definitionId });
+    this.emitEvent("skill_resolved", {
+      sourcePlayerId: player.id, characterDefinitionId: item.definitionId,
+      metadata: { revealedFromFaceDown: item.revealedFromFaceDown === true, characterInstanceId: item.sourceInstanceId },
+    });
     if (this.state.prompt?.kind === "dying") return;
     if (item.dyingPromptContext) {
       this.resumeDyingAfterCharacterSkill(player, item.dyingPromptContext);
@@ -2651,6 +2715,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       joker: "joker" in entry ? entry.joker as "small" | "big" : undefined,
     }))));
     this.state.handDiscard = [];
+    this.state.handBanished = [];
     this.state.resolving = [];
     this.state.stack = [];
     this.state.prompt = undefined;
@@ -3605,6 +3670,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         phase: this.state.phase,
         handDeckCount: this.state.handDeck.length,
         handDiscard: this.state.handDiscard,
+        handBanished: this.state.handBanished,
         resolving: this.state.resolving,
         stack: this.state.stack.map((item) => isHandResolutionItem(item) ? { ...item, card: { ...item.card } } : { ...item }),
         prompt: visiblePrompt,

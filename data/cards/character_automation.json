@@ -395,7 +395,7 @@
     ]
   },
   "char_034_xiaoapan_avenger": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "character_retired",
       "relation": "any",
@@ -407,7 +407,7 @@
     ]
   },
   "char_035_xiaoapan_silent-hunter": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "action_used",
       "relation": "source_opponent",
@@ -833,7 +833,7 @@
     ]
   },
   "char_071_xiangcai_lover": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -845,7 +845,7 @@
     ]
   },
   "char_072_guamao_lover": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "character_retired",
       "relation": "target_self",
@@ -867,7 +867,7 @@
     ]
   },
   "char_074_huihuan_nameless": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "character_revealed",
       "relation": "source_opponent",
@@ -1137,7 +1137,7 @@
     ]
   },
   "char_097_horus-lupercal_bird-eater": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "health_recovered",
       "relation": "target_opponent",
@@ -1148,7 +1148,7 @@
     ]
   },
   "char_098_qindi_silencer": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "second_skill_used",
       "relation": "source_opponent",
@@ -1184,7 +1184,7 @@
     ]
   },
   "char_101_pangpanghali_identity-thief": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "character_revealed",
       "relation": "source_opponent",
@@ -1217,7 +1217,7 @@
     ]
   },
   "char_104_player_falcon": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "strike_dodged",
       "relation": "source_opponent",
@@ -1228,7 +1228,7 @@
     ]
   },
   "char_105_tutu_professional": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "high_cost_skill_used",
       "relation": "source_opponent",
@@ -1239,7 +1239,7 @@
     ]
   },
   "char_106_qindi_vulture": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "hand_discarded",
       "relation": "target_opponent",
@@ -1250,7 +1250,7 @@
     ]
   },
   "char_107_daidaishou_engineer": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "skill_cost_rest_after",
       "relation": "source_self",
@@ -1262,7 +1262,7 @@
     ]
   },
   "char_108_tutu_birdwatcher": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "deployment",
       "relation": "any",

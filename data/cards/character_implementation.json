@@ -143,11 +143,11 @@
     "review": "confirmed"
   },
   "char_034_xiaoapan_avenger": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_035_xiaoapan_silent-hunter": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_036_keke_spy": {
@@ -301,11 +301,11 @@
     "note": "指定弃置或获得牌的强度待实战验证。"
   },
   "char_071_xiangcai_lover": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_072_guamao_lover": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_073_xiaoapan_bee-medic": {
@@ -313,7 +313,7 @@
     "review": "confirmed"
   },
   "char_074_huihuan_nameless": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_075_baizi_weilong": {
@@ -405,11 +405,11 @@
     "review": "confirmed"
   },
   "char_097_horus-lupercal_bird-eater": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_098_qindi_silencer": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_099_kabishou_invisible-duck": {
@@ -421,7 +421,7 @@
     "review": "confirmed"
   },
   "char_101_pangpanghali_identity-thief": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_102_miaosila_dodo": {
@@ -433,24 +433,24 @@
     "review": "confirmed"
   },
   "char_104_player_falcon": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_105_tutu_professional": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_106_qindi_vulture": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "needs_testing",
     "note": "一次获得全部弃牌的收益上限待实战验证。"
   },
   "char_107_daidaishou_engineer": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_108_tutu_birdwatcher": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_109_qindi_bodyguard": {

@@ -34,6 +34,7 @@ export interface CharacterSkillRuntimeContext {
   shuffleFromHandDiscard(instanceIds: string[]): CardInstance[];
   addModifier(modifier: Omit<TurnModifier, "id" | "ownerId">): void;
   counterCurrentHand(): boolean;
+  banishCurrentHand(): boolean;
   damageOpponent(amount: number, options?: { after?: "return-self-if-target-health-at-most-3" }): number | undefined;
   loseHealth(amount: number, reason?: string): number;
   loseOpponentHealth(amount: number, reason?: string): number;
