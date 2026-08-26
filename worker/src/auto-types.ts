@@ -130,7 +130,9 @@ export interface TurnModifier {
     | "blood-hand-limit-down"
     | "blood-stored-card"
     | "defense-protected-hand"
-    | "defense-skill-lock";
+    | "defense-skill-lock"
+    | "trans-next-skill-cost-down"
+    | "trans-revived-character";
   count: number;
   characterInstanceId?: string;
   sourceDefinitionId?: string;

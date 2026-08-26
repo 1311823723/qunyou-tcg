@@ -1744,6 +1744,15 @@ export class AutoBattleRoom extends DurableObject<Env> {
       bodySkillForId(bodyId(player))?.onPhaseEntered?.(this.bodySkillContext(player), phase, _previousPlayer);
     }
     if (phase !== "end" || !current) return;
+    const revivedCharacters = this.state.turnModifiers.filter((modifier) => modifier.kind === "trans-revived-character"
+      && modifier.ownerId === current.id && modifier.characterInstanceId);
+    for (const modifier of revivedCharacters) {
+      const role = current.characterSlots.find((slot) => slot && "instanceId" in slot && slot.instanceId === modifier.characterInstanceId);
+      if (role && "instanceId" in role) {
+        this.retireCard(current, role, current.id);
+        this.addLog(`${current.nickname}令【${characterById.get(role.definitionId)?.name || role.definitionId}】在结束阶段退场`, current.id, { zone: "retired", ownerId: current.id });
+      }
+    }
     const storedCards = this.state.turnModifiers.filter((modifier) => modifier.kind === "blood-stored-card"
       && Number(modifier.expiresAtTurnNumber || 0) <= this.state!.turnNumber);
     for (const modifier of storedCards) {
@@ -2068,6 +2077,17 @@ export class AutoBattleRoom extends DurableObject<Env> {
           this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId, deployed.card.instanceId);
         }
         return cards;
+      },
+      reviveOwnRetired: (instanceId) => {
+        const retiredIndex = player.retired.findIndex((card) => card.instanceId === instanceId);
+        const slotIndex = player.characterSlots.findIndex((slot) => slot === null);
+        if (retiredIndex < 0 || slotIndex < 0) throw new Error("选中的退场角色已无法上阵。");
+        const [card] = player.retired.splice(retiredIndex, 1);
+        card.ownerId = player.id;
+        card.faceDown = true;
+        player.characterSlots[slotIndex] = card;
+        this.recordCharacterDeployment(player.id, player.id, card.definitionId, card.instanceId);
+        return card;
       },
       gainOpponentHand: (instanceId) => {
         const target = opponentOf(state, player.id);
@@ -2609,6 +2629,15 @@ export class AutoBattleRoom extends DurableObject<Env> {
         amount = 1;
       }
     }
+    const transModifierIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === player.id && modifier.kind === "trans-next-skill-cost-down");
+    if (transModifierIndex >= 0) {
+      this.state.turnModifiers.splice(transModifierIndex, 1);
+      if (type === "休整") amount = Math.max(0, amount - 1);
+      else if (type === "休整自身") {
+        type = "休整";
+        amount = 1;
+      }
+    }
     const modifierIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === player.id && modifier.kind === "next-skill-cost-rest-one");
     if (modifierIndex >= 0 && type !== "退场") {
       type = "休整";
@@ -2822,6 +2851,12 @@ export class AutoBattleRoom extends DurableObject<Env> {
     const target = opponentOf(this.state, source.id);
     const card = target?.characterSlots[slotIndex];
     if (!target || !card || !("instanceId" in card)) throw new Error("目标角色已不在角色区。");
+    if (this.state.turnModifiers.some((modifier) => modifier.kind === "trans-revived-character"
+      && modifier.ownerId === target.id && modifier.characterInstanceId === card.instanceId)) {
+      this.retireCard(target, card, source.id);
+      this.addLog(`【${characterById.get(card.definitionId)?.name || card.definitionId}】因【亡魂附身】改为退场`, source.id, { zone: "retired", ownerId: target.id });
+      return card;
+    }
     const markerId = crypto.randomUUID();
     target.characterSlots[slotIndex] = { id: markerId, label: "暂离", ownerId: target.id };
     target.banished.push(card);
@@ -3223,6 +3258,12 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!this.state) return;
     const index = player.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === card.instanceId);
     if (index < 0) throw new Error("要休整的角色不在角色区。");
+    if (this.state.turnModifiers.some((modifier) => modifier.kind === "trans-revived-character"
+      && modifier.ownerId === player.id && modifier.characterInstanceId === card.instanceId)) {
+      this.retireCard(player, card, sourcePlayerId);
+      this.addLog(`【${characterById.get(card.definitionId)?.name || card.definitionId}】因【亡魂附身】改为退场`, sourcePlayerId, { zone: "retired", ownerId: player.id });
+      return;
+    }
     const wasFaceDown = card.faceDown === true;
     player.characterSlots[index] = null;
     this.state.turnModifiers = this.state.turnModifiers.filter((modifier) => modifier.characterInstanceId !== card.instanceId);
@@ -3634,11 +3675,20 @@ export class AutoBattleRoom extends DurableObject<Env> {
     const definition = role ? this.registeredCharacterSkill(player, role)?.definition || characterById.get(role.definitionId) : undefined;
     if (!role || !definition) return undefined;
     if (definition.cost.type === "退场" || definition.cost.type === "无") return undefined;
-    if (definition.cost.type === "休整自身") return { kind: "skill-cost", cardInstanceIds: [instanceId], min: 1, max: 1 };
     const available = player.characterSlots.flatMap((slot) => slot && "instanceId" in slot ? [slot.instanceId] : []);
     const nextCostOne = this.state?.turnModifiers.some((modifier) => modifier.ownerId === player.id && modifier.kind === "next-skill-cost-rest-one");
-    const bodyReduction = this.state?.turnModifiers.some((modifier) => modifier.ownerId === player.id && modifier.kind === "body-next-skill-cost-rest-one" && modifier.characterInstanceId === instanceId);
-    const amount = nextCostOne ? 1 : definition.cost.type === "休整" ? Math.max(0, Number(definition.cost.amount || 0) - (bodyReduction ? 1 : 0)) : 0;
+    const bodyModifier = this.state?.turnModifiers.find((modifier) => modifier.ownerId === player.id && modifier.kind === "body-next-skill-cost-rest-one" && modifier.characterInstanceId === instanceId);
+    const transReduction = this.state?.turnModifiers.some((modifier) => modifier.ownerId === player.id && modifier.kind === "trans-next-skill-cost-down");
+    if (definition.cost.type === "休整自身") {
+      if (!transReduction && !nextCostOne && bodyModifier?.sourceDefinitionId !== "char_084_keke_watcher") {
+        return { kind: "skill-cost", cardInstanceIds: [instanceId], min: 1, max: 1 };
+      }
+      return { kind: "skill-cost", cardInstanceIds: available, min: 1, max: 1 };
+    }
+    let amount = Number(definition.cost.amount || 0);
+    if (bodyModifier) amount = Math.max(bodyModifier.sourceDefinitionId === "char_084_keke_watcher" ? 1 : 0, amount - 1);
+    if (transReduction) amount = Math.max(0, amount - 1);
+    if (nextCostOne) amount = 1;
     return amount > 0 ? { kind: "skill-cost", cardInstanceIds: available, min: amount, max: amount } : undefined;
   }
 

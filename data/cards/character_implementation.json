@@ -72,17 +72,17 @@
     "review": "confirmed"
   },
   "char_017_huihuan_defect-robot": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "needs_testing",
     "note": "冰冻充能球的蓄能节奏待实战验证。"
   },
   "char_018_baizi_defect-robot": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "needs_testing",
     "note": "黑暗充能球的爆发上限待实战验证。"
   },
   "char_019_dong_defect-robot": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "needs_testing",
     "note": "等离子充能球的降费连锁待实战验证。"
   },
@@ -115,7 +115,7 @@
     "review": "confirmed"
   },
   "char_027_weixiaokele_medium": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_028_arthur_undertaker": {
@@ -135,7 +135,7 @@
     "review": "confirmed"
   },
   "char_032_weixiaokele_silent-hunter": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_033_weixiaokele_watcher": {

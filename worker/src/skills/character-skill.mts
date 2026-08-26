@@ -47,6 +47,7 @@ export interface CharacterSkillRuntimeContext {
   useVirtualStrike(instanceId: string, options?: { damage?: number; restTargetSlotOnDamage?: number }): void;
   useVirtualBasic(definitionId: string, options?: { damage?: number; restTargetSlotOnDamage?: number }): void;
   deployTopCharacters(count?: number): CardInstance[];
+  reviveOwnRetired(instanceId: string): CardInstance;
   gainOpponentHand(instanceId: string): CardInstance;
   storeOpponentHandCard(instanceId: string, label: string): void;
   restOwnCharacter(slotIndex: number): void;

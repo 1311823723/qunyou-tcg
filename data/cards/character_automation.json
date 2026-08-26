@@ -184,7 +184,7 @@
     ]
   },
   "char_017_huihuan_defect-robot": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -200,7 +200,7 @@
     ]
   },
   "char_018_baizi_defect-robot": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -216,7 +216,7 @@
     ]
   },
   "char_019_dong_defect-robot": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -314,7 +314,7 @@
     ]
   },
   "char_027_weixiaokele_medium": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -372,7 +372,7 @@
     ]
   },
   "char_032_weixiaokele_silent-hunter": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "strike_damage_after",
       "relation": "source_self",

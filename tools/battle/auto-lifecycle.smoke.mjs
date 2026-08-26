@@ -67,12 +67,12 @@ const rejectedCustom = await post("/auto/rooms", {
 });
 assert.equal(rejectedCustom.response.status, 400);
 
-const rejectedLocked = await post("/auto/rooms", {
-  nickname: "锁定预组测试",
-  token: `auto-locked-${crypto.randomUUID()}`,
-  deckId: "deck_trans_001",
+const rejectedUnknown = await post("/auto/rooms", {
+  nickname: "无效预组测试",
+  token: `auto-unknown-${crypto.randomUUID()}`,
+  deckId: "deck_unknown_001",
 });
-assert.equal(rejectedLocked.response.status, 400);
+assert.equal(rejectedUnknown.response.status, 400);
 
 const created = await post("/auto/rooms", host);
 assert.equal(created.response.status, 200);
