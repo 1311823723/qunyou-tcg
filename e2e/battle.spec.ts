@@ -222,8 +222,8 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     await expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "lobby");
     await hostPage.locator("#auto-deck-select").selectOption("deck_combo_001");
     await expect(hostPage.locator("#auto-deck-select")).toHaveValue("deck_combo_001");
-    await expect(hostPage.locator("#auto-deck-select option:not([disabled])")).toHaveCount(3);
-    await expect(hostPage.locator("#auto-deck-select option[disabled]")).toHaveCount(5);
+    await expect(hostPage.locator("#auto-deck-select option:not([disabled])")).toHaveCount(8);
+    await expect(hostPage.locator("#auto-deck-select option[disabled]")).toHaveCount(0);
     expect((await hostPage.locator("#auto-deck-select option").allTextContents()).join(" ")).not.toContain("自选");
 
     await setProfile(guestPage, "E2E-自动对手");
