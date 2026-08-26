@@ -139,7 +139,7 @@
     "review": "confirmed"
   },
   "char_033_weixiaokele_watcher": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_034_xiaoapan_avenger": {
@@ -232,7 +232,7 @@
     "note": "观看5张时的牌堆控制强度待实战验证。"
   },
   "char_055_xiaoapan_judge": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_056_huihuan_watcher": {
@@ -341,19 +341,19 @@
     "review": "confirmed"
   },
   "char_081_aichitun_morphling": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_082_aichitun_embalmer": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_083_aichitun_detective": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_084_keke_watcher": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_085_aichitun_bodyguard": {
@@ -361,7 +361,7 @@
     "review": "confirmed"
   },
   "char_086_aichitun_sheriff": {
-    "automation": "pending",
+    "automation": "implemented",
     "review": "confirmed"
   },
   "char_087_qindi_vigilante": {

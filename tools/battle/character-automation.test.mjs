@@ -8,6 +8,7 @@ import mizaiDeck from "../../data/decks/mizai.deck.json" with { type: "json" };
 import bloodDeck from "../../data/decks/blood.deck.json" with { type: "json" };
 import defenseDeck from "../../data/decks/defense.deck.json" with { type: "json" };
 import ambushDeck from "../../data/decks/ambush.deck.json" with { type: "json" };
+import dispatchDeck from "../../data/decks/dispatch.deck.json" with { type: "json" };
 import {
   characterSkillForId,
   registeredCharacterSkillIds,
@@ -98,7 +99,7 @@ test("本地固定场景可指定牌序和双方角色位", () => {
 
 test("已解锁预组的角色全部有稳定ID注册模块", () => {
   const registered = new Set(registeredCharacterSkillIds());
-  const expected = new Set([...comboDeck.characterIds, ...aggroDeck.characterIds, ...mizaiDeck.characterIds, ...bloodDeck.characterIds, ...defenseDeck.characterIds, ...ambushDeck.characterIds]);
+  const expected = new Set([...comboDeck.characterIds, ...aggroDeck.characterIds, ...mizaiDeck.characterIds, ...bloodDeck.characterIds, ...defenseDeck.characterIds, ...ambushDeck.characterIds, ...dispatchDeck.characterIds]);
   assert.equal(registered.size, expected.size);
   assert.deepEqual(expected, registered);
   for (const id of expected) {

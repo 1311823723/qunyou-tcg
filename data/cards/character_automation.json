@@ -383,7 +383,7 @@
     ]
   },
   "char_033_weixiaokele_watcher": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -645,7 +645,7 @@
     ]
   },
   "char_055_xiaoapan_judge": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -947,7 +947,7 @@
     ]
   },
   "char_081_aichitun_morphling": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -962,7 +962,7 @@
     ]
   },
   "char_082_aichitun_embalmer": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "character_retired",
       "relation": "target_self",
@@ -973,7 +973,7 @@
     ]
   },
   "char_083_aichitun_detective": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "character_revealed",
       "relation": "source_opponent",
@@ -985,7 +985,7 @@
     ]
   },
   "char_084_keke_watcher": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "character_deployed",
       "relation": "source_self",
@@ -1009,7 +1009,7 @@
     ]
   },
   "char_086_aichitun_sheriff": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",

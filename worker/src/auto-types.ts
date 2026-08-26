@@ -63,6 +63,8 @@ export interface HandResolutionItem {
   healSourceOnAnyDamage?: boolean;
   bloodAfterResolved?: boolean;
   banishOnResolve?: boolean;
+  virtual?: boolean;
+  restTargetSlotOnDamage?: number;
 }
 
 export interface CharacterSkillResolutionItem {

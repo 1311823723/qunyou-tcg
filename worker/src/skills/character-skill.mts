@@ -44,7 +44,10 @@ export interface CharacterSkillRuntimeContext {
   replaceCurrentJudgment(instanceId: string): CardInstance;
   drawJudgmentCandidate(): CardInstance | undefined;
   chooseJudgmentCandidate(instanceId: string): void;
-  useVirtualStrike(instanceId: string, options?: { damage?: number }): void;
+  useVirtualStrike(instanceId: string, options?: { damage?: number; restTargetSlotOnDamage?: number }): void;
+  useVirtualBasic(definitionId: string, options?: { damage?: number; restTargetSlotOnDamage?: number }): void;
+  deployTopCharacters(count?: number): CardInstance[];
+  gainOpponentHand(instanceId: string): CardInstance;
   storeOpponentHandCard(instanceId: string, label: string): void;
   restOwnCharacter(slotIndex: number): void;
   protectOwnHandCard(instanceId: string): void;

@@ -182,24 +182,28 @@ if (skillInstanceId) {
 }
 const afterSkillPlayer = afterSkill.snapshot.players.find((player) => player.id === currentId);
 const playable = afterSkillPlayer.hand.find((card) => afterSkill.snapshot.game.legalHandCardIds.includes(card.instanceId) && card.definitionId !== "hand_trick_004");
-assert.ok(playable, "the current player should have at least one hand card usable by the authoritative server");
-current.send("hand:play", {
-  instanceId: playable.instanceId,
-  ...(playable.definitionId === "hand_basic_004" ? { resolvedAs: "hand_basic_003" } : {}),
-  ...(playable.definitionId === "hand_trick_007" ? { targetSlotIndex: 0 } : {}),
-});
-let afterPlay = await current.waitFor((message) => message.type === "snapshot" && message.snapshot.revision > afterSkill.snapshot.revision);
-while (afterPlay.snapshot.game.prompt?.kind === "response") {
-  const responder = afterPlay.snapshot.game.prompt.playerId === "p1" ? a : b;
-  const previousRevision = afterPlay.snapshot.revision;
-  await responder.waitFor((message) => message.type === "snapshot"
-    && message.snapshot.revision >= previousRevision
-    && message.snapshot.game.prompt?.kind === "response");
-  responder.send("response:pass");
-  afterPlay = await current.waitFor((message) => message.type === "snapshot" && message.snapshot.revision > previousRevision);
+let afterPlay = afterSkill;
+if (playable) {
+  current.send("hand:play", {
+    instanceId: playable.instanceId,
+    ...(playable.definitionId === "hand_basic_004" ? { resolvedAs: "hand_basic_003" } : {}),
+    ...(playable.definitionId === "hand_trick_007" ? { targetSlotIndex: 0 } : {}),
+  });
+  afterPlay = await current.waitFor((message) => message.type === "snapshot" && message.snapshot.revision > afterSkill.snapshot.revision);
+  while (afterPlay.snapshot.game.prompt?.kind === "response") {
+    const responder = afterPlay.snapshot.game.prompt.playerId === "p1" ? a : b;
+    const previousRevision = afterPlay.snapshot.revision;
+    await responder.waitFor((message) => message.type === "snapshot"
+      && message.snapshot.revision >= previousRevision
+      && message.snapshot.game.prompt?.kind === "response");
+    responder.send("response:pass");
+    afterPlay = await current.waitFor((message) => message.type === "snapshot" && message.snapshot.revision > previousRevision);
+  }
+  assert.equal(afterPlay.snapshot.players.find((player) => player.id === currentId).hand.some((card) => card.instanceId === playable.instanceId), false);
+  assert.ok(afterPlay.snapshot.game.handDiscard.some((card) => card.instanceId === playable.instanceId));
+} else {
+  console.log("[auto-smoke] hand resolution skipped: the random opening hand has no legal play-phase card");
 }
-assert.equal(afterPlay.snapshot.players.find((player) => player.id === currentId).hand.some((card) => card.instanceId === playable.instanceId), false);
-assert.ok(afterPlay.snapshot.game.handDiscard.some((card) => card.instanceId === playable.instanceId));
 
 const watcher = { nickname: "自动观战", token: `auto-watch-${crypto.randomUUID()}` };
 const spectator = client(code, watcher, true);

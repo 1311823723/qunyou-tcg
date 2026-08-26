@@ -358,7 +358,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         if (!deployed) throw new Error("角色区已满或角色牌堆为空。");
         this.state.recentEvents = [];
         this.state.deployedThisPhase += 1;
-        this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId);
+        this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId, deployed.card.instanceId);
         this.addLog(`${player.nickname} 暗置上阵了1张角色`, player.id, { zone: "characterSlot", ownerId: player.id, slotIndex: deployed.slotIndex });
         return;
       }
@@ -589,7 +589,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         for (const player of this.state.players) {
           let deployed;
           while ((deployed = deployTopCharacter(player))) {
-            this.recordCharacterDeployment(item.sourcePlayerId, player.id, deployed.card.definitionId);
+            this.recordCharacterDeployment(item.sourcePlayerId, player.id, deployed.card.definitionId, deployed.card.instanceId);
           }
         }
         this.addLog("【紧急会议】抵消了牌并结束出牌阶段，双方角色区已补满", item.sourcePlayerId, { zone: "resolving" });
@@ -624,6 +624,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
     }
     if (effective === HAND_IDS.strike && !item.damagePending && !item.bloodAfterResolved) {
       this.resolveBloodStrikeAfterDamage(item.sourcePlayerId, Number(item.damageDealt || 0), item);
+      if (Number(item.damageDealt || 0) > 0 && Number.isInteger(item.restTargetSlotOnDamage)) {
+        const target = item.targetPlayerId ? playerById(this.state, item.targetPlayerId) : undefined;
+        const role = target?.characterSlots[Number(item.restTargetSlotOnDamage)];
+        if (target && role && "instanceId" in role) this.restCharacter(target, Number(item.restTargetSlotOnDamage), item.sourcePlayerId);
+      }
       item.bloodAfterResolved = true;
     }
     if (!item.damagePending && item.returnCharacterOnDamageInstanceId && Number(item.damageDealt || 0) > 0) {
@@ -675,6 +680,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!this.state) return;
     const index = this.state.resolving.findIndex((card) => card.instanceId === item.card.instanceId);
     if (index >= 0) this.state.resolving.splice(index, 1);
+    if (item.virtual) return;
     item.card.ownerId = undefined;
     if (item.banishOnResolve) {
       this.state.handBanished.push(item.card);
@@ -759,7 +765,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       case HAND_IDS.deploy:
         {
           const deployed = deployTopCharacter(source);
-          if (deployed) this.recordCharacterDeployment(source.id, source.id, deployed.card.definitionId);
+          if (deployed) this.recordCharacterDeployment(source.id, source.id, deployed.card.definitionId, deployed.card.instanceId);
         }
         break;
       case HAND_IDS.inspect:
@@ -1399,7 +1405,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       this.state.usageCounters[turnKey(suffix)] = (this.state.usageCounters[turnKey(suffix)] || 0) + 1;
       const deployed = deployTopCharacter(player);
       if (!deployed) throw new Error("角色区已满或角色牌堆为空。");
-      this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId);
+      this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId, deployed.card.instanceId);
       if (action === "trans-deploy") {
         player.bodyState.trackedCharacterInstanceIds.push(deployed.card.instanceId);
         if (player.bodyState.flipped) this.state.turnModifiers.push({
@@ -1651,7 +1657,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     for (let count = 0; count < desired; count += 1) {
       const result = deployTopCharacter(player);
       if (!result) break;
-      deployed.push(result.card); this.recordCharacterDeployment(player.id, player.id, result.card.definitionId);
+      deployed.push(result.card); this.recordCharacterDeployment(player.id, player.id, result.card.definitionId, result.card.instanceId);
     }
     this.state.prompt = createPrompt({
       kind: "body-skill", playerId: player.id, title: "终局换阵", message: "可立即明置以此法上阵的1张角色，使其下一次【休整X】费用-1。",
@@ -2051,7 +2057,28 @@ export class AutoBattleRoom extends DurableObject<Env> {
           resolvedEvent.metadata = { ...resolvedEvent.metadata, color: this.judgmentColor(card), cardInstanceId: card.instanceId };
         }
       },
-      useVirtualStrike: (instanceId, options = {}) => this.useVirtualStrike(player, instanceId, options.damage),
+      useVirtualStrike: (instanceId, options = {}) => this.useVirtualStrike(player, instanceId, options.damage, options.restTargetSlotOnDamage),
+      useVirtualBasic: (definitionId, options = {}) => this.useVirtualBasic(player, definitionId, options.damage, options.restTargetSlotOnDamage),
+      deployTopCharacters: (count = 1) => {
+        const cards: CardInstance[] = [];
+        for (let index = 0; index < count; index += 1) {
+          const deployed = deployTopCharacter(player);
+          if (!deployed) break;
+          cards.push(deployed.card);
+          this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId, deployed.card.instanceId);
+        }
+        return cards;
+      },
+      gainOpponentHand: (instanceId) => {
+        const target = opponentOf(state, player.id);
+        const index = target?.hand.findIndex((card) => card.instanceId === instanceId) ?? -1;
+        if (!target || index < 0) throw new Error("对手交出的手牌已无效。");
+        const [card] = target.hand.splice(index, 1);
+        card.ownerId = player.id;
+        player.hand.push(card);
+        this.emitEvent("hand_lost", { sourcePlayerId: player.id, targetPlayerId: target.id, amount: 1 });
+        return card;
+      },
       storeOpponentHandCard: (instanceId, label) => {
         const target = opponentOf(state, player.id);
         const index = target?.hand.findIndex((card) => card.instanceId === instanceId) ?? -1;
@@ -2453,7 +2480,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (definitionId === HAND_IDS.deploy) {
       const deployed = deployTopCharacter(player);
       if (!deployed) return false;
-      this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId);
+      this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId, deployed.card.instanceId);
       return true;
     }
     if ([HAND_IDS.crisis, HAND_IDS.inspect].includes(definitionId as never)) {
@@ -2575,8 +2602,12 @@ export class AutoBattleRoom extends DurableObject<Env> {
     let amount = Number(cost.amount || 0);
     const bodyModifierIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === player.id && modifier.kind === "body-next-skill-cost-rest-one" && modifier.characterInstanceId === role.instanceId);
     if (bodyModifierIndex >= 0) {
-      this.state.turnModifiers.splice(bodyModifierIndex, 1);
-      if (type === "休整") amount = Math.max(0, amount - 1);
+      const [modifier] = this.state.turnModifiers.splice(bodyModifierIndex, 1);
+      if (type === "休整") amount = Math.max(modifier.sourceDefinitionId === "char_084_keke_watcher" ? 1 : 0, amount - 1);
+      else if (type === "休整自身" && modifier.sourceDefinitionId === "char_084_keke_watcher") {
+        type = "休整";
+        amount = 1;
+      }
     }
     const modifierIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === player.id && modifier.kind === "next-skill-cost-rest-one");
     if (modifierIndex >= 0 && type !== "退场") {
@@ -2650,7 +2681,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     }
     else if (action === "deploy") {
       const deployed = deployTopCharacter(target);
-      if (deployed) this.recordCharacterDeployment(player.id, target.id, deployed.card.definitionId);
+      if (deployed) this.recordCharacterDeployment(player.id, target.id, deployed.card.definitionId, deployed.card.instanceId);
     }
     else if (action === "judge") {
       if (!this.state.handDeck.length && this.state.handDiscard.length) {
@@ -3039,7 +3070,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.addLog(`${opponent.nickname}交出【出刀】，视为由${source.nickname}使用`, source.id, { zone: "resolving" });
   }
 
-  private useVirtualStrike(source: AutoPlayerState, instanceId: string, damageAmount?: number) {
+  private useVirtualStrike(source: AutoPlayerState, instanceId: string, damageAmount?: number, restTargetSlotOnDamage?: number) {
     if (!this.state) return;
     const index = source.hand.findIndex((card) => card.instanceId === instanceId);
     const target = opponentOf(this.state, source.id);
@@ -3050,6 +3081,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       kind: "hand", id: crypto.randomUUID(), sourcePlayerId: source.id, card,
       definitionId: HAND_IDS.strike, targetPlayerId: target.id,
       ...(damageAmount && damageAmount > 1 ? { damageBonus: damageAmount - 1 } : {}),
+      ...(Number.isInteger(restTargetSlotOnDamage) ? { restTargetSlotOnDamage } : {}),
     };
     this.attachStrikeModifiers(source, item);
     this.state.stack.push(item);
@@ -3058,6 +3090,30 @@ export class AutoBattleRoom extends DurableObject<Env> {
       metadata: { actionCard: false, virtual: true, cardInstanceId: card.instanceId },
     });
     this.addLog(`${source.nickname}视为使用了1张【出刀】`, source.id, { zone: "resolving" });
+    beginResponseWindow(this.state, item);
+  }
+
+  private useVirtualBasic(source: AutoPlayerState, definitionId: string, damageAmount?: number, restTargetSlotOnDamage?: number) {
+    if (!this.state || ![HAND_IDS.strike, HAND_IDS.aid].includes(definitionId as never)) throw new Error("当前无法视为使用该基础牌。");
+    if (definitionId === HAND_IDS.aid) {
+      const recovered = heal(source, 1);
+      if (recovered) this.emitEvent("health_recovered", { sourcePlayerId: source.id, targetPlayerId: source.id, amount: recovered });
+      return;
+    }
+    const target = opponentOf(this.state, source.id);
+    if (!target) return;
+    const card: CardInstance = { instanceId: crypto.randomUUID(), definitionId, kind: "hand", ownerId: source.id };
+    this.state.resolving.push(card);
+    const item: HandResolutionItem = {
+      kind: "hand", id: crypto.randomUUID(), sourcePlayerId: source.id, targetPlayerId: target.id,
+      card, definitionId, virtual: true,
+      ...(damageAmount && damageAmount > 1 ? { damageBonus: damageAmount - 1 } : {}),
+      ...(Number.isInteger(restTargetSlotOnDamage) ? { restTargetSlotOnDamage } : {}),
+    };
+    this.attachStrikeModifiers(source, item);
+    this.state.stack.push(item);
+    this.emitEvent("card_used", { sourcePlayerId: source.id, targetPlayerId: target.id, cardDefinitionId: definitionId, metadata: { virtual: true } });
+    this.addLog(`${source.nickname}视为使用了1张【${handName(definitionId)}】`, source.id, { zone: "resolving" });
     beginResponseWindow(this.state, item);
   }
 
@@ -3415,11 +3471,15 @@ export class AutoBattleRoom extends DurableObject<Env> {
     }
   }
 
-  private recordCharacterDeployment(sourcePlayerId: string, targetPlayerId: string, characterDefinitionId: string) {
+  private recordCharacterDeployment(sourcePlayerId: string, targetPlayerId: string, characterDefinitionId: string, characterInstanceId?: string) {
     if (!this.state) return;
     const key = `deploy-actions:${this.state.turnNumber}:${targetPlayerId}`;
     this.state.usageCounters[key] = (this.state.usageCounters[key] || 0) + 1;
-    this.emitEvent("character_deployed", { sourcePlayerId, targetPlayerId, characterDefinitionId, amount: this.state.usageCounters[key] });
+    if (characterInstanceId) this.state.usageCounters[`deployed:${this.state.turnNumber}:${targetPlayerId}:${characterInstanceId}`] = 1;
+    this.emitEvent("character_deployed", {
+      sourcePlayerId, targetPlayerId, characterDefinitionId, amount: this.state.usageCounters[key],
+      metadata: { characterInstanceId },
+    });
   }
 
   private legalSkillInstanceIds(player: AutoPlayerState) {
