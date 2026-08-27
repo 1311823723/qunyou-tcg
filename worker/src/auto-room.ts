@@ -24,6 +24,7 @@ import {
   isActionCard,
   legalResponseCards,
   opponentOf,
+  passResponseWindow,
   playerById,
   validPlayDefinition,
 } from "./auto-engine.mts";
@@ -461,7 +462,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
     player.hand.splice(index, 1);
     this.state.resolving.push(card);
     const target = response ? this.state.stack[this.state.stack.length - 1] : undefined;
-    if (isHandResolutionItem(target)) target.wasRespondedTo = true;
+    if (isHandResolutionItem(target)) {
+      target.wasRespondedTo = true;
+      target.responseWindowClosed = true;
+    }
     const item: ResolutionItem = {
       kind: "hand",
       id: crypto.randomUUID(),
@@ -516,26 +520,9 @@ export class AutoBattleRoom extends DurableObject<Env> {
 
   private passResponse(player: AutoPlayerState) {
     if (!this.state || this.state.prompt?.kind !== "response" || this.state.responsePlayerId !== player.id) throw new Error("现在不由你响应。");
-    this.state.consecutivePasses += 1;
-    this.addLog(`${player.nickname} 放弃响应`, player.id, { zone: "resolving" });
-    if (this.state.consecutivePasses < 2) {
-      const next = opponentOf(this.state, player.id);
-      if (!next) return;
-      this.state.responsePlayerId = next.id;
-      this.state.prompt = createPrompt({
-        kind: "response",
-        playerId: next.id,
-        title: "响应窗口",
-        message: "是否继续响应？",
-        cardInstanceIds: [],
-        options: [{ value: "pass", label: "放弃响应" }],
-      });
-      this.state.prompt.cardInstanceIds = legalResponseCards(this.state, next).map((card) => card.instanceId);
-      return;
-    }
-    this.state.prompt = undefined;
-    this.state.responsePlayerId = undefined;
-    this.state.consecutivePasses = 0;
+    const skillOnly = this.state.prompt.context?.skillOnly === true;
+    this.addLog(`${player.nickname} 放弃${skillOnly ? "发动响应技能" : "响应"}`, player.id, { zone: "resolving" });
+    if (passResponseWindow(this.state, player.id) === "response") return;
     this.resolveTop();
   }
 
@@ -672,7 +659,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     const top = this.state.stack[this.state.stack.length - 1];
     if (!top) return;
     if (!isHandResolutionItem(top)) return this.resolveTop();
-    if (top.cancelled) this.resolveTop();
+    if (top.cancelled || top.responseWindowClosed) this.resolveTop();
     else beginResponseWindow(this.state, top);
   }
 
@@ -2261,7 +2248,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
     }
     if (responseActivation) {
       const respondingTo = this.state.stack[this.state.stack.length - 1];
-      if (isHandResolutionItem(respondingTo)) respondingTo.wasRespondedTo = true;
+      if (isHandResolutionItem(respondingTo)) {
+        respondingTo.wasRespondedTo = true;
+        respondingTo.responseWindowClosed = true;
+      }
     }
     const revealedFromFaceDown = role.faceDown === true;
     if (role.faceDown) role.faceDown = false;
@@ -2577,7 +2567,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (usageKey && (this.state.usageCounters[usageKey] || 0) >= automation.usageLimit!.count) throw new Error("该技能已达到当前次数上限。");
     if (responseActivation) {
       const respondingTo = this.state.stack[this.state.stack.length - 1];
-      if (isHandResolutionItem(respondingTo)) respondingTo.wasRespondedTo = true;
+      if (isHandResolutionItem(respondingTo)) {
+        respondingTo.wasRespondedTo = true;
+        respondingTo.responseWindowClosed = true;
+      }
     }
     if (role.faceDown) role.faceDown = false;
     if (!fromRetired) this.paySkillCost(player, role, definition.cost, payload, triggerContext);
@@ -3060,6 +3053,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       target.cancelledByPlayerId = source.id;
       target.cancellationReason = "dodge";
       target.wasRespondedTo = true;
+      target.responseWindowClosed = true;
       this.emitEvent("card_responded", {
         sourcePlayerId: source.id,
         targetPlayerId: target.sourcePlayerId,
@@ -3692,23 +3686,21 @@ export class AutoBattleRoom extends DurableObject<Env> {
     return amount > 0 ? { kind: "skill-cost", cardInstanceIds: available, min: amount, max: amount } : undefined;
   }
 
-  private restoreResponseAfterSkill(skillOwnerId: string) {
-    if (!this.state) return;
-    const next = opponentOf(this.state, skillOwnerId);
-    const top = this.state.stack[this.state.stack.length - 1];
-    if (!next || !top) return;
-    this.state.responsePlayerId = next.id;
-    this.state.consecutivePasses = 0;
-    this.state.prompt = createPrompt({
-      kind: "response",
-      playerId: next.id,
-      title: "响应窗口",
-      message: "辅助技能已结算，是否继续响应？",
-      cardInstanceIds: [],
-      options: [{ value: "pass", label: "放弃响应" }],
-      context: { itemId: top.id },
+  private payableLegalSkillInstanceIds(player: AutoPlayerState) {
+    return this.legalSkillInstanceIds(player).filter((instanceId) => {
+      const selection = this.skillCostSelection(player, instanceId);
+      return !selection || selection.cardInstanceIds.length >= selection.min;
     });
-    this.state.prompt.cardInstanceIds = legalResponseCards(this.state, next).map((card) => card.instanceId);
+  }
+
+  private restoreResponseAfterSkill(_skillOwnerId: string) {
+    if (!this.state) return;
+    const top = this.state.stack[this.state.stack.length - 1];
+    if (!isHandResolutionItem(top)) return;
+    top.responseWindowClosed = true;
+    this.state.responsePlayerId = undefined;
+    this.state.consecutivePasses = 0;
+    this.resolveTop();
   }
 
   private assistedActionLabel(action: string) {
@@ -3734,7 +3726,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
             ? canUseInPlay(this.state!, viewer, card.definitionId, HAND_IDS.aid) || canUseInPlay(this.state!, viewer, card.definitionId, HAND_IDS.strike)
             : canUseInPlay(this.state!, viewer, card.definitionId)).map((card) => card.instanceId)
           : [];
-    const legalSkillInstanceIds = spectator || !viewer ? [] : this.legalSkillInstanceIds(viewer);
+    const legalSkillInstanceIds = spectator || !viewer ? [] : this.payableLegalSkillInstanceIds(viewer);
+    const canAutoAdvancePhase = !this.state.prompt && !this.state.stack.length
+      && ["preparation", "draw"].includes(this.state.phase)
+      && this.state.players.every((player) => this.payableLegalSkillInstanceIds(player).length === 0);
     const legalActions = spectator || !viewer ? [] : this.legalActionsFor(viewer, legalHandCardIds, legalSkillInstanceIds);
     return {
       mode: "auto",
@@ -3792,9 +3787,12 @@ export class AutoBattleRoom extends DurableObject<Env> {
           type: event.type,
           sourcePlayerId: event.sourcePlayerId,
           targetPlayerId: event.targetPlayerId,
+          characterDefinitionId: event.characterDefinitionId,
+          cardDefinitionId: event.cardDefinitionId,
         })),
         legalHandCardIds,
         legalSkillInstanceIds,
+        canAutoAdvancePhase,
         legalActions,
         legalBodyActionPlayerIds: !spectator && viewer && this.canActivateBodyExtra(viewer) ? [viewer.id] : [],
         skillCostRestReductionByCharacterId: spectator || !viewer ? {} : Object.fromEntries(this.state.turnModifiers

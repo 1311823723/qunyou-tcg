@@ -150,12 +150,30 @@ export function beginResponseWindow(state: AutoRoomState, item: HandResolutionIt
     kind: "response",
     playerId: opponent.id,
     title: "响应窗口",
-    message: `是否响应【${handName(effectiveDefinition(item))}】？`,
+    message: effectiveDefinition(item) === HAND_IDS.strike && item.targetPlayerId === opponent.id
+      ? "【出刀】正对你生效。你可以打出【闪避】、【紧急会议】或发动符合时机的角色技能。"
+      : `对手使用了【${handName(effectiveDefinition(item))}】。你可以打出可用的响应牌或发动符合时机的角色技能。`,
     cardInstanceIds: legalResponseCards({ ...state, prompt: undefined } as AutoRoomState, opponent).map((card) => card.instanceId),
     options: [{ value: "pass", label: "放弃响应" }],
-    context: { itemId: item.id },
+    context: { itemId: item.id, definitionId: effectiveDefinition(item), sourcePlayerId: item.sourcePlayerId },
   });
   state.prompt.cardInstanceIds = legalResponseCards(state, opponent).map((card) => card.instanceId);
+}
+
+export function passResponseWindow(state: AutoRoomState, playerId: string) {
+  if (state.prompt?.kind !== "response" || state.responsePlayerId !== playerId) throw new Error("现在不由你响应。");
+  const top = state.stack[state.stack.length - 1];
+  if (!isHandResolutionItem(top)) throw new Error("当前没有可响应的牌。");
+  const skillOnly = state.prompt.context?.skillOnly === true;
+  state.prompt = undefined;
+  state.responsePlayerId = undefined;
+  state.consecutivePasses = 0;
+  if (skillOnly) {
+    beginResponseWindow(state, top);
+    return "response" as const;
+  }
+  top.responseWindowClosed = true;
+  return "resolve" as const;
 }
 
 export function moveResolvedCardToDiscard(state: AutoRoomState, card: CardInstance) {

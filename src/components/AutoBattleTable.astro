@@ -12,7 +12,7 @@ const { catalog } = Astro.props;
   <header class="auto-battle__topbar">
     <a href="/play" class="battle-topbar__back" data-auto-exit>← <span>退出</span></a>
     <div><span>AUTO BETA</span><strong id="auto-room-code">------</strong></div>
-      <p>本体与基础规则自动结算 · 操作组、上头组角色技能全自动</p>
+      <p>本体与基础规则自动结算 · 8 套预组角色技能全自动</p>
     <span id="auto-connection" class="battle-connection" data-state="connecting"><i class="battle-connection__dot"></i><b>连接中</b></span>
   </header>
   <main id="auto-battle-root" class="auto-battle__root">
@@ -22,6 +22,7 @@ const { catalog } = Astro.props;
       <p>正在恢复房间模式、座位与规则状态。</p>
     </section>
   </main>
+  <div id="auto-effect-layer" class="battle-effect-layer" aria-hidden="true"></div>
   <div id="auto-toast" class="battle-toast" role="status" aria-live="polite" hidden></div>
   <script id="auto-battle-catalog" type="application/json" set:html={JSON.stringify(catalog)}></script>
 </div>

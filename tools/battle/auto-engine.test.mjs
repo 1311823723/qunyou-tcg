@@ -4,11 +4,13 @@ import {
   AUTO_STATE_VERSION,
   HAND_IDS,
   advancePhase,
+  beginResponseWindow,
   canUseInPlay,
   deployTopCharacter,
   drawCards,
   handLimit,
   legalResponseCards,
+  passResponseWindow,
 } from "../../worker/src/auto-engine.mts";
 
 function card(instanceId, definitionId, ownerId = "p1") {
@@ -101,6 +103,30 @@ test("response legality keeps private hand choices scoped to current responder",
   room.responsePlayerId = "p2";
   room.prompt.playerId = "p2";
   assert.deepEqual(legalResponseCards(room, room.players[0]), []);
+});
+
+test("a responder passing closes only that card's response window", () => {
+  const room = state();
+  const strike = { kind: "hand", id: "strike", sourcePlayerId: "p1", targetPlayerId: "p2", card: card("s", HAND_IDS.strike), definitionId: HAND_IDS.strike };
+  room.stack = [strike];
+  beginResponseWindow(room, strike);
+  assert.equal(room.responsePlayerId, "p2");
+  assert.match(room.prompt.message, /【出刀】正对你生效/);
+  assert.equal(passResponseWindow(room, "p2"), "resolve");
+  assert.equal(strike.responseWindowClosed, true);
+  assert.equal(room.prompt, undefined);
+  assert.notEqual(room.responsePlayerId, "p1", "the source must not be asked to respond to its own strike");
+});
+
+test("passing a source-only skill window opens the real target response", () => {
+  const room = state();
+  const strike = { kind: "hand", id: "strike", sourcePlayerId: "p1", targetPlayerId: "p2", card: card("s", HAND_IDS.strike), definitionId: HAND_IDS.strike };
+  room.stack = [strike];
+  room.responsePlayerId = "p1";
+  room.prompt = { id: "source-skill", kind: "response", playerId: "p1", title: "技能窗口", message: "技能", context: { skillOnly: true } };
+  assert.equal(passResponseWindow(room, "p1"), "response");
+  assert.equal(room.responsePlayerId, "p2");
+  assert.equal(strike.responseWindowClosed, undefined);
 });
 
 test("turn advancement preserves game limits and clears turn-scoped counters", () => {

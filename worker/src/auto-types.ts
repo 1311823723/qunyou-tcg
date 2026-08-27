@@ -51,6 +51,8 @@ export interface HandResolutionItem {
   cancellationReason?: "dodge" | "counter" | "meeting" | "skill";
   cancelled?: boolean;
   wasRespondedTo?: boolean;
+  /** The responder has played a response, used a response skill, or passed. */
+  responseWindowClosed?: boolean;
   damageDealt?: number;
   damagePending?: boolean;
   cannotDodge?: boolean;

@@ -54,9 +54,10 @@ type AutoSnapshot = {
     responsePlayerId?: string;
     winnerId?: string;
     deployedThisPhase: number;
-    recentEvents: Array<{ id: string; type: string; sourcePlayerId?: string; targetPlayerId?: string }>;
+    recentEvents: Array<{ id: string; type: string; sourcePlayerId?: string; targetPlayerId?: string; characterDefinitionId?: string; cardDefinitionId?: string }>;
     legalHandCardIds: string[];
     legalSkillInstanceIds: string[];
+    canAutoAdvancePhase: boolean;
     legalActions?: Array<{
       type: string;
       payload?: Record<string, string | number | boolean | string[]>;
@@ -79,6 +80,7 @@ const root = document.querySelector<HTMLElement>("#auto-battle-root");
 const app = document.querySelector<HTMLElement>("#auto-battle-app");
 const connection = document.querySelector<HTMLElement>("#auto-connection");
 const roomCodeElement = document.querySelector<HTMLElement>("#auto-room-code");
+const effectLayer = document.querySelector<HTMLElement>("#auto-effect-layer");
 const catalog = JSON.parse(document.querySelector("#auto-battle-catalog")?.textContent || "{}") as Catalog;
 const API_URL = getBattleApiUrl();
 const params = new URLSearchParams(location.search);
@@ -93,6 +95,18 @@ let reconnectTimer = 0;
 let toastTimer = 0;
 let shouldReconnect = true;
 let exitingToLobby = false;
+let selectedPlayCardId = "";
+let selectedRoleInstanceId = "";
+let detailCardInstanceId = "";
+let detailOwnerId = "";
+let autoResponseTimer = 0;
+let autoPhaseTimer = 0;
+let effectTimer = 0;
+let effectPlaying = false;
+const effectQueue: Array<{ player: AutoPlayerView; kind: "ready" | "activate" }> = [];
+const healthAnimations = new Map<string, "damage" | "heal">();
+const progressAnimations = new Set<string>();
+const flipAnimations = new Set<string>();
 const selectedDiscard = new Set<string>();
 const selectedPromptCards = new Set<string>();
 
@@ -167,10 +181,35 @@ async function connect() {
 
 function handleMessage(message: ServerMessage) {
   if (message.type === "snapshot") {
+    const previous = snapshot;
+    healthAnimations.clear();
+    progressAnimations.clear();
+    flipAnimations.clear();
+    if (previous?.game.started && message.snapshot.game.started) {
+      for (const player of message.snapshot.players) {
+        const before = previous.players.find((candidate) => candidate.id === player.id);
+        if (!before) continue;
+        if (player.health !== before.health) healthAnimations.set(player.id, Number(player.health || 0) < Number(before.health || 0) ? "damage" : "heal");
+        if (player.bodyState.progress > before.bodyState.progress) progressAnimations.add(player.id);
+        if (!before.bodyState.flipped && player.bodyState.flipped) {
+          flipAnimations.add(player.id);
+          effectQueue.push({ player, kind: "ready" });
+        } else if (!before.bodyState.extraFormUsed && player.bodyState.extraFormUsed) {
+          effectQueue.push({ player, kind: "activate" });
+        }
+      }
+    }
     snapshot = message.snapshot;
+    const me = snapshot.players.find((player) => player.id === snapshot?.you);
+    if (!me?.hand.some((card) => card.instanceId === selectedPlayCardId)
+      || !snapshot.game.legalHandCardIds.includes(selectedPlayCardId)) selectedPlayCardId = "";
+    if (selectedRoleInstanceId && !me?.characterSlots.some((card) => card && "instanceId" in card && card.instanceId === selectedRoleInstanceId)
+      && !me?.retired.some((card) => card.instanceId === selectedRoleInstanceId)) selectedRoleInstanceId = "";
     selectedDiscard.clear();
     selectedPromptCards.clear();
     render();
+    playNextBodyEffect();
+    scheduleAutomaticActions();
   } else if (message.type === "error") showToast(message.error);
   else if (message.type === "roomEnded") {
     shouldReconnect = false;
@@ -182,6 +221,39 @@ function handleMessage(message: ServerMessage) {
     }
     renderFatal(message.reason || "房间已经关闭。");
   }
+}
+
+function playNextBodyEffect() {
+  if (effectPlaying || !effectLayer || !effectQueue.length) return;
+  const effect = effectQueue.shift();
+  if (!effect?.player.body) return playNextBodyEffect();
+  const body = definition(effect.player.body);
+  if (!body) return playNextBodyEffect();
+  effectPlaying = true;
+  const isMega = body.extraFormType === "mega";
+  const title = effect.kind === "ready"
+    ? isMega ? "Mega 进化" : "Z 招式就绪"
+    : isMega ? "Mega 技能发动" : "Z 招式发动";
+  const subtitle = effect.kind === "activate"
+    ? body.extraSubtitle?.split(" · ").at(-1) || body.extraName || body.name
+    : body.extraName || body.name;
+  const portrait = body.extraPortraitPath || body.extraHighResImagePath || body.extraImagePath || body.portraitPath || body.imagePath;
+  const showFlip = effect.kind === "ready";
+  effectLayer.innerHTML = `<section class="battle-cinematic battle-cinematic--bodyMega auto-body-cinematic ${showFlip ? "is-form-ready" : "is-form-activate"}">
+    <div class="battle-cinematic__shade"></div>
+    <div class="battle-cinematic__energy" aria-hidden="true"><i></i><i></i><i></i></div>
+    ${showFlip && body.imagePath ? `<div class="battle-cinematic__flip-card"><img class="battle-cinematic__card-front" src="${escapeHtml(body.imagePath)}" alt=""><img class="battle-cinematic__card-back" src="${escapeHtml(body.extraImagePath || body.imagePath)}" alt=""></div>` : ""}
+    ${portrait ? `<img class="battle-cinematic__portrait" src="${escapeHtml(portrait)}" alt="">` : ""}
+    <div class="battle-cinematic__caption"><small>${escapeHtml(subtitle)}</small><strong>${escapeHtml(title)}</strong></div>
+  </section>`;
+  effectLayer.classList.add("is-playing");
+  clearTimeout(effectTimer);
+  effectTimer = window.setTimeout(() => {
+    effectLayer.classList.remove("is-playing");
+    effectLayer.replaceChildren();
+    effectPlaying = false;
+    playNextBodyEffect();
+  }, 1180);
 }
 
 function send(type: string, payload: Record<string, unknown> = {}) {
@@ -207,9 +279,57 @@ function renderCard(card: CardView, owner: AutoPlayerView, zone: string, interac
   const image = cardImage(card, owner);
   const identity = handCardIdentityLabel(card.suit, card.rank, card.joker);
   const title = disabledReason ? `${cardDefinition.text}\n当前不可用：${disabledReason}` : cardDefinition.text;
-  return `<button type="button" class="auto-card auto-card--${cardDefinition.kind} ${interactive ? "is-legal" : ""}" data-auto-card="${card.instanceId || ""}" data-owner="${owner.id}" data-zone="${zone}" ${interactive ? "" : "disabled"} title="${escapeHtml(title)}">
+  const selected = card.instanceId === selectedPlayCardId || card.instanceId === selectedRoleInstanceId;
+  const recent = snapshot?.game.recentEvents.at(-1);
+  const animated = recent && recent.characterDefinitionId === card.definitionId
+    ? recent.type === "skill_used" ? "is-skill-active" : recent.type === "character_revealed" ? "is-revealed" : ""
+    : cardDefinition.kind === "body" && flipAnimations.has(owner.id) ? "is-form-flipped" : "";
+  return `<button type="button" class="auto-card auto-card--${cardDefinition.kind} ${interactive ? "is-legal" : ""} ${selected ? "is-selected" : ""} ${animated}" data-auto-card="${card.instanceId || ""}" data-owner="${owner.id}" data-zone="${zone}" data-interactive="${interactive ? "true" : "false"}" title="${escapeHtml(title)}">
     ${image ? `<img src="${image}" alt="" />` : ""}${cardDefinition.kind === "character" && cardDefinition.automationLevel ? `<span class="auto-card__automation">${cardDefinition.automationLevel === "full" ? "自动" : "辅助"}</span>` : ""}<strong>${escapeHtml(cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name)}</strong><small>${escapeHtml(identity || (cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraSubtitle || cardDefinition.subtitle : cardDefinition.subtitle))}</small>
   </button>`;
+}
+
+function renderHealthCounter(player: AutoPlayerView) {
+  const max = player.maxHealth || 7;
+  const health = Math.max(0, Math.min(max, player.health || 0));
+  const percent = max ? health / max * 100 : 0;
+  const state = percent < 25 ? "low" : percent <= 50 ? "medium" : "high";
+  const crystals = Array.from({ length: max }, (_, index) => {
+    const filled = index < health;
+    const icon = filled ? state : "empty";
+    return `<img src="/battle-icons/health/health-crystal-${icon}.png" alt="" aria-hidden="true" class="auto-health-counter__icon is-${icon} ${filled && state === "low" ? "is-pulsing" : ""}">`;
+  }).join("");
+  const change = healthAnimations.get(player.id);
+  return `<div class="auto-health-counter is-${state} ${change ? `is-${change}` : ""}" aria-label="体力 ${health} / ${max}">
+    <span>体力</span><div class="auto-health-counter__icons">${crystals}</div><strong>${health}<small>/ ${max}</small></strong>
+  </div>`;
+}
+
+function renderProgressCounter(player: AutoPlayerView, body?: ReturnType<typeof definition>) {
+  const progress = Math.max(0, player.bodyState.progress || 0);
+  const max = Math.max(1, player.bodyState.progressMax || body?.megaMax || 1);
+  const percent = Math.min(100, progress / max * 100);
+  const ready = player.bodyState.flipped;
+  const used = player.bodyState.extraFormUsed;
+  const state = ready ? "ready" : percent >= 66 ? "high" : percent >= 33 ? "medium" : "low";
+  const isZMove = body?.extraFormType === "z-move";
+  const iconType = isZMove ? "z-move" : "mega";
+  const iconPrefix = isZMove ? "z-crystal" : "mega-crystal";
+  const radius = 17;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - percent / 100 * circumference;
+  const icons = Array.from({ length: max }, (_, index) => {
+    const iconState = ready ? "ready" : index <= progress ? state : "empty";
+    const fileState = iconState === "empty" ? "low" : iconState;
+    const pulse = ready || (state === "high" && index === progress) ? "is-pulsing" : "";
+    return `<img src="/battle-icons/${iconType}/${iconPrefix}-${fileState}.png" alt="" aria-hidden="true" class="auto-progress-counter__icon is-${iconState} ${pulse}">`;
+  }).join("");
+  const status = used ? "已使用" : ready ? isZMove ? "Z 就绪" : "Mega 生效" : "";
+  return `<div class="auto-progress-counter is-${state} ${used ? "is-used" : ""} ${progressAnimations.has(player.id) ? "is-progressing" : ""}" aria-label="${escapeHtml(body?.extraFormLabel || "额外形态")} ${progress} / ${max}">
+    <span>${escapeHtml(body?.extraFormLabel || "额外形态")}</span>
+    <div class="auto-progress-counter__ring"><svg viewBox="0 0 40 40"><circle class="ring-bg" cx="20" cy="20" r="${radius}"></circle><circle class="ring-fill" cx="20" cy="20" r="${radius}" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"></circle></svg><strong>${progress}/${max}</strong></div>
+    <div class="auto-progress-counter__icons">${icons}</div>${status ? `<small>${status}</small>` : ""}
+  </div>`;
 }
 
 function renderPlayer(player: AutoPlayerView, isMe: boolean, perspectiveLabel?: string) {
@@ -217,6 +337,7 @@ function renderPlayer(player: AutoPlayerView, isMe: boolean, perspectiveLabel?: 
   const current = game?.currentPlayerId === player.id;
   const slots = player.characterSlots.map((slot, index) => {
     if (!slot) return `<button class="auto-slot auto-slot--empty" data-empty-slot="${index}" disabled>空位 ${index + 1}</button>`;
+    if ("faceDown" in slot && slot.faceDown && !("instanceId" in slot)) return `<div class="auto-slot"><div class="auto-card auto-card--back"><span>暗置角色</span></div></div>`;
     if (!("instanceId" in slot) || !slot.instanceId) return `<div class="auto-slot auto-slot--marker"><span>${escapeHtml("label" in slot && slot.label ? slot.label : "占位标记")}</span></div>`;
     const canReveal = Boolean(isMe && slot.faceDown && game?.currentPlayerId === snapshot?.you && game?.phase === "deployment" && !game.prompt);
     const canUseSkill = Boolean(isMe && slot.instanceId && game?.legalSkillInstanceIds.includes(slot.instanceId));
@@ -227,8 +348,6 @@ function renderPlayer(player: AutoPlayerView, isMe: boolean, perspectiveLabel?: 
   const bodyReady = player.bodyState.flipped;
   const canActivateBody = Boolean(isMe && game?.legalBodyActionPlayerIds.includes(player.id));
   const bodyStatus = player.body ? `<div class="auto-body-status ${bodyReady ? "is-ready" : ""} ${player.bodyState.extraFormUsed ? "is-used" : ""}">
-    <span>${escapeHtml(formLabel)} ${player.bodyState.progress} / ${player.bodyState.progressMax}</span>
-    <div><i style="width:${player.bodyState.progressMax ? Math.min(100, player.bodyState.progress / player.bodyState.progressMax * 100) : 0}%"></i></div>
     <small>${player.bodyState.extraFormUsed ? "本局已使用" : bodyReady ? (bodyDefinition?.extraFormType === "mega" ? "Mega 已生效" : "Z招式已就绪") : escapeHtml(bodyDefinition?.megaCondition || "累计核心操作解锁")}</small>
     ${canActivateBody ? `<button class="btn btn--primary auto-body-activate" data-body-activate>发动 Z招式</button>` : ""}
   </div>` : "";
@@ -236,8 +355,9 @@ function renderPlayer(player: AutoPlayerView, isMe: boolean, perspectiveLabel?: 
     const legal = Boolean(isMe && card.instanceId && game?.legalSkillInstanceIds.includes(card.instanceId));
     return renderCard(card, player, "retired", legal, legal ? "" : "当前不满足退场区发动时机");
   }).join("");
-  return `<section class="auto-player ${current ? "is-current" : ""} ${isMe ? "is-self" : "is-opponent"}">
-    <header><div><span>${escapeHtml(perspectiveLabel || (isMe ? "己方" : "对手"))} · ${player.connected ? "在线" : "暂离"}</span><h2>${escapeHtml(player.nickname)}</h2></div><strong class="auto-health">命晶 ${player.health ?? 0} / ${player.maxHealth ?? 7}</strong><em>手牌 ${player.handCount ?? player.hand.length}</em></header>
+  const healthAnimation = healthAnimations.get(player.id);
+  return `<section class="auto-player ${current ? "is-current" : ""} ${isMe ? "is-self" : "is-opponent"} ${healthAnimation === "damage" ? "is-damaged" : healthAnimation === "heal" ? "is-healed" : ""}">
+    <header><div class="auto-player__identity"><span>${escapeHtml(perspectiveLabel || (isMe ? "己方" : "对手"))} · ${player.connected ? "在线" : "暂离"}</span><h2>${escapeHtml(player.nickname)}</h2><em>手牌 ${player.handCount ?? player.hand.length}</em></div><div class="auto-player__counters">${renderHealthCounter(player)}${renderProgressCounter(player, bodyDefinition)}</div></header>
     <div class="auto-player__field">${player.body ? `<div class="auto-body-wrap"><div class="auto-body-card">${renderCard(player.body, player, "body", false)}</div>${bodyStatus}</div>` : ""}<div class="auto-slots">${slots}</div></div>
     ${retired ? `<div class="auto-retired"><span>退场区</span><div>${retired}</div></div>` : ""}
   </section>`;
@@ -288,7 +408,46 @@ function renderPrompt(prompt: AutoPrompt | undefined, me?: AutoPlayerView) {
   const continuation = prompt.context?.continuation as { step?: string } | undefined;
   const orderInput = mine && continuation?.step === "prophet-order"
     ? `<button class="btn btn--primary" data-submit-character-order>输入牌序</button>` : "";
-  return `<aside class="auto-prompt ${mine ? "is-mine" : ""}"><span>${mine ? "需要你的操作" : "等待对手"}</span><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.message)}</p>${inspectedCard ? `<div class="auto-prompt__inspection">${inspectedCard}</div>` : ""}${handCards || selectableCards ? `<div class="auto-prompt__cards">${selectableCards || handCards}</div>` : ""}<div class="auto-prompt__actions">${options}${bodySelection}${characterSelection}${orderInput}</div>${prompt.kind === "discard" && mine ? `<button class="btn btn--primary" data-submit-discard disabled>确认弃牌</button>` : ""}${prompt.kind === "assisted-skill" && mine ? `<button class="btn btn--primary" data-assisted-finish>完成技能结算</button>` : ""}</aside>`;
+  const autoPass = mine && prompt.kind === "response" && snapshot?.game.legalHandCardIds.length === 0 && snapshot.game.legalSkillInstanceIds.length === 0
+    ? `<small class="auto-prompt__auto">没有可用的牌或技能，2 秒后自动放弃响应。</small>` : "";
+  return `<aside class="auto-prompt ${mine ? "is-mine" : ""}"><span>${mine ? "需要你的操作" : "等待对手"}</span><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.message)}</p>${autoPass}${inspectedCard ? `<div class="auto-prompt__inspection">${inspectedCard}</div>` : ""}${handCards || selectableCards ? `<div class="auto-prompt__cards">${selectableCards || handCards}</div>` : ""}<div class="auto-prompt__actions">${options}${bodySelection}${characterSelection}${orderInput}</div>${prompt.kind === "discard" && mine ? `<button class="btn btn--primary" data-submit-discard disabled>确认弃牌</button>` : ""}${prompt.kind === "assisted-skill" && mine ? `<button class="btn btn--primary" data-assisted-finish>完成技能结算</button>` : ""}</aside>`;
+}
+
+function findCard(instanceId: string, ownerId = "") {
+  const owner = snapshot?.players.find((player) => player.id === ownerId)
+    || snapshot?.players.find((player) => player.hand.some((card) => card.instanceId === instanceId)
+      || player.body?.instanceId === instanceId
+      || player.characterSlots.some((card) => card && "instanceId" in card && card.instanceId === instanceId)
+      || player.retired.some((card) => card.instanceId === instanceId));
+  if (!owner) return {};
+  const card = owner.body?.instanceId === instanceId ? owner.body
+    : owner.hand.find((item) => item.instanceId === instanceId)
+      || owner.characterSlots.find((item): item is CardView => Boolean(item && "instanceId" in item && item.instanceId === instanceId))
+      || owner.retired.find((item) => item.instanceId === instanceId);
+  return { owner, card };
+}
+
+function renderCardDetail() {
+  if (!snapshot || !detailCardInstanceId) return "";
+  const { owner, card } = findCard(detailCardInstanceId, detailOwnerId);
+  const cardDefinition = definition(card);
+  if (!owner || !card || !cardDefinition) return "";
+  const image = cardImage(card, owner);
+  const extra = cardDefinition.kind === "body" && owner.bodyState.flipped;
+  const name = extra ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name;
+  const text = extra ? cardDefinition.extraText || cardDefinition.text : cardDefinition.text;
+  return `<div class="auto-detail" role="dialog" aria-modal="true" aria-label="卡牌详情"><button class="auto-detail__backdrop" data-detail-close aria-label="关闭详情"></button><article><button class="auto-detail__close" data-detail-close aria-label="关闭">×</button>${image ? `<img src="${image}" alt="${escapeHtml(name)}" />` : ""}<div><span>${escapeHtml(cardDefinition.kind === "character" ? cardDefinition.mainRole || "角色" : cardDefinition.kind === "body" ? cardDefinition.archetype || "本体" : "手牌")}</span><h3>${escapeHtml(name)}</h3>${cardDefinition.skillName ? `<strong>【${escapeHtml(cardDefinition.skillName)}】</strong>` : ""}${cardDefinition.timing ? `<p><b>时机</b>${escapeHtml(cardDefinition.timing)}</p>` : ""}${cardDefinition.costText ? `<p><b>费用</b>${escapeHtml(cardDefinition.costText)}</p>` : ""}<p><b>效果</b>${escapeHtml(text)}</p></div></article></div>`;
+}
+
+function renderRoleAction(me?: AutoPlayerView) {
+  if (!snapshot || !me || !selectedRoleInstanceId) return "";
+  const { card } = findCard(selectedRoleInstanceId, me.id);
+  const cardDefinition = definition(card);
+  if (!card || !cardDefinition || cardDefinition.kind !== "character") return "";
+  const slotIndex = me.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === selectedRoleInstanceId);
+  const canReveal = slotIndex >= 0 && card.faceDown && snapshot.game.currentPlayerId === snapshot.you && snapshot.game.phase === "deployment" && !snapshot.game.prompt;
+  const canUseSkill = snapshot.game.legalSkillInstanceIds.includes(selectedRoleInstanceId);
+  return `<div class="auto-role-confirm"><div><span>已选择角色</span><strong>【${escapeHtml(cardDefinition.name)}】</strong><small>${canUseSkill || canReveal ? "选择要执行的操作" : "当前只能查看卡牌详情"}</small></div><button class="btn btn--secondary" data-role-action="view">查看详情</button>${canReveal ? `<button class="btn btn--secondary" data-role-action="reveal">明置角色</button>` : ""}${canUseSkill ? `<button class="btn btn--primary" data-role-action="skill">发动技能</button>` : ""}<button class="btn btn--secondary" data-role-action="cancel">取消</button></div>`;
 }
 
 function renderGame() {
@@ -308,7 +467,9 @@ function renderGame() {
   const logs = snapshot.game.logs.slice(-12).reverse().map((log) => `<li>${escapeHtml(log.text)}</li>`).join("");
   const bombActions = snapshot.game.legalActions?.filter((action) => action.type === "bomb:remove") || [];
   const recentEvent = snapshot.game.recentEvents.at(-1);
-  root.innerHTML = `<div class="auto-game" data-phase="${snapshot.game.phase}">
+  const selectedCard = me?.hand.find((card) => card.instanceId === selectedPlayCardId);
+  const selectedDefinition = definition(selectedCard);
+  root.innerHTML = `<div class="auto-game-stage"><div class="auto-game" data-phase="${snapshot.game.phase}">
     ${opponent ? renderPlayer(opponent, false, spectator ? "玩家 A" : undefined) : ""}
     <section class="auto-command-center">
       <div class="auto-phase"><span>第 ${snapshot.game.turnNumber} 回合</span><strong>${phaseLabels[snapshot.game.phase]}阶段</strong><small>${isMyTurn ? "你的回合" : "对手回合"}${recentEvent ? ` · ${escapeHtml(eventLabel(recentEvent.type))}` : ""}</small></div>
@@ -317,13 +478,15 @@ function renderGame() {
       ${bombActions.map((action) => `<button class="btn btn--secondary" data-remove-bomb="${escapeHtml(String(action.payload?.markerId || ""))}">休整1张角色拆除炸弹</button>`).join("")}
       <div class="auto-stack"><span>结算栈 ${snapshot.game.stack.length}</span><ol>${stack || "<li>当前为空</li>"}</ol></div>
       ${renderPrompt(snapshot.game.prompt, me)}
+      ${renderRoleAction(me)}
       ${snapshot.game.winnerId ? `<div class="auto-winner"><strong>${snapshot.game.winnerId === snapshot.you ? "你获胜了" : "对手获胜"}</strong><a href="/play" class="btn btn--primary">返回大厅</a></div>` : ""}
     </section>
     ${lowerPlayer ? renderPlayer(lowerPlayer, !spectator, spectator ? "玩家 B" : undefined) : ""}
-    ${me ? `<section class="auto-hand"><header><strong>我的手牌</strong><span>${me.hand.length} 张 · 牌堆 ${snapshot.game.handDeckCount} · 弃牌 ${snapshot.game.handDiscard.length}</span></header><div>${hand || "<p>没有手牌</p>"}</div></section>` : ""}
+    ${me ? `<section class="auto-hand"><header><strong>我的手牌</strong><span>${me.hand.length} 张 · 牌堆 ${snapshot.game.handDeckCount} · 弃牌 ${snapshot.game.handDiscard.length}</span></header><div class="auto-hand__cards">${hand || "<p>没有手牌</p>"}</div>${selectedCard && selectedDefinition ? `<div class="auto-play-confirm"><div><span>已选择</span><strong>【${escapeHtml(selectedDefinition.name)}】</strong><small>${escapeHtml(selectedDefinition.text)}</small></div><button class="btn btn--secondary" data-view-selected>查看牌面</button><button class="btn btn--secondary" data-cancel-play>取消</button><button class="btn btn--primary" data-confirm-play>${snapshot.game.prompt?.kind === "response" ? "确认响应" : snapshot.game.prompt?.kind === "dying" ? "确认急救" : "确认打出"}</button></div>` : ""}</section>` : ""}
     <aside class="auto-log"><header>公开日志</header><ol>${logs}</ol></aside>
-  </div>`;
+  </div></div>${renderCardDetail()}<div class="auto-hover-preview" id="auto-hover-preview" hidden></div>`;
   bindGameActions(me, opponent);
+  fitDesktopTable();
 }
 
 function eventLabel(type: string) {
@@ -351,7 +514,17 @@ function handLegality(card: CardView) {
 }
 
 function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
-  if (!root || !snapshot || !me) return;
+  if (!root || !snapshot) return;
+  if (!me) {
+    root.querySelectorAll<HTMLButtonElement>("[data-auto-card]").forEach((button) => button.addEventListener("click", () => {
+      detailCardInstanceId = button.dataset.autoCard || "";
+      detailOwnerId = button.dataset.owner || "";
+      render();
+    }));
+    root.querySelectorAll("[data-detail-close]").forEach((button) => button.addEventListener("click", () => { detailCardInstanceId = ""; detailOwnerId = ""; render(); }));
+    bindHoverPreviews();
+    return;
+  }
   root.querySelector("[data-phase-advance]")?.addEventListener("click", () => send("phase:advance"));
   root.querySelector("[data-deploy]")?.addEventListener("click", () => send("character:deploy"));
   root.querySelector("[data-body-activate]")?.addEventListener("click", () => send("body:activate"));
@@ -362,6 +535,11 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
     send("bomb:remove", { markerId: button.dataset.removeBomb, ...cost });
   }));
   root.querySelectorAll<HTMLButtonElement>("[data-auto-card]").forEach((button) => button.addEventListener("click", () => handleCard(button, me, opponent)));
+  root.querySelector("[data-confirm-play]")?.addEventListener("click", () => confirmSelectedHand(me, opponent));
+  root.querySelector("[data-cancel-play]")?.addEventListener("click", () => { selectedPlayCardId = ""; render(); });
+  root.querySelector("[data-view-selected]")?.addEventListener("click", () => { detailCardInstanceId = selectedPlayCardId; detailOwnerId = me.id; render(); });
+  root.querySelectorAll("[data-detail-close]").forEach((button) => button.addEventListener("click", () => { detailCardInstanceId = ""; detailOwnerId = ""; render(); }));
+  root.querySelectorAll<HTMLButtonElement>("[data-role-action]").forEach((button) => button.addEventListener("click", () => runSelectedRoleAction(button.dataset.roleAction || "", me)));
   root.querySelectorAll<HTMLButtonElement>("[data-prompt-value]").forEach((button) => button.addEventListener("click", () => send("choice:submit", { value: button.dataset.promptValue })));
   root.querySelectorAll<HTMLButtonElement>("[data-prompt-card]").forEach((button) => button.addEventListener("click", () => {
     const instanceId = button.dataset.promptCard || "";
@@ -385,6 +563,7 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
   });
   root.querySelector("[data-submit-discard]")?.addEventListener("click", () => send("choice:submit", { cardInstanceIds: [...selectedDiscard] }));
   root.querySelector("[data-assisted-finish]")?.addEventListener("click", () => send("assisted:finish"));
+  bindHoverPreviews();
 }
 
 function runAssistedAction(action: string, me: AutoPlayerView, opponent?: AutoPlayerView) {
@@ -422,19 +601,21 @@ function handleCard(button: HTMLButtonElement, me: AutoPlayerView, opponent?: Au
   if (!snapshot) return;
   const instanceId = button.dataset.autoCard || "";
   const zone = button.dataset.zone || "";
-  const card = me.hand.find((item) => item.instanceId === instanceId)
-    || me.characterSlots.find((item) => item && "instanceId" in item && item.instanceId === instanceId) as CardView | undefined
-    || me.retired.find((item) => item.instanceId === instanceId);
+  const located = findCard(instanceId, button.dataset.owner);
+  const card = located.card;
   const cardDefinition = definition(card);
   if (!card || !cardDefinition) return;
   const prompt = snapshot.game.prompt;
   const roleZone = zone.startsWith("slot:") || zone === "retired";
-  if (roleZone && snapshot.game.legalSkillInstanceIds.includes(instanceId)) {
-    const reduction = snapshot.game.skillCostRestReductionByCharacterId[instanceId] || 0;
-    const legal = snapshot.game.legalActions?.find((action) => action.type === "skill:activate" && action.payload?.instanceId === instanceId);
-    const cost = legal?.selection ? chooseServerSelection(legal.selection, me) : skillCostPayload(cardDefinition.costText || "", me, card, reduction);
-    if (cost === undefined) return;
-    return send("skill:activate", { instanceId, ...cost });
+  if (roleZone) {
+    if (located.owner?.id === me.id && (!prompt || ["response", "dying", "character-trigger"].includes(prompt.kind))) {
+      selectedRoleInstanceId = selectedRoleInstanceId === instanceId ? "" : instanceId;
+    } else {
+      detailCardInstanceId = instanceId;
+      detailOwnerId = located.owner?.id || "";
+    }
+    render();
+    return;
   }
   if (prompt?.kind === "discard") {
     if (selectedDiscard.has(instanceId)) selectedDiscard.delete(instanceId); else selectedDiscard.add(instanceId);
@@ -443,24 +624,44 @@ function handleCard(button: HTMLButtonElement, me: AutoPlayerView, opponent?: Au
     if (submit) submit.disabled = selectedDiscard.size !== prompt.min;
     return;
   }
-  if (prompt?.kind === "dying") return send("choice:submit", { instanceId, value: "aid" });
+  if (prompt?.kind === "dying") return selectPlayableHand(instanceId);
   if ((prompt?.kind as string) === "recall") return send("choice:submit", { instanceId, value: "recall" });
-  if (prompt?.kind === "response") {
-    return send("response:play", { instanceId, ...(cardDefinition.id === "hand_basic_004" ? { resolvedAs: "hand_basic_002" } : {}) });
-  }
+  if (prompt?.kind === "response") return selectPlayableHand(instanceId);
   if (prompt?.kind === "assisted-skill") return;
-  if (roleZone) {
-    const slotIndex = Number(zone.split(":")[1]);
-    if (zone !== "retired" && snapshot.game.phase === "deployment" && snapshot.game.currentPlayerId === snapshot.you && card.faceDown) return send("character:reveal", { slotIndex });
-    if (zone === "retired") return;
-    if (snapshot.game.prompt?.kind === "response" || ["play", "preparation", "deployment"].includes(snapshot.game.phase)) {
-      const reduction = snapshot.game.skillCostRestReductionByCharacterId[instanceId] || 0;
-      const legal = snapshot.game.legalActions?.find((action) => action.type === "skill:activate" && action.payload?.instanceId === instanceId);
-      const cost = legal?.selection ? chooseServerSelection(legal.selection, me) : skillCostPayload(cardDefinition.costText || "", me, card, reduction);
-      if (cost === undefined) return;
-      return send("skill:activate", { instanceId, ...cost });
-    }
+  if (zone === "body") {
+    detailCardInstanceId = instanceId;
+    detailOwnerId = button.dataset.owner || me.id;
+    render();
     return;
+  }
+  if (button.dataset.interactive !== "true") {
+    detailCardInstanceId = instanceId;
+    detailOwnerId = button.dataset.owner || me.id;
+    render();
+    return;
+  }
+  selectPlayableHand(instanceId);
+}
+
+function selectPlayableHand(instanceId: string) {
+  selectedPlayCardId = selectedPlayCardId === instanceId ? "" : instanceId;
+  render();
+}
+
+function confirmSelectedHand(me: AutoPlayerView, opponent?: AutoPlayerView) {
+  if (!snapshot || !selectedPlayCardId) return;
+  const instanceId = selectedPlayCardId;
+  const card = me.hand.find((item) => item.instanceId === instanceId);
+  const cardDefinition = definition(card);
+  if (!card || !cardDefinition) return;
+  const prompt = snapshot.game.prompt;
+  if (prompt?.kind === "dying") {
+    selectedPlayCardId = "";
+    return send("choice:submit", { instanceId, value: "aid" });
+  }
+  if (prompt?.kind === "response") {
+    selectedPlayCardId = "";
+    return send("response:play", { instanceId, ...(cardDefinition.id === "hand_basic_004" ? { resolvedAs: "hand_basic_002" } : {}) });
   }
   let resolvedAs: string | undefined;
   if (cardDefinition.id === "hand_basic_004") {
@@ -474,7 +675,64 @@ function handleCard(button: HTMLButtonElement, me: AutoPlayerView, opponent?: Au
     if (!Number.isInteger(value) || value < 1 || value > 4 || !opponent) return;
     targetSlotIndex = value - 1;
   }
+  selectedPlayCardId = "";
   send("hand:play", { instanceId, resolvedAs, targetSlotIndex });
+}
+
+function runSelectedRoleAction(action: string, me: AutoPlayerView) {
+  if (!snapshot || !selectedRoleInstanceId) return;
+  if (action === "cancel") {
+    selectedRoleInstanceId = "";
+    return render();
+  }
+  if (action === "view") {
+    detailCardInstanceId = selectedRoleInstanceId;
+    detailOwnerId = me.id;
+    return render();
+  }
+  const { card } = findCard(selectedRoleInstanceId, me.id);
+  const cardDefinition = definition(card);
+  if (!card || !cardDefinition) return;
+  if (action === "reveal") {
+    const slotIndex = me.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === selectedRoleInstanceId);
+    selectedRoleInstanceId = "";
+    return send("character:reveal", { slotIndex });
+  }
+  if (action !== "skill") return;
+  const legal = snapshot.game.legalActions?.find((candidate) => candidate.type === "skill:activate" && candidate.payload?.instanceId === selectedRoleInstanceId);
+  const reduction = snapshot.game.skillCostRestReductionByCharacterId[selectedRoleInstanceId] || 0;
+  const cost = legal?.selection ? chooseServerSelection(legal.selection, me) : skillCostPayload(cardDefinition.costText || "", me, card, reduction);
+  if (cost === undefined) return;
+  const instanceId = selectedRoleInstanceId;
+  selectedRoleInstanceId = "";
+  send("skill:activate", { instanceId, ...cost });
+}
+
+function bindHoverPreviews() {
+  const preview = root?.querySelector<HTMLElement>("#auto-hover-preview");
+  if (!preview) return;
+  const hide = () => { preview.hidden = true; preview.replaceChildren(); };
+  root?.querySelectorAll<HTMLButtonElement>("[data-auto-card]").forEach((button) => {
+    const show = () => {
+      const instanceId = button.dataset.autoCard || "";
+      const { owner, card } = findCard(instanceId, button.dataset.owner);
+      const cardDefinition = definition(card);
+      const image = card && owner ? cardImage(card, owner) : undefined;
+      if (!cardDefinition || !image) return;
+      preview.innerHTML = `<img src="${image}" alt="${escapeHtml(cardDefinition.name)}"><strong>${escapeHtml(cardDefinition.name)}</strong>`;
+      preview.hidden = false;
+      const rect = button.getBoundingClientRect();
+      const width = 190;
+      const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.left + rect.width / 2 - width / 2));
+      const above = rect.top > 330;
+      preview.style.left = `${left}px`;
+      preview.style.top = above ? `${Math.max(8, rect.top - 300)}px` : `${Math.min(window.innerHeight - 290, rect.bottom + 8)}px`;
+    };
+    button.addEventListener("mouseenter", show);
+    button.addEventListener("mouseleave", hide);
+    button.addEventListener("focus", show);
+    button.addEventListener("blur", hide);
+  });
 }
 
 function chooseServerSelection(
@@ -522,7 +780,51 @@ function skillCostPayload(costText: string, player: AutoPlayerView, role: CardVi
 function render() {
   if (!snapshot) return;
   if (app) app.dataset.phase = snapshot.game.started ? "game" : "lobby";
-  if (snapshot.game.started) renderGame(); else renderLobby();
+  if (snapshot.game.started) renderGame();
+  else {
+    root?.classList.remove("is-table-fit");
+    renderLobby();
+  }
+}
+
+function fitDesktopTable() {
+  if (!root || !snapshot?.game.started) return;
+  const desktop = window.matchMedia("(min-width: 761px)").matches;
+  root.classList.toggle("is-table-fit", desktop);
+  const stage = root.querySelector<HTMLElement>(".auto-game-stage");
+  const table = root.querySelector<HTMLElement>(".auto-game");
+  if (!desktop || !stage || !table) {
+    table?.style.removeProperty("--auto-table-scale");
+    return;
+  }
+  table.style.setProperty("--auto-table-scale", "1");
+  window.requestAnimationFrame(() => {
+    const scale = Math.min(1, stage.clientWidth / table.scrollWidth, stage.clientHeight / table.scrollHeight);
+    table.style.setProperty("--auto-table-scale", String(Math.max(.1, scale)));
+  });
+}
+
+function scheduleAutomaticActions() {
+  clearTimeout(autoResponseTimer);
+  clearTimeout(autoPhaseTimer);
+  if (!snapshot || snapshot.you === "spectator" || snapshot.game.winnerId) return;
+  const prompt = snapshot.game.prompt;
+  if (prompt?.kind === "response" && prompt.playerId === snapshot.you
+    && snapshot.game.legalHandCardIds.length === 0 && snapshot.game.legalSkillInstanceIds.length === 0) {
+    const promptId = prompt.id;
+    autoResponseTimer = window.setTimeout(() => {
+      if (snapshot?.game.prompt?.id === promptId && snapshot.game.responsePlayerId === snapshot.you) send("response:pass");
+    }, 2000);
+    return;
+  }
+  if (!prompt && snapshot.game.currentPlayerId === snapshot.you && snapshot.game.stack.length === 0
+    && ["preparation", "draw"].includes(snapshot.game.phase) && snapshot.game.canAutoAdvancePhase) {
+    const revision = snapshot.revision;
+    const phase = snapshot.game.phase;
+    autoPhaseTimer = window.setTimeout(() => {
+      if (snapshot?.revision === revision && snapshot.game.phase === phase && !snapshot.game.prompt) send("phase:advance");
+    }, 650);
+  }
 }
 
 function renderFatal(message: string) {
@@ -537,5 +839,23 @@ document.querySelector<HTMLAnchorElement>("[data-auto-exit]")?.addEventListener(
   else location.href = "/play";
   window.setTimeout(() => { location.href = "/play"; }, 800);
 });
-window.addEventListener("beforeunload", () => { shouldReconnect = false; clearTimeout(reconnectTimer); socket?.close(); });
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (detailCardInstanceId) {
+    detailCardInstanceId = "";
+    detailOwnerId = "";
+    render();
+  } else if (selectedPlayCardId) {
+    selectedPlayCardId = "";
+    render();
+  }
+});
+window.addEventListener("beforeunload", () => {
+  shouldReconnect = false;
+  clearTimeout(reconnectTimer);
+  clearTimeout(autoResponseTimer);
+  clearTimeout(autoPhaseTimer);
+  socket?.close();
+});
+window.addEventListener("resize", fitDesktopTable);
 connect();
