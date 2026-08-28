@@ -105,6 +105,11 @@ export function effectiveDefinition(item: HandResolutionItem) {
   return item.definitionId === HAND_IDS.impersonate ? item.resolvedAs || "" : item.definitionId;
 }
 
+export function responseEventForItem(state: AutoRoomState, item: HandResolutionItem) {
+  return [...state.recentEvents].reverse().find((event) => event.type === "card_responded"
+    && event.metadata?.resolutionItemId === item.id);
+}
+
 export function isActionCard(definitionId: string) {
   return handById.get(definitionId)?.handType === "行动";
 }

@@ -26,6 +26,7 @@ import {
   opponentOf,
   passResponseWindow,
   playerById,
+  responseEventForItem,
   validPlayDefinition,
 } from "./auto-engine.mts";
 import {
@@ -495,10 +496,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.state.stack.push(item);
     this.emitEvent(response ? "card_responded" : "card_used", {
       sourcePlayerId: player.id,
-      targetPlayerId,
+      targetPlayerId: response && isHandResolutionItem(target) ? target.sourcePlayerId : targetPlayerId,
       cardDefinitionId: effective,
       metadata: {
         actionCard: isActionCard(card.definitionId),
+        resolutionItemId: item.id,
         ...(response && isHandResolutionItem(target) ? { targetCardDefinitionId: effectiveDefinition(target) } : {}),
       },
     });
@@ -3401,6 +3403,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
         if (event === "hand_lost_before" && top?.targetPlayerId === player.id && [HAND_IDS.sabotage, HAND_IDS.steal].includes(effective as never)) return { id: promptId };
         if (event === "body_targeted_by_hand" && top?.targetPlayerId === player.id) return { id: promptId };
       }
+      if (event === "card_responded") {
+        const responseEvent = responseEventForItem(this.state, top);
+        if (responseEvent && this.relationMatches(relation, responseEvent.sourcePlayerId, responseEvent.targetPlayerId, player.id)) return responseEvent;
+      }
+      return undefined;
     }
     return [...this.state.recentEvents].reverse().find((candidate) => this.eventMatches(event, candidate)
       && this.relationMatches(relation, candidate.sourcePlayerId, candidate.targetPlayerId, player.id)

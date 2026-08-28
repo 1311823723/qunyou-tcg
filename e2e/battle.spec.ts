@@ -244,8 +244,8 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     ]);
     await expect(hostPage.locator(".auto-phase strong")).toHaveText("准备阶段");
     await expect(hostPage.locator(".auto-body-status")).toHaveCount(2);
-    await expect(hostPage.locator(".auto-body-status", { hasText: "Mega 0 / 6" })).toHaveCount(1);
-    await expect(hostPage.locator(".auto-body-status", { hasText: "Mega 0 / 5" })).toHaveCount(1);
+    await expect(hostPage.locator('.auto-progress-counter[aria-label="Mega 0 / 6"]')).toHaveCount(1);
+    await expect(hostPage.locator('.auto-progress-counter[aria-label="Mega 0 / 5"]')).toHaveCount(1);
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const hostPass = hostPage.locator('.auto-prompt.is-mine [data-prompt-value="pass"]');

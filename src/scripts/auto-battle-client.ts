@@ -70,6 +70,18 @@ type AutoSnapshot = {
   isSpectator?: boolean;
 };
 
+type LocalSelectionAction = {
+  command: string;
+  payload: Record<string, unknown>;
+  title: string;
+  message: string;
+  cardInstanceIds?: string[];
+  min?: number;
+  max?: number;
+  selectionKind?: "cost" | "target-slot";
+  options?: Array<{ label: string; payload: Record<string, unknown> }>;
+};
+
 type ServerMessage =
   | { type: "snapshot"; snapshot: AutoSnapshot }
   | { type: "actionAck"; actionId: string; revision: number }
@@ -99,6 +111,7 @@ let selectedPlayCardId = "";
 let selectedRoleInstanceId = "";
 let detailCardInstanceId = "";
 let detailOwnerId = "";
+let localSelectionAction: LocalSelectionAction | undefined;
 let autoResponseTimer = 0;
 let autoPhaseTimer = 0;
 let effectTimer = 0;
@@ -119,6 +132,39 @@ function showToast(message: string) {
   toast.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = window.setTimeout(() => { toast.hidden = true; }, 2600);
+}
+
+async function copyText(text: string, button?: HTMLButtonElement | null, doneLabel = "已复制", resetLabel?: string) {
+  const markCopied = () => {
+    if (button) {
+      const original = button.textContent;
+      button.textContent = doneLabel;
+      window.setTimeout(() => { button.textContent = resetLabel ?? original; }, 1400);
+    }
+    showToast(doneLabel);
+  };
+  try {
+    await navigator.clipboard.writeText(text);
+    markCopied();
+  } catch {
+    const input = document.createElement("textarea");
+    input.value = text;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    const copied = document.execCommand("copy");
+    input.remove();
+    if (copied) markCopied();
+    else showToast("复制失败，请检查浏览器剪贴板权限");
+  }
+}
+
+function inviteUrl() {
+  const url = new URL("/play", location.origin);
+  url.searchParams.set("room", snapshot?.roomCode || roomCode);
+  return url.toString();
 }
 
 function setConnection(label: string, state: string) {
@@ -207,6 +253,7 @@ function handleMessage(message: ServerMessage) {
       && !me?.retired.some((card) => card.instanceId === selectedRoleInstanceId)) selectedRoleInstanceId = "";
     selectedDiscard.clear();
     selectedPromptCards.clear();
+    localSelectionAction = undefined;
     render();
     playNextBodyEffect();
     scheduleAutomaticActions();
@@ -273,19 +320,41 @@ function cardImage(card: CardView, owner?: AutoPlayerView) {
   return cardDefinition.imagePath;
 }
 
+function isServerPromptSelectable(instanceId?: string) {
+  const prompt = snapshot?.game.prompt;
+  if (!instanceId || !prompt || prompt.playerId !== snapshot?.you || prompt.max === undefined) return false;
+  return !["response", "dying", "recall"].includes(prompt.kind) && Boolean(prompt.cardInstanceIds?.includes(instanceId));
+}
+
+function isLocalSelectionCard(instanceId?: string) {
+  return Boolean(instanceId && localSelectionAction?.cardInstanceIds?.includes(instanceId));
+}
+
+function isCardOnTable(instanceId?: string) {
+  if (!instanceId || !snapshot) return false;
+  return snapshot.players.some((player) => player.body?.instanceId === instanceId
+    || player.hand.some((card) => card.instanceId === instanceId)
+    || player.characterSlots.some((card) => card && "instanceId" in card && card.instanceId === instanceId)
+    || player.retired.some((card) => card.instanceId === instanceId));
+}
+
 function renderCard(card: CardView, owner: AutoPlayerView, zone: string, interactive: boolean, disabledReason = "") {
   const cardDefinition = definition(card);
   if (!cardDefinition) return `<div class="auto-card auto-card--back"><span>暗置</span></div>`;
-  const image = cardImage(card, owner);
+  const faceDownCharacter = cardDefinition.kind === "character" && Boolean(card.faceDown) && zone.startsWith("slot:");
+  const image = faceDownCharacter ? "/cards/backs/character.webp" : cardImage(card, owner);
   const identity = handCardIdentityLabel(card.suit, card.rank, card.joker);
   const title = disabledReason ? `${cardDefinition.text}\n当前不可用：${disabledReason}` : cardDefinition.text;
-  const selected = card.instanceId === selectedPlayCardId || card.instanceId === selectedRoleInstanceId;
+  const selectable = isServerPromptSelectable(card.instanceId) || isLocalSelectionCard(card.instanceId);
+  const selected = card.instanceId === selectedPlayCardId || card.instanceId === selectedRoleInstanceId
+    || Boolean(card.instanceId && selectedPromptCards.has(card.instanceId))
+    || Boolean(card.instanceId && selectedDiscard.has(card.instanceId));
   const recent = snapshot?.game.recentEvents.at(-1);
   const animated = recent && recent.characterDefinitionId === card.definitionId
     ? recent.type === "skill_used" ? "is-skill-active" : recent.type === "character_revealed" ? "is-revealed" : ""
     : cardDefinition.kind === "body" && flipAnimations.has(owner.id) ? "is-form-flipped" : "";
-  return `<button type="button" class="auto-card auto-card--${cardDefinition.kind} ${interactive ? "is-legal" : ""} ${selected ? "is-selected" : ""} ${animated}" data-auto-card="${card.instanceId || ""}" data-owner="${owner.id}" data-zone="${zone}" data-interactive="${interactive ? "true" : "false"}" title="${escapeHtml(title)}">
-    ${image ? `<img src="${image}" alt="" />` : ""}${cardDefinition.kind === "character" && cardDefinition.automationLevel ? `<span class="auto-card__automation">${cardDefinition.automationLevel === "full" ? "自动" : "辅助"}</span>` : ""}<strong>${escapeHtml(cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name)}</strong><small>${escapeHtml(identity || (cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraSubtitle || cardDefinition.subtitle : cardDefinition.subtitle))}</small>
+  return `<button type="button" class="auto-card auto-card--${cardDefinition.kind} ${interactive || selectable ? "is-legal" : ""} ${selectable ? "is-table-selectable" : ""} ${selected ? "is-selected" : ""} ${faceDownCharacter ? "is-face-down" : ""} ${animated}" data-auto-card="${card.instanceId || ""}" data-owner="${owner.id}" data-zone="${zone}" data-interactive="${interactive || selectable ? "true" : "false"}" title="${escapeHtml(faceDownCharacter ? "暗置角色" : title)}">
+    ${image ? `<img src="${image}" alt="" />` : ""}${!faceDownCharacter && cardDefinition.kind === "character" && cardDefinition.automationLevel ? `<span class="auto-card__automation">${cardDefinition.automationLevel === "full" ? "自动" : "辅助"}</span>` : ""}${faceDownCharacter ? `<span class="sr-only">暗置角色</span>` : `<strong>${escapeHtml(cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name)}</strong><small>${escapeHtml(identity || (cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraSubtitle || cardDefinition.subtitle : cardDefinition.subtitle))}</small>`}
   </button>`;
 }
 
@@ -337,7 +406,11 @@ function renderPlayer(player: AutoPlayerView, isMe: boolean, perspectiveLabel?: 
   const current = game?.currentPlayerId === player.id;
   const slots = player.characterSlots.map((slot, index) => {
     if (!slot) return `<button class="auto-slot auto-slot--empty" data-empty-slot="${index}" disabled>空位 ${index + 1}</button>`;
-    if ("faceDown" in slot && slot.faceDown && !("instanceId" in slot)) return `<div class="auto-slot"><div class="auto-card auto-card--back"><span>暗置角色</span></div></div>`;
+    if ("faceDown" in slot && slot.faceDown && !("instanceId" in slot)) {
+      const selectionKey = `slot:${player.id}:${index}`;
+      const selectable = localSelectionAction?.cardInstanceIds?.includes(selectionKey);
+      return `<div class="auto-slot"><button type="button" class="auto-card auto-card--back auto-card--character-back ${selectable ? "is-legal is-table-selectable" : ""} ${selectedPromptCards.has(selectionKey) ? "is-selected" : ""}" ${selectable ? `data-local-slot="${escapeHtml(selectionKey)}"` : "disabled"}><img src="/cards/backs/character.webp" alt="暗置角色"></button></div>`;
+    }
     if (!("instanceId" in slot) || !slot.instanceId) return `<div class="auto-slot auto-slot--marker"><span>${escapeHtml("label" in slot && slot.label ? slot.label : "占位标记")}</span></div>`;
     const canReveal = Boolean(isMe && slot.faceDown && game?.currentPlayerId === snapshot?.you && game?.phase === "deployment" && !game.prompt);
     const canUseSkill = Boolean(isMe && slot.instanceId && game?.legalSkillInstanceIds.includes(slot.instanceId));
@@ -357,8 +430,8 @@ function renderPlayer(player: AutoPlayerView, isMe: boolean, perspectiveLabel?: 
   }).join("");
   const healthAnimation = healthAnimations.get(player.id);
   return `<section class="auto-player ${current ? "is-current" : ""} ${isMe ? "is-self" : "is-opponent"} ${healthAnimation === "damage" ? "is-damaged" : healthAnimation === "heal" ? "is-healed" : ""}">
-    <header><div class="auto-player__identity"><span>${escapeHtml(perspectiveLabel || (isMe ? "己方" : "对手"))} · ${player.connected ? "在线" : "暂离"}</span><h2>${escapeHtml(player.nickname)}</h2><em>手牌 ${player.handCount ?? player.hand.length}</em></div><div class="auto-player__counters">${renderHealthCounter(player)}${renderProgressCounter(player, bodyDefinition)}</div></header>
-    <div class="auto-player__field">${player.body ? `<div class="auto-body-wrap"><div class="auto-body-card">${renderCard(player.body, player, "body", false)}</div>${bodyStatus}</div>` : ""}<div class="auto-slots">${slots}</div></div>
+    <header><div class="auto-player__identity"><span>${escapeHtml(perspectiveLabel || (isMe ? "己方" : "对手"))} · ${player.connected ? "在线" : "暂离"}</span><h2>${escapeHtml(player.nickname)}</h2><em>手牌 ${player.handCount ?? player.hand.length}</em></div></header>
+    <div class="auto-player__field">${player.body ? `<div class="auto-body-wrap"><div class="auto-body-card">${renderCard(player.body, player, "body", false)}</div>${bodyStatus}</div>` : ""}<div class="auto-slots">${slots}</div><div class="auto-player__counters">${renderHealthCounter(player)}${renderProgressCounter(player, bodyDefinition)}</div></div>
     ${retired ? `<div class="auto-retired"><span>退场区</span><div>${retired}</div></div>` : ""}
   </section>`;
 }
@@ -370,17 +443,19 @@ function renderLobby() {
   const deckOptions = catalog.decks.map((deck) => `<option value="${deck.id}" ${deck.id === me?.deckId ? "selected" : ""} ${deck.autoReady ? "" : "disabled"}>${escapeHtml(deck.name)} · ${escapeHtml(deck.archetype)}${deck.autoReady ? " · 已解锁" : ` · ${deck.autoImplemented}/${deck.autoTotal}`}</option>`).join("");
   root.innerHTML = `<section class="auto-lobby hud-panel">
     <span class="battle-kicker">AUTO BATTLE BETA</span><h1>自动对战准备室</h1>
-    <p>房间 ${escapeHtml(snapshot.roomCode)} · 基础规则、54张手牌与已解锁角色自动结算</p>
+    <div class="battle-invite auto-lobby__invite"><div><span class="battle-invite__label">房间码</span><strong class="battle-room-display">${escapeHtml(snapshot.roomCode)}</strong></div><div class="battle-invite__actions"><button type="button" class="battle-small-btn" data-auto-copy-code>复制房间码</button><button type="button" class="btn btn--primary" data-auto-copy-link>复制邀请链接</button></div></div>
     <div class="auto-lobby__seats"><article><strong>${escapeHtml(me?.nickname || "你的座位")}</strong><small>${me?.ready ? "已准备" : "未准备"}</small></article><article><strong>${escapeHtml(opponent?.nickname || "等待对手")}</strong><small>${opponent?.ready ? "已准备" : opponent ? "未准备" : "邀请对手加入"}</small></article></div>
     ${snapshot.you === "spectator" ? "" : `<label>选择预组<select id="auto-deck-select">${deckOptions}</select></label><button class="btn btn--primary" data-auto-command="ready">${me?.ready ? "取消准备" : "确认准备"}</button>`}
   </section>`;
   root.querySelector<HTMLSelectElement>("#auto-deck-select")?.addEventListener("change", (event) => send("player:selectDeck", { deckId: (event.currentTarget as HTMLSelectElement).value }));
   root.querySelector("[data-auto-command=ready]")?.addEventListener("click", () => send("player:ready", { ready: !me?.ready }));
+  root.querySelector<HTMLButtonElement>("[data-auto-copy-code]")?.addEventListener("click", (event) => copyText(snapshot?.roomCode || roomCode, event.currentTarget as HTMLButtonElement, "已复制", "复制房间码"));
+  root.querySelector<HTMLButtonElement>("[data-auto-copy-link]")?.addEventListener("click", (event) => copyText(inviteUrl(), event.currentTarget as HTMLButtonElement, "已复制", "复制邀请链接"));
 }
 
 function renderPromptCard(card: CardView, owner: AutoPlayerView, interactive: boolean) {
   const cardDefinition = definition(card);
-  if (!cardDefinition) return `<div class="auto-card auto-card--back"><span>暗置</span></div>`;
+  if (!cardDefinition) return `<div class="auto-card auto-card--back"><img src="/cards/backs/hand.webp" alt="暗置手牌"></div>`;
   const image = cardImage(card, owner);
   const selected = Boolean(card.instanceId && selectedPromptCards.has(card.instanceId));
   return `<button type="button" class="auto-card ${interactive ? "is-legal" : ""} ${selected ? "is-selected" : ""}" ${interactive ? `data-prompt-card="${card.instanceId}"` : "disabled"}>
@@ -392,8 +467,7 @@ function renderPrompt(prompt: AutoPrompt | undefined, me?: AutoPlayerView) {
   if (!prompt) return "";
   const mine = prompt.playerId === snapshot?.you;
   const allowedCards = new Set(prompt.cardInstanceIds || []);
-  const handCards = mine && me && !prompt.selectableCards ? me.hand.filter((card) => card.instanceId && allowedCards.has(card.instanceId)).map((card) => renderCard(card, me, "prompt", true)).join("") : "";
-  const selectableCards = mine && me && prompt.selectableCards ? prompt.selectableCards.map((card) => {
+  const selectableCards = mine && me && prompt.selectableCards ? prompt.selectableCards.filter((card) => !isCardOnTable(card.instanceId)).map((card) => {
     const owner = snapshot?.players.find((candidate) => candidate.id === card.ownerId) || me;
     return renderPromptCard(card, owner, Boolean(card.instanceId && allowedCards.has(card.instanceId) && prompt.max !== undefined));
   }).join("") : "";
@@ -401,16 +475,14 @@ function renderPrompt(prompt: AutoPrompt | undefined, me?: AutoPlayerView) {
     ? renderCard(prompt.context.inspectedCard as CardView, me, "inspection", false)
     : "";
   const options = mine ? (prompt.options || []).map((option) => `<button class="btn btn--secondary" ${prompt.kind === "assisted-skill" ? `data-assisted-action="${escapeHtml(option.value)}"` : `data-prompt-value="${escapeHtml(option.value)}"`}>${escapeHtml(option.label)}</button>`).join("") : "";
-  const bodySelection = prompt.kind === "body-skill" && mine && prompt.max !== undefined && prompt.selectableCards
-    ? `<button class="btn btn--primary" data-submit-body-selection ${selectedPromptCards.size < Number(prompt.min || 0) || selectedPromptCards.size > prompt.max ? "disabled" : ""}>确认选择</button>` : "";
-  const characterSelection = prompt.kind === "character-skill" && mine && prompt.max !== undefined && prompt.selectableCards
-    ? `<button class="btn btn--primary" data-submit-character-selection ${selectedPromptCards.size < Number(prompt.min || 0) || selectedPromptCards.size > prompt.max ? "disabled" : ""}>确认选择</button>` : "";
+  const cardSelection = mine && prompt.max !== undefined && prompt.kind !== "discard" && prompt.cardInstanceIds?.length
+    ? `<button class="btn btn--primary" data-submit-prompt-selection ${selectedPromptCards.size < Number(prompt.min || 0) || selectedPromptCards.size > prompt.max ? "disabled" : ""}>确认选择</button>` : "";
   const continuation = prompt.context?.continuation as { step?: string } | undefined;
   const orderInput = mine && continuation?.step === "prophet-order"
     ? `<button class="btn btn--primary" data-submit-character-order>输入牌序</button>` : "";
   const autoPass = mine && prompt.kind === "response" && snapshot?.game.legalHandCardIds.length === 0 && snapshot.game.legalSkillInstanceIds.length === 0
     ? `<small class="auto-prompt__auto">没有可用的牌或技能，2 秒后自动放弃响应。</small>` : "";
-  return `<aside class="auto-prompt ${mine ? "is-mine" : ""}"><span>${mine ? "需要你的操作" : "等待对手"}</span><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.message)}</p>${autoPass}${inspectedCard ? `<div class="auto-prompt__inspection">${inspectedCard}</div>` : ""}${handCards || selectableCards ? `<div class="auto-prompt__cards">${selectableCards || handCards}</div>` : ""}<div class="auto-prompt__actions">${options}${bodySelection}${characterSelection}${orderInput}</div>${prompt.kind === "discard" && mine ? `<button class="btn btn--primary" data-submit-discard disabled>确认弃牌</button>` : ""}${prompt.kind === "assisted-skill" && mine ? `<button class="btn btn--primary" data-assisted-finish>完成技能结算</button>` : ""}</aside>`;
+  return `<aside class="auto-prompt ${mine ? "is-mine" : ""} ${selectableCards || inspectedCard ? "has-card-choices" : ""}"><span>${mine ? "需要你的操作" : "等待对手"}</span><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.message)}</p>${autoPass}${inspectedCard ? `<div class="auto-prompt__inspection">${inspectedCard}</div>` : ""}${selectableCards ? `<div class="auto-prompt__cards">${selectableCards}</div>` : ""}<div class="auto-prompt__actions">${options}${cardSelection}${orderInput}${prompt.kind === "discard" && mine ? `<button class="btn btn--primary" data-submit-discard ${selectedDiscard.size === Number(prompt.min || 0) ? "" : "disabled"}>确认弃牌</button>` : ""}${prompt.kind === "assisted-skill" && mine ? `<button class="btn btn--primary" data-assisted-finish>完成技能结算</button>` : ""}</div></aside>`;
 }
 
 function findCard(instanceId: string, ownerId = "") {
@@ -436,7 +508,22 @@ function renderCardDetail() {
   const extra = cardDefinition.kind === "body" && owner.bodyState.flipped;
   const name = extra ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name;
   const text = extra ? cardDefinition.extraText || cardDefinition.text : cardDefinition.text;
-  return `<div class="auto-detail" role="dialog" aria-modal="true" aria-label="卡牌详情"><button class="auto-detail__backdrop" data-detail-close aria-label="关闭详情"></button><article><button class="auto-detail__close" data-detail-close aria-label="关闭">×</button>${image ? `<img src="${image}" alt="${escapeHtml(name)}" />` : ""}<div><span>${escapeHtml(cardDefinition.kind === "character" ? cardDefinition.mainRole || "角色" : cardDefinition.kind === "body" ? cardDefinition.archetype || "本体" : "手牌")}</span><h3>${escapeHtml(name)}</h3>${cardDefinition.skillName ? `<strong>【${escapeHtml(cardDefinition.skillName)}】</strong>` : ""}${cardDefinition.timing ? `<p><b>时机</b>${escapeHtml(cardDefinition.timing)}</p>` : ""}${cardDefinition.costText ? `<p><b>费用</b>${escapeHtml(cardDefinition.costText)}</p>` : ""}<p><b>效果</b>${escapeHtml(text)}</p></div></article></div>`;
+  return `<div class="auto-detail" role="dialog" aria-modal="true" aria-label="卡牌详情"><button class="auto-detail__backdrop" data-detail-close aria-label="关闭详情"></button><article><button class="auto-detail__close" data-detail-close aria-label="关闭">×</button>${image ? `<img src="${image}" alt="${escapeHtml(name)}" />` : ""}${renderCardInformation(cardDefinition, name, text)}</article></div>`;
+}
+
+function renderCardInformation(cardDefinition: NonNullable<ReturnType<typeof definition>>, name: string, text: string) {
+  const type = cardDefinition.kind === "character" ? cardDefinition.mainRole || "角色" : cardDefinition.kind === "body" ? cardDefinition.archetype || "本体" : "手牌";
+  return `<div class="auto-card-info"><span>${escapeHtml(type)}</span><h3>${escapeHtml(name)}</h3>${cardDefinition.skillName ? `<strong>【${escapeHtml(cardDefinition.skillName)}】</strong>` : ""}${cardDefinition.timing ? `<p><b>发动时机</b>${escapeHtml(cardDefinition.timing)}</p>` : ""}${cardDefinition.costText ? `<p><b>费用</b>${escapeHtml(cardDefinition.costText)}</p>` : ""}<p><b>${cardDefinition.kind === "hand" ? "效果" : "技能详情"}</b>${escapeHtml(text)}</p></div>`;
+}
+
+function renderLocalSelection() {
+  if (!localSelectionAction) return "";
+  const selected = selectedPromptCards.size;
+  const min = Number(localSelectionAction.min || 0);
+  const max = Number(localSelectionAction.max || 0);
+  const confirmDisabled = localSelectionAction.cardInstanceIds && (selected < min || selected > max);
+  const options = localSelectionAction.options?.map((option, index) => `<button class="btn btn--secondary" data-local-option="${index}">${escapeHtml(option.label)}</button>`).join("") || "";
+  return `<aside class="auto-prompt auto-local-selection is-mine"><span>需要你的操作</span><h3>${escapeHtml(localSelectionAction.title)}</h3><p>${escapeHtml(localSelectionAction.message)}</p><div class="auto-prompt__actions">${options}${localSelectionAction.cardInstanceIds ? `<button class="btn btn--primary" data-local-selection-confirm ${confirmDisabled ? "disabled" : ""}>确认选择 ${selected}/${min === max ? min : `${min}-${max}`}</button>` : ""}<button class="btn btn--secondary" data-local-selection-cancel>取消</button></div></aside>`;
 }
 
 function renderRoleAction(me?: AutoPlayerView) {
@@ -469,15 +556,17 @@ function renderGame() {
   const recentEvent = snapshot.game.recentEvents.at(-1);
   const selectedCard = me?.hand.find((card) => card.instanceId === selectedPlayCardId);
   const selectedDefinition = definition(selectedCard);
+  const hasInteractionOverlay = Boolean(snapshot.game.prompt || selectedRoleInstanceId || localSelectionAction);
   root.innerHTML = `<div class="auto-game-stage"><div class="auto-game" data-phase="${snapshot.game.phase}">
     ${opponent ? renderPlayer(opponent, false, spectator ? "玩家 A" : undefined) : ""}
-    <section class="auto-command-center">
+    <section class="auto-command-center ${hasInteractionOverlay ? "has-interaction-overlay" : ""}">
       <div class="auto-phase"><span>第 ${snapshot.game.turnNumber} 回合</span><strong>${phaseLabels[snapshot.game.phase]}阶段</strong><small>${isMyTurn ? "你的回合" : "对手回合"}${recentEvent ? ` · ${escapeHtml(eventLabel(recentEvent.type))}` : ""}</small></div>
       <button class="btn btn--primary" data-phase-advance ${canAdvance ? "" : "disabled"}>进入下一阶段</button>
       ${snapshot.game.phase === "deployment" && isMyTurn ? `<button class="btn btn--secondary" data-deploy ${snapshot.game.deployedThisPhase >= 2 ? "disabled" : ""}>上阵角色（${snapshot.game.deployedThisPhase}/2）</button>` : ""}
       ${bombActions.map((action) => `<button class="btn btn--secondary" data-remove-bomb="${escapeHtml(String(action.payload?.markerId || ""))}">休整1张角色拆除炸弹</button>`).join("")}
       <div class="auto-stack"><span>结算栈 ${snapshot.game.stack.length}</span><ol>${stack || "<li>当前为空</li>"}</ol></div>
       ${renderPrompt(snapshot.game.prompt, me)}
+      ${renderLocalSelection()}
       ${renderRoleAction(me)}
       ${snapshot.game.winnerId ? `<div class="auto-winner"><strong>${snapshot.game.winnerId === snapshot.you ? "你获胜了" : "对手获胜"}</strong><a href="/play" class="btn btn--primary">返回大厅</a></div>` : ""}
     </section>
@@ -530,9 +619,12 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
   root.querySelector("[data-body-activate]")?.addEventListener("click", () => send("body:activate"));
   root.querySelectorAll<HTMLButtonElement>("[data-remove-bomb]").forEach((button) => button.addEventListener("click", () => {
     const action = snapshot?.game.legalActions?.find((candidate) => candidate.type === "bomb:remove" && candidate.payload?.markerId === button.dataset.removeBomb);
-    const cost = action?.selection ? chooseServerSelection(action.selection, me) : undefined;
-    if (action?.selection && !cost) return;
-    send("bomb:remove", { markerId: button.dataset.removeBomb, ...cost });
+    if (action?.selection) return beginLocalCardSelection({
+      command: "bomb:remove", payload: { markerId: button.dataset.removeBomb }, title: "拆除炸弹",
+      message: `在己方角色区选择 ${action.selection.min} 张角色支付休整费用。`, selectionKind: "cost",
+      cardInstanceIds: action.selection.cardInstanceIds, min: action.selection.min, max: action.selection.max,
+    });
+    send("bomb:remove", { markerId: button.dataset.removeBomb });
   }));
   root.querySelectorAll<HTMLButtonElement>("[data-auto-card]").forEach((button) => button.addEventListener("click", () => handleCard(button, me, opponent)));
   root.querySelector("[data-confirm-play]")?.addEventListener("click", () => confirmSelectedHand(me, opponent));
@@ -542,28 +634,85 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
   root.querySelectorAll<HTMLButtonElement>("[data-role-action]").forEach((button) => button.addEventListener("click", () => runSelectedRoleAction(button.dataset.roleAction || "", me)));
   root.querySelectorAll<HTMLButtonElement>("[data-prompt-value]").forEach((button) => button.addEventListener("click", () => send("choice:submit", { value: button.dataset.promptValue })));
   root.querySelectorAll<HTMLButtonElement>("[data-prompt-card]").forEach((button) => button.addEventListener("click", () => {
-    const instanceId = button.dataset.promptCard || "";
-    const max = Number(snapshot?.game.prompt?.max || 0);
-    if (selectedPromptCards.has(instanceId)) selectedPromptCards.delete(instanceId);
-    else if (max > 0 && selectedPromptCards.size < max) selectedPromptCards.add(instanceId);
-    else return showToast(`至多选择 ${max} 张牌。`);
-    button.classList.toggle("is-selected", selectedPromptCards.has(instanceId));
-    const submit = root?.querySelector<HTMLButtonElement>("[data-submit-body-selection]");
-    const characterSubmit = root?.querySelector<HTMLButtonElement>("[data-submit-character-selection]");
-    const min = Number(snapshot?.game.prompt?.min || 0);
-    if (submit) submit.disabled = selectedPromptCards.size < min || selectedPromptCards.size > max;
-    if (characterSubmit) characterSubmit.disabled = selectedPromptCards.size < min || selectedPromptCards.size > max;
+    toggleServerPromptCard(button.dataset.promptCard || "");
   }));
   root.querySelectorAll<HTMLButtonElement>("[data-assisted-action]").forEach((button) => button.addEventListener("click", () => runAssistedAction(button.dataset.assistedAction || "", me, opponent)));
-  root.querySelector("[data-submit-body-selection]")?.addEventListener("click", () => send("choice:submit", { cardInstanceIds: [...selectedPromptCards] }));
-  root.querySelector("[data-submit-character-selection]")?.addEventListener("click", () => send("choice:submit", { cardInstanceIds: [...selectedPromptCards] }));
+  root.querySelector("[data-submit-prompt-selection]")?.addEventListener("click", () => send("choice:submit", { cardInstanceIds: [...selectedPromptCards] }));
   root.querySelector("[data-submit-character-order]")?.addEventListener("click", () => {
     const value = window.prompt("输入牌序：牌顶编号 | 牌底编号，例如 1,3 | 2,4", "1 | 2,3");
     if (value) send("choice:submit", { value });
   });
   root.querySelector("[data-submit-discard]")?.addEventListener("click", () => send("choice:submit", { cardInstanceIds: [...selectedDiscard] }));
   root.querySelector("[data-assisted-finish]")?.addEventListener("click", () => send("assisted:finish"));
+  root.querySelector("[data-local-selection-confirm]")?.addEventListener("click", submitLocalSelection);
+  root.querySelector("[data-local-selection-cancel]")?.addEventListener("click", () => {
+    localSelectionAction = undefined;
+    selectedPromptCards.clear();
+    render();
+  });
+  root.querySelectorAll<HTMLButtonElement>("[data-local-option]").forEach((button) => button.addEventListener("click", () => {
+    const option = localSelectionAction?.options?.[Number(button.dataset.localOption)];
+    if (!option || !localSelectionAction) return;
+    const { command, payload } = localSelectionAction;
+    localSelectionAction = undefined;
+    selectedPromptCards.clear();
+    send(command, { ...payload, ...option.payload });
+  }));
+  root.querySelectorAll<HTMLButtonElement>("[data-local-slot]").forEach((button) => button.addEventListener("click", () => {
+    toggleSelection(button.dataset.localSlot || "", selectedPromptCards, Number(localSelectionAction?.max || 0));
+  }));
   bindHoverPreviews();
+}
+
+function beginLocalCardSelection(action: LocalSelectionAction) {
+  localSelectionAction = action;
+  selectedRoleInstanceId = "";
+  selectedPromptCards.clear();
+  const cardInstanceIds = action.cardInstanceIds || [];
+  if (cardInstanceIds.length === action.min && action.min === action.max) {
+    cardInstanceIds.forEach((id) => selectedPromptCards.add(id));
+  }
+  render();
+}
+
+function toggleSelection(instanceId: string, ids: Set<string>, max: number) {
+  if (ids.has(instanceId)) ids.delete(instanceId);
+  else if (max > 0 && ids.size < max) ids.add(instanceId);
+  else return showToast(`至多选择 ${max} 张牌。`);
+  render();
+}
+
+function toggleServerPromptCard(instanceId: string) {
+  const prompt = snapshot?.game.prompt;
+  if (!prompt || !prompt.cardInstanceIds?.includes(instanceId)) return;
+  if (prompt.kind === "discard") return toggleSelection(instanceId, selectedDiscard, Number(prompt.max || prompt.min || 0));
+  toggleSelection(instanceId, selectedPromptCards, Number(prompt.max || 0));
+}
+
+function submitLocalSelection() {
+  if (!localSelectionAction) return;
+  const action = localSelectionAction;
+  const selected = [...selectedPromptCards];
+  const min = Number(action.min || 0);
+  const max = Number(action.max || 0);
+  if (selected.length < min || selected.length > max) return showToast(`请选择 ${min === max ? min : `${min}-${max}`} 张牌。`);
+  const payload = { ...action.payload };
+  if (action.selectionKind === "cost") payload.costCharacterIds = selected;
+  if (action.selectionKind === "target-slot") {
+    const targetId = selected[0];
+    const slotMatch = /^slot:([^:]+):(\d+)$/.exec(targetId);
+    const target = slotMatch
+      ? snapshot?.players.find((player) => player.id === slotMatch[1])
+      : snapshot?.players.find((player) => player.characterSlots.some((slot) => slot && "instanceId" in slot && slot.instanceId === targetId));
+    const targetSlotIndex = slotMatch
+      ? Number(slotMatch[2])
+      : target?.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === targetId) ?? -1;
+    if (targetSlotIndex < 0) return showToast("目标角色已不在场上。");
+    payload.targetSlotIndex = targetSlotIndex;
+  }
+  localSelectionAction = undefined;
+  selectedPromptCards.clear();
+  send(action.command, payload);
 }
 
 function runAssistedAction(action: string, me: AutoPlayerView, opponent?: AutoPlayerView) {
@@ -606,6 +755,8 @@ function handleCard(button: HTMLButtonElement, me: AutoPlayerView, opponent?: Au
   const cardDefinition = definition(card);
   if (!card || !cardDefinition) return;
   const prompt = snapshot.game.prompt;
+  if (isLocalSelectionCard(instanceId)) return toggleSelection(instanceId, selectedPromptCards, Number(localSelectionAction?.max || 0));
+  if (isServerPromptSelectable(instanceId)) return toggleServerPromptCard(instanceId);
   const roleZone = zone.startsWith("slot:") || zone === "retired";
   if (roleZone) {
     if (located.owner?.id === me.id && (!prompt || ["response", "dying", "character-trigger"].includes(prompt.kind))) {
@@ -663,20 +814,32 @@ function confirmSelectedHand(me: AutoPlayerView, opponent?: AutoPlayerView) {
     selectedPlayCardId = "";
     return send("response:play", { instanceId, ...(cardDefinition.id === "hand_basic_004" ? { resolvedAs: "hand_basic_002" } : {}) });
   }
-  let resolvedAs: string | undefined;
+  const legalPlays = snapshot.game.legalActions?.filter((action) => action.type === "hand:play" && action.payload?.instanceId === instanceId) || [];
   if (cardDefinition.id === "hand_basic_004") {
-    const choice = window.prompt("冒名顶替：输入 出刀、闪避 或 急救", "出刀");
-    resolvedAs = ({ "出刀": "hand_basic_001", "闪避": "hand_basic_002", "急救": "hand_basic_003" } as Record<string, string>)[choice || ""];
-    if (!resolvedAs) return;
+    const options = legalPlays.map((action) => ({
+      label: `当【${catalog.cards[String(action.payload?.resolvedAs)]?.name || "基础牌"}】使用`,
+      payload: { resolvedAs: action.payload?.resolvedAs },
+    }));
+    localSelectionAction = { command: "hand:play", payload: { instanceId }, title: "冒名顶替", message: "选择这张牌本次视为哪张基础牌。", options };
+    selectedPlayCardId = "";
+    return render();
   }
-  let targetSlotIndex: number | undefined;
-  if (["hand_trick_004", "hand_trick_007"].includes(cardDefinition.id)) {
-    const value = Number(window.prompt("选择对手角色位（1-4）", "1"));
-    if (!Number.isInteger(value) || value < 1 || value > 4 || !opponent) return;
-    targetSlotIndex = value - 1;
+  const targetPlays = legalPlays.filter((action) => Number.isInteger(action.payload?.targetSlotIndex));
+  if (targetPlays.length && opponent) {
+    const ids = targetPlays.flatMap((action) => {
+      const targetSlotIndex = Number(action.payload?.targetSlotIndex);
+      const slot = opponent.characterSlots[targetSlotIndex];
+      if (!slot) return [];
+      return "instanceId" in slot && slot.instanceId ? [slot.instanceId] : [`slot:${opponent.id}:${targetSlotIndex}`];
+    });
+    selectedPlayCardId = "";
+    return beginLocalCardSelection({
+      command: "hand:play", payload: { instanceId }, title: cardDefinition.name, message: "直接在对手角色区选择1张合法目标。",
+      selectionKind: "target-slot", cardInstanceIds: ids, min: 1, max: 1,
+    });
   }
   selectedPlayCardId = "";
-  send("hand:play", { instanceId, resolvedAs, targetSlotIndex });
+  send("hand:play", { instanceId });
 }
 
 function runSelectedRoleAction(action: string, me: AutoPlayerView) {
@@ -700,12 +863,22 @@ function runSelectedRoleAction(action: string, me: AutoPlayerView) {
   }
   if (action !== "skill") return;
   const legal = snapshot.game.legalActions?.find((candidate) => candidate.type === "skill:activate" && candidate.payload?.instanceId === selectedRoleInstanceId);
-  const reduction = snapshot.game.skillCostRestReductionByCharacterId[selectedRoleInstanceId] || 0;
-  const cost = legal?.selection ? chooseServerSelection(legal.selection, me) : skillCostPayload(cardDefinition.costText || "", me, card, reduction);
-  if (cost === undefined) return;
   const instanceId = selectedRoleInstanceId;
+  if (legal?.selection) return beginLocalCardSelection({
+    command: "skill:activate", payload: { instanceId }, title: `发动【${cardDefinition.skillName || cardDefinition.name}】`,
+    message: `在己方角色区选择 ${legal.selection.min} 张角色支付休整费用。`, selectionKind: "cost",
+    cardInstanceIds: legal.selection.cardInstanceIds, min: legal.selection.min, max: legal.selection.max,
+  });
+  if (cardDefinition.costText?.includes("休整自身/退场自身")) {
+    selectedRoleInstanceId = "";
+    localSelectionAction = {
+      command: "skill:activate", payload: { instanceId }, title: `发动【${cardDefinition.skillName || cardDefinition.name}】`, message: "选择本次发动技能支付的费用。",
+      options: [{ label: "休整自身", payload: { costMode: "rest" } }, { label: "退场自身", payload: { costMode: "retire" } }],
+    };
+    return render();
+  }
   selectedRoleInstanceId = "";
-  send("skill:activate", { instanceId, ...cost });
+  send("skill:activate", { instanceId });
 }
 
 function bindHoverPreviews() {
@@ -719,62 +892,25 @@ function bindHoverPreviews() {
       const cardDefinition = definition(card);
       const image = card && owner ? cardImage(card, owner) : undefined;
       if (!cardDefinition || !image) return;
-      preview.innerHTML = `<img src="${image}" alt="${escapeHtml(cardDefinition.name)}"><strong>${escapeHtml(cardDefinition.name)}</strong>`;
+      const extra = cardDefinition.kind === "body" && Boolean(owner?.bodyState.flipped);
+      const name = extra ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name;
+      const text = extra ? cardDefinition.extraText || cardDefinition.text : cardDefinition.text;
+      preview.innerHTML = `<img src="${image}" alt="${escapeHtml(name)}">${renderCardInformation(cardDefinition, name, text)}`;
       preview.hidden = false;
       const rect = button.getBoundingClientRect();
-      const width = 190;
-      const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.left + rect.width / 2 - width / 2));
-      const above = rect.top > 330;
+      const width = 470;
+      const preferredRight = rect.right + 12;
+      const preferredLeft = rect.left - width - 12;
+      const left = preferredRight + width <= window.innerWidth - 8 ? preferredRight : Math.max(8, preferredLeft);
+      const height = Math.min(390, preview.scrollHeight || 320);
       preview.style.left = `${left}px`;
-      preview.style.top = above ? `${Math.max(8, rect.top - 300)}px` : `${Math.min(window.innerHeight - 290, rect.bottom + 8)}px`;
+      preview.style.top = `${Math.max(8, Math.min(window.innerHeight - height - 8, rect.top + rect.height / 2 - height / 2))}px`;
     };
     button.addEventListener("mouseenter", show);
     button.addEventListener("mouseleave", hide);
     button.addEventListener("focus", show);
     button.addEventListener("blur", hide);
   });
-}
-
-function chooseServerSelection(
-  selection: { kind: "cards" | "skill-cost" | "order"; cardInstanceIds: string[]; min: number; max: number },
-  player: AutoPlayerView,
-) {
-  if (selection.kind !== "skill-cost") return {};
-  if (selection.min <= 0) return { costCharacterIds: [] };
-  if (selection.cardInstanceIds.length === selection.min) return { costCharacterIds: [...selection.cardInstanceIds] };
-  const choices = player.characterSlots.flatMap((slot, slotIndex) => slot && "instanceId" in slot && typeof slot.instanceId === "string" && selection.cardInstanceIds.includes(slot.instanceId)
-    ? [`${slotIndex + 1}`]
-    : []);
-  const value = window.prompt(`选择 ${selection.min} 个角色位支付休整费用（可选：${choices.join("、")}，多个用逗号分隔）`, choices.slice(0, selection.min).join(","));
-  if (!value) return undefined;
-  const indexes = value.split(/[,，\s]+/).map(Number).filter(Number.isInteger);
-  const ids = indexes.map((index) => {
-    const slot = player.characterSlots[index - 1];
-    return slot && "instanceId" in slot && typeof slot.instanceId === "string" ? slot.instanceId : "";
-  }).filter((id) => selection.cardInstanceIds.includes(id));
-  if (ids.length !== selection.min || new Set(ids).size !== ids.length) {
-    showToast(`需要选择 ${selection.min} 张合法角色。`);
-    return undefined;
-  }
-  return { costCharacterIds: ids };
-}
-
-function skillCostPayload(costText: string, player: AutoPlayerView, role: CardView, restReduction = 0) {
-  if (costText.includes("休整自身/退场自身")) {
-    const choice = window.prompt("选择技能费用：输入 休整 或 退场", "休整");
-    if (!choice || !["休整", "退场"].includes(choice)) return undefined;
-    return { costMode: choice === "退场" ? "retire" : "rest", costCharacterIds: choice === "休整" ? [role.instanceId] : [] };
-  }
-  if (costText.includes("休整自身")) return { costCharacterIds: [role.instanceId] };
-  if (costText.includes("同等费用")) return { costCharacterIds: [] };
-  const match = costText.match(/休整\s*(\d+)/);
-  if (!match) return { costCharacterIds: [] };
-  const amount = Math.max(0, Number(match[1]) - restReduction);
-  if (amount === 0) return { costCharacterIds: [] };
-  const answer = window.prompt(`选择 ${amount} 张休整角色的角色位，以逗号分隔（1-4）`, "1");
-  if (!answer) return undefined;
-  const ids = answer.split(/[,，\s]+/).map(Number).map((index) => player.characterSlots[index - 1]).filter((slot): slot is CardView => Boolean(slot && "instanceId" in slot && slot.instanceId)).map((slot) => slot.instanceId as string);
-  return ids.length === amount ? { costCharacterIds: ids } : undefined;
 }
 
 function render() {
@@ -839,6 +975,7 @@ document.querySelector<HTMLAnchorElement>("[data-auto-exit]")?.addEventListener(
   else location.href = "/play";
   window.setTimeout(() => { location.href = "/play"; }, 800);
 });
+document.querySelector<HTMLButtonElement>("[data-auto-copy-invite]")?.addEventListener("click", (event) => copyText(inviteUrl(), event.currentTarget as HTMLButtonElement, "已复制", "邀请链接"));
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (detailCardInstanceId) {

@@ -11,6 +11,7 @@ import {
   handLimit,
   legalResponseCards,
   passResponseWindow,
+  responseEventForItem,
 } from "../../worker/src/auto-engine.mts";
 
 function card(instanceId, definitionId, ownerId = "p1") {
@@ -127,6 +128,19 @@ test("passing a source-only skill window opens the real target response", () => 
   assert.equal(passResponseWindow(room, "p1"), "response");
   assert.equal(room.responsePlayerId, "p2");
   assert.equal(strike.responseWindowClosed, undefined);
+});
+
+test("response triggers are tied to the current stack item instead of an earlier card", () => {
+  const room = state();
+  const strike = { kind: "hand", id: "strike", sourcePlayerId: "p1", targetPlayerId: "p2", card: card("s", HAND_IDS.strike), definitionId: HAND_IDS.strike };
+  const meeting = { kind: "hand", id: "meeting", sourcePlayerId: "p2", card: card("m", HAND_IDS.meeting), definitionId: HAND_IDS.meeting, countersItemId: strike.id };
+  room.stack = [strike, meeting];
+  room.recentEvents = [
+    { id: "strike-used", type: "card_used", turnNumber: 1, sourcePlayerId: "p1", targetPlayerId: "p2", cardDefinitionId: HAND_IDS.strike },
+    { id: "meeting-responded", type: "card_responded", turnNumber: 1, sourcePlayerId: "p2", targetPlayerId: "p1", cardDefinitionId: HAND_IDS.meeting, metadata: { resolutionItemId: meeting.id } },
+  ];
+  assert.equal(responseEventForItem(room, meeting)?.id, "meeting-responded");
+  assert.equal(responseEventForItem(room, strike), undefined, "the earlier strike event must not leak into the meeting response window");
 });
 
 test("turn advancement preserves game limits and clears turn-scoped counters", () => {
