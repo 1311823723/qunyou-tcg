@@ -16,10 +16,6 @@ function bodyCardImage(id: string, side: "front" | "back", extraType?: string) {
   return `/cards/bodies/${id}_${extraFormFileSlugs[extraType || ""] || "extra"}_back.webp`;
 }
 
-function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: string) {
-  if (side === "front") return `/cards-hd/bodies/${id}_front.webp`;
-  return `/cards-hd/bodies/${id}_${extraFormFileSlugs[extraType || ""] || "extra"}_back.webp`;
-}
 ---
 
 <Layout title="本体牌">
@@ -55,7 +51,7 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
         <article class="thumb-card body-thumb-card scroll-reveal" style={`animation-delay: ${Math.min(i * 0.04, 1)}s`}>
           <button
             type="button"
-            class="thumb-card__btn body-thumb-card__btn"
+            class="body-thumb-card__image-button"
             data-body-card-trigger
             data-body-id={b.id}
             data-body-name={b.name}
@@ -73,12 +69,23 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
             data-body-extra-effect={b.extraForm?.effectText || ""}
             data-body-extra-condition={b.extraForm?.condition || ""}
             data-body-notes={b.notes || ""}
-            data-body-front={bodyCardHighResImage(b.id, "front")}
-            data-body-back={bodyCardHighResImage(b.id, "back", b.extraForm?.type)}
-            aria-label={`查看 ${b.name} 本体卡详情`}
+            aria-label={`查看 ${b.name} 本体卡高清详情`}
           >
-            <img src={bodyCardImage(b.id, "front")} width="250" height="350" alt={`${b.name} 本体卡`} loading="lazy" decoding="async" />
-            <span class="thumb-card__name">{b.name}</span>
+            <span class="body-thumb-card__image-stage">
+              <span class="body-thumb-card__flip-inner" id={`body-thumb-flip-${b.id}`}>
+                <span class="body-thumb-card__face body-thumb-card__face--front">
+                  <img src={bodyCardImage(b.id, "front")} width="250" height="350" alt={`${b.name} 本体卡`} loading="lazy" decoding="async" />
+                </span>
+                <span class="body-thumb-card__face body-thumb-card__face--back">
+                  <img src={bodyCardImage(b.id, "back", b.extraForm?.type)} width="250" height="350" alt={`${b.extraForm?.name || b.name} 额外形态卡`} loading="lazy" decoding="async" />
+                </span>
+              </span>
+            </span>
+            <span class="body-thumb-card__name">{b.name}</span>
+          </button>
+          <button type="button" class="card-flip__btn body-thumb-card__flip" data-body-thumb-flip={`body-thumb-flip-${b.id}`} data-body-extra-action-label={b.extraForm ? EXTRA_FORM_ACTION_LABELS[b.extraForm.type] || b.extraForm.type : ""} aria-pressed="false">
+            <span class="card-flip__btn-icon" aria-hidden="true">↻</span>
+            <span data-body-thumb-flip-label>查看背面 · {b.extraForm ? EXTRA_FORM_ACTION_LABELS[b.extraForm.type] || b.extraForm.type : "额外形态"}</span>
           </button>
         </article>
       ))}
@@ -160,6 +167,7 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
   let bodyZoomReturnFocus: HTMLElement | null = null;
   let bodyZoomSource: HTMLElement | null = null;
   let bodyZoomIsBack = false;
+  let bodyZoomAnimationTimer = 0;
 
   function setBodyText(element: HTMLElement | null, value: string) {
     if (element) element.textContent = value;
@@ -175,12 +183,14 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
     image.src = highResPath;
   }
 
-  function renderBodyZoomState(isBack: boolean) {
+  function renderBodyZoomState(isBack: boolean, animate = false) {
     if (!bodyZoomSource) return;
     const source = bodyZoomSource.dataset;
     const extraType = source.bodyExtraType || "";
     const hasExtra = Boolean(extraType && source.bodyExtraName);
     bodyZoomIsBack = isBack && hasExtra;
+    if (bodyZoomAnimationTimer) window.clearTimeout(bodyZoomAnimationTimer);
+    bodyZoomInner?.classList.remove("is-flipping-forward", "is-flipping-backward");
     bodyZoomInner?.classList.toggle("is-flipped", bodyZoomIsBack);
     setBodyText(bodyZoomForm, bodyZoomIsBack ? source.bodyExtraLabel || extraType : `本体 · ${source.bodyArchetype || ""}`);
     setBodyText(bodyZoomName, bodyZoomIsBack ? source.bodyExtraName || "" : source.bodyName || "");
@@ -199,22 +209,41 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
     setBodyText(bodyZoomNotes, notes);
     if (bodyZoomFlip) bodyZoomFlip.hidden = !hasExtra;
     setBodyText(bodyZoomFlipLabel, bodyZoomIsBack ? "查看正面 · 本体" : `查看背面 · ${source.bodyExtraActionLabel || extraType}`);
+    if (animate && bodyZoomInner) {
+      void bodyZoomInner.offsetWidth;
+      bodyZoomInner.classList.add(bodyZoomIsBack ? "is-flipping-forward" : "is-flipping-backward");
+      bodyZoomAnimationTimer = window.setTimeout(() => {
+        bodyZoomInner.classList.remove("is-flipping-forward", "is-flipping-backward");
+      }, 1120);
+    }
   }
 
   function showBodyZoom(button: HTMLElement) {
     if (!bodyZoomDialog) return;
     const source = button.dataset;
-    const id = source.bodyId || "";
-    const front = source.bodyFront || `/cards-hd/bodies/${id}_front.webp`;
-    const back = source.bodyBack || "";
+    const id = encodeURIComponent(source.bodyId || "");
+    const extraSlug = ({ mega: "mega", "z-move": "z_move", terastal: "terastal", dynamax: "dynamax" } as Record<string, string>)[source.bodyExtraType || ""] || "extra";
+    const front = `/cards-hd/bodies/${id}_front.webp`;
+    const back = `/cards-hd/bodies/${id}_${extraSlug}_back.webp`;
     const normalFront = front.replace("/cards-hd/", "/cards/");
     const normalBack = back.replace("/cards-hd/", "/cards/");
-    setBodyImage(bodyZoomFront, front, normalFront, `${source.bodyName || "本体"} 高清卡图`);
-    setBodyImage(bodyZoomBack, back, normalBack, `${source.bodyExtraName || "额外形态"} 高清卡图`);
+    const thumbnailInner = button.closest<HTMLElement>(".body-thumb-card")?.querySelector<HTMLElement>(".body-thumb-card__flip-inner");
+    const startsBack = Boolean(thumbnailInner?.classList.contains("is-flipped"));
     bodyZoomSource = button;
     bodyZoomReturnFocus = button;
-    renderBodyZoomState(false);
+    setBodyImage(bodyZoomFront, front, normalFront, `${source.bodyName || "本体"} 高清卡图`);
+    setBodyImage(bodyZoomBack, back, normalBack, `${source.bodyExtraName || "额外形态"} 高清卡图`);
+    renderBodyZoomState(startsBack);
     bodyZoomDialog.showModal();
+  }
+
+  function flipBodyThumbnail(button: HTMLElement) {
+    const inner = document.getElementById(button.dataset.bodyThumbFlip || "");
+    if (!inner) return;
+    const isFlipped = inner.classList.toggle("is-flipped");
+    button.setAttribute("aria-pressed", String(isFlipped));
+    const label = button.querySelector<HTMLElement>("[data-body-thumb-flip-label]");
+    setBodyText(label, isFlipped ? "查看正面 · 本体" : `查看背面 · ${button.dataset.bodyExtraActionLabel || "额外形态"}`);
   }
 
   function setBodyViewMode(mode: string) {
@@ -230,9 +259,14 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
   }
 
   bodyViewButtons.forEach((button) => button.addEventListener("click", () => setBodyViewMode(button.dataset.bodyView || "card")));
-  bodyZoomFlip?.addEventListener("click", () => renderBodyZoomState(!bodyZoomIsBack));
+  bodyZoomFlip?.addEventListener("click", () => renderBodyZoomState(!bodyZoomIsBack, true));
   document.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
+    const thumbnailFlip = target.closest<HTMLElement>("[data-body-thumb-flip]");
+    if (thumbnailFlip) {
+      flipBodyThumbnail(thumbnailFlip);
+      return;
+    }
     const trigger = target.closest<HTMLElement>("[data-body-card-trigger]");
     if (trigger) {
       showBodyZoom(trigger);

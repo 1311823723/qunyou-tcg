@@ -1514,12 +1514,55 @@ strong { color: var(--text-gold); font-weight: 800; }
 .body-view-panel__hint { margin: 0.9rem 0 0; max-width: 48rem; }
 .body-card-gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 25rem), 25rem));
+  justify-content: center;
   gap: 1rem;
 }
 .body-card-gallery[hidden] { display: none; }
-.body-thumb-card__btn { background: linear-gradient(160deg, rgba(39, 28, 46, 0.88), rgba(5, 7, 14, 0.86)); }
-.body-thumb-card__btn img { aspect-ratio: 5 / 7; }
+.body-thumb-card { min-width: 0; }
+.body-thumb-card__image-button {
+  display: block;
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: linear-gradient(160deg, rgba(39, 28, 46, 0.88), rgba(5, 7, 14, 0.86));
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.body-thumb-card__image-button:hover {
+  border-color: var(--accent-mega);
+  box-shadow: 0 0 15px rgba(216, 183, 92, 0.2);
+  transform: translateY(-2px);
+}
+.body-thumb-card__image-stage {
+  display: block;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  perspective: 1100px;
+}
+.body-thumb-card__flip-inner {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.56s cubic-bezier(0.22, 0.7, 0.24, 1);
+}
+.body-thumb-card__flip-inner.is-flipped { transform: rotateY(180deg); }
+.body-thumb-card__face {
+  position: relative;
+  grid-area: 1 / 1;
+  overflow: hidden;
+  border-radius: 8px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.body-thumb-card__face--back { transform: rotateY(180deg); }
+.body-thumb-card__face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.body-thumb-card__name { display: block; margin-top: 0.5rem; color: var(--text-primary); font-size: 0.9rem; font-weight: 900; line-height: 1.3; text-align: center; }
+.body-thumb-card__flip { display: flex; width: fit-content; margin: 0.62rem auto 0; }
+.body-thumb-card__flip .card-flip__btn-icon { transition: transform 0.3s ease; }
+.body-thumb-card__flip[aria-pressed="true"] .card-flip__btn-icon { transform: rotate(-180deg); }
 
 /* 本体牌高清弹窗与独立翻面舞台 */
 .body-card-zoom-dialog { width: min(96vw, 74rem); }
@@ -1551,6 +1594,8 @@ strong { color: var(--text-gold); font-weight: 800; }
   transition: transform 0.56s cubic-bezier(0.22, 0.7, 0.24, 1);
 }
 .body-card-zoom__flip-inner.is-flipped { transform: rotateY(180deg); }
+.body-card-zoom__flip-inner.is-flipping-forward { animation: body-card-cinematic-flip-forward 1.08s cubic-bezier(0.2, 0.72, 0.16, 1) both; }
+.body-card-zoom__flip-inner.is-flipping-backward { animation: body-card-cinematic-flip-backward 1.08s cubic-bezier(0.2, 0.72, 0.16, 1) both; }
 .body-card-zoom__face {
   position: relative;
   grid-area: 1 / 1;
@@ -1588,6 +1633,18 @@ strong { color: var(--text-gold); font-weight: 800; }
 .body-card-zoom__effect-label { display: block; margin-bottom: 0.34rem; color: var(--text-muted); font: 800 0.61rem var(--font-mono); letter-spacing: 0.1em; }
 .body-card-zoom__skill { margin: 0; color: var(--text-gold); font-size: 0.9rem; font-weight: 900; line-height: 1.45; }
 .body-card-zoom__effect { margin: 0.35rem 0 0; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.72; overflow-wrap: anywhere; }
+@keyframes body-card-cinematic-flip-forward {
+  0% { transform: perspective(700px) rotateY(0); }
+  48% { transform: perspective(700px) rotateY(88deg) scale(1.08); filter: brightness(1.55); }
+  52% { transform: perspective(700px) rotateY(92deg) scale(1.08); }
+  100% { transform: perspective(700px) rotateY(180deg); filter: none; }
+}
+@keyframes body-card-cinematic-flip-backward {
+  0% { transform: perspective(700px) rotateY(180deg); }
+  48% { transform: perspective(700px) rotateY(92deg) scale(1.08); filter: brightness(1.55); }
+  52% { transform: perspective(700px) rotateY(88deg) scale(1.08); }
+  100% { transform: perspective(700px) rotateY(0); filter: none; }
+}
 
 /* 卡牌放大对话框 */
 .card-zoom-dialog {
@@ -1776,10 +1833,11 @@ strong { color: var(--text-gold); font-weight: 800; }
   .body-view-panel { padding: 0.85rem; }
   .body-view-panel .filter-panel__primary { gap: 0.35rem; }
   .body-view-panel .filter-group--view { padding-top: 0.6rem; border-top: 1px solid var(--border-soft); }
-  .body-card-gallery { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.75rem; }
+  .body-card-gallery { grid-template-columns: minmax(0, 25rem); gap: 0.75rem; }
   .body-card-zoom { padding: 0.8rem; }
   .body-card-zoom__meta { gap: 0.3rem; padding: 0.45rem; }
   .body-card-zoom__meta-value { font-size: 0.68rem; }
+  .body-thumb-card__name { font-size: 0.78rem; }
 }
 
 @media (max-width: 639px) {
@@ -2148,11 +2206,15 @@ a:not(.btn):not(.card-frame):not(.collection-card):not(.deck-spotlight):not(.nav
   .btn,
   .btn:active,
   .card-flip__inner,
+  .body-thumb-card__flip-inner,
+  .body-card-zoom__flip-inner,
   .card-flip__btn-icon,
   .tcg-body__art img,
   .tcg-body__art::before {
     transition-duration: 0.01ms;
   }
+  .body-card-zoom__flip-inner.is-flipping-forward,
+  .body-card-zoom__flip-inner.is-flipping-backward { animation: none; }
   .btn::after { display: none; }
   .tcg-body__hp::before,
   .tcg-char__head::before {
