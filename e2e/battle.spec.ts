@@ -243,6 +243,8 @@ test("automatic beta room starts, advances phases and protects spectator privacy
       expect(guestPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game"),
     ]);
     await expect(hostPage.locator(".auto-phase strong")).toHaveText("准备阶段");
+    await expect(hostPage.locator(".auto-phase-track li")).toHaveCount(6);
+    await expect(hostPage.locator(".auto-phase-track li.is-current")).toHaveText(/1准备/);
     await expect(hostPage.locator(".auto-body-status")).toHaveCount(2);
     await expect(hostPage.locator('.auto-progress-counter[aria-label="Mega 0 / 6"]')).toHaveCount(1);
     await expect(hostPage.locator('.auto-progress-counter[aria-label="Mega 0 / 5"]')).toHaveCount(1);
@@ -250,15 +252,16 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const hostPass = hostPage.locator('.auto-prompt.is-mine [data-prompt-value="pass"]');
       const guestPass = guestPage.locator('.auto-prompt.is-mine [data-prompt-value="pass"]');
-      if (await hostPass.isVisible().catch(() => false)) await hostPass.click();
-      else if (await guestPass.isVisible().catch(() => false)) await guestPass.click();
+      if (await hostPass.isVisible().catch(() => false)) await hostPass.click({ timeout: 1_000 }).catch(() => {});
+      else if (await guestPass.isVisible().catch(() => false)) await guestPass.click({ timeout: 1_000 }).catch(() => {});
       else break;
     }
 
-    const hostTurn = await hostPage.locator(".auto-phase small").textContent() === "你的回合";
+    const hostTurn = (await hostPage.locator(".auto-phase span").textContent())?.includes("你的回合") ?? false;
     const currentPage = hostTurn ? hostPage : guestPage;
     await currentPage.locator("[data-phase-advance]").click();
     await expect(currentPage.locator(".auto-phase strong")).toHaveText("摸牌阶段");
+    await expect(currentPage.locator(".auto-phase-track li.is-current")).toHaveText(/2摸牌/);
     await expect(currentPage.locator(".auto-hand [data-auto-card]")).toHaveCount(7);
 
     await setProfile(spectatorPage, "E2E-自动观战");

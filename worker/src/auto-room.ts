@@ -29,14 +29,8 @@ import {
   responseEventForItem,
   validPlayDefinition,
 } from "./auto-engine.mts";
-import {
-  BODY_IDS,
-  bodyId,
-  bodyProgressDelta,
-  bodyUsageKey,
-  triggerKindForBody,
-} from "./body-automation.mts";
 import { bodySkillForId } from "./skills/body-registry.mts";
+import { bodyId, bodyUsageKey } from "./skills/body-ids.mts";
 import type { BodySkillRuntimeContext } from "./skills/body-skill.mts";
 import { characterSkillForId } from "./skills/character-registry.mts";
 import type { CharacterSkillRuntimeContext } from "./skills/character-skill.mts";
@@ -1142,8 +1136,28 @@ export class AutoBattleRoom extends DurableObject<Env> {
         state.handDiscard.push(card);
       },
       handName,
+      characterName: (definitionId) => characterById.get(definitionId)?.name || definitionId,
       addLog: (message, actorId, target) => this.addLog(message, actorId, target),
       emitEvent: (type, details = {}) => this.emitEvent(type, details),
+      shuffle: (items) => this.shuffle(items),
+      deployTopCharacter: () => {
+        const deployed = deployTopCharacter(player);
+        if (deployed) this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId, deployed.card.instanceId);
+        return deployed;
+      },
+      restOwnCharacter: (instanceId) => {
+        const card = player.characterSlots.find((slot) => slot && "instanceId" in slot && slot.instanceId === instanceId);
+        if (!card || !("instanceId" in card)) return false;
+        this.restCard(player, card, false, player.id);
+        return true;
+      },
+      startJudgment: (purpose) => this.startJudgment(player, purpose),
+      discardRandom: (owner) => this.discardRandom(owner, player.id),
+      heal: (count) => {
+        const recovered = heal(player, count);
+        if (recovered) this.emitEvent("health_recovered", { sourcePlayerId: player.id, targetPlayerId: player.id, amount: recovered });
+        return recovered;
+      },
       legalStrikeCards: () => player.hand.filter((card) => card.definitionId === HAND_IDS.strike || card.definitionId === HAND_IDS.impersonate),
       startBodyStrike: (targetPlayerId, cardInstanceId) => {
         const target = playerById(state, targetPlayerId);
@@ -1183,7 +1197,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     for (const player of playersInResolutionOrder) {
       const skill = bodySkillForId(bodyId(player));
       const context = skill ? this.bodySkillContext(player) : undefined;
-      const delta = skill ? skill.progressDelta(player, event) : bodyProgressDelta(player, event);
+      const delta = skill ? skill.progressDelta(player, event) : 0;
       if (delta > 0 && !player.bodyState.flipped) {
         const previous = player.bodyState.progress;
         player.bodyState.progress = Math.min(player.bodyState.progressMax, previous + delta);
@@ -1198,7 +1212,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       }
 
       const triggerSpec = skill && context ? skill.collectTrigger(context, event) : undefined;
-      const kind = skill ? triggerSpec?.kind : triggerKindForBody(player, event);
+      const kind = triggerSpec?.kind;
       if (!kind) continue;
       const trigger: PendingBodyTrigger = {
         id: crypto.randomUUID(),
@@ -1290,39 +1304,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
   private openBodyPrompt(player: AutoPlayerState, trigger: PendingBodyTrigger) {
     if (!this.state) return false;
     const registeredSkill = bodySkillForId(bodyId(player));
-    if (registeredSkill) return registeredSkill.openPrompt(this.bodySkillContext(player), trigger);
-    const make = (message: string, options: Array<{ value: string; label: string }>, action: string) => {
-      this.state!.prompt = createPrompt({
-        kind: "body-skill",
-        playerId: player.id,
-        title: bodyById.get(bodyId(player))?.skillName || "本体技能",
-        message,
-        options,
-        context: { action, triggerId: trigger.id, ...trigger.context },
-      });
-      return true;
-    };
-    const turnKey = (suffix: string) => bodyUsageKey("turn", this.state!.turnNumber, player.id, suffix);
-    switch (trigger.kind) {
-      case "trans-deploy":
-        if ((this.state.usageCounters[turnKey("trans")] || 0) >= (player.bodyState.flipped ? 2 : 1)) return false;
-        if (!player.characterSlots.includes(null) || !player.characterDeck.length) return false;
-        return make("你完成了拟态或虚拟牌操作，是否从角色牌堆顶暗置上阵1张角色？", [{ value: "deploy", label: "暗置上阵" }, { value: "pass", label: "不发动" }], "trans-deploy");
-      case "dispatch-reveal":
-        if ((this.state.usageCounters[turnKey("dispatch")] || 0) >= 1 || !player.characterDeck.length) return false;
-        return this.openDispatchSortPrompt(player, trigger);
-      case "blood-judgment":
-        if ((this.state.usageCounters[turnKey("blood")] || 0) >= 2) return false;
-        return make("你受到了伤害，是否发动【红黑谜案大推理】进行判定？", [{ value: "judge", label: "进行判定" }, { value: "pass", label: "不发动" }], "blood-judge");
-      case "ambush-refill":
-        if ((this.state.usageCounters[turnKey("ambush-refill")] || 0) >= 1 || !player.characterSlots.includes(null) || !player.characterDeck.length) return false;
-        return make("己方伏击角色因支付费用离场，是否暗置补位1张角色？", [{ value: "deploy", label: "暗置补位" }, { value: "pass", label: "不发动" }], "ambush-refill");
-      case "defense-reward":
-        if ((this.state.usageCounters[turnKey("defense")] || 0) >= 3) return false;
-        return make("你成功抵消、防止或减少了伤害，是否摸1张手牌并观看对手1张暗置角色？", [{ value: "reward", label: "摸牌并观看" }, { value: "pass", label: "不发动" }], "defense-reward");
-      default:
-        return false;
-    }
+    return registeredSkill?.openPrompt(this.bodySkillContext(player), trigger) || false;
   }
 
   private takeTopHandCards(count: number) {
@@ -1340,143 +1322,13 @@ export class AutoBattleRoom extends DurableObject<Env> {
     return cards;
   }
 
-  private openDispatchSortPrompt(player: AutoPlayerState, trigger: PendingBodyTrigger) {
-    if (!this.state) return false;
-    const cards: CardInstance[] = [];
-    while (cards.length < 3 && player.characterDeck.length) {
-      const card = player.characterDeck.pop();
-      if (card) cards.push(card);
-    }
-    if (!cards.length) return false;
-    const permutations = <T,>(items: T[]): T[][] => items.length <= 1
-      ? [items]
-      : items.flatMap((item, index) => permutations([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [item, ...rest]));
-    const options: Array<{ value: string; label: string }> = [{ value: "pass", label: "不发动（原顺序放回）" }];
-    const indexes = cards.map((_, index) => index);
-    for (const order of permutations(indexes)) {
-      options.push({ value: `b:-1|o:${order.join(",")}`, label: `牌堆顶顺序：${order.map((index) => characterById.get(cards[index].definitionId)?.name || cards[index].definitionId).join(" → ")}` });
-    }
-    if (cards.length > 1) for (const bottom of indexes) {
-      const rest = indexes.filter((index) => index !== bottom);
-      for (const order of permutations(rest)) {
-        options.push({ value: `b:${bottom}|o:${order.join(",")}`, label: `${characterById.get(cards[bottom].definitionId)?.name || cards[bottom].definitionId}置底；顶部：${order.map((index) => characterById.get(cards[index].definitionId)?.name || cards[index].definitionId).join(" → ")}` });
-      }
-    }
-    this.state.prompt = createPrompt({
-      kind: "body-skill", playerId: player.id, title: "洞察全局",
-      message: "观看角色牌堆顶3张，可将至多1张置底，并选择其余牌的顶部顺序。",
-      selectableCards: cards, options,
-      context: { action: "dispatch-sort", cardIds: cards.map((card) => card.instanceId), revealedByOpponent: trigger.context?.sourcePlayerId !== player.id },
-    });
-    return true;
-  }
-
   private submitBodyChoice(player: AutoPlayerState, prompt: NonNullable<AutoRoomState["prompt"]>, payload: Record<string, unknown>) {
     if (!this.state) return;
     const registeredSkill = bodySkillForId(bodyId(player));
-    if (registeredSkill?.resolveChoice(this.bodySkillContext(player), prompt, payload)) return;
-    const action = cleanText(prompt.context?.action, 80);
-    const value = cleanText(payload.value, 400);
-    const selectedIds = Array.isArray(payload.cardInstanceIds) ? payload.cardInstanceIds.map((id) => cleanText(id, 80)) : [];
-    const turnKey = (suffix: string) => bodyUsageKey("turn", this.state!.turnNumber, player.id, suffix);
-    const clear = () => { if (this.state?.prompt?.id === prompt.id) this.state.prompt = undefined; };
-    const draw = (count: number) => {
-      const amount = drawCards(this.state!, player, count, (items) => this.shuffle(items));
-      this.addLog(`${player.nickname}摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: player.id });
-      if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state!.phase !== "draw" } });
-    };
-
-    if (action === "trans-deploy" || action === "ambush-refill") {
-      clear();
-      if (value === "pass") return;
-      if (value !== "deploy") throw new Error("上阵选择无效。");
-      const suffix = action === "trans-deploy" ? "trans" : "ambush-refill";
-      this.state.usageCounters[turnKey(suffix)] = (this.state.usageCounters[turnKey(suffix)] || 0) + 1;
-      const deployed = deployTopCharacter(player);
-      if (!deployed) throw new Error("角色区已满或角色牌堆为空。");
-      this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId, deployed.card.instanceId);
-      if (action === "trans-deploy") {
-        player.bodyState.trackedCharacterInstanceIds.push(deployed.card.instanceId);
-        if (player.bodyState.flipped) this.state.turnModifiers.push({
-          id: crypto.randomUUID(), ownerId: player.id, kind: "body-next-skill-cost-rest-one", count: 1,
-          characterInstanceId: deployed.card.instanceId, expiresAtTurnNumber: this.state.turnNumber + 1,
-        });
-      }
-      this.addLog(`${player.nickname}因本体技能暗置上阵1张角色`, player.id, { zone: "characterSlot", ownerId: player.id, slotIndex: deployed.slotIndex });
+    if (registeredSkill?.resolveChoice(this.bodySkillContext(player), prompt, payload)) {
+      if (!this.state.prompt && !this.state.stack.length && !this.state.pendingJudgments.length) this.openNextSkillTrigger();
       return;
     }
-    if (action === "dispatch-sort") {
-      const cards = prompt.selectableCards || [];
-      let bottom = -1;
-      let order = cards.map((_, index) => index);
-      if (value !== "pass") {
-        const match = value.match(/^b:(-?\d+)\|o:([\d,]*)$/);
-        if (!match) throw new Error("牌堆顺序选择无效。");
-        bottom = Number(match[1]);
-        order = match[2] ? match[2].split(",").map(Number) : [];
-        const expected = cards.map((_, index) => index).filter((index) => index !== bottom).sort();
-        if (JSON.stringify([...order].sort()) !== JSON.stringify(expected)) throw new Error("牌堆顺序不完整。");
-      }
-      if (bottom >= 0) player.characterDeck.unshift(cards[bottom]);
-      for (const index of [...order].reverse()) player.characterDeck.push(cards[index]);
-      if (value !== "pass") this.state.usageCounters[turnKey("dispatch")] = (this.state.usageCounters[turnKey("dispatch")] || 0) + 1;
-      clear();
-      if (value !== "pass" && prompt.context?.revealedByOpponent === true) {
-        draw(1);
-        this.state.prompt = createPrompt({
-          kind: "body-skill", playerId: player.id, title: "洞察全局", message: "对手角色明置：请弃置1张手牌。",
-          min: 1, max: 1, cardInstanceIds: player.hand.map((card) => card.instanceId), selectableCards: player.hand,
-          context: { action: "dispatch-discard" },
-        });
-      }
-      return;
-    }
-    if (action === "dispatch-discard" || action === "blood-self-discard") {
-      if (selectedIds.length !== 1 || !prompt.cardInstanceIds?.includes(selectedIds[0])) throw new Error("请选择1张手牌弃置。");
-      const index = player.hand.findIndex((card) => card.instanceId === selectedIds[0]);
-      if (index < 0) throw new Error("手牌已变化。");
-      const [card] = player.hand.splice(index, 1); card.ownerId = undefined; this.state.handDiscard.push(card);
-      clear();
-      if (action === "blood-self-discard") {
-        draw(1);
-        this.openNextSkillTrigger();
-      }
-      return;
-    }
-    if (action === "blood-judge") {
-      if (value === "pass") {
-        clear();
-        this.openNextSkillTrigger();
-        return;
-      }
-      if (value !== "judge") throw new Error("判定选择无效。");
-      this.state.usageCounters[turnKey("blood")] = (this.state.usageCounters[turnKey("blood")] || 0) + 1;
-      clear(); this.startJudgment(player, "blood-body"); return;
-    }
-    if (action === "defense-reward") {
-      if (value === "pass") return clear();
-      if (value !== "reward") throw new Error("守势循环选择无效。");
-      this.state.usageCounters[turnKey("defense")] = (this.state.usageCounters[turnKey("defense")] || 0) + 1;
-      clear(); draw(1);
-      const opponent = opponentOf(this.state, player.id);
-      const hidden = opponent?.characterSlots.flatMap((slot, index) => slot && "instanceId" in slot && slot.faceDown ? [{ slot, index }] : []) || [];
-      if (hidden.length) this.state.prompt = createPrompt({
-        kind: "body-skill", playerId: player.id, title: "守势循环", message: "选择观看对手1张暗置角色。",
-        options: hidden.map(({ index }) => ({ value: String(index), label: `观看角色位 ${index + 1}` })), context: { action: "defense-inspect", opponentId: opponent?.id },
-      });
-      return;
-    }
-    if (action === "defense-inspect") {
-      const opponent = playerById(this.state, cleanText(prompt.context?.opponentId, 20));
-      const slot = opponent?.characterSlots[Number(value)];
-      if (!slot || !("instanceId" in slot) || !slot.faceDown) throw new Error("该角色已不是暗置状态。");
-      this.state.prompt = createPrompt({ kind: "body-skill", playerId: player.id, title: "守势循环·观看", message: "你观看了这张暗置角色。", selectableCards: [slot], options: [{ value: "done", label: "完成" }], context: { action: "defense-inspect-done" } });
-      return;
-    }
-    if (action === "defense-inspect-done") { if (value !== "done") throw new Error("请完成观看。"); return clear(); }
-    if (action === "dispatch-z-select") return this.resolveDispatchZSelection(player, prompt, selectedIds);
-    if (action === "dispatch-z-reveal") return this.resolveDispatchZReveal(player, prompt, selectedIds);
-    if (action === "blood-z-pick") return this.resolveBloodZSelection(player, prompt, selectedIds);
     throw new Error("本体技能选择无效。");
   }
 
@@ -1561,24 +1413,9 @@ export class AutoBattleRoom extends DurableObject<Env> {
       return;
     }
     if (judgment.purpose !== "blood-body") return this.openNextSkillTrigger();
-    if (red) {
-      const amount = drawCards(this.state, player, 2, (items) => this.shuffle(items));
-      this.addLog(`${player.nickname}因红色判定摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: player.id });
-      if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
-      return this.openNextSkillTrigger();
-    }
-    const opponent = opponentOf(this.state, player.id);
-    if (opponent?.hand.length) this.discardRandom(opponent, player.id);
-    if (player.hand.length) {
-      this.state.prompt = createPrompt({
-        kind: "body-skill", playerId: player.id, title: "红黑谜案大推理", message: "黑色判定：请弃置1张手牌，然后摸1张。",
-        min: 1, max: 1, cardInstanceIds: player.hand.map((item) => item.instanceId), selectableCards: player.hand,
-        context: { action: "blood-self-discard" },
-      });
-    } else {
-      const amount = drawCards(this.state, player, 1, (items) => this.shuffle(items));
-      if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
-    }
+    const skill = bodySkillForId(bodyId(player));
+    const handled = skill?.resolveJudgment?.(this.bodySkillContext(player), card, red ? "红色" : "黑色") || false;
+    if (!handled || !this.state.prompt) this.openNextSkillTrigger();
   }
 
   private activateBodyExtra(player: AutoPlayerState, _payload: Record<string, unknown>) {
@@ -1589,101 +1426,11 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!definition?.extraForm || definition.extraForm.type !== "z-move") throw new Error("该本体没有可主动发动的Z招式。");
     if (!player.bodyState.flipped) throw new Error("Z招式尚未就绪。");
     if (player.bodyState.extraFormUsed) throw new Error("Z招式本局已使用。");
-    const id = bodyId(player);
-    if (id === BODY_IDS.defense) throw new Error("该Z招式会在致命伤害前自动触发。");
+    const skill = bodySkillForId(bodyId(player));
+    if (!skill?.activateExtra || skill.canActivateExtra?.(this.bodySkillContext(player)) === false) throw new Error("该Z招式不能主动发动。");
     player.bodyState.extraFormUsed = true;
     this.addLog(`${player.nickname}发动了Z招式【${definition.extraForm.skillName}】`, player.id, { zone: "body", ownerId: player.id });
-
-    if (id === BODY_IDS.dispatch) {
-      const roles = player.characterSlots.flatMap((slot) => slot && "instanceId" in slot ? [slot] : []);
-      const min = player.characterSlots.includes(null) ? 0 : 1;
-      this.state.prompt = createPrompt({
-        kind: "body-skill", playerId: player.id, title: definition.extraForm.skillName,
-        message: `选择要洗回角色牌堆的角色（${min ? "至少1张" : "可不选"}）。`,
-        min, max: roles.length, cardInstanceIds: roles.map((card) => card.instanceId), selectableCards: roles,
-        context: { action: "dispatch-z-select" },
-      });
-      return;
-    }
-    if (id === BODY_IDS.blood) {
-      const max = Math.min(3, player.maxHealth - player.health);
-      const cards = [...this.state.handDiscard];
-      if (!max || !cards.length) {
-        const recovered = heal(player, 1);
-        this.addLog(`${player.nickname}回复了 ${recovered} 点体力`, player.id, { zone: "player", ownerId: player.id });
-        return;
-      }
-      this.state.prompt = createPrompt({
-        kind: "body-skill", playerId: player.id, title: definition.extraForm.skillName,
-        message: `从弃牌区选择至多 ${max} 张不同名称的牌加入手牌，然后回复1点体力。`,
-        min: 0, max, cardInstanceIds: cards.map((card) => card.instanceId), selectableCards: cards,
-        options: [{ value: "none", label: "不获得牌，直接回复" }], context: { action: "blood-z-pick" },
-      });
-      return;
-    }
-    if (id === BODY_IDS.ambush) {
-      player.bodyState.ambushWindow = { remaining: 2, expiresAtTurnNumber: this.state.turnNumber + 2 };
-      this.addLog(`${player.nickname}的退场伏击角色在下个回合开始前可至多免费发动2次`, player.id, { zone: "retired", ownerId: player.id });
-      return;
-    }
-    throw new Error("该Z招式尚未接入自动结算。");
-  }
-
-  private resolveDispatchZSelection(player: AutoPlayerState, prompt: NonNullable<AutoRoomState["prompt"]>, selectedIds: string[]) {
-    if (!this.state) return;
-    if (selectedIds.length < Number(prompt.min || 0) || selectedIds.length > Number(prompt.max || 0) || new Set(selectedIds).size !== selectedIds.length
-      || selectedIds.some((id) => !prompt.cardInstanceIds?.includes(id))) throw new Error("换阵角色选择无效。");
-    const returning: CardInstance[] = [];
-    for (let index = 0; index < player.characterSlots.length; index += 1) {
-      const slot = player.characterSlots[index];
-      if (slot && "instanceId" in slot && selectedIds.includes(slot.instanceId)) {
-        player.characterSlots[index] = null; slot.faceDown = undefined; returning.push(slot);
-      }
-    }
-    player.characterDeck = this.shuffle([...player.characterDeck, ...returning]);
-    const deployed: CardInstance[] = [];
-    const desired = selectedIds.length + 1;
-    for (let count = 0; count < desired; count += 1) {
-      const result = deployTopCharacter(player);
-      if (!result) break;
-      deployed.push(result.card); this.recordCharacterDeployment(player.id, player.id, result.card.definitionId, result.card.instanceId);
-    }
-    this.state.prompt = createPrompt({
-      kind: "body-skill", playerId: player.id, title: "终局换阵", message: "可立即明置以此法上阵的1张角色，使其下一次【休整X】费用-1。",
-      min: 0, max: 1, cardInstanceIds: deployed.map((card) => card.instanceId), selectableCards: deployed,
-      options: [{ value: "none", label: "不立即明置" }], context: { action: "dispatch-z-reveal" },
-    });
-  }
-
-  private resolveDispatchZReveal(player: AutoPlayerState, prompt: NonNullable<AutoRoomState["prompt"]>, selectedIds: string[]) {
-    if (!this.state) return;
-    if (selectedIds.length > 1 || (selectedIds[0] && !prompt.cardInstanceIds?.includes(selectedIds[0]))) throw new Error("至多选择1张换阵角色。");
-    if (selectedIds[0]) {
-      const role = player.characterSlots.find((slot) => slot && "instanceId" in slot && slot.instanceId === selectedIds[0]);
-      if (!role || !("instanceId" in role)) throw new Error("换阵角色已不在场。");
-      role.faceDown = false;
-      this.emitEvent("character_revealed", { sourcePlayerId: player.id, targetPlayerId: player.id, characterDefinitionId: role.definitionId });
-      this.addLog(`${player.nickname}因Z招式立即明置了【${characterById.get(role.definitionId)?.name || role.definitionId}】`, player.id, { zone: "characterSlot", ownerId: player.id });
-      this.state.turnModifiers.push({ id: crypto.randomUUID(), ownerId: player.id, kind: "body-next-skill-cost-rest-one", count: 1, characterInstanceId: role.instanceId });
-    }
-    this.state.prompt = undefined;
-  }
-
-  private resolveBloodZSelection(player: AutoPlayerState, prompt: NonNullable<AutoRoomState["prompt"]>, selectedIds: string[]) {
-    if (!this.state) return;
-    if (selectedIds.length > Number(prompt.max || 0) || new Set(selectedIds).size !== selectedIds.length || selectedIds.some((id) => !prompt.cardInstanceIds?.includes(id))) throw new Error("Z招式选牌无效。");
-    const names = new Set<string>();
-    for (const id of selectedIds) {
-      const index = this.state.handDiscard.findIndex((card) => card.instanceId === id);
-      if (index < 0) throw new Error("弃牌区状态已变化。");
-      const definitionId = this.state.handDiscard[index].definitionId;
-      if (names.has(definitionId)) throw new Error("选择的牌名称必须不同。");
-      names.add(definitionId);
-      const [card] = this.state.handDiscard.splice(index, 1); card.ownerId = player.id; player.hand.push(card);
-    }
-    const recovered = heal(player, 1);
-    this.state.prompt = undefined;
-    this.addLog(`${player.nickname}从弃牌区获得 ${selectedIds.length} 张牌并回复 ${recovered} 点体力`, player.id, { zone: "handDiscard" });
+    skill.activateExtra(this.bodySkillContext(player));
   }
 
   private onPhaseEntered(phase: AutoRoomState["phase"], _previousPlayer: AutoPlayerState) {
@@ -1725,10 +1472,6 @@ export class AutoBattleRoom extends DurableObject<Env> {
         this.discardRandom(target, current.id);
       }
     }
-    if (phase === "preparation" && current?.bodyState.ambushWindow && this.state.turnNumber >= current.bodyState.ambushWindow.expiresAtTurnNumber) {
-      current.bodyState.ambushWindow = undefined;
-      this.addLog(`${current.nickname}的【万劫暗夜】持续时间结束`, current.id, { zone: "body", ownerId: current.id });
-    }
     for (const player of this.state.players) {
       bodySkillForId(bodyId(player))?.onPhaseEntered?.(this.bodySkillContext(player), phase, _previousPlayer);
     }
@@ -1764,15 +1507,6 @@ export class AutoBattleRoom extends DurableObject<Env> {
         this.loseHealth(owner, 1, "【执法追责】反噬");
       }
       this.state.turnModifiers.splice(this.state.turnModifiers.findIndex((candidate) => candidate.id === modifier.id), 1);
-    }
-    for (const player of this.state.players) {
-      if (bodyId(player) === BODY_IDS.trans && player.bodyState.trackedCharacterInstanceIds.length) {
-        for (const instanceId of [...player.bodyState.trackedCharacterInstanceIds]) {
-          const role = player.characterSlots.find((slot) => slot && "instanceId" in slot && slot.instanceId === instanceId);
-          if (role && "instanceId" in role) this.restCard(player, role, false, player.id);
-        }
-        player.bodyState.trackedCharacterInstanceIds = [];
-      }
     }
   }
 
@@ -3200,14 +2934,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
       this.emitEvent("damage_prevented", { sourcePlayerId: target.id, targetPlayerId: target.id, amount: 1 });
       this.addLog(`${target.nickname} 的防护令伤害-1`, target.id, { zone: "player", ownerId: target.id });
     }
-    if (finalAmount > 0 && bodyId(target) === BODY_IDS.defense && target.bodyState.flipped && !target.bodyState.extraFormUsed && target.health - finalAmount <= 0) {
-      target.bodyState.extraFormUsed = true;
-      this.emitEvent("damage_prevented", { sourcePlayerId: target.id, targetPlayerId: target.id, amount: finalAmount, metadata: { bodyZMove: true } });
-      const recovered = heal(target, 2);
-      this.addLog(`${target.nickname}发动【绝境神铠·不灭灵魂究极再临】，防止致命伤害并回复 ${recovered} 点体力`, target.id, { zone: "body", ownerId: target.id });
-      if (recovered > 0) this.emitEvent("health_recovered", { sourcePlayerId: target.id, targetPlayerId: target.id, amount: recovered });
-      return 0;
-    }
+    const bodySkill = bodySkillForId(bodyId(target));
+    if (finalAmount > 0 && bodySkill?.preventDamage?.(this.bodySkillContext(target), finalAmount)) return 0;
     const applied = damage(this.state, target, finalAmount, sourceId);
     if (sourceId && applied > 0) {
       const key = `damage-dealt:${this.state.turnNumber}:${sourceId}`;
@@ -3582,8 +3310,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
   private canActivateBodyExtra(player: AutoPlayerState) {
     if (!this.state || this.state.winnerId || this.state.prompt || this.state.stack.length) return false;
     if (this.state.currentPlayerId !== player.id || this.state.phase !== "play" || !player.bodyState.flipped || player.bodyState.extraFormUsed) return false;
-    const id = bodyId(player);
-    return [BODY_IDS.dispatch, BODY_IDS.blood, BODY_IDS.ambush].includes(id as never);
+    const skill = bodySkillForId(bodyId(player));
+    return Boolean(skill?.activateExtra && skill.canActivateExtra?.(this.bodySkillContext(player)) !== false);
   }
 
   private legalActionsFor(player: AutoPlayerState, legalHandCardIds: string[], legalSkillInstanceIds: string[]): AutoLegalAction[] {

@@ -29,8 +29,15 @@ export interface BodySkillRuntimeContext {
   gainHandCard(card: CardInstance): void;
   discardLooseCard(card: CardInstance): void;
   handName(definitionId: string): string;
+  characterName(definitionId: string): string;
   addLog(message: string, actorId?: string, target?: BattleLogTarget): void;
   emitEvent(type: string, details?: Omit<AutoBattleEvent, "id" | "type" | "turnNumber">): void;
+  shuffle<T>(items: T[]): T[];
+  deployTopCharacter(): { card: CardInstance; slotIndex: number } | undefined;
+  restOwnCharacter(instanceId: string): boolean;
+  startJudgment(purpose: "blood-body"): void;
+  discardRandom(owner: AutoPlayerState): CardInstance | undefined;
+  heal(count: number): number;
   legalStrikeCards(): CardInstance[];
   startBodyStrike(targetPlayerId: string, cardInstanceId: string): void;
 }
@@ -41,6 +48,10 @@ export interface BodySkillModule {
   collectTrigger(context: BodySkillRuntimeContext, event: AutoBattleEvent): BodyTriggerSpec | undefined;
   extraStrikeAllowance?(player: AutoPlayerState): number;
   onPhaseEntered?(context: BodySkillRuntimeContext, phase: AutoRoomState["phase"], previousPlayer: AutoPlayerState): void;
+  canActivateExtra?(context: BodySkillRuntimeContext): boolean;
+  activateExtra?(context: BodySkillRuntimeContext): void;
+  resolveJudgment?(context: BodySkillRuntimeContext, card: CardInstance, color: "红色" | "黑色"): boolean;
+  preventDamage?(context: BodySkillRuntimeContext, amount: number): boolean;
   openPrompt(context: BodySkillRuntimeContext, trigger: PendingBodyTrigger): boolean;
   resolveChoice(
     context: BodySkillRuntimeContext,

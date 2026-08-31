@@ -4,8 +4,8 @@
 | --- | --- |
 | 文档状态 | 实施中 |
 | 架构版本 | Skill Engine v1 |
-| 最后更新 | 2026-08-25 |
-| 当前进度 | 上头、密裁、操作本体；8 套预组引用的 101 张角色 |
+| 最后更新 | 2026-08-28 |
+| 当前进度 | 8 张本体全部模块化；8 套预组引用的 101 张角色 |
 
 本文档定义自动对战技能的工程约束。目标是支持 8 张本体和 120 张角色长期维护，避免技能继续堆入 `AutoBattleRoom` 或依赖中文正则推断。
 
@@ -18,7 +18,6 @@
 - **技能模块：** 只描述本技能的进度、触发、选择和效果组合。
 - **运行上下文：** 向技能暴露受控的通用操作，技能不持有房间类。
 - **序列化提示：** 需要玩家选择时写入 `state.prompt`，不在内存中等待 Promise。
-- **兼容层：** 未迁移本体暂时由 `body-automation.mts` 处理，每迁移一张就删除其兼容分支。
 
 ## 2. 不可破坏的约束
 
@@ -37,7 +36,6 @@ worker/src/
   auto-room.ts                 # 房间、命令、快照与技能调度
   auto-engine.mts              # 阶段、手牌、伤害等通用规则
   auto-types.ts                # 可持久化的对局类型
-  body-automation.mts          # 未迁移本体的临时兼容层
   skills/
     body-ids.mts               # 稳定本体 ID
     body-skill.mts             # 本体模块和运行上下文接口
@@ -46,6 +44,11 @@ worker/src/
       aggro.mts                # 上头本体
       mizai.mts                # 密裁本体
       combo.mts                # 操作本体
+      trans.mts                # 变通本体
+      dispatch.mts             # 执棋本体
+      blood.mts                # 逆命本体
+      ambush.mts               # 幽幕本体
+      defense.mts              # 不落本体
     character-skill.mts        # 角色模块与运行上下文协议
     character-registry.mts     # 角色技能注册表
     characters/
@@ -66,6 +69,10 @@ interface BodySkillModule {
   collectTrigger(context, event): BodyTriggerSpec | undefined;
   extraStrikeAllowance?(player): number;
   onPhaseEntered?(context, phase, previousPlayer): void;
+  canActivateExtra?(context): boolean;
+  activateExtra?(context): void;
+  resolveJudgment?(context, card, color): boolean;
+  preventDamage?(context, amount): boolean;
   openPrompt(context, trigger): boolean;
   resolveChoice(context, prompt, payload): boolean;
 }
@@ -75,6 +82,7 @@ interface BodySkillModule {
 - `collectTrigger` 检查触发条件和入队前次数，返回结构化触发。
 - `extraStrikeAllowance` 是持续性规则修正的第一个接口。后续应抽象为通用 `modifiers`。
 - `onPhaseEntered` 用于阶段型触发，不得在其中等待客户端。
+- `activateExtra`、`resolveJudgment` 和 `preventDamage` 分别承载主动 Z 招式、判定续接和伤害前自动拦截。
 - `openPrompt` 把已入队触发转化为可持久化提示。
 - `resolveChoice` 验证玩家输入并执行一步结算；返回 `false` 表示该模块不识别当前 `action`。
 
@@ -85,10 +93,10 @@ interface BodySkillModule {
 `BodySkillRuntimeContext` 和 `CharacterSkillRuntimeContext` 是技能与房间的边界。角色上下文已提供摸牌、牌堆顶/底移动、弃牌区获取或洗回、伤害、回复、充能标记、无效当前手牌、规则修正和行动牌效果复制等原子操作。本体上下文当前提供：
 
 - 对局、技能所有者与对手的读取。
-- 本体技能名、强化技能名和手牌名的数据查询。
+- 本体技能名、强化技能名、手牌名和角色名的数据查询。
 - 每回合或每局计数器的读取与增加。
 - 触发入队、提示建立和提示清理。
-- 摸牌、取牌堆顶、获得牌、弃置牌和启动本体【出刀】。
+- 摸牌、取牌堆顶、获得牌、弃置牌、暗置上阵、休整、判定、回复和启动本体【出刀】。
 - 公开日志与结构化事件发送。
 
 上下文的新能力必须是至少两个技能可复用的规则原语，或是为保持服务端不变式所必需的单一入口。不要为每张卡增加一个只服务它自己的房间方法。
@@ -181,18 +189,18 @@ type RuleModifier = {
 
 “成为目标时/伤害前”、“使用时”、“结算后/受到伤害后”保持为不同的结构化事件窗口，不依赖文本描述的先后顺序。
 
-## 11. 首批本体迁移状态
+## 11. 本体迁移状态
 
 | 本体 | 自动结算 | 模块化 | 覆盖能力 |
 | --- | --- | --- | --- |
 | 上头组-微笑尅乐 | 完成 | 已迁移 | 伤害进度、每回合触发、额外【出刀】、Mega 结束阶段使用牌 |
 | 密裁组-柯柯 | 完成 | 已迁移 | 观看进度、二选一、展示对手手牌、选择弃置、Mega 合并效果 |
 | 操作组-瓜猫 | 完成 | 已迁移 | 行动牌进度、次数、伤害检查、牌堆顶私有选牌 |
-| 变通组-摆子 | 完成 | 待迁移 | 兼容层 |
-| 执棋组-爱吃豚侠 | 完成 | 待迁移 | 兼容层 |
-| 逆命组-风妖精 | 完成 | 待迁移 | 兼容层 |
-| 幽幕组-小阿潘 | 完成 | 待迁移 | 兼容层 |
-| 不落组-搞莫子 | 完成 | 待迁移 | 兼容层 |
+| 变通组-摆子 | 完成 | 已迁移 | 拟态触发、暗置上阵、回合末休整、Mega 费用修正 |
+| 执棋组-爱吃豚侠 | 完成 | 已迁移 | 明置进度、牌堆整理、换牌、Z 招式换阵 |
+| 逆命组-风妖精 | 完成 | 已迁移 | 受伤触发、红黑判定、弃牌、Z 招式回收 |
+| 幽幕组-小阿潘 | 完成 | 已迁移 | 伏击离场补位、Z 招式免费窗口与到期清理 |
+| 不落组-搞莫子 | 完成 | 已迁移 | 防伤进度、摸牌观看、Z 招式致命伤害拦截 |
 
 ## 12. 添加一个全自动技能
 
