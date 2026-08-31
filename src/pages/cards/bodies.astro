@@ -2,6 +2,7 @@
 import Layout from "../../components/Layout.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import BodyCard from "../../components/BodyCard.astro";
+import { getBodyArt } from "../../lib/card-art";
 import { EXTRA_FORM_ACTION_LABELS, EXTRA_FORM_CONDITION_LABELS, EXTRA_FORM_LABELS, allBodies } from "../../lib/cards";
 
 const extraFormFileSlugs: Record<string, string> = {
@@ -74,6 +75,8 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
             data-body-extra-effect={b.extraForm?.effectText || ""}
             data-body-extra-condition={b.extraForm?.condition || ""}
             data-body-notes={b.notes || ""}
+            data-body-front-art={getBodyArt(b.id)?.front?.src || ""}
+            data-body-extra-art={getBodyArt(b.id)?.extra?.src || ""}
             aria-label={`查看 ${b.name} 本体卡高清详情`}
           >
             <span class="body-thumb-card__image-stage">
@@ -99,6 +102,11 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
 
   <!-- 本体牌高清详情 -->
   <dialog id="body-card-zoom-dialog" class="card-zoom-dialog body-card-zoom-dialog">
+    <div id="body-flip-cinematic" class="body-flip-cinematic" aria-hidden="true">
+      <div class="body-flip-cinematic__shade"></div>
+      <div class="body-flip-cinematic__energy" aria-hidden="true"><i></i><i></i><i></i></div>
+      <img id="body-flip-cinematic-portrait" class="body-flip-cinematic__portrait" alt="" decoding="async" />
+    </div>
     <div class="card-zoom-dialog__content body-card-zoom-dialog__content">
       <button type="button" class="card-zoom-dialog__close" aria-label="关闭本体牌详情">×</button>
       <div class="body-card-zoom">
@@ -170,11 +178,14 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
   const bodyZoomNotesBox = document.getElementById("body-card-zoom-notes-box");
   const bodyZoomNotes = document.getElementById("body-card-zoom-notes");
   const bodyZoomFlipStage = document.querySelector<HTMLElement>(".body-card-zoom__flip-stage");
+  const bodyFlipCinematic = document.getElementById("body-flip-cinematic");
+  const bodyFlipCinematicPortrait = document.getElementById("body-flip-cinematic-portrait") as HTMLImageElement | null;
   let bodyZoomReturnFocus: HTMLElement | null = null;
   let bodyZoomSource: HTMLElement | null = null;
   let bodyZoomIsBack = false;
   let bodyZoomAnimationTimer = 0;
   let bodyZoomImageRequest = 0;
+  let bodyFlipCinematicTimer = 0;
 
   function setBodyText(element: HTMLElement | null, value: string) {
     if (element) element.textContent = value;
@@ -196,6 +207,26 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
       if (requestId === bodyZoomImageRequest) image.classList.add("is-high-res");
     };
     preload.src = highResPath;
+  }
+
+  function playBodyFlipCinematic(isBack: boolean) {
+    if (!bodyFlipCinematic || !bodyFlipCinematicPortrait || !bodyZoomSource) return;
+    const source = bodyZoomSource.dataset;
+    const artPath = isBack ? source.bodyExtraArt || "" : source.bodyFrontArt || "";
+    if (!artPath) return;
+    if (bodyFlipCinematicTimer) window.clearTimeout(bodyFlipCinematicTimer);
+    bodyFlipCinematic.classList.remove("is-playing", "is-returning");
+    void bodyFlipCinematic.offsetWidth;
+    bodyFlipCinematicPortrait.alt = isBack
+      ? `${source.bodyExtraName || source.bodyName || "额外形态"} 原画`
+      : `${source.bodyName || "本体"} 原画`;
+    bodyFlipCinematicPortrait.src = artPath;
+    bodyFlipCinematic.classList.toggle("is-returning", !isBack);
+    bodyFlipCinematic.classList.add("is-playing");
+    bodyFlipCinematicTimer = window.setTimeout(() => {
+      bodyFlipCinematic.classList.remove("is-playing", "is-returning");
+      bodyFlipCinematicPortrait.removeAttribute("src");
+    }, 1180);
   }
 
   function renderBodyZoomState(isBack: boolean, animate = false) {
@@ -298,7 +329,11 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
   }
 
   bodyViewButtons.forEach((button) => button.addEventListener("click", () => setBodyViewMode(button.dataset.bodyView || "card")));
-  bodyZoomFlip?.addEventListener("click", () => renderBodyZoomState(!bodyZoomIsBack, true));
+  bodyZoomFlip?.addEventListener("click", () => {
+    const nextIsBack = !bodyZoomIsBack;
+    playBodyFlipCinematic(nextIsBack);
+    renderBodyZoomState(nextIsBack, true);
+  });
   document.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
     const thumbnailFlip = target.closest<HTMLElement>("[data-body-thumb-flip]");
@@ -318,6 +353,9 @@ function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: st
     bodyZoomReturnFocus = null;
     bodyZoomSource = null;
     bodyZoomImageRequest += 1;
+    bodyFlipCinematic?.classList.remove("is-playing", "is-returning");
+    if (bodyFlipCinematicTimer) window.clearTimeout(bodyFlipCinematicTimer);
+    bodyFlipCinematicPortrait?.removeAttribute("src");
     if (returnTarget?.isConnected) window.requestAnimationFrame(() => returnTarget.focus());
   });
 

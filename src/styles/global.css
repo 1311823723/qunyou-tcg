@@ -1666,6 +1666,74 @@ strong { color: var(--text-gold); font-weight: 800; }
 .body-card-zoom__effect-label { display: block; margin-bottom: 0.34rem; color: var(--text-muted); font: 800 0.61rem var(--font-mono); letter-spacing: 0.1em; }
 .body-card-zoom__skill { margin: 0; color: var(--text-gold); font-size: 0.9rem; font-weight: 900; line-height: 1.45; }
 .body-card-zoom__effect { margin: 0.35rem 0 0; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.72; overflow-wrap: anywhere; }
+
+/* 本体牌翻面时的经典对战式原画演出 */
+.body-flip-cinematic {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+.body-flip-cinematic.is-playing {
+  opacity: 1;
+  visibility: visible;
+}
+.body-flip-cinematic__shade {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 44%, rgba(52, 43, 78, 0.12), rgba(3, 5, 12, 0.52) 72%);
+}
+.body-flip-cinematic.is-playing .body-flip-cinematic__shade { animation: body-flip-cinematic-shade 1.08s ease both; }
+.body-flip-cinematic__energy {
+  position: absolute;
+  inset: 0;
+}
+.body-flip-cinematic__energy i {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  width: min(58vw, 40rem);
+  aspect-ratio: 1;
+  border: 1px solid rgba(216, 183, 92, 0.48);
+  border-radius: 50%;
+  box-shadow: 0 0 1.6rem rgba(216, 183, 92, 0.18), inset 0 0 1.6rem rgba(157, 108, 255, 0.14);
+  transform: translate(-50%, -50%) scale(0.2);
+  opacity: 0;
+}
+.body-flip-cinematic.is-playing .body-flip-cinematic__energy i { animation: body-flip-cinematic-ring 1.08s ease-out both; }
+.body-flip-cinematic__energy i:nth-child(2) {
+  width: min(72vw, 50rem);
+  border-color: rgba(157, 108, 255, 0.34);
+  animation-delay: 0.1s;
+}
+.body-flip-cinematic__energy i:nth-child(3) {
+  width: min(44vw, 30rem);
+  border-color: rgba(255, 255, 255, 0.36);
+  animation-delay: 0.2s;
+}
+.body-flip-cinematic__portrait {
+  position: absolute;
+  z-index: 3;
+  bottom: -8vh;
+  left: 50%;
+  width: min(54vw, 38rem);
+  max-height: 86vh;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: saturate(1.08) drop-shadow(0 0 1.3rem rgba(216, 183, 92, 0.4));
+  transform: translateX(-50%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0 80%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0 80%, transparent 100%);
+}
+.body-flip-cinematic.is-playing .body-flip-cinematic__portrait {
+  animation: body-flip-portrait-in 1.08s cubic-bezier(0.18, 0.8, 0.18, 1) both;
+}
+.body-flip-cinematic.is-playing.is-returning .body-flip-cinematic__portrait {
+  animation-name: body-flip-portrait-return;
+}
 @keyframes body-card-cinematic-flip-forward {
   0% { transform: perspective(700px) rotateY(0); }
   48% { transform: perspective(700px) rotateY(88deg) scale(1.08); filter: brightness(1.55); }
@@ -1683,6 +1751,51 @@ strong { color: var(--text-gold); font-weight: 800; }
   32% { opacity: 0.9; transform: scale(0.92) rotate(0); }
   70% { opacity: 0.42; transform: scale(1.08) rotate(8deg); }
   100% { opacity: 0; transform: scale(1.2) rotate(14deg); }
+}
+@keyframes body-flip-cinematic-shade {
+  0% { opacity: 0; }
+  18% { opacity: 1; }
+  75% { opacity: 0.82; }
+  100% { opacity: 0; }
+}
+@keyframes body-flip-cinematic-ring {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(-8deg); }
+  32% { opacity: 0.82; transform: translate(-50%, -50%) scale(0.72) rotate(0); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25) rotate(12deg); }
+}
+@keyframes body-flip-portrait-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 12vh) scale(0.78) rotate(-2deg);
+    filter: brightness(1.7) saturate(1.08) drop-shadow(0 0 2rem rgba(255, 255, 255, 0.75));
+  }
+  34% {
+    opacity: 1;
+    transform: translate(-50%, -2vh) scale(1.04) rotate(0);
+    filter: brightness(1.35) saturate(1.08) drop-shadow(0 0 1.8rem rgba(216, 183, 92, 0.65));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -6vh) scale(1.02);
+    filter: brightness(1) saturate(1.08) drop-shadow(0 0 1.3rem rgba(216, 183, 92, 0.4));
+  }
+}
+@keyframes body-flip-portrait-return {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -6vh) scale(1.02);
+    filter: brightness(1.2) saturate(1.08) drop-shadow(0 0 1.3rem rgba(216, 183, 92, 0.4));
+  }
+  34% {
+    opacity: 1;
+    transform: translate(-50%, -2vh) scale(1.04) rotate(0);
+    filter: brightness(1.35) saturate(1.08) drop-shadow(0 0 1.8rem rgba(216, 183, 92, 0.65));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 12vh) scale(0.78) rotate(2deg);
+    filter: brightness(1.7) saturate(1.08) drop-shadow(0 0 2rem rgba(255, 255, 255, 0.75));
+  }
 }
 
 /* 卡牌放大对话框 */
@@ -2257,6 +2370,10 @@ a:not(.btn):not(.card-frame):not(.collection-card):not(.deck-spotlight):not(.nav
   .body-thumb-card__flip-inner.is-flipping-forward,
   .body-thumb-card__flip-inner.is-flipping-backward { animation: none; }
   .body-card-zoom__flip-stage.is-flipping::before { animation: none; }
+  .body-flip-cinematic__shade,
+  .body-flip-cinematic__energy i,
+  .body-flip-cinematic__portrait { animation: none; }
+  .body-flip-cinematic.is-playing { opacity: 0; visibility: hidden; }
   .btn::after { display: none; }
   .tcg-body__hp::before,
   .tcg-char__head::before {
