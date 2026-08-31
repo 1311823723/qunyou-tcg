@@ -7,6 +7,7 @@ const validInspectionKinds = new Set(["handDeckTop", "opponentHand"]);
 function openDiscardPrompt(context: BodySkillRuntimeContext, mega: boolean, triggerId?: string) {
   const opponent = context.opponent();
   if (!opponent?.hand.length) return false;
+  context.logTrait();
   context.addLog(
     `${opponent.nickname}展示了全部手牌：${opponent.hand.map((card) => `【${context.handName(card.definitionId)}】`).join("、")}`,
     context.player.id,
@@ -54,7 +55,7 @@ export const mizaiBodySkill: BodySkillModule = {
       kind: "body-skill",
       playerId: context.player.id,
       title: context.skillName(),
-      message: "你完成了一次有效观看，选择本体技能效果。",
+      message: "你完成了一次有效观看，选择本体特性效果。",
       options,
       context: { action: "mizai-choice", triggerId: trigger.id, ...trigger.context },
     });
@@ -72,6 +73,7 @@ export const mizaiBodySkill: BodySkillModule = {
       if (value === "draw") {
         context.incrementUsage("turn", "mizai");
         context.clearPrompt(prompt.id);
+        context.logTrait();
         context.draw(1);
         return true;
       }

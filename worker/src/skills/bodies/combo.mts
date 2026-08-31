@@ -32,6 +32,7 @@ export const comboBodySkill: BodySkillModule = {
     }
     const cards = context.takeTopHandCards(2);
     if (!cards.length) return false;
+    context.logTrait();
     context.setPrompt({
       kind: "body-skill",
       playerId: context.player.id,
@@ -51,9 +52,12 @@ export const comboBodySkill: BodySkillModule = {
     const action = String(prompt.context?.action || "");
     const value = choiceValue(payload);
     if (action === "combo-draw") {
-      if (value !== "draw" && value !== "pass") throw new Error("本体技能选择无效。");
+      if (value !== "draw" && value !== "pass") throw new Error("本体特性选择无效。");
       context.clearPrompt(prompt.id);
-      if (value === "draw") context.draw(1);
+      if (value === "draw") {
+        context.logTrait();
+        context.draw(1);
+      }
       return true;
     }
     if (action !== "combo-mega-pick") return false;

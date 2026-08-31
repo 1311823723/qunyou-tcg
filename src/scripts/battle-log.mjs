@@ -66,6 +66,15 @@ export function formatBattleLog(log) {
       detail: `角色：${skill[2]}${skill[4] ? `｜${skill[4]}` : ""}`,
     };
   }
+  const trait = text.match(/^(.+?)的(Mega 特性|特性)【(.+?)】触发$/);
+  if (trait) {
+    return {
+      badge: trait[2] === "Mega 特性" ? "Mega特性" : "特性",
+      tone: "body",
+      text,
+    };
+  }
+  if (/^.+?发动了Z招式【.+?】/.test(text)) return { badge: "Z招式", tone: "body", text };
   const discard = text.match(/^(.+?) 弃置了(.+)$/);
   if (discard) return { badge: "弃置", tone: "discard", text: `${discard[1]} 弃置 ${discard[2]}` };
   const rest = text.match(/^(.+?) 休整了(.+?)，置于角色牌堆底$/);

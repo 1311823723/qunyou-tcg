@@ -1,13 +1,14 @@
 ---
 import TagPill from "./TagPill.astro";
 import type { BodyCard as BodyType } from "../lib/cards";
-import { EXTRA_FORM_LABELS, EXTRA_FORM_CONDITION_LABELS } from "../lib/cards";
+import { EXTRA_FORM_ACTION_LABELS, EXTRA_FORM_LABELS, EXTRA_FORM_CONDITION_LABELS } from "../lib/cards";
 import { getBodyArt } from "../lib/card-art";
 
 export interface Props { body: BodyType; compact?: boolean; priority?: boolean; }
 const { body: b, compact, priority = false } = Astro.props;
 const hasExtra = !!b.extraForm;
 const formLabel = b.extraForm ? (EXTRA_FORM_LABELS[b.extraForm.type] ?? b.extraForm.type) : "";
+const extraFormActionLabel = b.extraForm ? (EXTRA_FORM_ACTION_LABELS[b.extraForm.type] ?? formLabel) : "";
 const hasCondition = b.extraForm?.condition && b.extraForm.condition.trim() !== "";
 const art = getBodyArt(b.id);
 ---
@@ -43,7 +44,7 @@ const art = getBodyArt(b.id);
         <div class="flex flex-wrap gap-1 mb-3">
           {b.affinityTags.map((tag) => <TagPill label={tag} variant="aggro" />)}
         </div>
-        <div class="tcg-char__skill-name">{b.skillName}</div>
+        <div class="tcg-char__skill-name">特性【{b.skillName}】</div>
         <p class="skill-text mt-2">{b.effectText}</p>
       </div>
       {hasCondition && (
@@ -56,7 +57,7 @@ const art = getBodyArt(b.id);
       {hasExtra && (
         <button type="button" class="card-flip__btn" data-flip-target={`flip-${b.id}`}>
           <span class="card-flip__btn-icon" aria-hidden="true">↻</span>
-          查看背面 · {formLabel}
+          查看背面 · {extraFormActionLabel}
         </button>
       )}
     </div>
@@ -90,7 +91,7 @@ const art = getBodyArt(b.id);
           <div class="flex flex-wrap gap-1 mb-3">
             {b.affinityTags.map((tag) => <TagPill label={tag} variant="aggro" />)}
           </div>
-          <div class="tcg-char__skill-name">{b.extraForm.skillName}</div>
+          <div class="tcg-char__skill-name">{b.extraForm.type === "z-move" ? "Z招式" : "特性"}【{b.extraForm.skillName}】</div>
           <p class="skill-text mt-2">{b.extraForm.effectText}</p>
         </div>
         <button type="button" class="card-flip__btn" data-flip-target={`flip-${b.id}`}>

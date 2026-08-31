@@ -30,6 +30,7 @@ export interface BodySkillRuntimeContext {
   discardLooseCard(card: CardInstance): void;
   handName(definitionId: string): string;
   characterName(definitionId: string): string;
+  logTrait(): void;
   addLog(message: string, actorId?: string, target?: BattleLogTarget): void;
   emitEvent(type: string, details?: Omit<AutoBattleEvent, "id" | "type" | "turnNumber">): void;
   shuffle<T>(items: T[]): T[];
@@ -68,4 +69,8 @@ export function selectedCardIds(payload: Record<string, unknown>) {
 
 export function choiceValue(payload: Record<string, unknown>, max = 400) {
   return String(payload.value || "").trim().slice(0, max);
+}
+
+export function bodyTraitLogText(nickname: string, skillName: string, mega = false) {
+  return `${nickname}的${mega ? "Mega 特性" : "特性"}【${skillName}】触发`;
 }

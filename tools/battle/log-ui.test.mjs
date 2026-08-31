@@ -81,4 +81,31 @@ test("battle log text is summarized with semantic badges", () => {
     tone: "declaration",
     text: "玩家A 声明 花色【红桃】",
   });
+  assert.deepEqual(formatBattleLog({
+    id: "trait",
+    at: 1,
+    text: "微笑尅乐的特性【怦然杀意】触发",
+  }), {
+    badge: "特性",
+    tone: "body",
+    text: "微笑尅乐的特性【怦然杀意】触发",
+  });
+  assert.deepEqual(formatBattleLog({
+    id: "mega-trait",
+    at: 1,
+    text: "微笑尅乐的Mega 特性【爱至癫狂】触发",
+  }), {
+    badge: "Mega特性",
+    tone: "body",
+    text: "微笑尅乐的Mega 特性【爱至癫狂】触发",
+  });
+  assert.deepEqual(formatBattleLog({
+    id: "z-move",
+    at: 1,
+    text: "天天发动了Z招式【绝境生还之壁】，防止致命伤害并回复 2 点体力",
+  }), {
+    badge: "Z招式",
+    tone: "body",
+    text: "天天发动了Z招式【绝境生还之壁】，防止致命伤害并回复 2 点体力",
+  });
 });

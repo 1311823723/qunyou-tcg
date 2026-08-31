@@ -78,6 +78,12 @@ export function renderCardArtPreview(view: CardDetailView) {
 export function renderCardDetailBody(view: CardDetailView) {
   const definition = view.definition;
   if (!definition) return `<div class="battle-card-detail__body"><h2>暗置卡牌</h2><p class="battle-card-detail__text">无权限查看这张卡牌的身份与技能。</p></div>`;
+  const bodySubtitleParts = definition.kind === "body" ? view.displaySubtitle.split(" · ") : [];
+  const bodyAbilityName = bodySubtitleParts.at(-1) || "";
+  const bodyArchetype = bodySubtitleParts.slice(0, -1).join(" · ");
+  const bodyAbilityLabel = definition.kind === "body"
+    ? view.form === "mega" && definition.extraFormType === "z-move" ? "Z招式" : "特性"
+    : "";
   const handIdentity = definition.kind === "hand" && view.card
     ? handCardIdentityLabel(view.card.suit, view.card.rank, view.card.joker)
     : "";
@@ -99,7 +105,7 @@ export function renderCardDetailBody(view: CardDetailView) {
       ${view.form === "normal" && definition.megaCondition ? `<span><b>${escapeHtml(definition.extraConditionLabel || "额外形态条件")}</b>${escapeHtml(definition.megaCondition)}</span>` : ""}
       ${view.form === "mega" ? `<span><b>当前形态</b>${escapeHtml(definition.extraFormLabel || "额外形态")}</span>` : ""}
     </div>` : ""}
-    <p class="battle-card-detail__subtitle">${escapeHtml(view.displaySubtitle)}</p>
+    <p class="battle-card-detail__subtitle">${definition.kind === "body" ? `${bodyAbilityLabel}【${escapeHtml(bodyAbilityName)}】${bodyArchetype ? ` · ${escapeHtml(bodyArchetype)}` : ""}` : escapeHtml(view.displaySubtitle)}</p>
     <p class="battle-card-detail__text">${escapeHtml(view.displayText)}</p>
   </div>`;
 }

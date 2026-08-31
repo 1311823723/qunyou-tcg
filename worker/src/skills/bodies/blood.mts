@@ -55,7 +55,7 @@ export const bloodBodySkill: BodySkillModule = {
     if (trigger.kind !== "blood-judgment" || context.usage("turn", "blood") >= 2) return false;
     context.setPrompt({
       kind: "body-skill", playerId: context.player.id, title: context.skillName(),
-      message: "你受到了伤害，是否发动本体技能进行判定？",
+      message: "你受到了伤害，是否触发本体特性进行判定？",
       options: [{ value: "judge", label: "进行判定" }, { value: "pass", label: "不发动" }],
       context: { action: "blood-judge", triggerId: trigger.id },
     });
@@ -71,6 +71,7 @@ export const bloodBodySkill: BodySkillModule = {
       context.clearPrompt(prompt.id);
       if (value === "judge") {
         context.incrementUsage("turn", "blood");
+        context.logTrait();
         context.startJudgment("blood-body");
       }
       return true;

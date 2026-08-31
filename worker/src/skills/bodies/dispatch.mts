@@ -86,6 +86,7 @@ export const dispatchBodySkill: BodySkillModule = {
       context.clearPrompt(prompt.id);
       if (value === "pass") return true;
       context.incrementUsage("turn", "dispatch");
+      context.logTrait();
       if (prompt.context?.revealedByOpponent === true) {
         context.draw(1);
         if (context.player.hand.length) context.setPrompt({

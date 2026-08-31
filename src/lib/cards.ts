@@ -28,6 +28,13 @@ export const EXTRA_FORM_LABELS: Record<string, string> = {
   "dynamax": "极巨化",
 };
 
+export const EXTRA_FORM_ACTION_LABELS: Record<string, string> = {
+  "mega": "Mega进化",
+  "z-move": "Z招式",
+  "terastal": "钛晶化",
+  "dynamax": "极巨化",
+};
+
 export const EXTRA_FORM_CONDITION_LABELS: Record<string, string> = {
   "mega": "Mega 条件",
   "z-move": "Z招式发动条件",

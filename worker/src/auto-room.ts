@@ -31,6 +31,7 @@ import {
 } from "./auto-engine.mts";
 import { bodySkillForId } from "./skills/body-registry.mts";
 import { bodyId, bodyUsageKey } from "./skills/body-ids.mts";
+import { bodyTraitLogText } from "./skills/body-skill.mts";
 import type { BodySkillRuntimeContext } from "./skills/body-skill.mts";
 import { characterSkillForId } from "./skills/character-registry.mts";
 import type { CharacterSkillRuntimeContext } from "./skills/character-skill.mts";
@@ -949,7 +950,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         const triggerId = value.slice(5);
         const allowed = Array.isArray(prompt.context?.bodyTriggerIds) ? prompt.context.bodyTriggerIds.map(String) : [];
         const index = this.state.pendingBodyTriggers.findIndex((trigger) => trigger.id === triggerId && trigger.playerId === player.id);
-        if (!allowed.includes(triggerId) || index < 0) throw new Error("本体技能触发选择无效。");
+        if (!allowed.includes(triggerId) || index < 0) throw new Error("本体特性触发选择无效。");
         const [trigger] = this.state.pendingBodyTriggers.splice(index, 1);
         this.state.prompt = undefined;
         if (!this.openBodyPrompt(player, trigger)) this.openNextSkillTrigger();
@@ -1098,7 +1099,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       opponent: () => opponentOf(state, player.id),
       skillName: (extraForm = false) => {
         const definition = bodyById.get(bodyId(player));
-        return extraForm ? definition?.extraForm?.skillName || definition?.skillName || "本体技能" : definition?.skillName || "本体技能";
+        return extraForm ? definition?.extraForm?.skillName || definition?.skillName || "本体特性" : definition?.skillName || "本体特性";
       },
       usage: (scope, suffix) => state.usageCounters[usageKey(scope, suffix)] || 0,
       incrementUsage: (scope, suffix, amount = 1) => {
@@ -1137,6 +1138,12 @@ export class AutoBattleRoom extends DurableObject<Env> {
       },
       handName,
       characterName: (definitionId) => characterById.get(definitionId)?.name || definitionId,
+      logTrait: () => {
+        const definition = bodyById.get(bodyId(player));
+        const mega = player.bodyState.flipped && definition?.extraForm?.type === "mega";
+        const skillName = mega ? definition?.extraForm?.skillName || definition?.skillName : definition?.skillName;
+        this.addLog(bodyTraitLogText(player.nickname, skillName || "本体特性", mega), player.id, { zone: "body", ownerId: player.id });
+      },
       addLog: (message, actorId, target) => this.addLog(message, actorId, target),
       emitEvent: (type, details = {}) => this.emitEvent(type, details),
       shuffle: (items) => this.shuffle(items),
@@ -1179,7 +1186,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         state.responsePlayerId = target.id;
         state.consecutivePasses = 0;
         state.prompt = createPrompt({
-          kind: "response", playerId: target.id, title: "响应窗口", message: "是否响应本体技能使用的【出刀】？",
+          kind: "response", playerId: target.id, title: "响应窗口", message: "是否响应本体特性使用的【出刀】？",
           cardInstanceIds: [], options: [{ value: "pass", label: "放弃响应" }], context: { itemId: item.id },
         });
         state.prompt.cardInstanceIds = legalResponseCards(state, target).map((candidate) => candidate.instanceId);
@@ -1280,14 +1287,14 @@ export class AutoBattleRoom extends DurableObject<Env> {
         if (this.openBodyPrompt(player, trigger)) return;
         return this.openNextSkillTrigger();
       }
-      const bodyName = bodyById.get(bodyId(player))?.skillName || "本体技能";
+      const bodyName = bodyById.get(bodyId(player))?.skillName || "本体特性";
       this.state.prompt = createPrompt({
         kind: "character-trigger",
         playerId: player.id,
         title: "同时触发结算",
         message: "选择先发动的技能，或放弃该玩家在本次事件的其余可选触发。",
         options: [
-          ...sameEventBody.map((trigger) => ({ value: `body:${trigger.id}`, label: `发动本体技能【${bodyName}】` })),
+          ...sameEventBody.map((trigger) => ({ value: `body:${trigger.id}`, label: `触发特性【${bodyName}】` })),
           { value: "pass", label: "放弃本次其余触发" },
         ],
         context: {
@@ -1329,7 +1336,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       if (!this.state.prompt && !this.state.stack.length && !this.state.pendingJudgments.length) this.openNextSkillTrigger();
       return;
     }
-    throw new Error("本体技能选择无效。");
+    throw new Error("本体特性选择无效。");
   }
 
   private judgmentColor(card: CardInstance) {

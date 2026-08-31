@@ -51,9 +51,10 @@ export const ambushBodySkill: BodySkillModule = {
     context.clearPrompt(prompt.id);
     if (value === "pass") return true;
     context.incrementUsage("turn", "ambush-refill");
+    context.logTrait();
     const deployed = context.deployTopCharacter();
     if (!deployed) throw new Error("角色区已满或角色牌堆为空。");
-    context.addLog(`${context.player.nickname}因本体技能暗置上阵1张角色`, context.player.id, {
+    context.addLog(`${context.player.nickname}因本体特性暗置上阵1张角色`, context.player.id, {
       zone: "characterSlot", ownerId: context.player.id, slotIndex: deployed.slotIndex,
     });
     return true;

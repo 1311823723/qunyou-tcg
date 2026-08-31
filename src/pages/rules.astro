@@ -55,7 +55,7 @@ const setupStats = [
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-aggro);">
           <span class="text-sm font-bold" style="color: var(--color-aggro);">出牌阶段</span>
-          <p class="skill-text mt-2">使用基础牌、行动牌、本体技能；暗置角色满足时机可明置并发动技能。通常每回合限 1 张【出刀】。</p>
+          <p class="skill-text mt-2">使用基础牌、行动牌，处理本体特性；暗置角色满足时机可明置并发动技能。通常每回合限 1 张【出刀】。</p>
         </div>
         <div class="hud-panel" style="padding: 1rem; border-top: 2px solid var(--color-role-resource);">
           <span class="text-sm font-bold" style="color: var(--color-role-resource);">布阵阶段</span>
@@ -93,11 +93,11 @@ const setupStats = [
       <h2 class="section-heading" style="font-size: 1.15rem;">使用、响应与结算</h2>
       <div class="hud-panel" style="padding: 1.1rem;">
         <ol class="space-y-2 pl-5 skill-text" style="list-style: decimal;">
-          <li>声明使用牌或发动技能；暗置角色同时明置，并选择全部目标。</li>
+          <li>声明使用牌、触发特性或发动技能；暗置角色同时明置，并选择全部目标。</li>
           <li>处理费用修改效果，然后支付最终费用。费用支付后不会因效果被抵消而返还。</li>
           <li>牌或技能进入结算栈，由对手先获得响应机会，双方交替响应。</li>
           <li>双方连续放弃响应后，按后加入先结算的顺序处理；每个效果完整结算后再处理新触发。</li>
-          <li>同一时机有多个己方技能触发时，由其拥有者决定顺序；同一技能对同一个事件最多发动一次。</li>
+          <li>同一时机有多个己方特性或技能触发时，由其拥有者决定顺序；同一能力对同一个事件最多发动一次。</li>
         </ol>
       </div>
     </section>
@@ -120,8 +120,8 @@ const setupStats = [
       <h2 class="section-heading" style="font-size: 1.15rem; margin-bottom: 0.75rem;">额外形态（翻面）</h2>
       <p class="skill-text">额外形态写在<strong>本体牌的背面</strong>，满足发动条件后翻面激活。发动条件<strong>写在本体牌正面</strong>。每张本体最多拥有一种额外形态。</p>
       <div style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
-        <p class="skill-text"><strong>Mega：</strong>满足发动条件后翻至背面，获得强化技能，<strong>永久生效，不会翻回正面</strong>。</p>
-        <p class="skill-text"><strong>Z招式：</strong>满足累计条件后翻面就绪，保留原本体技能并获得一次性主动Z招式；每局限发动一次，发动后保持翻面。</p>
+        <p class="skill-text"><strong>Mega：</strong>满足发动条件后翻至背面，获得强化特性，<strong>永久生效，不会翻回正面</strong>。</p>
+        <p class="skill-text"><strong>Z招式：</strong>满足累计条件后翻面就绪，保留原本体特性并获得一次性主动Z招式；每局限发动一次，发动后保持翻面。</p>
         <p class="skill-text"><strong>极巨化：</strong>未来待定，设计方向是限时强化，持续结束后翻回正面。<strong>钛晶化</strong>等其他模式暂未确定。</p>
       </div>
     </section>

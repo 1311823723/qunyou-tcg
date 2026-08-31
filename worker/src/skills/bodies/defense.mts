@@ -25,7 +25,7 @@ export const defenseBodySkill: BodySkillModule = {
       sourcePlayerId: context.player.id, targetPlayerId: context.player.id, amount, metadata: { bodyZMove: true },
     });
     const recovered = context.heal(2);
-    context.addLog(`${context.player.nickname}发动【${context.skillName(true)}】，防止致命伤害并回复 ${recovered} 点体力`, context.player.id, {
+    context.addLog(`${context.player.nickname}发动了Z招式【${context.skillName(true)}】，防止致命伤害并回复 ${recovered} 点体力`, context.player.id, {
       zone: "body", ownerId: context.player.id,
     });
     return true;
@@ -50,6 +50,7 @@ export const defenseBodySkill: BodySkillModule = {
       context.clearPrompt(prompt.id);
       if (value === "pass") return true;
       context.incrementUsage("turn", "defense");
+      context.logTrait();
       context.draw(1);
       const opponent = context.opponent();
       const hidden = opponent?.characterSlots.flatMap((slot, index) => slot && "instanceId" in slot && slot.faceDown ? [{ slot, index }] : []) || [];

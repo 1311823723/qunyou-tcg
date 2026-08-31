@@ -2,21 +2,250 @@
 import Layout from "../../components/Layout.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import BodyCard from "../../components/BodyCard.astro";
-import { allBodies } from "../../lib/cards";
+import { EXTRA_FORM_ACTION_LABELS, EXTRA_FORM_CONDITION_LABELS, EXTRA_FORM_LABELS, allBodies } from "../../lib/cards";
+
+const extraFormFileSlugs: Record<string, string> = {
+  mega: "mega",
+  "z-move": "z_move",
+  terastal: "terastal",
+  dynamax: "dynamax",
+};
+
+function bodyCardImage(id: string, side: "front" | "back", extraType?: string) {
+  if (side === "front") return `/cards/bodies/${id}_front.webp`;
+  return `/cards/bodies/${id}_${extraFormFileSlugs[extraType || ""] || "extra"}_back.webp`;
+}
+
+function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: string) {
+  if (side === "front") return `/cards-hd/bodies/${id}_front.webp`;
+  return `/cards-hd/bodies/${id}_${extraFormFileSlugs[extraType || ""] || "extra"}_back.webp`;
+}
 ---
+
 <Layout title="本体牌">
-  <div class="page-wrap max-w-3xl">
-    <PageHeader title="本体牌" subtitle="玩家核心 · 承受伤害 · 决定流派与额外形态。点击翻面查看 Mega / Z招式等形态。" badge="BODY" />
-    <div class="hud-panel mb-6 scroll-reveal" style="padding: 1rem 1.2rem;">
-      <p class="skill-text">本体牌是每局公开的核心身份。它承受伤害，定义打法方向。每张本体最多拥有一种额外形态（Mega / Z招式 等），写在卡牌背面，翻面即激活形态。</p>
+  <div class="page-wrap" id="bodies-page" data-total={allBodies.length}>
+    <PageHeader title="本体牌" subtitle={`${allBodies.length} 张 · 竖版 TCG 卡面`} badge="BODY" />
+    <div class="filter-panel body-view-panel scroll-reveal">
+      <div class="filter-panel__primary">
+        <div>
+          <span class="filter-group__label">本体牌浏览</span>
+          <p class="filter-summary">切换查看完整卡牌或卡面缩略图。</p>
+        </div>
+        <div class="filter-group filter-group--view" aria-label="本体牌视图模式">
+          <span class="filter-group__label">视图</span>
+          <button type="button" class="filter-chip" data-body-view="detail" aria-pressed="false">详情模式</button>
+          <button type="button" class="filter-chip is-active" data-body-view="card" aria-pressed="true">卡面模式</button>
+        </div>
+      </div>
+      <p class="skill-text body-view-panel__hint">本体牌是每局公开的核心身份。点击卡面可打开高清详情，并翻面查看 Mega、Z招式等额外形态。</p>
     </div>
 
-    <div class="grid gap-6">
+    <!-- 详情模式 -->
+    <div class="grid gap-6" id="body-gallery-detail" hidden>
       {allBodies.map((b, i) => (
         <div class="scroll-reveal" style={`animation-delay: ${i * 0.1}s`}>
           <BodyCard body={b} />
         </div>
       ))}
     </div>
+
+    <!-- 卡面模式 -->
+    <div class="body-card-gallery" id="body-gallery-card">
+      {allBodies.map((b, i) => (
+        <article class="thumb-card body-thumb-card scroll-reveal" style={`animation-delay: ${Math.min(i * 0.04, 1)}s`}>
+          <button
+            type="button"
+            class="thumb-card__btn body-thumb-card__btn"
+            data-body-card-trigger
+            data-body-id={b.id}
+            data-body-name={b.name}
+            data-body-archetype={b.archetype}
+            data-body-hp={String(b.hp)}
+            data-body-tags={b.affinityTags.join("、")}
+            data-body-skill={b.skillName}
+            data-body-effect={b.effectText}
+            data-body-extra-type={b.extraForm?.type || ""}
+            data-body-extra-label={b.extraForm ? EXTRA_FORM_LABELS[b.extraForm.type] || b.extraForm.type : ""}
+            data-body-extra-action-label={b.extraForm ? EXTRA_FORM_ACTION_LABELS[b.extraForm.type] || b.extraForm.type : ""}
+            data-body-extra-condition-label={b.extraForm ? EXTRA_FORM_CONDITION_LABELS[b.extraForm.type] || "发动条件" : ""}
+            data-body-extra-name={b.extraForm?.name || ""}
+            data-body-extra-skill={b.extraForm?.skillName || ""}
+            data-body-extra-effect={b.extraForm?.effectText || ""}
+            data-body-extra-condition={b.extraForm?.condition || ""}
+            data-body-notes={b.notes || ""}
+            data-body-front={bodyCardHighResImage(b.id, "front")}
+            data-body-back={bodyCardHighResImage(b.id, "back", b.extraForm?.type)}
+            aria-label={`查看 ${b.name} 本体卡详情`}
+          >
+            <img src={bodyCardImage(b.id, "front")} width="250" height="350" alt={`${b.name} 本体卡`} loading="lazy" decoding="async" />
+            <span class="thumb-card__name">{b.name}</span>
+          </button>
+        </article>
+      ))}
+    </div>
   </div>
+
+  <!-- 本体牌高清详情 -->
+  <dialog id="body-card-zoom-dialog" class="card-zoom-dialog body-card-zoom-dialog">
+    <div class="card-zoom-dialog__content body-card-zoom-dialog__content">
+      <button type="button" class="card-zoom-dialog__close" aria-label="关闭本体牌详情">×</button>
+      <div class="body-card-zoom">
+        <div class="body-card-zoom__visual">
+          <div class="body-card-zoom__flip-stage">
+            <div class="body-card-zoom__flip-inner" id="body-card-zoom-inner">
+              <div class="body-card-zoom__face body-card-zoom__face--front">
+                <img id="body-card-zoom-front" class="body-card-zoom__image" width="750" height="1050" alt="" decoding="async" />
+              </div>
+              <div class="body-card-zoom__face body-card-zoom__face--back">
+                <img id="body-card-zoom-back" class="body-card-zoom__image" width="750" height="1050" alt="" decoding="async" />
+              </div>
+            </div>
+          </div>
+          <button type="button" class="card-flip__btn body-card-zoom__flip" id="body-card-zoom-flip">
+            <span class="card-flip__btn-icon" aria-hidden="true">↻</span>
+            <span id="body-card-zoom-flip-label">查看背面</span>
+          </button>
+        </div>
+        <div class="body-card-zoom__info">
+          <div class="body-card-zoom__eyebrow" id="body-card-zoom-form">本体</div>
+          <h2 class="card-zoom__name body-card-zoom__name" id="body-card-zoom-name"></h2>
+          <div class="body-card-zoom__meta">
+            <div class="body-card-zoom__meta-item"><span class="body-card-zoom__meta-label">体力</span><span class="body-card-zoom__meta-value" id="body-card-zoom-hp"></span></div>
+            <div class="body-card-zoom__meta-item"><span class="body-card-zoom__meta-label">流派</span><span class="body-card-zoom__meta-value" id="body-card-zoom-archetype"></span></div>
+            <div class="body-card-zoom__meta-item"><span class="body-card-zoom__meta-label">标签</span><span class="body-card-zoom__meta-value" id="body-card-zoom-tags"></span></div>
+          </div>
+          <div class="body-card-zoom__effect-box">
+            <span class="body-card-zoom__effect-label" id="body-card-zoom-skill-label">特性</span>
+            <p class="body-card-zoom__skill" id="body-card-zoom-skill"></p>
+            <p class="body-card-zoom__effect" id="body-card-zoom-effect"></p>
+          </div>
+          <div class="body-card-zoom__effect-box" id="body-card-zoom-condition-box" hidden>
+            <span class="body-card-zoom__effect-label" id="body-card-zoom-condition-label">发动条件</span>
+            <p class="body-card-zoom__effect" id="body-card-zoom-condition"></p>
+          </div>
+          <div class="body-card-zoom__notes" id="body-card-zoom-notes-box" hidden>
+            <span class="body-card-zoom__effect-label">备注</span>
+            <p class="body-card-zoom__effect" id="body-card-zoom-notes"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </dialog>
 </Layout>
+
+<script>
+  const BODY_VIEW_STORAGE_KEY = "qunyou-tcg-body-view-mode-v1";
+  const bodyViewButtons = document.querySelectorAll<HTMLButtonElement>("[data-body-view]");
+  const bodyDetailGallery = document.getElementById("body-gallery-detail");
+  const bodyCardGallery = document.getElementById("body-gallery-card");
+  const bodyZoomDialog = document.getElementById("body-card-zoom-dialog") as HTMLDialogElement | null;
+  const bodyZoomInner = document.getElementById("body-card-zoom-inner");
+  const bodyZoomFront = document.getElementById("body-card-zoom-front") as HTMLImageElement | null;
+  const bodyZoomBack = document.getElementById("body-card-zoom-back") as HTMLImageElement | null;
+  const bodyZoomFlip = document.getElementById("body-card-zoom-flip") as HTMLButtonElement | null;
+  const bodyZoomFlipLabel = document.getElementById("body-card-zoom-flip-label");
+  const bodyZoomForm = document.getElementById("body-card-zoom-form");
+  const bodyZoomName = document.getElementById("body-card-zoom-name");
+  const bodyZoomHp = document.getElementById("body-card-zoom-hp");
+  const bodyZoomArchetype = document.getElementById("body-card-zoom-archetype");
+  const bodyZoomTags = document.getElementById("body-card-zoom-tags");
+  const bodyZoomSkillLabel = document.getElementById("body-card-zoom-skill-label");
+  const bodyZoomSkill = document.getElementById("body-card-zoom-skill");
+  const bodyZoomEffect = document.getElementById("body-card-zoom-effect");
+  const bodyZoomConditionBox = document.getElementById("body-card-zoom-condition-box");
+  const bodyZoomConditionLabel = document.getElementById("body-card-zoom-condition-label");
+  const bodyZoomCondition = document.getElementById("body-card-zoom-condition");
+  const bodyZoomNotesBox = document.getElementById("body-card-zoom-notes-box");
+  const bodyZoomNotes = document.getElementById("body-card-zoom-notes");
+  let bodyZoomReturnFocus: HTMLElement | null = null;
+  let bodyZoomSource: HTMLElement | null = null;
+  let bodyZoomIsBack = false;
+
+  function setBodyText(element: HTMLElement | null, value: string) {
+    if (element) element.textContent = value;
+  }
+
+  function setBodyImage(image: HTMLImageElement | null, highResPath: string, fallbackPath: string, alt: string) {
+    if (!image) return;
+    image.alt = alt;
+    image.onerror = () => {
+      if (image.src.endsWith(fallbackPath)) return;
+      image.src = fallbackPath;
+    };
+    image.src = highResPath;
+  }
+
+  function renderBodyZoomState(isBack: boolean) {
+    if (!bodyZoomSource) return;
+    const source = bodyZoomSource.dataset;
+    const extraType = source.bodyExtraType || "";
+    const hasExtra = Boolean(extraType && source.bodyExtraName);
+    bodyZoomIsBack = isBack && hasExtra;
+    bodyZoomInner?.classList.toggle("is-flipped", bodyZoomIsBack);
+    setBodyText(bodyZoomForm, bodyZoomIsBack ? source.bodyExtraLabel || extraType : `本体 · ${source.bodyArchetype || ""}`);
+    setBodyText(bodyZoomName, bodyZoomIsBack ? source.bodyExtraName || "" : source.bodyName || "");
+    setBodyText(bodyZoomHp, source.bodyHp || "");
+    setBodyText(bodyZoomArchetype, source.bodyArchetype || "");
+    setBodyText(bodyZoomTags, source.bodyTags || "");
+    setBodyText(bodyZoomSkillLabel, bodyZoomIsBack && extraType === "z-move" ? "Z招式" : "特性");
+    setBodyText(bodyZoomSkill, bodyZoomIsBack ? source.bodyExtraSkill || "" : source.bodySkill || "");
+    setBodyText(bodyZoomEffect, bodyZoomIsBack ? source.bodyExtraEffect || "" : source.bodyEffect || "");
+    const condition = bodyZoomIsBack ? source.bodyExtraCondition || "" : "";
+    if (bodyZoomConditionBox) bodyZoomConditionBox.hidden = !condition;
+    setBodyText(bodyZoomConditionLabel, source.bodyExtraConditionLabel || "发动条件");
+    setBodyText(bodyZoomCondition, condition);
+    const notes = source.bodyNotes || "";
+    if (bodyZoomNotesBox) bodyZoomNotesBox.hidden = !notes;
+    setBodyText(bodyZoomNotes, notes);
+    if (bodyZoomFlip) bodyZoomFlip.hidden = !hasExtra;
+    setBodyText(bodyZoomFlipLabel, bodyZoomIsBack ? "查看正面 · 本体" : `查看背面 · ${source.bodyExtraActionLabel || extraType}`);
+  }
+
+  function showBodyZoom(button: HTMLElement) {
+    if (!bodyZoomDialog) return;
+    const source = button.dataset;
+    const id = source.bodyId || "";
+    const front = source.bodyFront || `/cards-hd/bodies/${id}_front.webp`;
+    const back = source.bodyBack || "";
+    const normalFront = front.replace("/cards-hd/", "/cards/");
+    const normalBack = back.replace("/cards-hd/", "/cards/");
+    setBodyImage(bodyZoomFront, front, normalFront, `${source.bodyName || "本体"} 高清卡图`);
+    setBodyImage(bodyZoomBack, back, normalBack, `${source.bodyExtraName || "额外形态"} 高清卡图`);
+    bodyZoomSource = button;
+    bodyZoomReturnFocus = button;
+    renderBodyZoomState(false);
+    bodyZoomDialog.showModal();
+  }
+
+  function setBodyViewMode(mode: string) {
+    const normalizedMode = mode === "detail" ? "detail" : "card";
+    bodyViewButtons.forEach((button) => {
+      const active = button.dataset.bodyView === normalizedMode;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    if (bodyDetailGallery) bodyDetailGallery.hidden = normalizedMode !== "detail";
+    if (bodyCardGallery) bodyCardGallery.hidden = normalizedMode !== "card";
+    localStorage.setItem(BODY_VIEW_STORAGE_KEY, normalizedMode);
+  }
+
+  bodyViewButtons.forEach((button) => button.addEventListener("click", () => setBodyViewMode(button.dataset.bodyView || "card")));
+  bodyZoomFlip?.addEventListener("click", () => renderBodyZoomState(!bodyZoomIsBack));
+  document.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    const trigger = target.closest<HTMLElement>("[data-body-card-trigger]");
+    if (trigger) {
+      showBodyZoom(trigger);
+      return;
+    }
+    if (target === bodyZoomDialog || target.closest(".card-zoom-dialog__close")) bodyZoomDialog?.close();
+  });
+  bodyZoomDialog?.addEventListener("close", () => {
+    const returnTarget = bodyZoomReturnFocus;
+    bodyZoomReturnFocus = null;
+    bodyZoomSource = null;
+    if (returnTarget?.isConnected) window.requestAnimationFrame(() => returnTarget.focus());
+  });
+
+  setBodyViewMode(localStorage.getItem(BODY_VIEW_STORAGE_KEY) || "card");
+</script>

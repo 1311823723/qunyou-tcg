@@ -6,6 +6,7 @@ import {
   extraStrikeAllowance,
   registeredBodySkillIds,
 } from "../../worker/src/skills/body-registry.mts";
+import { bodyTraitLogText } from "../../worker/src/skills/body-skill.mts";
 
 function player(definitionId, flipped = false, id = "p1") {
   return {
@@ -44,12 +45,13 @@ function runtime(owner, opponent = player(BODY_IDS.defense)) {
   let startedStrike;
   let judgment;
   let prevented = [];
+  const logs = [];
   const key = (scope, suffix) => `body:${scope}:${scope === "turn" ? `${state.turnNumber}:` : ""}${owner.id}:${suffix}`;
   const context = {
     state,
     player: owner,
     opponent: () => opponent,
-    skillName: (extra = false) => extra ? "强化技能" : "本体技能",
+    skillName: (extra = false) => extra ? "强化特性" : "本体特性",
     usage: (scope, suffix) => state.usageCounters[key(scope, suffix)] || 0,
     incrementUsage: (scope, suffix, amount = 1) => {
       const usageKey = key(scope, suffix);
@@ -73,7 +75,8 @@ function runtime(owner, opponent = player(BODY_IDS.defense)) {
     discardLooseCard: (card) => { card.ownerId = undefined; state.handDiscard.push(card); },
     handName: (definitionId) => definitionId,
     characterName: (definitionId) => definitionId,
-    addLog: () => {},
+    logTrait: () => { logs.push(bodyTraitLogText(owner.nickname, owner.bodyState.flipped ? "强化特性" : "本体特性", owner.bodyState.flipped)); },
+    addLog: (message) => { logs.push(message); },
     emitEvent: (type, details) => { prevented.push({ type, details }); },
     shuffle: (items) => [...items],
     deployTopCharacter: () => {
@@ -113,8 +116,14 @@ function runtime(owner, opponent = player(BODY_IDS.defense)) {
     getStartedStrike: () => startedStrike,
     getJudgment: () => judgment,
     getEvents: () => prevented,
+    getLogs: () => logs,
   };
 }
+
+test("本体特性日志区分普通特性、Mega特性与Z招式", () => {
+  assert.equal(bodyTraitLogText("微笑尅乐", "怦然杀意"), "微笑尅乐的特性【怦然杀意】触发");
+  assert.equal(bodyTraitLogText("微笑尅乐", "爱至癫狂", true), "微笑尅乐的Mega 特性【爱至癫狂】触发");
+});
 
 test("8张本体全部由技能注册表管理", () => {
   assert.deepEqual(registeredBodySkillIds(), Object.values(BODY_IDS));
@@ -126,7 +135,7 @@ test("爆杀本体按伤害点数累计进度，Mega 提供两次额外出刀", 
   const mega = player(BODY_IDS.aggro, true);
   const dealt = event("damage_after", { sourcePlayerId: "p1", targetPlayerId: "p2", amount: 2 });
   const skill = bodySkillForId(BODY_IDS.aggro);
-  const { context, getPrompt, getDrawn } = runtime(front);
+  const { context, getPrompt, getDrawn, getLogs } = runtime(front);
   assert.equal(skill.progressDelta(front, dealt), 2);
   assert.equal(skill.collectTrigger(context, dealt).kind, "aggro-draw");
   assert.equal(skill.collectTrigger(context, { ...dealt, id: "second" }), undefined, "每回合只收集首次伤害触发");
@@ -135,6 +144,17 @@ test("爆杀本体按伤害点数累计进度，Mega 提供两次额外出刀", 
   assert.equal(skill.openPrompt(context, { id: "trigger", kind: "aggro-draw", playerId: front.id, eventId: dealt.id }), true);
   skill.resolveChoice(context, getPrompt(), { value: "draw" });
   assert.equal(getDrawn(), 1);
+  assert.deepEqual(getLogs(), ["p1的特性【本体特性】触发"]);
+});
+
+test("放弃本体特性时不会写入触发日志", () => {
+  const owner = player(BODY_IDS.aggro);
+  const skill = bodySkillForId(BODY_IDS.aggro);
+  const { context, getPrompt, getLogs } = runtime(owner);
+  const dealt = event("damage_after", { sourcePlayerId: owner.id, targetPlayerId: "p2", amount: 1 });
+  assert.equal(skill.openPrompt(context, { id: "trigger", kind: "aggro-draw", playerId: owner.id, eventId: dealt.id }), true);
+  skill.resolveChoice(context, getPrompt(), { value: "pass" });
+  assert.deepEqual(getLogs(), []);
 });
 
 test("爆杀 Mega 在结束阶段建立可恢复的出刀选择", () => {

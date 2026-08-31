@@ -286,7 +286,7 @@ function playNextBodyEffect() {
   const isMega = body.extraFormType === "mega";
   const title = effect.kind === "ready"
     ? isMega ? "Mega 进化" : "Z 招式就绪"
-    : isMega ? "Mega 技能发动" : "Z 招式发动";
+    : isMega ? "Mega 特性生效" : "Z 招式发动";
   const subtitle = effect.kind === "activate"
     ? body.extraSubtitle?.split(" · ").at(-1) || body.extraName || body.name
     : body.extraName || body.name;
@@ -537,12 +537,16 @@ function renderCardDetail() {
   const extra = cardDefinition.kind === "body" && owner.bodyState.flipped;
   const name = extra ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name;
   const text = extra ? cardDefinition.extraText || cardDefinition.text : cardDefinition.text;
-  return `<div class="auto-detail" role="dialog" aria-modal="true" aria-label="卡牌详情"><button class="auto-detail__backdrop" data-detail-close aria-label="关闭详情"></button><article><button class="auto-detail__close" data-detail-close aria-label="关闭">×</button>${image ? `<img src="${image}" alt="${escapeHtml(name)}" />` : ""}${renderCardInformation(cardDefinition, name, text)}</article></div>`;
+  return `<div class="auto-detail" role="dialog" aria-modal="true" aria-label="卡牌详情"><button class="auto-detail__backdrop" data-detail-close aria-label="关闭详情"></button><article><button class="auto-detail__close" data-detail-close aria-label="关闭">×</button>${image ? `<img src="${image}" alt="${escapeHtml(name)}" />` : ""}${renderCardInformation(cardDefinition, name, text, extra)}</article></div>`;
 }
 
-function renderCardInformation(cardDefinition: NonNullable<ReturnType<typeof definition>>, name: string, text: string) {
+function renderCardInformation(cardDefinition: NonNullable<ReturnType<typeof definition>>, name: string, text: string, extra = false) {
   const type = cardDefinition.kind === "character" ? cardDefinition.mainRole || "角色" : cardDefinition.kind === "body" ? cardDefinition.archetype || "本体" : "手牌";
-  return `<div class="auto-card-info"><span>${escapeHtml(type)}</span><h3>${escapeHtml(name)}</h3>${cardDefinition.skillName ? `<strong>【${escapeHtml(cardDefinition.skillName)}】</strong>` : ""}${cardDefinition.timing ? `<p><b>发动时机</b>${escapeHtml(cardDefinition.timing)}</p>` : ""}${cardDefinition.costText ? `<p><b>费用</b>${escapeHtml(cardDefinition.costText)}</p>` : ""}<p><b>${cardDefinition.kind === "hand" ? "效果" : "技能详情"}</b>${escapeHtml(text)}</p></div>`;
+  const isZMove = cardDefinition.kind === "body" && extra && cardDefinition.extraFormType === "z-move";
+  const detailLabel = cardDefinition.kind === "hand" ? "效果" : cardDefinition.kind === "body" ? isZMove ? "Z招式详情" : "特性详情" : "技能详情";
+  const abilityName = extra ? cardDefinition.extraSubtitle?.split(" · ").at(-1) || cardDefinition.skillName : cardDefinition.skillName;
+  const abilityLabel = cardDefinition.kind === "body" ? isZMove ? "Z招式" : "特性" : "";
+  return `<div class="auto-card-info"><span>${escapeHtml(type)}</span><h3>${escapeHtml(name)}</h3>${abilityName ? `<strong>${abilityLabel ? `${abilityLabel}` : ""}【${escapeHtml(abilityName)}】</strong>` : ""}${cardDefinition.timing ? `<p><b>发动时机</b>${escapeHtml(cardDefinition.timing)}</p>` : ""}${cardDefinition.costText ? `<p><b>费用</b>${escapeHtml(cardDefinition.costText)}</p>` : ""}<p><b>${detailLabel}</b>${escapeHtml(text)}</p></div>`;
 }
 
 function renderLocalSelection() {
@@ -958,7 +962,7 @@ function bindHoverPreviews() {
       const extra = cardDefinition.kind === "body" && Boolean(owner?.bodyState.flipped);
       const name = extra ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name;
       const text = extra ? cardDefinition.extraText || cardDefinition.text : cardDefinition.text;
-      preview.innerHTML = `<img src="${image}" alt="${escapeHtml(name)}">${renderCardInformation(cardDefinition, name, text)}`;
+      preview.innerHTML = `<img src="${image}" alt="${escapeHtml(name)}">${renderCardInformation(cardDefinition, name, text, extra)}`;
       preview.hidden = false;
       const rect = button.getBoundingClientRect();
       const width = 470;

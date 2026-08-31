@@ -62,9 +62,12 @@ export const aggroBodySkill: BodySkillModule = {
     const value = choiceValue(payload);
     const selectedIds = selectedCardIds(payload);
     if (action === "aggro-draw") {
-      if (value !== "draw" && value !== "pass") throw new Error("本体技能选择无效。");
+      if (value !== "draw" && value !== "pass") throw new Error("本体特性选择无效。");
       context.clearPrompt(prompt.id);
-      if (value === "draw") context.draw(1);
+      if (value === "draw") {
+        context.logTrait();
+        context.draw(1);
+      }
       return true;
     }
     if (action !== "aggro-mega-strike") return false;
@@ -75,6 +78,7 @@ export const aggroBodySkill: BodySkillModule = {
     if (selectedIds.length !== 1 || !prompt.cardInstanceIds?.includes(selectedIds[0])) throw new Error("请选择1张【出刀】。");
     const targetPlayerId = String(prompt.context?.targetPlayerId || "");
     context.clearPrompt(prompt.id);
+    context.logTrait();
     context.startBodyStrike(targetPlayerId, selectedIds[0]);
     return true;
   },

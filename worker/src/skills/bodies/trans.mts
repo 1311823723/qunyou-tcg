@@ -40,6 +40,7 @@ export const transBodySkill: BodySkillModule = {
     context.clearPrompt(prompt.id);
     if (value === "pass") return true;
     context.incrementUsage("turn", "trans");
+    context.logTrait();
     const deployed = context.deployTopCharacter();
     if (!deployed) throw new Error("角色区已满或角色牌堆为空。");
     context.player.bodyState.trackedCharacterInstanceIds.push(deployed.card.instanceId);
@@ -47,7 +48,7 @@ export const transBodySkill: BodySkillModule = {
       id: crypto.randomUUID(), ownerId: context.player.id, kind: "body-next-skill-cost-rest-one", count: 1,
       characterInstanceId: deployed.card.instanceId, expiresAtTurnNumber: context.state.turnNumber + 1,
     });
-    context.addLog(`${context.player.nickname}因本体技能暗置上阵1张角色`, context.player.id, {
+    context.addLog(`${context.player.nickname}因本体特性暗置上阵1张角色`, context.player.id, {
       zone: "characterSlot", ownerId: context.player.id, slotIndex: deployed.slotIndex,
     });
     return true;
