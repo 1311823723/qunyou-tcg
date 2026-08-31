@@ -44,6 +44,7 @@ test("current body cards expose the expected extra-form progress maxima", () => 
     body_blood_001: 4,
     body_ambush_001: 4,
     body_defense_001: 4,
+    body_link_001: 3,
   });
 });
 

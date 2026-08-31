@@ -91,7 +91,7 @@ const art = getBodyArt(b.id);
           <div class="flex flex-wrap gap-1 mb-3">
             {b.affinityTags.map((tag) => <TagPill label={tag} variant="aggro" />)}
           </div>
-          <div class="tcg-char__skill-name">{b.extraForm.type === "z-move" ? "Z招式" : "特性"}【{b.extraForm.skillName}】</div>
+          <div class="tcg-char__skill-name">{b.extraForm.type === "z-move" ? "Z招式" : b.extraForm.type === "dynamax" ? "极巨技能" : "特性"}【{b.extraForm.skillName}】</div>
           <p class="skill-text mt-2">{b.extraForm.effectText}</p>
         </div>
         <button type="button" class="card-flip__btn" data-flip-target={`flip-${b.id}`}>

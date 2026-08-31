@@ -543,9 +543,10 @@ function renderCardDetail() {
 function renderCardInformation(cardDefinition: NonNullable<ReturnType<typeof definition>>, name: string, text: string, extra = false) {
   const type = cardDefinition.kind === "character" ? cardDefinition.mainRole || "角色" : cardDefinition.kind === "body" ? cardDefinition.archetype || "本体" : "手牌";
   const isZMove = cardDefinition.kind === "body" && extra && cardDefinition.extraFormType === "z-move";
-  const detailLabel = cardDefinition.kind === "hand" ? "效果" : cardDefinition.kind === "body" ? isZMove ? "Z招式详情" : "特性详情" : "技能详情";
+  const isDynamax = cardDefinition.kind === "body" && extra && cardDefinition.extraFormType === "dynamax";
+  const detailLabel = cardDefinition.kind === "hand" ? "效果" : cardDefinition.kind === "body" ? isZMove ? "Z招式详情" : isDynamax ? "极巨技能详情" : "特性详情" : "技能详情";
   const abilityName = extra ? cardDefinition.extraSubtitle?.split(" · ").at(-1) || cardDefinition.skillName : cardDefinition.skillName;
-  const abilityLabel = cardDefinition.kind === "body" ? isZMove ? "Z招式" : "特性" : "";
+  const abilityLabel = cardDefinition.kind === "body" ? isZMove ? "Z招式" : isDynamax ? "极巨技能" : "特性" : "";
   return `<div class="auto-card-info"><span>${escapeHtml(type)}</span><h3>${escapeHtml(name)}</h3>${abilityName ? `<strong>${abilityLabel ? `${abilityLabel}` : ""}【${escapeHtml(abilityName)}】</strong>` : ""}${cardDefinition.timing ? `<p><b>发动时机</b>${escapeHtml(cardDefinition.timing)}</p>` : ""}${cardDefinition.costText ? `<p><b>费用</b>${escapeHtml(cardDefinition.costText)}</p>` : ""}<p><b>${detailLabel}</b>${escapeHtml(text)}</p></div>`;
 }
 

@@ -16,6 +16,11 @@ function bodyCardImage(id: string, side: "front" | "back", extraType?: string) {
   return `/cards/bodies/${id}_${extraFormFileSlugs[extraType || ""] || "extra"}_back.webp`;
 }
 
+function bodyCardHighResImage(id: string, side: "front" | "back", extraType?: string) {
+  if (side === "front") return `/cards-hd/bodies/${id}_front.webp`;
+  return `/cards-hd/bodies/${id}_${extraFormFileSlugs[extraType || ""] || "extra"}_back.webp`;
+}
+
 ---
 
 <Layout title="本体牌">
@@ -74,10 +79,10 @@ function bodyCardImage(id: string, side: "front" | "back", extraType?: string) {
             <span class="body-thumb-card__image-stage">
               <span class="body-thumb-card__flip-inner" id={`body-thumb-flip-${b.id}`}>
                 <span class="body-thumb-card__face body-thumb-card__face--front">
-                  <img src={bodyCardImage(b.id, "front")} width="250" height="350" alt={`${b.name} 本体卡`} loading="lazy" decoding="async" />
+                  <img src={bodyCardImage(b.id, "front")} data-body-hi-res={bodyCardHighResImage(b.id, "front")} width="250" height="350" alt={`${b.name} 本体卡`} loading="lazy" decoding="async" />
                 </span>
                 <span class="body-thumb-card__face body-thumb-card__face--back">
-                  <img src={bodyCardImage(b.id, "back", b.extraForm?.type)} width="250" height="350" alt={`${b.extraForm?.name || b.name} 额外形态卡`} loading="lazy" decoding="async" />
+                  <img src={bodyCardImage(b.id, "back", b.extraForm?.type)} data-body-hi-res={bodyCardHighResImage(b.id, "back", b.extraForm?.type)} width="250" height="350" alt={`${b.extraForm?.name || b.name} 额外形态卡`} loading="lazy" decoding="async" />
                 </span>
               </span>
             </span>
@@ -164,23 +169,33 @@ function bodyCardImage(id: string, side: "front" | "back", extraType?: string) {
   const bodyZoomCondition = document.getElementById("body-card-zoom-condition");
   const bodyZoomNotesBox = document.getElementById("body-card-zoom-notes-box");
   const bodyZoomNotes = document.getElementById("body-card-zoom-notes");
+  const bodyZoomFlipStage = document.querySelector<HTMLElement>(".body-card-zoom__flip-stage");
   let bodyZoomReturnFocus: HTMLElement | null = null;
   let bodyZoomSource: HTMLElement | null = null;
   let bodyZoomIsBack = false;
   let bodyZoomAnimationTimer = 0;
+  let bodyZoomImageRequest = 0;
 
   function setBodyText(element: HTMLElement | null, value: string) {
     if (element) element.textContent = value;
   }
 
-  function setBodyImage(image: HTMLImageElement | null, highResPath: string, fallbackPath: string, alt: string) {
+  function setBodyImage(image: HTMLImageElement | null, highResPath: string, fallbackPath: string, alt: string, requestId: number) {
     if (!image) return;
     image.alt = alt;
-    image.onerror = () => {
-      if (image.src.endsWith(fallbackPath)) return;
-      image.src = fallbackPath;
+    image.classList.remove("is-high-res");
+    image.src = fallbackPath;
+    const preload = new Image();
+    preload.decoding = "async";
+    preload.onload = () => {
+      if (requestId !== bodyZoomImageRequest) return;
+      image.src = highResPath;
+      image.classList.add("is-high-res");
     };
-    image.src = highResPath;
+    preload.onerror = () => {
+      if (requestId === bodyZoomImageRequest) image.classList.add("is-high-res");
+    };
+    preload.src = highResPath;
   }
 
   function renderBodyZoomState(isBack: boolean, animate = false) {
@@ -191,13 +206,14 @@ function bodyCardImage(id: string, side: "front" | "back", extraType?: string) {
     bodyZoomIsBack = isBack && hasExtra;
     if (bodyZoomAnimationTimer) window.clearTimeout(bodyZoomAnimationTimer);
     bodyZoomInner?.classList.remove("is-flipping-forward", "is-flipping-backward");
+    bodyZoomFlipStage?.classList.remove("is-flipping");
     bodyZoomInner?.classList.toggle("is-flipped", bodyZoomIsBack);
     setBodyText(bodyZoomForm, bodyZoomIsBack ? source.bodyExtraLabel || extraType : `本体 · ${source.bodyArchetype || ""}`);
     setBodyText(bodyZoomName, bodyZoomIsBack ? source.bodyExtraName || "" : source.bodyName || "");
     setBodyText(bodyZoomHp, source.bodyHp || "");
     setBodyText(bodyZoomArchetype, source.bodyArchetype || "");
     setBodyText(bodyZoomTags, source.bodyTags || "");
-    setBodyText(bodyZoomSkillLabel, bodyZoomIsBack && extraType === "z-move" ? "Z招式" : "特性");
+    setBodyText(bodyZoomSkillLabel, bodyZoomIsBack && extraType === "z-move" ? "Z招式" : bodyZoomIsBack && extraType === "dynamax" ? "极巨技能" : "特性");
     setBodyText(bodyZoomSkill, bodyZoomIsBack ? source.bodyExtraSkill || "" : source.bodySkill || "");
     setBodyText(bodyZoomEffect, bodyZoomIsBack ? source.bodyExtraEffect || "" : source.bodyEffect || "");
     const condition = bodyZoomIsBack ? source.bodyExtraCondition || "" : "";
@@ -212,8 +228,10 @@ function bodyCardImage(id: string, side: "front" | "back", extraType?: string) {
     if (animate && bodyZoomInner) {
       void bodyZoomInner.offsetWidth;
       bodyZoomInner.classList.add(bodyZoomIsBack ? "is-flipping-forward" : "is-flipping-backward");
+      bodyZoomFlipStage?.classList.add("is-flipping");
       bodyZoomAnimationTimer = window.setTimeout(() => {
         bodyZoomInner.classList.remove("is-flipping-forward", "is-flipping-backward");
+        bodyZoomFlipStage?.classList.remove("is-flipping");
       }, 1120);
     }
   }
@@ -229,10 +247,11 @@ function bodyCardImage(id: string, side: "front" | "back", extraType?: string) {
     const normalBack = back.replace("/cards-hd/", "/cards/");
     const thumbnailInner = button.closest<HTMLElement>(".body-thumb-card")?.querySelector<HTMLElement>(".body-thumb-card__flip-inner");
     const startsBack = Boolean(thumbnailInner?.classList.contains("is-flipped"));
+    const requestId = ++bodyZoomImageRequest;
     bodyZoomSource = button;
     bodyZoomReturnFocus = button;
-    setBodyImage(bodyZoomFront, front, normalFront, `${source.bodyName || "本体"} 高清卡图`);
-    setBodyImage(bodyZoomBack, back, normalBack, `${source.bodyExtraName || "额外形态"} 高清卡图`);
+    setBodyImage(bodyZoomFront, front, normalFront, `${source.bodyName || "本体"} 高清卡图`, requestId);
+    setBodyImage(bodyZoomBack, back, normalBack, `${source.bodyExtraName || "额外形态"} 高清卡图`, requestId);
     renderBodyZoomState(startsBack);
     bodyZoomDialog.showModal();
   }
@@ -241,9 +260,29 @@ function bodyCardImage(id: string, side: "front" | "back", extraType?: string) {
     const inner = document.getElementById(button.dataset.bodyThumbFlip || "");
     if (!inner) return;
     const isFlipped = inner.classList.toggle("is-flipped");
+    inner.classList.remove("is-flipping-forward", "is-flipping-backward");
+    void inner.offsetWidth;
+    inner.classList.add(isFlipped ? "is-flipping-forward" : "is-flipping-backward");
+    window.setTimeout(() => inner.classList.remove("is-flipping-forward", "is-flipping-backward"), 1120);
     button.setAttribute("aria-pressed", String(isFlipped));
     const label = button.querySelector<HTMLElement>("[data-body-thumb-flip-label]");
     setBodyText(label, isFlipped ? "查看正面 · 本体" : `查看背面 · ${button.dataset.bodyExtraActionLabel || "额外形态"}`);
+  }
+
+  function preloadBodyThumbnailImages() {
+    document.querySelectorAll<HTMLImageElement>("img[data-body-hi-res]").forEach((image, index) => {
+      const highResPath = image.dataset.bodyHiRes;
+      if (!highResPath) return;
+      window.setTimeout(() => {
+        const preload = new Image();
+        preload.decoding = "async";
+        preload.onload = () => {
+          image.src = highResPath;
+          image.classList.add("is-high-res");
+        };
+        preload.src = highResPath;
+      }, Math.min(index * 90, 1200));
+    });
   }
 
   function setBodyViewMode(mode: string) {
@@ -278,8 +317,10 @@ function bodyCardImage(id: string, side: "front" | "back", extraType?: string) {
     const returnTarget = bodyZoomReturnFocus;
     bodyZoomReturnFocus = null;
     bodyZoomSource = null;
+    bodyZoomImageRequest += 1;
     if (returnTarget?.isConnected) window.requestAnimationFrame(() => returnTarget.focus());
   });
 
   setBodyViewMode(localStorage.getItem(BODY_VIEW_STORAGE_KEY) || "card");
+  preloadBodyThumbnailImages();
 </script>

@@ -82,7 +82,11 @@ export function renderCardDetailBody(view: CardDetailView) {
   const bodyAbilityName = bodySubtitleParts.at(-1) || "";
   const bodyArchetype = bodySubtitleParts.slice(0, -1).join(" · ");
   const bodyAbilityLabel = definition.kind === "body"
-    ? view.form === "mega" && definition.extraFormType === "z-move" ? "Z招式" : "特性"
+    ? view.form === "mega" && definition.extraFormType === "z-move"
+      ? "Z招式"
+      : view.form === "mega" && definition.extraFormType === "dynamax"
+        ? "极巨技能"
+        : "特性"
     : "";
   const handIdentity = definition.kind === "hand" && view.card
     ? handCardIdentityLabel(view.card.suit, view.card.rank, view.card.joker)
