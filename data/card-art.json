@@ -31,6 +31,10 @@
     "body_blood_001": {
       "front": "fengyaojing-body",
       "extra": "fengyaojing-body-z-move"
+    },
+    "body_link_001": {
+      "front": "joker-body",
+      "extra": "joker-body-dynamax"
     }
   },
   "characters": {

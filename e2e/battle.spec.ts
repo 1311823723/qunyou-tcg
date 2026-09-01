@@ -200,7 +200,7 @@ test("two players can start, reconnect, declare, manage markers and spectate", a
 test("automatic beta room starts, advances phases and protects spectator privacy", async ({ browser }, testInfo) => {
   const consoleEntries: string[] = [];
   const hostContext = await browser.newContext();
-  const guestContext = await browser.newContext();
+  const guestContext = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
   const spectatorContext = await browser.newContext();
   await Promise.all([skipCoach(hostContext), skipCoach(guestContext), skipCoach(spectatorContext)]);
 
@@ -248,6 +248,37 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     await expect(hostPage.locator(".auto-body-status")).toHaveCount(2);
     await expect(hostPage.locator('.auto-progress-counter[aria-label="Mega 0 / 6"]')).toHaveCount(1);
     await expect(hostPage.locator('.auto-progress-counter[aria-label="Mega 0 / 5"]')).toHaveCount(1);
+    await expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-mobile-table", "false");
+    await expect(guestPage.locator("#auto-battle-app")).toHaveAttribute("data-mobile-table", "true");
+    await expect(guestPage.locator("#auto-battle-app")).toHaveAttribute("data-mobile-layout", "landscape");
+    await expect(guestPage.locator("#auto-battle-root")).toHaveClass(/is-mobile-table/);
+
+    const mobileCardSizes = await guestPage.locator(".auto-slot .auto-card").evaluateAll((cards) => cards.map((card) => {
+      const bounds = card.getBoundingClientRect();
+      return { width: bounds.width, height: bounds.height };
+    }));
+    expect(mobileCardSizes.length).toBeGreaterThan(0);
+    expect(Math.max(...mobileCardSizes.map((size) => size.width)) - Math.min(...mobileCardSizes.map((size) => size.width))).toBeLessThan(.6);
+    expect(Math.max(...mobileCardSizes.map((size) => size.height)) - Math.min(...mobileCardSizes.map((size) => size.height))).toBeLessThan(.6);
+    await testInfo.attach("auto-mobile-landscape", { body: await guestPage.screenshot(), contentType: "image/png" });
+
+    const tableBeforeLog = await guestPage.locator(".auto-game").boundingBox();
+    await guestPage.locator("[data-auto-mobile-log-toggle]").click();
+    await expect(guestPage.locator(".auto-log")).toHaveClass(/is-open/);
+    await expect(guestPage.locator("[data-auto-mobile-log-toggle]")).toHaveAttribute("aria-expanded", "true");
+    await guestPage.locator(".auto-mobile-log-close").click();
+    await expect(guestPage.locator(".auto-log")).not.toHaveClass(/is-open/);
+    await expect(guestPage.locator("[data-auto-mobile-log-toggle]")).toBeFocused();
+    await guestPage.locator("[data-auto-mobile-log-toggle]").click();
+    await guestPage.keyboard.press("Escape");
+    await expect(guestPage.locator(".auto-log")).not.toHaveClass(/is-open/);
+    await guestPage.locator("[data-auto-mobile-log-toggle]").click();
+    await guestPage.locator(".auto-mobile-log-backdrop").click({ position: { x: 20, y: 20 } });
+    await expect(guestPage.locator(".auto-log")).not.toHaveClass(/is-open/);
+    await expect(guestPage.locator("[data-auto-mobile-log-toggle]")).toHaveAttribute("aria-expanded", "false");
+    const tableAfterLog = await guestPage.locator(".auto-game").boundingBox();
+    expect(tableAfterLog?.width).toBeCloseTo(tableBeforeLog?.width || 0, 1);
+    expect(tableAfterLog?.height).toBeCloseTo(tableBeforeLog?.height || 0, 1);
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const hostPass = hostPage.locator('.auto-prompt.is-mine [data-prompt-value="pass"]');
@@ -274,15 +305,28 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     await expect(spectatorPage.getByText("玩家 B ·", { exact: false })).toBeVisible();
     await expect(spectatorPage.locator("[data-phase-advance]")).toBeDisabled();
 
-    await currentPage.setViewportSize({ width: 390, height: 844 });
-    const overflow = await currentPage.locator("#auto-battle-app").evaluate((element) => ({
+    await guestPage.setViewportSize({ width: 740, height: 360 });
+    await expect.poll(async () => (await guestPage.locator(".auto-game").boundingBox())?.width || Infinity).toBeLessThanOrEqual(740);
+    const compactLandscape = await guestPage.locator(".auto-game").boundingBox();
+    expect(compactLandscape?.height).toBeLessThanOrEqual(328);
+
+    await guestPage.setViewportSize({ width: 390, height: 844 });
+    await guestPage.locator("[data-auto-mobile-layout]").click();
+    await expect(guestPage.locator("#auto-battle-app")).toHaveAttribute("data-mobile-layout", "portrait");
+    expect(await guestPage.evaluate(() => localStorage.getItem("qunyou-auto-mobile-layout-v1"))).toBe("portrait");
+    await testInfo.attach("auto-mobile-portrait", { body: await guestPage.screenshot(), contentType: "image/png" });
+    const overflow = await guestPage.locator("#auto-battle-app").evaluate((element) => ({
       app: element.scrollWidth - element.clientWidth,
       page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     }));
     expect(overflow.app).toBeLessThanOrEqual(1);
     expect(overflow.page).toBeLessThanOrEqual(1);
 
-    const revision = await currentPage.locator("#auto-battle-app").getAttribute("data-phase");
+    await hostPage.setViewportSize({ width: 390, height: 844 });
+    await expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-mobile-table", "false");
+    await expect(hostPage.locator("#auto-battle-root")).toHaveClass(/is-table-fit/);
+
+    const revision = await guestPage.locator("#auto-battle-app").getAttribute("data-phase");
     expect(revision).toBe("game");
   } finally {
     await attachConsole(testInfo, consoleEntries);

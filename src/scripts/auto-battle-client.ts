@@ -119,6 +119,8 @@ let localSelectionAction: LocalSelectionAction | undefined;
 let localFormAction: LocalFormAction | undefined;
 let autoResponseTimer = 0;
 let autoPhaseTimer = 0;
+let autoDeploymentTimer = 0;
+let autoDeploymentPendingRevision: number | undefined;
 let effectTimer = 0;
 let effectPlaying = false;
 const effectQueue: Array<{ player: AutoPlayerView; kind: "ready" | "activate" }> = [];
@@ -127,6 +129,38 @@ const progressAnimations = new Set<string>();
 const flipAnimations = new Set<string>();
 const selectedDiscard = new Set<string>();
 const selectedPromptCards = new Set<string>();
+const MOBILE_LAYOUT_KEY = "qunyou-auto-mobile-layout-v1";
+const mobileTableQuery = window.matchMedia("(hover: none) and (pointer: coarse)");
+type MobileTableLayout = "landscape" | "portrait";
+let mobileTableActive = mobileTableQuery.matches;
+let mobileTableLayout = readMobileTableLayout();
+let mobileLogOpen = false;
+let mobileLogReturnFocus: HTMLElement | null = null;
+
+function readMobileTableLayout(): MobileTableLayout {
+  if (!mobileTableActive) return window.innerWidth >= window.innerHeight ? "landscape" : "portrait";
+  try {
+    const saved = localStorage.getItem(MOBILE_LAYOUT_KEY);
+    if (saved === "landscape" || saved === "portrait") return saved;
+  } catch {
+    // Storage can be unavailable in private browsing; the current device orientation is enough.
+  }
+  return window.innerWidth >= window.innerHeight ? "landscape" : "portrait";
+}
+
+function syncMobileTableState() {
+  if (!app) return;
+  app.dataset.mobileTable = mobileTableActive ? "true" : "false";
+  if (mobileTableActive) app.dataset.mobileLayout = mobileTableLayout;
+  else delete app.dataset.mobileLayout;
+  const layoutButton = app.querySelector<HTMLButtonElement>("[data-auto-mobile-layout]");
+  const logButton = app.querySelector<HTMLButtonElement>("[data-auto-mobile-log-toggle]");
+  if (layoutButton) {
+    layoutButton.textContent = mobileTableLayout === "landscape" ? "切换竖屏" : "切换横屏";
+    layoutButton.setAttribute("aria-label", layoutButton.textContent);
+  }
+  logButton?.setAttribute("aria-expanded", mobileLogOpen ? "true" : "false");
+}
 
 if (roomCodeElement) roomCodeElement.textContent = roomCode || "------";
 
@@ -220,6 +254,8 @@ async function connect() {
     socket.addEventListener("open", () => setConnection("已连接", "open"));
     socket.addEventListener("message", (event) => handleMessage(JSON.parse(String(event.data)) as ServerMessage));
     socket.addEventListener("close", () => {
+      clearTimeout(autoDeploymentTimer);
+      autoDeploymentPendingRevision = undefined;
       if (!shouldReconnect) return;
       setConnection("正在重连", "closed");
       reconnectTimer = window.setTimeout(connect, 1200);
@@ -233,6 +269,9 @@ async function connect() {
 function handleMessage(message: ServerMessage) {
   if (message.type === "snapshot") {
     const previous = snapshot;
+    if (autoDeploymentPendingRevision !== undefined && message.snapshot.revision > autoDeploymentPendingRevision) {
+      autoDeploymentPendingRevision = undefined;
+    }
     healthAnimations.clear();
     progressAnimations.clear();
     flipAnimations.clear();
@@ -263,10 +302,15 @@ function handleMessage(message: ServerMessage) {
     render();
     playNextBodyEffect();
     scheduleAutomaticActions();
-  } else if (message.type === "error") showToast(message.error);
+  } else if (message.type === "error") {
+    if (autoDeploymentPendingRevision !== undefined) autoDeploymentPendingRevision = undefined;
+    showToast(message.error);
+  }
   else if (message.type === "roomEnded") {
     shouldReconnect = false;
     clearTimeout(reconnectTimer);
+    clearTimeout(autoDeploymentTimer);
+    autoDeploymentPendingRevision = undefined;
     clearActiveRoom(roomCode);
     if (exitingToLobby) {
       location.href = "/play";
@@ -310,8 +354,12 @@ function playNextBodyEffect() {
 }
 
 function send(type: string, payload: Record<string, unknown> = {}) {
-  if (!socket || socket.readyState !== WebSocket.OPEN || !snapshot) return showToast("牌桌尚未连接。");
+  if (!socket || socket.readyState !== WebSocket.OPEN || !snapshot) {
+    showToast("牌桌尚未连接。");
+    return false;
+  }
   socket.send(JSON.stringify({ type, payload, actionId: crypto.randomUUID(), protocolVersion: 2, baseRevision: snapshot.revision }));
+  return true;
 }
 
 function definition(card?: CardView) {
@@ -348,7 +396,9 @@ function renderCard(card: CardView, owner: AutoPlayerView, zone: string, interac
   const cardDefinition = definition(card);
   if (!cardDefinition) return `<div class="auto-card auto-card--back"><span>暗置</span></div>`;
   const faceDownCharacter = cardDefinition.kind === "character" && Boolean(card.faceDown) && zone.startsWith("slot:");
-  const image = faceDownCharacter ? "/cards/backs/character.webp" : cardImage(card, owner);
+  const opponentFaceDownCharacter = faceDownCharacter && owner.id !== snapshot?.you;
+  const ownFaceDownCharacter = faceDownCharacter && !opponentFaceDownCharacter;
+  const image = opponentFaceDownCharacter ? "/cards/backs/character.webp" : cardImage(card, owner);
   const identity = handCardIdentityLabel(card.suit, card.rank, card.joker);
   const title = disabledReason ? `${cardDefinition.text}\n当前不可用：${disabledReason}` : cardDefinition.text;
   const selectable = isServerPromptSelectable(card.instanceId) || isLocalSelectionCard(card.instanceId);
@@ -363,8 +413,8 @@ function renderCard(card: CardView, owner: AutoPlayerView, zone: string, interac
           : recent.type === "character_retired" ? "is-retired"
             : ""
     : cardDefinition.kind === "body" && flipAnimations.has(owner.id) ? "is-form-flipped" : "";
-  return `<button type="button" class="auto-card auto-card--${cardDefinition.kind} ${interactive || selectable ? "is-legal" : ""} ${selectable ? "is-table-selectable" : ""} ${selected ? "is-selected" : ""} ${faceDownCharacter ? "is-face-down" : ""} ${animated}" data-auto-card="${card.instanceId || ""}" data-owner="${owner.id}" data-zone="${zone}" data-interactive="${interactive || selectable ? "true" : "false"}" title="${escapeHtml(faceDownCharacter ? "暗置角色" : title)}">
-    ${image ? `<img src="${image}" alt="" />` : ""}${!faceDownCharacter && cardDefinition.kind === "character" && cardDefinition.automationLevel ? `<span class="auto-card__automation">${cardDefinition.automationLevel === "full" ? "自动" : "辅助"}</span>` : ""}${faceDownCharacter ? `<span class="sr-only">暗置角色</span>` : `<strong>${escapeHtml(cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name)}</strong><small>${escapeHtml(identity || (cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraSubtitle || cardDefinition.subtitle : cardDefinition.subtitle))}</small>`}
+  return `<button type="button" class="auto-card auto-card--${cardDefinition.kind} ${interactive || selectable ? "is-legal" : ""} ${selectable ? "is-table-selectable" : ""} ${selected ? "is-selected" : ""} ${opponentFaceDownCharacter ? "is-face-down" : ownFaceDownCharacter ? "is-own-face-down" : ""} ${animated}" data-auto-card="${card.instanceId || ""}" data-owner="${owner.id}" data-zone="${zone}" data-interactive="${interactive || selectable ? "true" : "false"}" title="${escapeHtml(opponentFaceDownCharacter ? "暗置角色" : title)}">
+    ${image ? `<img src="${image}" alt="" />` : ""}${!opponentFaceDownCharacter && cardDefinition.kind === "character" && cardDefinition.automationLevel ? `<span class="auto-card__automation">${cardDefinition.automationLevel === "full" ? "自动" : "辅助"}</span>` : ""}${opponentFaceDownCharacter ? `<span class="sr-only">暗置角色</span>` : `<strong>${escapeHtml(cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name)}</strong><small>${escapeHtml(identity || (cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraSubtitle || cardDefinition.subtitle : cardDefinition.subtitle))}</small>`}
   </button>`;
 }
 
@@ -511,7 +561,8 @@ function renderPrompt(prompt: AutoPrompt | undefined, me?: AutoPlayerView) {
     ? `<button class="btn btn--primary" data-submit-character-order>输入牌序</button>` : "";
   const autoPass = mine && prompt.kind === "response" && snapshot?.game.legalHandCardIds.length === 0 && snapshot.game.legalSkillInstanceIds.length === 0
     ? `<small class="auto-prompt__auto">没有可用的牌或技能，2 秒后自动放弃响应。</small>` : "";
-  return `<aside class="auto-prompt ${mine ? "is-mine" : ""} ${selectableCards || inspectedCard ? "has-card-choices" : ""}">${responseContext(prompt)}<span>${mine ? "需要你的操作" : "等待对手"}</span><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.message)}</p>${autoPass}${inspectedCard ? `<div class="auto-prompt__inspection">${inspectedCard}</div>` : ""}${selectableCards ? `<div class="auto-prompt__cards">${selectableCards}</div>` : ""}<div class="auto-prompt__actions">${options}${cardSelection}${orderInput}${prompt.kind === "discard" && mine ? `<button class="btn btn--primary" data-submit-discard ${selectedDiscard.size === Number(prompt.min || 0) ? "" : "disabled"}>确认弃牌</button>` : ""}${prompt.kind === "assisted-skill" && mine ? `<button class="btn btn--primary" data-assisted-finish>完成技能结算</button>` : ""}</div></aside>`;
+  const detachedChoices = Boolean(selectableCards || inspectedCard || orderInput);
+  return `<aside class="auto-prompt ${mine ? "is-mine" : ""} ${selectableCards || inspectedCard ? "has-card-choices" : ""} ${detachedChoices ? "is-overlay-panel" : ""}">${responseContext(prompt)}<span>${mine ? "需要你的操作" : "等待对手"}</span><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.message)}</p>${autoPass}${inspectedCard ? `<div class="auto-prompt__inspection">${inspectedCard}</div>` : ""}${selectableCards ? `<div class="auto-prompt__cards">${selectableCards}</div>` : ""}<div class="auto-prompt__actions">${options}${cardSelection}${orderInput}${prompt.kind === "discard" && mine ? `<button class="btn btn--primary" data-submit-discard ${selectedDiscard.size === Number(prompt.min || 0) ? "" : "disabled"}>确认弃牌</button>` : ""}${prompt.kind === "assisted-skill" && mine ? `<button class="btn btn--primary" data-assisted-finish>完成技能结算</button>` : ""}</div></aside>`;
 }
 
 function findCard(instanceId: string, ownerId = "") {
@@ -562,11 +613,11 @@ function renderLocalSelection() {
 
 function renderLocalForm(me?: AutoPlayerView, opponent?: AutoPlayerView) {
   if (!localFormAction || !me) return "";
-  if (localFormAction.kind === "order") return `<aside class="auto-prompt auto-local-form is-mine"><span>需要你的操作</span><h3>${escapeHtml(localFormAction.title)}</h3><p>${escapeHtml(localFormAction.message)}</p><div class="auto-inline-form auto-inline-form--order"><label>牌顶与牌底顺序<input data-local-form-order value="1 | 2,3" placeholder="例如 1,3 | 2,4"></label></div><div class="auto-prompt__actions"><button class="btn btn--primary" data-local-form-submit>确认牌序</button><button class="btn btn--secondary" data-local-form-cancel>返回</button></div></aside>`;
+  if (localFormAction.kind === "order") return `<aside class="auto-prompt auto-local-form is-mine is-overlay-panel"><span>需要你的操作</span><h3>${escapeHtml(localFormAction.title)}</h3><p>${escapeHtml(localFormAction.message)}</p><div class="auto-inline-form auto-inline-form--order"><label>牌顶与牌底顺序<input data-local-form-order value="1 | 2,3" placeholder="例如 1,3 | 2,4"></label></div><div class="auto-prompt__actions"><button class="btn btn--primary" data-local-form-submit>确认牌序</button><button class="btn btn--secondary" data-local-form-cancel>返回</button></div></aside>`;
   const isInspect = localFormAction.action === "inspect";
   const isMove = localFormAction.action === "move";
   const isMarker = localFormAction.action === "marker";
-  return `<aside class="auto-prompt auto-local-form is-mine"><span>技能结算</span><h3>${escapeHtml(localFormAction.title)}</h3><p>${escapeHtml(localFormAction.message)}</p><div class="auto-inline-form">
+  return `<aside class="auto-prompt auto-local-form is-mine is-overlay-panel"><span>技能结算</span><h3>${escapeHtml(localFormAction.title)}</h3><p>${escapeHtml(localFormAction.message)}</p><div class="auto-inline-form">
     ${isInspect ? `<label>观看内容<select data-assisted-field="inspectionKind"><option value="handDeckTop">共用手牌堆顶</option><option value="opponentHand">对手手牌</option><option value="characterRole">角色牌</option></select></label>` : ""}
     <label>目标<select data-assisted-field="playerId"><option value="${escapeHtml(me.id)}">自己</option>${opponent ? `<option value="${escapeHtml(opponent.id)}">对手·${escapeHtml(opponent.nickname)}</option>` : ""}</select></label>
     ${isInspect || isMove ? `<label>角色位<select data-assisted-field="slotIndex">${[0, 1, 2, 3].map((index) => `<option value="${index}">${index + 1} 号位</option>`).join("")}</select></label>` : ""}
@@ -585,6 +636,10 @@ function renderRoleAction(me?: AutoPlayerView) {
   const canReveal = slotIndex >= 0 && card.faceDown && snapshot.game.currentPlayerId === snapshot.you && snapshot.game.phase === "deployment" && !snapshot.game.prompt;
   const canUseSkill = snapshot.game.legalSkillInstanceIds.includes(selectedRoleInstanceId);
   return `<div class="auto-role-confirm"><div><span>已选择角色</span><strong>【${escapeHtml(cardDefinition.name)}】</strong><small>${canUseSkill || canReveal ? "选择要执行的操作" : "当前只能查看卡牌详情"}</small></div><button class="btn btn--secondary" data-role-action="view">查看详情</button>${canReveal ? `<button class="btn btn--secondary" data-role-action="reveal">明置角色</button>` : ""}${canUseSkill ? `<button class="btn btn--primary" data-role-action="skill">发动技能</button>` : ""}<button class="btn btn--secondary" data-role-action="cancel">取消</button></div>`;
+}
+
+function renderSelectedCardAction(cardDefinition: NonNullable<ReturnType<typeof definition>>) {
+  return `<div class="auto-play-confirm"><div><span>已选择</span><strong>【${escapeHtml(cardDefinition.name)}】</strong><small>${escapeHtml(cardDefinition.text)}</small></div><button class="btn btn--secondary" data-view-selected>查看牌面</button><button class="btn btn--secondary" data-cancel-play>取消</button><button class="btn btn--primary" data-confirm-play>${snapshot?.game.prompt?.kind === "response" ? "确认响应" : snapshot?.game.prompt?.kind === "dying" ? "确认急救" : "确认打出"}</button></div>`;
 }
 
 function renderGame() {
@@ -608,25 +663,30 @@ function renderGame() {
   const recentEvent = snapshot.game.recentEvents.at(-1);
   const selectedCard = me?.hand.find((card) => card.instanceId === selectedPlayCardId);
   const selectedDefinition = definition(selectedCard);
-  const hasInteractionOverlay = Boolean(snapshot.game.prompt || selectedRoleInstanceId || localSelectionAction || localFormAction);
+  const selectedCardAction = selectedCard && selectedDefinition ? renderSelectedCardAction(selectedDefinition) : "";
+  const canDeployCharacter = Boolean(snapshot.game.legalActions?.some((action) => action.type === "character:deploy"));
+  const hasInteractionOverlay = Boolean(snapshot.game.prompt || selectedRoleInstanceId || localSelectionAction || localFormAction || (mobileTableActive && selectedCardAction));
+  const interaction = localFormAction ? renderLocalForm(me, opponent)
+    : localSelectionAction ? renderLocalSelection()
+      : selectedRoleInstanceId ? renderRoleAction(me)
+        : mobileTableActive && selectedCardAction ? selectedCardAction
+          : renderPrompt(snapshot.game.prompt, me);
   root.innerHTML = `<div class="auto-game-stage"><div class="auto-game" data-phase="${snapshot.game.phase}">
     ${opponent ? renderPlayer(opponent, false, spectator ? "玩家 A" : undefined) : ""}
     <section class="auto-command-center ${hasInteractionOverlay ? "has-interaction-overlay" : ""}">
       <div class="auto-phase"><span>第 ${snapshot.game.turnNumber} 回合 · ${isMyTurn ? "你的回合" : "对手回合"}</span><strong>${phaseLabels[snapshot.game.phase]}阶段</strong><small>${recentEvent ? escapeHtml(eventLabel(recentEvent.type)) : "等待行动"}</small></div>
       ${renderPhaseTrack(snapshot.game.phase)}
       <button class="btn btn--primary" data-phase-advance ${canAdvance ? "" : "disabled"}>进入下一阶段</button>
-      ${snapshot.game.phase === "deployment" && isMyTurn ? `<button class="btn btn--secondary" data-deploy ${snapshot.game.deployedThisPhase >= 2 ? "disabled" : ""}>上阵角色（${snapshot.game.deployedThisPhase}/2）</button>` : ""}
+      ${snapshot.game.phase === "deployment" && isMyTurn ? `<button class="btn btn--secondary" data-deploy ${snapshot.game.deployedThisPhase >= 2 || !canDeployCharacter || autoDeploymentPendingRevision !== undefined ? "disabled" : ""}>上阵角色（${snapshot.game.deployedThisPhase}/2）</button>` : ""}
       ${bombActions.map((action) => `<button class="btn btn--secondary" data-remove-bomb="${escapeHtml(String(action.payload?.markerId || ""))}">休整1张角色拆除炸弹</button>`).join("")}
       <div class="auto-stack"><span>结算栈 ${snapshot.game.stack.length}</span><ol>${stack || "<li>当前为空</li>"}</ol></div>
-      ${localFormAction ? renderLocalForm(me, opponent)
-        : localSelectionAction ? renderLocalSelection()
-          : selectedRoleInstanceId ? renderRoleAction(me)
-            : renderPrompt(snapshot.game.prompt, me)}
+      ${interaction}
       ${snapshot.game.winnerId ? `<div class="auto-winner"><strong>${snapshot.game.winnerId === snapshot.you ? "你获胜了" : "对手获胜"}</strong><a href="/play" class="btn btn--primary">返回大厅</a></div>` : ""}
     </section>
     ${lowerPlayer ? renderPlayer(lowerPlayer, !spectator, spectator ? "玩家 B" : undefined) : ""}
-    ${me ? `<section class="auto-hand"><header><strong>我的手牌</strong><span>${me.hand.length} 张 · 牌堆 ${snapshot.game.handDeckCount} · 弃牌 ${snapshot.game.handDiscard.length}</span></header><div class="auto-hand__cards">${hand || "<p>没有手牌</p>"}</div>${selectedCard && selectedDefinition ? `<div class="auto-play-confirm"><div><span>已选择</span><strong>【${escapeHtml(selectedDefinition.name)}】</strong><small>${escapeHtml(selectedDefinition.text)}</small></div><button class="btn btn--secondary" data-view-selected>查看牌面</button><button class="btn btn--secondary" data-cancel-play>取消</button><button class="btn btn--primary" data-confirm-play>${snapshot.game.prompt?.kind === "response" ? "确认响应" : snapshot.game.prompt?.kind === "dying" ? "确认急救" : "确认打出"}</button></div>` : ""}</section>` : ""}
-    <aside class="auto-log"><header>公开日志</header><ol>${logs}</ol></aside>
+    ${me ? `<section class="auto-hand"><header><strong>我的手牌</strong><span>${me.hand.length} 张 · 牌堆 ${snapshot.game.handDeckCount} · 弃牌 ${snapshot.game.handDiscard.length}</span></header><div class="auto-hand__cards">${hand || "<p>没有手牌</p>"}</div>${!mobileTableActive ? selectedCardAction : ""}</section>` : ""}
+    <button type="button" class="auto-mobile-log-backdrop ${mobileLogOpen ? "is-open" : ""}" data-auto-mobile-log-close aria-label="关闭日志" tabindex="-1"></button>
+    <aside id="auto-mobile-log" class="auto-log ${mobileLogOpen ? "is-open" : ""}" aria-label="公开日志" ${mobileTableActive ? 'role="dialog"' : ""}><header><span>公开日志</span><button type="button" class="auto-mobile-log-close" data-auto-mobile-log-close aria-label="关闭日志">×</button></header><ol>${logs}</ol></aside>
   </div></div>${renderCardDetail()}<div class="auto-hover-preview" id="auto-hover-preview" hidden></div>`;
   bindGameActions(me, opponent);
   fitDesktopTable();
@@ -658,6 +718,7 @@ function handLegality(card: CardView) {
 
 function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
   if (!root || !snapshot) return;
+  bindMobileLogActions();
   if (!me) {
     root.querySelectorAll<HTMLButtonElement>("[data-auto-card]").forEach((button) => button.addEventListener("click", () => {
       detailCardInstanceId = button.dataset.autoCard || "";
@@ -669,7 +730,7 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
     return;
   }
   root.querySelector("[data-phase-advance]")?.addEventListener("click", () => send("phase:advance"));
-  root.querySelector("[data-deploy]")?.addEventListener("click", () => send("character:deploy"));
+  root.querySelector<HTMLButtonElement>("[data-deploy]")?.addEventListener("click", () => send("character:deploy"));
   root.querySelector("[data-body-activate]")?.addEventListener("click", () => send("body:activate"));
   root.querySelectorAll<HTMLButtonElement>("[data-remove-bomb]").forEach((button) => button.addEventListener("click", () => {
     const action = snapshot?.game.legalActions?.find((candidate) => candidate.type === "bomb:remove" && candidate.payload?.markerId === button.dataset.removeBomb);
@@ -721,6 +782,31 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
     toggleSelection(button.dataset.localSlot || "", selectedPromptCards, Number(localSelectionAction?.max || 0));
   }));
   bindHoverPreviews();
+}
+
+function bindMobileLogActions() {
+  root?.querySelectorAll<HTMLElement>("[data-auto-mobile-log-close]").forEach((button) => button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeMobileLog();
+  }));
+}
+
+function openMobileLog(trigger: HTMLElement) {
+  if (!mobileTableActive || !snapshot?.game.started) return;
+  mobileLogReturnFocus = trigger;
+  mobileLogOpen = true;
+  syncMobileTableState();
+  render();
+  window.requestAnimationFrame(() => root?.querySelector<HTMLButtonElement>(".auto-mobile-log-close")?.focus());
+}
+
+function closeMobileLog() {
+  if (!mobileLogOpen) return;
+  mobileLogOpen = false;
+  syncMobileTableState();
+  render();
+  window.requestAnimationFrame(() => mobileLogReturnFocus?.focus());
 }
 
 function beginLocalCardSelection(action: LocalSelectionAction) {
@@ -983,24 +1069,39 @@ function bindHoverPreviews() {
 
 function render() {
   if (!snapshot) return;
+  syncMobileTableState();
   if (app) app.dataset.phase = snapshot.game.started ? "game" : "lobby";
   if (snapshot.game.started) renderGame();
   else {
     root?.classList.remove("is-table-fit");
+    root?.classList.remove("is-mobile-table");
+    mobileLogOpen = false;
     renderLobby();
   }
 }
 
 function fitDesktopTable() {
   if (!root || !snapshot?.game.started) return;
-  const desktop = window.matchMedia("(min-width: 761px)").matches;
-  root.classList.toggle("is-table-fit", desktop);
   const stage = root.querySelector<HTMLElement>(".auto-game-stage");
   const table = root.querySelector<HTMLElement>(".auto-game");
-  if (!desktop || !stage || !table) {
+  if (mobileTableActive) {
+    root.classList.remove("is-table-fit");
+    root.classList.add("is-mobile-table");
     table?.style.removeProperty("--auto-table-scale");
+    if (!stage || !table) return;
+    const designWidth = mobileTableLayout === "landscape" ? 844 : 390;
+    const designHeight = mobileTableLayout === "landscape" ? 358 : 812;
+    table.style.setProperty("--auto-mobile-scale", "1");
+    window.requestAnimationFrame(() => {
+      const scale = Math.min(stage.clientWidth / designWidth, stage.clientHeight / designHeight);
+      table.style.setProperty("--auto-mobile-scale", String(Math.max(.1, scale)));
+    });
     return;
   }
+  root.classList.remove("is-mobile-table");
+  root.classList.add("is-table-fit");
+  table?.style.removeProperty("--auto-mobile-scale");
+  if (!stage || !table) return;
   table.style.setProperty("--auto-table-scale", "1");
   window.requestAnimationFrame(() => {
     const scale = Math.min(1, stage.clientWidth / table.scrollWidth, stage.clientHeight / table.scrollHeight);
@@ -1011,6 +1112,7 @@ function fitDesktopTable() {
 function scheduleAutomaticActions() {
   clearTimeout(autoResponseTimer);
   clearTimeout(autoPhaseTimer);
+  clearTimeout(autoDeploymentTimer);
   if (!snapshot || snapshot.you === "spectator" || snapshot.game.winnerId) return;
   const prompt = snapshot.game.prompt;
   if (prompt?.kind === "response" && prompt.playerId === snapshot.you
@@ -1029,10 +1131,49 @@ function scheduleAutomaticActions() {
       if (snapshot?.revision === revision && snapshot.game.phase === phase && !snapshot.game.prompt) send("phase:advance");
     }, 650);
   }
+  if (!prompt && snapshot.game.currentPlayerId === snapshot.you && snapshot.game.phase === "deployment"
+    && snapshot.game.stack.length === 0 && autoDeploymentPendingRevision === undefined
+    && snapshot.game.legalActions?.some((action) => action.type === "character:deploy")) {
+    const revision = snapshot.revision;
+    autoDeploymentTimer = window.setTimeout(() => {
+      autoDeploymentTimer = 0;
+      const current = snapshot;
+      const canDeploy = current?.game.legalActions?.some((action) => action.type === "character:deploy");
+      if (!current || current.revision !== revision || current.game.currentPlayerId !== current.you
+        || current.game.phase !== "deployment" || current.game.prompt || current.game.stack.length
+        || !canDeploy) return;
+      autoDeploymentPendingRevision = revision;
+      render();
+      if (!send("character:deploy")) {
+        autoDeploymentPendingRevision = undefined;
+        render();
+      }
+    }, 650);
+  }
 }
 
 function renderFatal(message: string) {
   if (root) root.innerHTML = `<section class="battle-loading hud-panel"><span class="battle-kicker">AUTO ROOM ERROR</span><h1>无法进入自动牌桌</h1><p>${escapeHtml(message)}</p><a href="/play" class="btn btn--primary">返回大厅</a></section>`;
+}
+
+async function toggleMobileTableLayout() {
+  if (!mobileTableActive) return;
+  mobileTableLayout = mobileTableLayout === "landscape" ? "portrait" : "landscape";
+  try { localStorage.setItem(MOBILE_LAYOUT_KEY, mobileTableLayout); } catch { /* Keep the in-memory preference. */ }
+  syncMobileTableState();
+  fitDesktopTable();
+  let locked = false;
+  try {
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+    const orientation = screen.orientation as ScreenOrientation & { lock?: (value: "landscape" | "portrait") => Promise<void> };
+    if (orientation?.lock) {
+      await orientation.lock(mobileTableLayout);
+      locked = true;
+    }
+  } catch {
+    // iOS and some embedded browsers do not expose orientation locking.
+  }
+  if (!locked) showToast(`已切换为${mobileTableLayout === "landscape" ? "横屏" : "竖屏"}牌桌；如屏幕未旋转，请手动旋转设备。`);
 }
 
 document.querySelector<HTMLAnchorElement>("[data-auto-exit]")?.addEventListener("click", (event) => {
@@ -1044,9 +1185,12 @@ document.querySelector<HTMLAnchorElement>("[data-auto-exit]")?.addEventListener(
   window.setTimeout(() => { location.href = "/play"; }, 800);
 });
 document.querySelector<HTMLButtonElement>("[data-auto-copy-invite]")?.addEventListener("click", (event) => copyText(inviteUrl(), event.currentTarget as HTMLButtonElement, "已复制", "邀请链接"));
+document.querySelector<HTMLButtonElement>("[data-auto-mobile-layout]")?.addEventListener("click", () => { void toggleMobileTableLayout(); });
+document.querySelector<HTMLButtonElement>("[data-auto-mobile-log-toggle]")?.addEventListener("click", (event) => openMobileLog(event.currentTarget as HTMLButtonElement));
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
-  if (detailCardInstanceId) {
+  if (mobileLogOpen) closeMobileLog();
+  else if (detailCardInstanceId) {
     detailCardInstanceId = "";
     detailOwnerId = "";
     render();
@@ -1060,7 +1204,17 @@ window.addEventListener("beforeunload", () => {
   clearTimeout(reconnectTimer);
   clearTimeout(autoResponseTimer);
   clearTimeout(autoPhaseTimer);
+  clearTimeout(autoDeploymentTimer);
+  autoDeploymentPendingRevision = undefined;
   socket?.close();
 });
+mobileTableQuery.addEventListener("change", (event) => {
+  mobileTableActive = event.matches;
+  mobileTableLayout = readMobileTableLayout();
+  if (!mobileTableActive) mobileLogOpen = false;
+  syncMobileTableState();
+  render();
+});
 window.addEventListener("resize", fitDesktopTable);
+syncMobileTableState();
 connect();

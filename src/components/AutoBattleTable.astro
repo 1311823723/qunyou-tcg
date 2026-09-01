@@ -13,6 +13,8 @@ const { catalog } = Astro.props;
     <a href="/play" class="battle-topbar__back" data-auto-exit>← <span>退出</span></a>
     <div><span>AUTO BETA</span><strong id="auto-room-code">------</strong></div>
     <button type="button" class="battle-icon-btn auto-invite-btn" data-auto-copy-invite>邀请链接</button>
+    <button type="button" class="battle-icon-btn auto-mobile-layout-btn" data-auto-mobile-layout aria-label="切换手机牌桌方向">切换横屏</button>
+    <button type="button" class="battle-icon-btn auto-mobile-log-btn" data-auto-mobile-log-toggle aria-controls="auto-mobile-log" aria-expanded="false">日志</button>
     <span id="auto-connection" class="battle-connection" data-state="connecting"><i class="battle-connection__dot"></i><b>连接中</b></span>
   </header>
   <main id="auto-battle-root" class="auto-battle__root">
