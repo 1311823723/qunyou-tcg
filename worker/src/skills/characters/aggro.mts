@@ -47,7 +47,7 @@ const kekeAssassin: CharacterSkillModule = {
     const card = context.randomOpponentHand();
     context.clearPrompt(prompt.id);
     if (!card) return true;
-    context.addLog(`${context.player.nickname}宣言${suit}，对手随机展示了【${context.handName(card.definitionId)}】`, context.player.id, { zone: "hand", ownerId: context.opponent()?.id });
+    context.addLog(`${context.player.nickname}宣言${suit}，对手随机展示了${context.handLabel(card)}`, context.player.id, { zone: "hand", ownerId: context.opponent()?.id });
     if (card.suit === suit) context.damageOpponent(1);
     return true;
   },
@@ -314,7 +314,7 @@ const lobbyist = immediateCharacterSkill({
 const gravy: CharacterSkillModule = {
   cardId: AGGRO_CHARACTER_IDS.gravy,
   trigger: { event: "strike_targeted", relation: "target_self" },
-  canActivate: (context) => context.player.hand.length > 0,
+  canActivate: (context) => context.player.hand.length > 0 && context.currentStrikeCanBeDodged(),
   activate(context) {
     context.setPrompt("gravy-discard", {
       title: "肉汁掩护",

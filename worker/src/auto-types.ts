@@ -78,6 +78,8 @@ export interface CharacterSkillResolutionItem {
   handlerId: string;
   eventId?: string;
   resumeResponse?: boolean;
+  responseStage?: "source" | "target";
+  remainingResponseSkillInstanceIds?: string[];
   dyingPromptContext?: Record<string, unknown>;
   revealedFromFaceDown?: boolean;
 }

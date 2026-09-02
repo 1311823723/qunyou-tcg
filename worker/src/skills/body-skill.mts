@@ -29,6 +29,7 @@ export interface BodySkillRuntimeContext {
   gainHandCard(card: CardInstance): void;
   discardLooseCard(card: CardInstance): void;
   handName(definitionId: string): string;
+  handLabel(card: CardInstance, effectiveDefinitionId?: string): string;
   characterName(definitionId: string): string;
   logTrait(): void;
   addLog(message: string, actorId?: string, target?: BattleLogTarget): void;
@@ -69,6 +70,21 @@ export function selectedCardIds(payload: Record<string, unknown>) {
 
 export function choiceValue(payload: Record<string, unknown>, max = 400) {
   return String(payload.value || "").trim().slice(0, max);
+}
+
+export function takePendingBodyTrigger(
+  pending: PendingBodyTrigger[],
+  promptContext: Record<string, unknown> | undefined,
+  triggerId: string,
+  playerId: string,
+) {
+  const allowed = Array.isArray(promptContext?.bodyTriggerIds) ? promptContext.bodyTriggerIds.map(String) : [];
+  if (!allowed.includes(triggerId)) return undefined;
+  const index = pending.findIndex((trigger) => trigger.id === triggerId && trigger.playerId === playerId);
+  if (index >= 0) return pending.splice(index, 1)[0];
+  return Array.isArray(promptContext?.bodyTriggers)
+    ? (promptContext.bodyTriggers as PendingBodyTrigger[]).find((trigger) => trigger.id === triggerId && trigger.playerId === playerId)
+    : undefined;
 }
 
 export function bodyTraitLogText(nickname: string, skillName: string, mega = false) {

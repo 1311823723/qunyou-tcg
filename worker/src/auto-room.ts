@@ -19,19 +19,21 @@ import {
   effectiveDefinition,
   handLimit,
   handName,
+  handCardLabel,
   heal,
   isHandResolutionItem,
   isActionCard,
   legalResponseCards,
   opponentOf,
   passResponseWindow,
+  phaseCanFinishAutomatically,
   playerById,
   responseEventForItem,
   validPlayDefinition,
 } from "./auto-engine.mts";
 import { bodySkillForId } from "./skills/body-registry.mts";
 import { bodyId, bodyUsageKey } from "./skills/body-ids.mts";
-import { bodyTraitLogText } from "./skills/body-skill.mts";
+import { bodyTraitLogText, takePendingBodyTrigger } from "./skills/body-skill.mts";
 import type { BodySkillRuntimeContext } from "./skills/body-skill.mts";
 import { characterSkillForId } from "./skills/character-registry.mts";
 import type { CharacterSkillRuntimeContext } from "./skills/character-skill.mts";
@@ -503,10 +505,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
       const key = `turn:${this.state.turnNumber}:${player.id}:strike`;
       this.state.usageCounters[key] = (this.state.usageCounters[key] || 0) + 1;
     }
-    this.addLog(`${player.nickname}${response ? "响应使用" : "使用"}了【${handName(effective)}】`, player.id, { zone: "resolving" });
+    this.addLog(`${player.nickname}${response ? "响应使用" : "使用"}了${handCardLabel(card, effective)}`, player.id, { zone: "resolving" });
     if (effective === HAND_IDS.strike || isActionCard(card.definitionId)) {
-      if (!response && this.openSourceSkillBeforeResponse(item)) return;
-      beginResponseWindow(this.state, item);
+      if (!response) this.openInitialResponseFlow(item);
+      else beginResponseWindow(this.state, item);
     }
     else {
       this.state.prompt = undefined;
@@ -519,34 +521,66 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!this.state || this.state.prompt?.kind !== "response" || this.state.responsePlayerId !== player.id) throw new Error("现在不由你响应。");
     const skillOnly = this.state.prompt.context?.skillOnly === true;
     this.addLog(`${player.nickname} 放弃${skillOnly ? "发动响应技能" : "响应"}`, player.id, { zone: "resolving" });
+    if (skillOnly) {
+      const top = this.state.stack[this.state.stack.length - 1];
+      if (!isHandResolutionItem(top)) throw new Error("当前没有可响应的牌。");
+      const stage = this.state.prompt.context?.responseStage === "source" ? "source" : "target";
+      const remaining = Array.isArray(this.state.prompt.context?.remainingSkillInstanceIds)
+        ? this.state.prompt.context.remainingSkillInstanceIds.map(String)
+        : [];
+      this.state.prompt = undefined;
+      this.state.responsePlayerId = undefined;
+      this.continueResponseFlow(top, stage, remaining);
+      return;
+    }
     if (passResponseWindow(this.state, player.id) === "response") return;
     this.resolveTop();
   }
 
-  private openSourceSkillBeforeResponse(item: HandResolutionItem) {
-    if (!this.state || ![HAND_IDS.strike, HAND_IDS.crisis].includes(effectiveDefinition(item) as never)) return false;
-    const source = playerById(this.state, item.sourcePlayerId);
-    if (!source) return false;
-    const candidate = source.characterSlots.find((slot) => {
-      if (!slot || !("instanceId" in slot) || (slot.faceDown && this.isCharacterRevealLocked(source, slot.instanceId))) return false;
-      const registered = this.registeredCharacterSkill(source, slot);
-      if (!registered || registered.module.trigger.event !== "prediction_targeted") return false;
-      const key = this.characterEventUsageKey(item.id, source.id, `${slot.instanceId}:${registered.handlerId}`);
-      return (this.state?.usageCounters[key] || 0) === 0;
-    });
-    if (!candidate || !("instanceId" in candidate)) return false;
-    this.state.responsePlayerId = source.id;
-    this.state.consecutivePasses = 0;
+  private openResponseSkillStage(item: HandResolutionItem, stage: "source" | "target", queuedIds?: string[]) {
+    if (!this.state) return false;
+    const player = stage === "source" ? playerById(this.state, item.sourcePlayerId) : opponentOf(this.state, item.sourcePlayerId);
+    if (!player) return false;
+    this.state.responsePlayerId = player.id;
     this.state.prompt = createPrompt({
-      kind: "response",
-      playerId: source.id,
-      title: "指定目标后的技能窗口",
-      message: "你可以发动符合时机的角色技能，或放弃并让对手开始响应。",
-      cardInstanceIds: [],
-      options: [{ value: "pass", label: "放弃发动" }],
-      context: { itemId: item.id, skillOnly: true },
+      kind: "response", playerId: player.id, title: "角色技能响应", message: "检查可发动的角色技能。",
+      cardInstanceIds: [], options: [{ value: "pass", label: "不发动" }],
+      context: { itemId: item.id, skillOnly: true, responseStage: stage },
     });
+    const liveCandidates = this.payableLegalSkillInstanceIds(player);
+    const candidates = queuedIds ? queuedIds.filter((instanceId) => liveCandidates.includes(instanceId)) : liveCandidates;
+    const current = candidates[0];
+    if (!current) {
+      this.state.prompt = undefined;
+      this.state.responsePlayerId = undefined;
+      return false;
+    }
+    const role = this.findCharacterInstance(player, current);
+    const registered = role ? this.registeredCharacterSkill(player, role) : undefined;
+    if (!role || !registered) return false;
+    const skillName = registered.definition.skillName;
+    this.state.prompt.message = `是否发动角色【${registered.definition.name}】的技能【${skillName}】？`;
+    this.state.prompt.options = [{ value: "pass", label: `不发动【${skillName}】` }];
+    this.state.prompt.context = {
+      ...this.state.prompt.context,
+      currentSkillInstanceId: current,
+      remainingSkillInstanceIds: candidates.slice(1),
+    };
     return true;
+  }
+
+  private continueResponseFlow(item: HandResolutionItem, stage: "source" | "target", remaining: string[] = []) {
+    if (!this.state) return;
+    if (remaining.length && this.openResponseSkillStage(item, stage, remaining)) return;
+    if (stage === "source" && this.openResponseSkillStage(item, "target")) return;
+    beginResponseWindow(this.state, item);
+  }
+
+  private openInitialResponseFlow(item: HandResolutionItem) {
+    if (!this.state) return;
+    if (this.openResponseSkillStage(item, "source")) return;
+    if (this.openResponseSkillStage(item, "target")) return;
+    beginResponseWindow(this.state, item);
   }
 
   private resolveTop(): void {
@@ -657,7 +691,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!top) return;
     if (!isHandResolutionItem(top)) return this.resolveTop();
     if (top.cancelled || top.responseWindowClosed) this.resolveTop();
-    else beginResponseWindow(this.state, top);
+    else this.openInitialResponseFlow(top);
   }
 
   private finishHandCard(item: HandResolutionItem) {
@@ -781,6 +815,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
   private submitChoice(player: AutoPlayerState, payload: Record<string, unknown>) {
     if (!this.state?.prompt || this.state.prompt.playerId !== player.id) throw new Error("当前没有需要你完成的选择。");
     const prompt = this.state.prompt;
+    const requestedPromptId = cleanText(payload.promptId, 80);
+    // A rapid double click can arrive after the first choice has already opened
+    // the next prompt. Ignore that stale choice instead of applying it there.
+    if (requestedPromptId && requestedPromptId !== prompt.id) return;
     const value = cleanText(payload.value, 40);
     if (prompt.kind === "response") {
       if (value !== "pass") throw new Error("响应选择无效。");
@@ -948,10 +986,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (prompt.kind === "character-trigger") {
       if (value.startsWith("body:")) {
         const triggerId = value.slice(5);
-        const allowed = Array.isArray(prompt.context?.bodyTriggerIds) ? prompt.context.bodyTriggerIds.map(String) : [];
-        const index = this.state.pendingBodyTriggers.findIndex((trigger) => trigger.id === triggerId && trigger.playerId === player.id);
-        if (!allowed.includes(triggerId) || index < 0) throw new Error("本体特性触发选择无效。");
-        const [trigger] = this.state.pendingBodyTriggers.splice(index, 1);
+        const trigger = takePendingBodyTrigger(this.state.pendingBodyTriggers, prompt.context, triggerId, player.id);
+        if (!trigger) throw new Error("本体特性触发选择无效。");
         this.state.prompt = undefined;
         if (!this.openBodyPrompt(player, trigger)) this.openNextSkillTrigger();
         return;
@@ -1137,6 +1173,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         state.handDiscard.push(card);
       },
       handName,
+      handLabel: handCardLabel,
       characterName: (definitionId) => characterById.get(definitionId)?.name || definitionId,
       logTrait: () => {
         const definition = bodyById.get(bodyId(player));
@@ -1183,13 +1220,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         if (isHandResolutionItem(item)) this.attachStrikeModifiers(player, item);
         state.stack.push(item);
         this.emitEvent("card_used", { sourcePlayerId: player.id, targetPlayerId: target.id, cardDefinitionId: HAND_IDS.strike, metadata: { actionCard: false, bodySkill: true } });
-        state.responsePlayerId = target.id;
-        state.consecutivePasses = 0;
-        state.prompt = createPrompt({
-          kind: "response", playerId: target.id, title: "响应窗口", message: "是否响应本体特性使用的【出刀】？",
-          cardInstanceIds: [], options: [{ value: "pass", label: "放弃响应" }], context: { itemId: item.id },
-        });
-        state.prompt.cardInstanceIds = legalResponseCards(state, target).map((candidate) => candidate.instanceId);
+        if (isHandResolutionItem(item)) this.openInitialResponseFlow(item);
       },
     };
   }
@@ -1301,6 +1332,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
           eventId,
           eligibleInstanceIds: sameEvent.map((candidate) => candidate.slot.instanceId),
           bodyTriggerIds: sameEventBody.map((trigger) => trigger.id),
+          bodyTriggers: sameEventBody,
         },
       });
       return;
@@ -1355,7 +1387,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     };
     this.state.pendingJudgments.push(judgment);
     const color = this.judgmentColor(card);
-    this.addLog(`${player.nickname}的判定牌为${color}【${handName(card.definitionId)}】`, player.id, { zone: "handDiscard" });
+    this.addLog(`${player.nickname}的判定牌为${color}${handCardLabel(card)}`, player.id, { zone: "handDiscard" });
     this.emitEvent("judgment_revealed", {
       sourcePlayerId: player.id, targetPlayerId: player.id, cardDefinitionId: card.definitionId,
       metadata: { color, bodySkill: purpose === "blood-body", judgmentId: judgment.id, cardInstanceId: card.instanceId },
@@ -1607,6 +1639,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
             data: {
               ...data,
               ...(resolutionItem ? { resumeResponse: Boolean(resolutionItem.resumeResponse) } : {}),
+              ...(resolutionItem?.responseStage ? { responseStage: resolutionItem.responseStage } : {}),
+              ...(resolutionItem?.remainingResponseSkillInstanceIds
+                ? { remainingResponseSkillInstanceIds: resolutionItem.remainingResponseSkillInstanceIds }
+                : {}),
               ...(resolutionItem?.dyingPromptContext ? { dyingPromptContext: resolutionItem.dyingPromptContext } : {}),
             },
           } satisfies SkillContinuation,
@@ -1782,7 +1818,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         if (!candidate) return undefined;
         candidate.ownerId = undefined;
         state.handDiscard.push(candidate);
-        this.addLog(`${player.nickname}进行了第二次判定：${this.judgmentColor(candidate)}【${handName(candidate.definitionId)}】`, player.id, { zone: "handDiscard" });
+        this.addLog(`${player.nickname}进行了第二次判定：${this.judgmentColor(candidate)}${handCardLabel(candidate)}`, player.id, { zone: "handDiscard" });
         return candidate;
       },
       chooseJudgmentCandidate: (instanceId) => {
@@ -1953,8 +1989,14 @@ export class AutoBattleRoom extends DurableObject<Env> {
         target.cancellationReason = "dodge";
         return true;
       },
+      currentStrikeCanBeDodged: () => Boolean([...state.stack].reverse().find((item) => isHandResolutionItem(item)
+        && effectiveDefinition(item) === HAND_IDS.strike
+        && item.targetPlayerId === player.id
+        && !item.cancelled
+        && !item.cannotDodge)),
       isActionCard,
       handName,
+      handLabel: handCardLabel,
       addLog: (message, actorId, target) => this.addLog(message, actorId, target),
       emitEvent: (type, details = {}) => this.emitEvent(type, details),
     };
@@ -1967,6 +2009,12 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (this.isCharacterSkillLocked(player, role.instanceId)) throw new Error("该角色本回合不能发动技能。");
     const { module, definition, handlerId } = registered;
     const responseActivation = this.state.prompt?.kind === "response" && this.state.responsePlayerId === player.id && this.state.stack.length > 0;
+    const responseStage = responseActivation && this.state.prompt?.context?.skillOnly === true
+      ? this.state.prompt.context.responseStage === "source" ? "source" : "target"
+      : undefined;
+    const remainingResponseSkillInstanceIds = responseStage && Array.isArray(this.state.prompt?.context?.remainingSkillInstanceIds)
+      ? this.state.prompt.context.remainingSkillInstanceIds.map(String)
+      : undefined;
     const dyingActivation = this.state.prompt?.kind === "dying" && this.state.prompt.playerId === player.id;
     const dyingPromptContext = dyingActivation ? { ...(this.state.prompt?.context || {}) } : undefined;
     const trigger = this.skillTriggerContext(module.trigger.event, module.trigger.relation, undefined, player, responseActivation);
@@ -1989,7 +2037,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
       if ((this.state.usageCounters[key] || 0) > 0) throw new Error("该角色已处理过本次触发。");
       this.state.usageCounters[key] = 1;
     }
-    if (responseActivation) {
+    if (responseActivation && responseStage === "target") {
+      const respondingTo = this.state.stack[this.state.stack.length - 1];
+      if (isHandResolutionItem(respondingTo)) respondingTo.wasRespondedTo = true;
+    } else if (responseActivation && !responseStage) {
       const respondingTo = this.state.stack[this.state.stack.length - 1];
       if (isHandResolutionItem(respondingTo)) {
         respondingTo.wasRespondedTo = true;
@@ -2041,6 +2092,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
       handlerId,
       eventId: event?.id,
       resumeResponse: responseActivation,
+      responseStage,
+      remainingResponseSkillInstanceIds,
       dyingPromptContext,
       revealedFromFaceDown,
     };
@@ -2080,6 +2133,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
       handlerId: continuation.handlerId,
       eventId: continuation.eventId,
       resumeResponse: continuation.data?.resumeResponse === true,
+      responseStage: continuation.data?.responseStage === "source" ? "source" : continuation.data?.responseStage === "target" ? "target" : undefined,
+      remainingResponseSkillInstanceIds: Array.isArray(continuation.data?.remainingResponseSkillInstanceIds)
+        ? continuation.data.remainingResponseSkillInstanceIds.map(String)
+        : undefined,
       dyingPromptContext: continuation.data?.dyingPromptContext && typeof continuation.data.dyingPromptContext === "object"
         ? continuation.data.dyingPromptContext as Record<string, unknown>
         : undefined,
@@ -2132,6 +2189,19 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (this.state.prompt?.kind === "dying") return;
     if (item.dyingPromptContext) {
       this.resumeDyingAfterCharacterSkill(player, item.dyingPromptContext);
+      return;
+    }
+    if (item.responseStage && this.state.stack.length) {
+      const top = this.state.stack[this.state.stack.length - 1];
+      if (!isHandResolutionItem(top)) return this.continueStack();
+      if (top.cancelled) {
+        top.responseWindowClosed = true;
+        this.state.responsePlayerId = undefined;
+        this.state.prompt = undefined;
+        this.resolveTop();
+      } else {
+        this.continueResponseFlow(top, item.responseStage, item.remainingResponseSkillInstanceIds || []);
+      }
       return;
     }
     if (item.resumeResponse && this.state.stack.length) {
@@ -2456,7 +2526,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       if (card) {
         card.ownerId = undefined;
         this.state.handDiscard.push(card);
-        this.addLog(`${player.nickname} 的判定牌为【${handName(card.definitionId)}】`, player.id, { zone: "handDiscard" });
+        this.addLog(`${player.nickname} 的判定牌为${handCardLabel(card)}`, player.id, { zone: "handDiscard" });
         this.emitEvent("judgment_revealed", { sourcePlayerId: player.id, targetPlayerId: player.id, cardDefinitionId: card.definitionId });
         this.emitEvent("judgment_resolved", { sourcePlayerId: player.id, targetPlayerId: player.id, cardDefinitionId: card.definitionId });
       }
@@ -2862,7 +2932,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       metadata: { actionCard: false, virtual: true, cardInstanceId: card.instanceId },
     });
     this.addLog(`${source.nickname}视为使用了1张【出刀】`, source.id, { zone: "resolving" });
-    beginResponseWindow(this.state, item);
+    this.openInitialResponseFlow(item);
   }
 
   private useVirtualBasic(source: AutoPlayerState, definitionId: string, damageAmount?: number, restTargetSlotOnDamage?: number) {
@@ -2886,7 +2956,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.state.stack.push(item);
     this.emitEvent("card_used", { sourcePlayerId: source.id, targetPlayerId: target.id, cardDefinitionId: definitionId, metadata: { virtual: true } });
     this.addLog(`${source.nickname}视为使用了1张【${handName(definitionId)}】`, source.id, { zone: "resolving" });
-    beginResponseWindow(this.state, item);
+    this.openInitialResponseFlow(item);
   }
 
   private applyDamage(
@@ -2975,7 +3045,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       sourcePlayerId: actorId, targetPlayerId: player.id, amount: 1,
       metadata: { cardInstanceIds: card.instanceId },
     });
-    this.addLog(`${player.nickname} 随机弃置了1张手牌`, actorId, { zone: "handDiscard" });
+    this.addLog(`${player.nickname} 随机弃置了${handCardLabel(card)}`, actorId, { zone: "handDiscard" });
     return card;
   }
 
@@ -3262,9 +3332,13 @@ export class AutoBattleRoom extends DurableObject<Env> {
   private legalSkillInstanceIds(player: AutoPlayerState) {
     if (!this.state || this.state.winnerId) return [];
     const responseActivation = this.state.prompt?.kind === "response" && this.state.responsePlayerId === player.id && this.state.stack.length > 0;
+    if (responseActivation && this.state.prompt?.context?.responseSkillsComplete === true) return [];
     const triggerPrompt = this.state.prompt?.kind === "character-trigger" && this.state.prompt.playerId === player.id;
     const dyingActivation = this.state.prompt?.kind === "dying" && this.state.prompt.playerId === player.id;
     if ((this.state.prompt || this.state.stack.length) && !responseActivation && !triggerPrompt && !dyingActivation) return [];
+    const responsePromptedId = responseActivation && this.state.prompt?.context?.skillOnly === true
+      ? cleanText(this.state.prompt.context.currentSkillInstanceId, 80)
+      : "";
     const promptedIds = triggerPrompt && Array.isArray(this.state.prompt?.context?.eligibleInstanceIds)
       ? new Set(this.state.prompt.context.eligibleInstanceIds.map(String))
       : undefined;
@@ -3275,6 +3349,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       const skill = this.registeredCharacterSkill(player, slot);
       const registered = skill?.module;
       if (registered && skill) {
+        if (responsePromptedId && slot.instanceId !== responsePromptedId) return [];
         if (promptedIds) return promptedIds.has(slot.instanceId) ? [slot.instanceId] : [];
         const trigger = this.skillTriggerContext(registered.trigger.event, registered.trigger.relation, undefined, player, responseActivation);
         if (!trigger) return [];
@@ -3470,7 +3545,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
           : [];
     const legalSkillInstanceIds = spectator || !viewer ? [] : this.payableLegalSkillInstanceIds(viewer);
     const canAutoAdvancePhase = !this.state.prompt && !this.state.stack.length
-      && ["preparation", "draw"].includes(this.state.phase)
+      && this.state.currentPlayerId === viewerId
+      && Boolean(viewer && phaseCanFinishAutomatically(this.state, viewer))
       && this.state.players.every((player) => this.payableLegalSkillInstanceIds(player).length === 0);
     const legalActions = spectator || !viewer ? [] : this.legalActionsFor(viewer, legalHandCardIds, legalSkillInstanceIds);
     return {

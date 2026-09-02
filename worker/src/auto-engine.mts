@@ -40,6 +40,14 @@ export function handLimit(player: AutoPlayerState, state?: AutoRoomState) {
   return Math.max(0, Math.min(Math.max(0, player.health), 4) + Math.min(revealed, 2) - penalty);
 }
 
+export function phaseCanFinishAutomatically(state: AutoRoomState, player: AutoPlayerState) {
+  if (state.phase === "deployment") {
+    return state.deployedThisPhase >= 2 || !player.characterSlots.includes(null) || !player.characterDeck.length;
+  }
+  if (state.phase === "discard") return player.hand.length <= handLimit(player, state);
+  return ["preparation", "draw", "end"].includes(state.phase);
+}
+
 export function opponentOf(state: AutoRoomState, playerId: string) {
   return state.players.find((player) => player.id !== playerId);
 }
@@ -50,6 +58,19 @@ export function playerById(state: AutoRoomState, playerId: string) {
 
 export function handName(definitionId: string) {
   return handById.get(definitionId)?.name || definitionId;
+}
+
+export function handCardLabel(card: CardInstance, effectiveDefinitionId = card.definitionId) {
+  const poker = card.joker === "big"
+    ? "大王"
+    : card.joker === "small"
+      ? "小王"
+      : card.suit && card.rank
+        ? `${card.suit}${card.rank}`
+        : "牌面未知";
+  const physicalName = handName(card.definitionId);
+  const effectiveName = handName(effectiveDefinitionId);
+  return `${poker}【${physicalName}】${effectiveDefinitionId !== card.definitionId ? `（视为【${effectiveName}】）` : ""}`;
 }
 
 export function recycleHandDiscard(state: AutoRoomState, shuffle: <T>(items: T[]) => T[]) {
@@ -155,14 +176,20 @@ export function beginResponseWindow(state: AutoRoomState, item: HandResolutionIt
     kind: "response",
     playerId: opponent.id,
     title: "响应窗口",
-    message: effectiveDefinition(item) === HAND_IDS.strike && item.targetPlayerId === opponent.id
-      ? "【出刀】正对你生效。你可以打出【闪避】、【紧急会议】或发动符合时机的角色技能。"
-      : `对手使用了【${handName(effectiveDefinition(item))}】。你可以打出可用的响应牌或发动符合时机的角色技能。`,
+    message: `对手使用了【${handName(effectiveDefinition(item))}】，请选择可用的响应牌。`,
     cardInstanceIds: legalResponseCards({ ...state, prompt: undefined } as AutoRoomState, opponent).map((card) => card.instanceId),
     options: [{ value: "pass", label: "放弃响应" }],
-    context: { itemId: item.id, definitionId: effectiveDefinition(item), sourcePlayerId: item.sourcePlayerId },
+    context: { itemId: item.id, definitionId: effectiveDefinition(item), sourcePlayerId: item.sourcePlayerId, responseSkillsComplete: true },
   });
   state.prompt.cardInstanceIds = legalResponseCards(state, opponent).map((card) => card.instanceId);
+  const responseNames = [...new Set(state.prompt.cardInstanceIds.map((instanceId) => {
+    const card = opponent.hand.find((candidate) => candidate.instanceId === instanceId);
+    if (!card) return "";
+    return card.definitionId === HAND_IDS.impersonate ? "【冒名顶替】（视为【闪避】）" : `【${handName(card.definitionId)}】`;
+  }).filter(Boolean))];
+  state.prompt.message = responseNames.length
+    ? `是否使用${responseNames.join("、")}响应【${handName(effectiveDefinition(item))}】？`
+    : `你没有可响应【${handName(effectiveDefinition(item))}】的手牌。`;
 }
 
 export function passResponseWindow(state: AutoRoomState, playerId: string) {
@@ -213,6 +240,21 @@ export function heal(player: AutoPlayerState, amount: number) {
   return player.health - previous;
 }
 
+function openDiscardPromptIfNeeded(state: AutoRoomState, player: AutoPlayerState) {
+  if (player.hand.length <= handLimit(player, state)) return false;
+  const excess = player.hand.length - handLimit(player, state);
+  state.prompt = createPrompt({
+    kind: "discard",
+    playerId: player.id,
+    title: "弃牌阶段",
+    message: `请选择 ${excess} 张手牌弃置。`,
+    min: excess,
+    max: excess,
+    cardInstanceIds: player.hand.map((card) => card.instanceId),
+  });
+  return true;
+}
+
 export function advancePhase(
   state: AutoRoomState,
   player: AutoPlayerState,
@@ -221,17 +263,7 @@ export function advancePhase(
   if (state.currentPlayerId !== player.id) throw new Error("只有当前回合玩家可以推进阶段。");
   if (state.prompt || state.stack.length) throw new Error("请先完成当前结算或响应。");
   if (state.winnerId) throw new Error("对局已经结束。");
-  if (state.phase === "discard" && player.hand.length > handLimit(player, state)) {
-    const excess = player.hand.length - handLimit(player, state);
-    state.prompt = createPrompt({
-      kind: "discard",
-      playerId: player.id,
-      title: "弃牌阶段",
-      message: `请选择 ${excess} 张手牌弃置。`,
-      min: excess,
-      max: excess,
-      cardInstanceIds: player.hand.map((card) => card.instanceId),
-    });
+  if (state.phase === "discard" && openDiscardPromptIfNeeded(state, player)) {
     return state.phase;
   }
 
@@ -256,5 +288,6 @@ export function advancePhase(
   state.phase = PHASES[index + 1];
   if (state.phase === "draw") drawCards(state, player, 2, shuffle);
   if (state.phase === "deployment") state.deployedThisPhase = 0;
+  if (state.phase === "discard") openDiscardPromptIfNeeded(state, player);
   return state.phase;
 }

@@ -157,7 +157,7 @@ const mimic: CharacterSkillModule = {
     if (context.continuation?.step !== "mimic-guess") return false;
     const hasDodge = context.player.hand.some((card) => card.definitionId === HAND_IDS.dodge);
     const guessed = choiceValue(payload) === "yes";
-    context.addLog(`${context.player.nickname}展示了所有手牌`, context.player.id, { zone: "hand", ownerId: context.player.id });
+    context.addLog(`${context.player.nickname}展示了所有手牌：${context.player.hand.map((card) => context.handLabel(card)).join("、") || "无"}`, context.player.id, { zone: "hand", ownerId: context.player.id });
     if (guessed !== hasDodge) {
       if (context.counterCurrentHand()) context.emitEvent("damage_prevented", { sourcePlayerId: context.player.id, targetPlayerId: context.player.id, amount: 1 });
     } else context.draw(1);

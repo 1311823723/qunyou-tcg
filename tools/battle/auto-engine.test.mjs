@@ -11,8 +11,15 @@ import {
   handLimit,
   legalResponseCards,
   passResponseWindow,
+  phaseCanFinishAutomatically,
   responseEventForItem,
+  handCardLabel,
 } from "../../worker/src/auto-engine.mts";
+
+test("公开手牌标签包含花色点数，大小王保留王牌身份", () => {
+  assert.equal(handCardLabel({ instanceId: "s7", definitionId: HAND_IDS.strike, kind: "hand", suit: "黑桃", rank: "7" }), "黑桃7【出刀】");
+  assert.equal(handCardLabel({ instanceId: "joker", definitionId: HAND_IDS.impersonate, kind: "hand", joker: "small" }, HAND_IDS.dodge), "小王【冒名顶替】（视为【闪避】）");
+});
 
 function card(instanceId, definitionId, ownerId = "p1") {
   return { instanceId, definitionId, ownerId, kind: definitionId.startsWith("hand_") ? "hand" : "character" };
@@ -75,6 +82,32 @@ test("phase advancement draws automatically and blocks excess hand at discard", 
   assert.equal(room.prompt.min, 2);
 });
 
+test("进入弃牌阶段时会立即打开超额手牌选择", () => {
+  const room = state();
+  room.phase = "deployment";
+  room.players[0].hand = Array.from({ length: 6 }, (_, index) => card(`h${index}`, HAND_IDS.strike));
+  assert.equal(advancePhase(room, room.players[0], (items) => items), "discard");
+  assert.equal(room.prompt.kind, "discard");
+  assert.equal(room.prompt.min, 2);
+});
+
+test("布阵完成、无需弃牌与结束阶段可以自动推进", () => {
+  const room = state();
+  const owner = room.players[0];
+  room.phase = "deployment";
+  owner.characterDeck = [card("role", "char_role")];
+  assert.equal(phaseCanFinishAutomatically(room, owner), false);
+  room.deployedThisPhase = 2;
+  assert.equal(phaseCanFinishAutomatically(room, owner), true);
+  room.phase = "discard";
+  owner.hand = Array.from({ length: 4 }, (_, index) => card(`h${index}`, HAND_IDS.strike));
+  assert.equal(phaseCanFinishAutomatically(room, owner), true);
+  owner.hand.push(card("excess", HAND_IDS.strike));
+  assert.equal(phaseCanFinishAutomatically(room, owner), false);
+  room.phase = "end";
+  assert.equal(phaseCanFinishAutomatically(room, owner), true);
+});
+
 test("deployment uses the lowest empty slot and stops at four roles", () => {
   const owner = player("p1");
   owner.characterSlots[0] = card("existing", "char_a");
@@ -112,7 +145,7 @@ test("a responder passing closes only that card's response window", () => {
   room.stack = [strike];
   beginResponseWindow(room, strike);
   assert.equal(room.responsePlayerId, "p2");
-  assert.match(room.prompt.message, /【出刀】正对你生效/);
+  assert.match(room.prompt.message, /没有可响应【出刀】的手牌/);
   assert.equal(passResponseWindow(room, "p2"), "resolve");
   assert.equal(strike.responseWindowClosed, true);
   assert.equal(room.prompt, undefined);

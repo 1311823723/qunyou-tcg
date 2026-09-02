@@ -71,6 +71,7 @@ function runtime(definitionId, event) {
     restOpponentCharacter: () => {},
     isActionCard: (id) => id.startsWith("hand_trick_"),
     handName: (id) => id,
+    handLabel: (card) => `${card.suit || ""}${card.rank || ""}【${card.definitionId}】`,
     addLog: (message) => { logs.push(message); },
     emitEvent: () => {},
   };

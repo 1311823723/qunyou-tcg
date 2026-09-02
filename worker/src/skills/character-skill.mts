@@ -73,6 +73,8 @@ export interface CharacterSkillRuntimeContext {
   dodgeCurrentStrike(): boolean;
   isActionCard(definitionId: string): boolean;
   handName(definitionId: string): string;
+  handLabel(card: CardInstance, effectiveDefinitionId?: string): string;
+  currentStrikeCanBeDodged(): boolean;
   addLog(message: string, actorId?: string, target?: BattleLogTarget): void;
   emitEvent(type: string, details?: Omit<AutoBattleEvent, "id" | "type" | "turnNumber">): void;
 }

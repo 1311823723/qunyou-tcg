@@ -9,7 +9,7 @@ function openDiscardPrompt(context: BodySkillRuntimeContext, mega: boolean, trig
   if (!opponent?.hand.length) return false;
   context.logTrait();
   context.addLog(
-    `${opponent.nickname}展示了全部手牌：${opponent.hand.map((card) => `【${context.handName(card.definitionId)}】`).join("、")}`,
+    `${opponent.nickname}展示了全部手牌：${opponent.hand.map((card) => context.handLabel(card)).join("、")}`,
     context.player.id,
     { zone: "hand", ownerId: opponent.id },
   );

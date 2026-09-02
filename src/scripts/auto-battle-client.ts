@@ -362,6 +362,11 @@ function send(type: string, payload: Record<string, unknown> = {}) {
   return true;
 }
 
+function sendPromptChoice(payload: Record<string, unknown>) {
+  const promptId = snapshot?.game.prompt?.id;
+  return send("choice:submit", { ...payload, ...(promptId ? { promptId } : {}) });
+}
+
 function definition(card?: CardView) {
   return card?.definitionId ? catalog.cards[card.definitionId] : undefined;
 }
@@ -542,7 +547,15 @@ function renderPhaseTrack(phase: AutoSnapshot["game"]["phase"]) {
   return `<ol class="auto-phase-track" aria-label="回合阶段">${phaseOrder.map((item, index) => `<li class="${index === active ? "is-current" : index < active ? "is-complete" : ""}" ${index === active ? 'aria-current="step"' : ""}><i>${index + 1}</i><span>${phaseLabels[item]}</span></li>`).join("")}</ol>`;
 }
 
-function renderPrompt(prompt: AutoPrompt | undefined, me?: AutoPlayerView) {
+function promptNeedsDialog(prompt: AutoPrompt | undefined, me?: AutoPlayerView) {
+  if (!prompt || prompt.playerId !== snapshot?.you || !me) return false;
+  const continuation = prompt.context?.continuation as { step?: string } | undefined;
+  return prompt.kind === "reveal-choice"
+    || continuation?.step === "prophet-order"
+    || Boolean(prompt.selectableCards?.some((card) => !isCardOnTable(card.instanceId)));
+}
+
+function renderPrompt(prompt: AutoPrompt | undefined, me?: AutoPlayerView, dialog = false) {
   if (!prompt) return "";
   const mine = prompt.playerId === snapshot?.you;
   const allowedCards = new Set(prompt.cardInstanceIds || []);
@@ -562,7 +575,8 @@ function renderPrompt(prompt: AutoPrompt | undefined, me?: AutoPlayerView) {
   const autoPass = mine && prompt.kind === "response" && snapshot?.game.legalHandCardIds.length === 0 && snapshot.game.legalSkillInstanceIds.length === 0
     ? `<small class="auto-prompt__auto">没有可用的牌或技能，2 秒后自动放弃响应。</small>` : "";
   const detachedChoices = Boolean(selectableCards || inspectedCard || orderInput);
-  return `<aside class="auto-prompt ${mine ? "is-mine" : ""} ${selectableCards || inspectedCard ? "has-card-choices" : ""} ${detachedChoices ? "is-overlay-panel" : ""}">${responseContext(prompt)}<span>${mine ? "需要你的操作" : "等待对手"}</span><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.message)}</p>${autoPass}${inspectedCard ? `<div class="auto-prompt__inspection">${inspectedCard}</div>` : ""}${selectableCards ? `<div class="auto-prompt__cards">${selectableCards}</div>` : ""}<div class="auto-prompt__actions">${options}${cardSelection}${orderInput}${prompt.kind === "discard" && mine ? `<button class="btn btn--primary" data-submit-discard ${selectedDiscard.size === Number(prompt.min || 0) ? "" : "disabled"}>确认弃牌</button>` : ""}${prompt.kind === "assisted-skill" && mine ? `<button class="btn btn--primary" data-assisted-finish>完成技能结算</button>` : ""}</div></aside>`;
+  const panel = `<aside class="auto-prompt ${mine ? "is-mine" : ""} ${selectableCards || inspectedCard ? "has-card-choices" : ""} ${detachedChoices ? "is-overlay-panel" : ""}" ${dialog ? 'role="dialog" aria-modal="true"' : ""}>${responseContext(prompt)}<span>${mine ? "需要你的操作" : "等待对手"}</span><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.message)}</p>${autoPass}${inspectedCard ? `<div class="auto-prompt__inspection">${inspectedCard}</div>` : ""}${selectableCards ? `<div class="auto-prompt__cards">${selectableCards}</div>` : ""}<div class="auto-prompt__actions">${options}${cardSelection}${orderInput}${prompt.kind === "discard" && mine ? `<button class="btn btn--primary" data-submit-discard ${selectedDiscard.size === Number(prompt.min || 0) ? "" : "disabled"}>确认弃牌</button>` : ""}${prompt.kind === "assisted-skill" && mine ? `<button class="btn btn--primary" data-assisted-finish>完成技能结算</button>` : ""}</div></aside>`;
+  return dialog ? `<div class="auto-prompt-modal"><div class="auto-prompt-modal__backdrop" aria-hidden="true"></div>${panel}</div>` : panel;
 }
 
 function findCard(instanceId: string, ownerId = "") {
@@ -665,12 +679,16 @@ function renderGame() {
   const selectedDefinition = definition(selectedCard);
   const selectedCardAction = selectedCard && selectedDefinition ? renderSelectedCardAction(selectedDefinition) : "";
   const canDeployCharacter = Boolean(snapshot.game.legalActions?.some((action) => action.type === "character:deploy"));
+  const promptDialog = !localFormAction && !localSelectionAction && !selectedRoleInstanceId
+    && promptNeedsDialog(snapshot.game.prompt, me)
+    ? renderPrompt(snapshot.game.prompt, me, true)
+    : "";
   const hasInteractionOverlay = Boolean(snapshot.game.prompt || selectedRoleInstanceId || localSelectionAction || localFormAction || (mobileTableActive && selectedCardAction));
   const interaction = localFormAction ? renderLocalForm(me, opponent)
     : localSelectionAction ? renderLocalSelection()
       : selectedRoleInstanceId ? renderRoleAction(me)
         : mobileTableActive && selectedCardAction ? selectedCardAction
-          : renderPrompt(snapshot.game.prompt, me);
+          : promptDialog ? "" : renderPrompt(snapshot.game.prompt, me);
   root.innerHTML = `<div class="auto-game-stage"><div class="auto-game" data-phase="${snapshot.game.phase}">
     ${opponent ? renderPlayer(opponent, false, spectator ? "玩家 A" : undefined) : ""}
     <section class="auto-command-center ${hasInteractionOverlay ? "has-interaction-overlay" : ""}">
@@ -687,7 +705,7 @@ function renderGame() {
     ${me ? `<section class="auto-hand"><header><strong>我的手牌</strong><span>${me.hand.length} 张 · 牌堆 ${snapshot.game.handDeckCount} · 弃牌 ${snapshot.game.handDiscard.length}</span></header><div class="auto-hand__cards">${hand || "<p>没有手牌</p>"}</div>${!mobileTableActive ? selectedCardAction : ""}</section>` : ""}
     <button type="button" class="auto-mobile-log-backdrop ${mobileLogOpen ? "is-open" : ""}" data-auto-mobile-log-close aria-label="关闭日志" tabindex="-1"></button>
     <aside id="auto-mobile-log" class="auto-log ${mobileLogOpen ? "is-open" : ""}" aria-label="公开日志" ${mobileTableActive ? 'role="dialog"' : ""}><header><span>公开日志</span><button type="button" class="auto-mobile-log-close" data-auto-mobile-log-close aria-label="关闭日志">×</button></header><ol>${logs}</ol></aside>
-  </div></div>${renderCardDetail()}<div class="auto-hover-preview" id="auto-hover-preview" hidden></div>`;
+  </div></div>${promptDialog}${renderCardDetail()}<div class="auto-hover-preview" id="auto-hover-preview" hidden></div>`;
   bindGameActions(me, opponent);
   fitDesktopTable();
 }
@@ -747,17 +765,17 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
   root.querySelector("[data-view-selected]")?.addEventListener("click", () => { detailCardInstanceId = selectedPlayCardId; detailOwnerId = me.id; render(); });
   root.querySelectorAll("[data-detail-close]").forEach((button) => button.addEventListener("click", () => { detailCardInstanceId = ""; detailOwnerId = ""; render(); }));
   root.querySelectorAll<HTMLButtonElement>("[data-role-action]").forEach((button) => button.addEventListener("click", () => runSelectedRoleAction(button.dataset.roleAction || "", me)));
-  root.querySelectorAll<HTMLButtonElement>("[data-prompt-value]").forEach((button) => button.addEventListener("click", () => send("choice:submit", { value: button.dataset.promptValue })));
+  root.querySelectorAll<HTMLButtonElement>("[data-prompt-value]").forEach((button) => button.addEventListener("click", () => sendPromptChoice({ value: button.dataset.promptValue })));
   root.querySelectorAll<HTMLButtonElement>("[data-prompt-card]").forEach((button) => button.addEventListener("click", () => {
     toggleServerPromptCard(button.dataset.promptCard || "");
   }));
   root.querySelectorAll<HTMLButtonElement>("[data-assisted-action]").forEach((button) => button.addEventListener("click", () => runAssistedAction(button.dataset.assistedAction || "", me, opponent)));
-  root.querySelector("[data-submit-prompt-selection]")?.addEventListener("click", () => send("choice:submit", { cardInstanceIds: [...selectedPromptCards] }));
+  root.querySelector("[data-submit-prompt-selection]")?.addEventListener("click", () => sendPromptChoice({ cardInstanceIds: [...selectedPromptCards] }));
   root.querySelector("[data-submit-character-order]")?.addEventListener("click", () => {
     localFormAction = { kind: "order", title: "设置牌序", message: "按当前展示编号填写牌顶与牌底，中间使用 | 分隔。" };
     render();
   });
-  root.querySelector("[data-submit-discard]")?.addEventListener("click", () => send("choice:submit", { cardInstanceIds: [...selectedDiscard] }));
+  root.querySelector("[data-submit-discard]")?.addEventListener("click", () => sendPromptChoice({ cardInstanceIds: [...selectedDiscard] }));
   root.querySelector("[data-assisted-finish]")?.addEventListener("click", () => send("assisted:finish"));
   root.querySelector("[data-local-selection-confirm]")?.addEventListener("click", submitLocalSelection);
   root.querySelector("[data-local-selection-cancel]")?.addEventListener("click", () => {
@@ -875,7 +893,7 @@ function submitLocalForm(me: AutoPlayerView) {
     const value = root.querySelector<HTMLInputElement>("[data-local-form-order]")?.value.trim();
     if (!value || !/^\s*[\d,]*\s*\|\s*[\d,]*\s*$/.test(value)) return showToast("请使用“牌顶 | 牌底”格式填写牌序。");
     localFormAction = undefined;
-    send("choice:submit", { value });
+    sendPromptChoice({ value });
     return;
   }
   const action = localFormAction.action;
@@ -930,7 +948,7 @@ function handleCard(button: HTMLButtonElement, me: AutoPlayerView, opponent?: Au
     return;
   }
   if (prompt?.kind === "dying") return selectPlayableHand(instanceId);
-  if ((prompt?.kind as string) === "recall") return send("choice:submit", { instanceId, value: "recall" });
+  if ((prompt?.kind as string) === "recall") return sendPromptChoice({ instanceId, value: "recall" });
   if (prompt?.kind === "response") return selectPlayableHand(instanceId);
   if (prompt?.kind === "assisted-skill") return;
   if (zone === "body") {
@@ -962,7 +980,7 @@ function confirmSelectedHand(me: AutoPlayerView, opponent?: AutoPlayerView) {
   const prompt = snapshot.game.prompt;
   if (prompt?.kind === "dying") {
     selectedPlayCardId = "";
-    return send("choice:submit", { instanceId, value: "aid" });
+    return sendPromptChoice({ instanceId, value: "aid" });
   }
   if (prompt?.kind === "response") {
     selectedPlayCardId = "";
@@ -1124,12 +1142,14 @@ function scheduleAutomaticActions() {
     return;
   }
   if (!prompt && snapshot.game.currentPlayerId === snapshot.you && snapshot.game.stack.length === 0
-    && ["preparation", "draw"].includes(snapshot.game.phase) && snapshot.game.canAutoAdvancePhase) {
+    && ["preparation", "draw", "deployment", "discard", "end"].includes(snapshot.game.phase)
+    && snapshot.game.canAutoAdvancePhase) {
     const revision = snapshot.revision;
     const phase = snapshot.game.phase;
+    const delay = phase === "deployment" ? 1100 : phase === "discard" ? 500 : 650;
     autoPhaseTimer = window.setTimeout(() => {
       if (snapshot?.revision === revision && snapshot.game.phase === phase && !snapshot.game.prompt) send("phase:advance");
-    }, 650);
+    }, delay);
   }
   if (!prompt && snapshot.game.currentPlayerId === snapshot.you && snapshot.game.phase === "deployment"
     && snapshot.game.stack.length === 0 && autoDeploymentPendingRevision === undefined

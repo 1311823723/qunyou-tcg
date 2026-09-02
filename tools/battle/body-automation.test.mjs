@@ -6,7 +6,7 @@ import {
   extraStrikeAllowance,
   registeredBodySkillIds,
 } from "../../worker/src/skills/body-registry.mts";
-import { bodyTraitLogText } from "../../worker/src/skills/body-skill.mts";
+import { bodyTraitLogText, takePendingBodyTrigger } from "../../worker/src/skills/body-skill.mts";
 
 function player(definitionId, flipped = false, id = "p1") {
   return {
@@ -74,6 +74,7 @@ function runtime(owner, opponent = player(BODY_IDS.defense)) {
     gainHandCard: (card) => { card.ownerId = owner.id; owner.hand.push(card); },
     discardLooseCard: (card) => { card.ownerId = undefined; state.handDiscard.push(card); },
     handName: (definitionId) => definitionId,
+    handLabel: (card) => `${card.suit || ""}${card.rank || ""}【${card.definitionId}】`,
     characterName: (definitionId) => definitionId,
     logTrait: () => { logs.push(bodyTraitLogText(owner.nickname, owner.bodyState.flipped ? "强化特性" : "本体特性", owner.bodyState.flipped)); },
     addLog: (message) => { logs.push(message); },
@@ -123,6 +124,14 @@ function runtime(owner, opponent = player(BODY_IDS.defense)) {
 test("本体特性日志区分普通特性、Mega特性与Z招式", () => {
   assert.equal(bodyTraitLogText("微笑尅乐", "怦然杀意"), "微笑尅乐的特性【怦然杀意】触发");
   assert.equal(bodyTraitLogText("微笑尅乐", "爱至癫狂", true), "微笑尅乐的Mega 特性【爱至癫狂】触发");
+});
+
+test("同时触发提示可从快照恢复本体特性，且不会被旧提示重复消费", () => {
+  const trigger = { id: "body-trigger", kind: "combo-action", playerId: "p1", eventId: "event-1" };
+  const promptContext = { bodyTriggerIds: [trigger.id], bodyTriggers: [trigger] };
+  const pending = [];
+  assert.deepEqual(takePendingBodyTrigger(pending, promptContext, trigger.id, "p1"), trigger);
+  assert.equal(takePendingBodyTrigger(pending, promptContext, "stale-trigger", "p1"), undefined);
 });
 
 test("8张本体全部由技能注册表管理", () => {

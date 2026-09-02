@@ -31,6 +31,7 @@ function runtime(definitionId, event) {
     clearPrompt: () => { prompt = undefined; },
     canUseBasic: (id) => id === HAND_IDS.strike || (id === HAND_IDS.aid && owner.health < owner.maxHealth),
     handName: (id) => id === HAND_IDS.strike ? "出刀" : "急救",
+    handLabel: (card) => `${card.suit || ""}${card.rank || ""}【${card.definitionId}】`,
     useVirtualBasic: (id, options) => { virtualBasic = { id, options }; },
     gainOpponentHand: (id) => {
       const index = opponent.hand.findIndex((card) => card.instanceId === id);

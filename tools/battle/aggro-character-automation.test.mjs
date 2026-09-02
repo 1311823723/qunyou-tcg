@@ -65,8 +65,10 @@ function runtime(definitionId) {
     boostNextStrikeDamage: (amount = 1) => state.turnModifiers.push({ kind: "aggro-next-strike-damage", count: amount }),
     copyOpponentCharacterSkill: (slotIndex) => { copiedSlot = slotIndex; },
     dodgeCurrentStrike: () => { dodged = true; return true; },
+    currentStrikeCanBeDodged: () => true,
     isActionCard: (id) => id.startsWith("hand_trick_"),
     handName: (id) => id,
+    handLabel: (card) => `${card.suit || ""}${card.rank || ""}【${card.definitionId}】`,
     addLog: (message) => logs.push(message),
     emitEvent: () => {},
   };

@@ -293,7 +293,7 @@ const neo: CharacterSkillModule = {
     const ids = selectedCardIds(payload);
     const card = context.player.hand.find((candidate) => candidate.instanceId === ids[0]);
     if (ids.length !== 1 || !card || !prompt.cardInstanceIds?.includes(card.instanceId)) throw new Error("请选择1张行动牌展示。");
-    context.addLog(`${context.player.nickname}展示了【${context.handName(card.definitionId)}】`, context.player.id, { zone: "hand", ownerId: context.player.id });
+    context.addLog(`${context.player.nickname}展示了${context.handLabel(card)}`, context.player.id, { zone: "hand", ownerId: context.player.id });
     context.draw(1);
     context.clearPrompt(prompt.id);
     return true;

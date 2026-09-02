@@ -78,6 +78,7 @@ function runtime(definitionId, event) {
     dodgeCurrentStrike: () => true,
     isActionCard: (id) => id.startsWith("hand_trick_"),
     handName: (id) => id,
+    handLabel: (card) => `${card.suit || ""}${card.rank || ""}【${card.definitionId}】`,
     addLog: (message) => logs.push(message),
     emitEvent: (type, details) => { if (type === "inspection") inspections.push(details); },
   };

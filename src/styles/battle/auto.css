@@ -150,6 +150,16 @@
 .auto-prompt__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .4rem; }
 .auto-prompt.has-card-choices .auto-prompt__actions { grid-column: 1/-1; }
 .auto-prompt__auto { color: #ffd79d; font-size: .7rem; }
+.auto-prompt-modal { position: fixed; inset: 0; z-index: 72; display: grid; place-items: center; padding: 1rem; }
+.auto-prompt-modal__backdrop { position: absolute; inset: 0; background: rgba(3,3,10,.72); backdrop-filter: blur(5px); }
+.auto-prompt-modal .auto-prompt.is-overlay-panel {
+  position: relative; inset: auto; z-index: 1; width: min(46rem,calc(100vw - 2rem)); max-height: min(38rem,calc(100vh - 2rem));
+  overflow: auto; grid-template-columns: auto minmax(0,1fr); padding: 1rem; border-radius: 16px;
+  box-shadow: 0 28px 90px rgba(0,0,0,.72),0 0 0 1px rgba(216,183,92,.16); transform: none;
+}
+.auto-prompt-modal .auto-prompt.is-overlay-panel .auto-prompt__cards,
+.auto-prompt-modal .auto-prompt.is-overlay-panel .auto-prompt__actions,
+.auto-prompt-modal .auto-prompt.is-overlay-panel .auto-inline-form { grid-column: 1/-1; }
 .auto-retired { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: .55rem; margin-top: .55rem; padding-top: .55rem; border-top: 1px solid rgba(255,255,255,.08); }
 .auto-retired > span { color: var(--text-secondary); font: 800 .58rem var(--font-mono); }
 .auto-retired > div { display: grid; grid-template-columns: repeat(auto-fill,minmax(3.5rem,4.4rem)); gap: .35rem; }
@@ -386,6 +396,14 @@
 .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-hand__cards .auto-card { flex-basis: 48px; }
 .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-prompt.is-overlay-panel { width: 358px; max-height: 650px; }
 .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-detail article { grid-template-columns: 116px minmax(0,1fr); }
+.auto-battle[data-mobile-table="true"] .auto-prompt-modal { padding: 8px; }
+.auto-battle[data-mobile-table="true"] .auto-prompt-modal .auto-prompt.is-overlay-panel {
+  position: relative; inset: auto; width: min(680px,calc(100vw - 16px)); max-height: calc(100vh - 16px);
+  padding: 10px; overflow: auto; transform: none;
+}
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-prompt-modal .auto-prompt.is-overlay-panel {
+  width: min(358px,calc(100vw - 16px)); max-height: calc(100vh - 16px);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .auto-card, .auto-player, .auto-health-counter, .auto-progress-counter, .auto-health-counter__icon, .auto-progress-counter__icon { animation: none !important; transition: none !important; }
