@@ -35,6 +35,14 @@
     "body_link_001": {
       "front": "joker-body",
       "extra": "joker-body-dynamax"
+    },
+    "body_roaming_001": {
+      "front": "kgy-body",
+      "extra": "kgy-body-dynamax"
+    },
+    "body_antimagic_001": {
+      "front": "nanshanwu-body",
+      "extra": "nanshanwu-body-dynamax"
     }
   },
   "characters": {

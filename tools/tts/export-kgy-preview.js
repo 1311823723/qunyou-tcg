@@ -1,4 +1,4 @@
-// Draft-only export: never reads or writes the official card/art manifests.
+// Rider previews remain drafts; the body text comes from the official catalog.
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const assert = require("node:assert/strict");
@@ -31,11 +31,12 @@ function block(text, y, size, maxLines, color = "#eee8df") {
 }
 
 function riderSvg(card, side) {
-  const mode = card[side];
+  const pendingRedesign = card.review === "needs_redesign";
+  const mode = pendingRedesign ? { timing: "待确认", effect: "待重做。原降费方案已停用，新效果尚未确认。" } : card[side];
   const final = side === "final";
   const accent = ROLE_COLORS[card.role];
   const trim = final ? "#dfc16e" : accent;
-  const costs = final ? "仅极巨化期间使用，消耗此卡及1点极巨能量。每回合至多使用1张骑士卡。" : "消耗此卡。每回合至多使用1张普通骑士卡。";
+  const costs = `消耗此卡${final ? "及1点极巨能量" : ""}，并将己方角色区内1张${card.role}角色退场。每回合至多使用1张骑士卡。`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="750" height="1050" viewBox="0 0 750 1050">
     <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#1b1728"/><stop offset="1" stop-color="#080b14"/></linearGradient></defs>
     <rect width="750" height="1050" rx="26" fill="#080a10"/>
@@ -51,7 +52,7 @@ function riderSvg(card, side) {
       <text x="375" y="345" text-anchor="middle" font-size="35" fill="${accent}">${xml(card.role)}</text>
       <text x="375" y="454" text-anchor="middle" font-size="17" fill="#817d8b">原画预留</text>
       <rect x="52" y="496" width="142" height="33" rx="16" fill="${accent}" fill-opacity=".15"/>
-      <text x="123" y="519" text-anchor="middle" font-size="18" fill="${accent}">${xml(card.tag)}</text>
+      <text x="123" y="519" text-anchor="middle" font-size="18" fill="${accent}">${xml(pendingRedesign ? "待重做" : card.tag)}</text>
       <rect x="50" y="548" width="650" height="358" rx="14" fill="#ffffff" fill-opacity=".035"/>
       <text x="66" y="581" font-size="17" fill="${trim}">发动时机</text>
       ${block(mode.timing, 615, 25, 2)}
@@ -79,6 +80,9 @@ async function contact(files, filename, columns, tileWidth) {
 async function main() {
   const draft = JSON.parse(await fs.readFile(path.join(ROOT, "docs/design-drafts/kgy-cards.json"), "utf8"));
   assert.equal(draft.status, "design-preview-only");
+  const bodies = JSON.parse(await fs.readFile(path.join(ROOT, "data/cards/bodies.json"), "utf8"));
+  draft.body = bodies.find((body) => body.id === draft.bodyId);
+  assert.ok(draft.body, `Unknown body: ${draft.bodyId}`);
   assert.equal(draft.riders.length, 6);
   assert.equal(new Set(draft.riders.map((card) => card.role)).size, 6);
   for (const [slot, property] of [["front", "__ttsArt"], ["extra", "__ttsMegaArt"]]) {
@@ -107,7 +111,7 @@ async function main() {
     assert.equal(info.width, 750);
     assert.equal(info.height, 1050);
   }
-  await fs.writeFile(path.join(OUT, "index.html"), `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>KGY 双面制卡预览</title><style>body{margin:24px;background:#090b13;color:#e8dfc6;font:16px system-ui}section{display:flex;flex-wrap:wrap;gap:20px}a{flex:0 1 300px}img{width:100%;border-radius:10px}p{line-height:1.7}</style><h1>KGY 双面制卡预览</h1><p>本体双面已接入原画，骑士卡原画待制作。设计预览，未加入正式牌堆。点击查看完整尺寸。部分时机待确认，沿用设计稿建议。</p><section>${allFiles.map((file) => `<a href="${file}"><img src="${file}" alt="${file}"></a>`).join("")}</section></html>`);
+  await fs.writeFile(path.join(OUT, "index.html"), `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>KGY 双面制卡预览</title><style>body{margin:24px;background:#090b13;color:#e8dfc6;font:16px system-ui}section{display:flex;flex-wrap:wrap;gap:20px}a{flex:0 1 300px}img{width:100%;border-radius:10px}p{line-height:1.7}</style><h1>KGY 双面制卡预览</h1><p>本体双面读取正式数据，已接入原画。骑士辅助卡仍为设计预览，原画待制作，部分时机待确认。尚未接入在线自动结算。点击查看完整尺寸。</p><section>${allFiles.map((file) => `<a href="${file}"><img src="${file}" alt="${file}"></a>`).join("")}</section></html>`);
   console.log(`Verified ${allFiles.length} draft card faces (750x1050). Preview: ${OUT}/index.html`);
 }
 
