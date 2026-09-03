@@ -126,6 +126,15 @@ export function effectiveDefinition(item: HandResolutionItem) {
   return item.definitionId === HAND_IDS.impersonate ? item.resolvedAs || "" : item.definitionId;
 }
 
+export function resolveVirtualDodge(strike: HandResolutionItem, responderId: string, invalidated: boolean) {
+  strike.wasRespondedTo = true;
+  if (invalidated) return "invalidated" as const;
+  strike.cancelled = true;
+  strike.cancelledByPlayerId = responderId;
+  strike.cancellationReason = "dodge";
+  return "dodged" as const;
+}
+
 export function responseEventForItem(state: AutoRoomState, item: HandResolutionItem) {
   return [...state.recentEvents].reverse().find((event) => event.type === "card_responded"
     && event.metadata?.resolutionItemId === item.id);

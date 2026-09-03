@@ -1,0 +1,80 @@
+{
+  "status": "design-preview-only",
+  "art": {
+    "front": "src/assets/card-art-source/bodies/kgy-body.png",
+    "extra": "src/assets/card-art-source/bodies/kgy-body-dynamax.png"
+  },
+  "body": {
+    "id": "body_roaming_001",
+    "name": "KGY",
+    "cardType": "本体",
+    "hp": 7,
+    "archetype": "巡界流",
+    "affinityTags": ["骑士卡", "应变"],
+    "skillName": "世界巡游",
+    "effectText": "每回合限一次，当对手的一张角色技能结算后，若你未持有与其主定位对应的骑士卡，你可以获得该骑士卡。每种骑士卡至多持有1张；每回合至多使用1张普通骑士卡。",
+    "extraForm": {
+      "type": "dynamax",
+      "name": "极巨巡界者-KGY",
+      "skillName": "终极驾驭",
+      "effectText": "进入极巨化时，获得全部六种FINAL骑士卡各1张（替换已有普通卡）。极巨化期间不能获得新的骑士卡，每回合至多使用1张，使用时消耗该卡及1点极巨能量。极巨化结束时，将剩余FINAL骑士卡变回普通卡。",
+      "condition": "累计使用4张普通骑士卡后，极巨化就绪。"
+    }
+  },
+  "riders": [
+    {
+      "id": "rider_attack",
+      "role": "强攻",
+      "name": "强攻骑士卡",
+      "call": "ATTACK RIDE",
+      "tag": "强化",
+      "normal": { "timing": "当你使用【出刀】时", "effect": "令此【出刀】造成的伤害+1。" },
+      "final": { "timing": "你的出牌阶段", "effect": "视为对对手使用1张【出刀】。此【出刀】不计入本回合使用次数，且造成的伤害+1。", "timingProvisional": true }
+    },
+    {
+      "id": "rider_defense",
+      "role": "防御",
+      "name": "防御骑士卡",
+      "call": "GUARD RIDE",
+      "tag": "减伤",
+      "normal": { "timing": "当你将受到伤害时", "effect": "令此次伤害-1。" },
+      "final": { "timing": "当你将受到伤害时", "effect": "防止此次伤害。" }
+    },
+    {
+      "id": "rider_resource",
+      "role": "资源",
+      "name": "资源骑士卡",
+      "call": "RESOURCE RIDE",
+      "tag": "摸牌",
+      "normal": { "timing": "你的出牌阶段", "effect": "摸1张手牌。" },
+      "final": { "timing": "你的出牌阶段", "effect": "摸3张手牌，然后弃置1张手牌。", "timingProvisional": true }
+    },
+    {
+      "id": "rider_control",
+      "role": "控制",
+      "name": "控制骑士卡",
+      "call": "CONTROL RIDE",
+      "tag": "角色控制",
+      "normal": { "timing": "你的出牌阶段", "effect": "明置对手1张暗置角色。此次明置不发动该角色技能，且该角色本回合不能发动技能。" },
+      "final": { "timing": "你的出牌阶段", "effect": "令对手1张上阵角色休整。", "timingProvisional": true }
+    },
+    {
+      "id": "rider_support",
+      "role": "支援",
+      "name": "支援骑士卡",
+      "call": "SUPPORT RIDE",
+      "tag": "费用修正",
+      "normal": { "timing": "你发动角色技能、确定费用时", "effect": "若费用为【休整X】，则X减少1，最低为1；若为【休整自身】，则改为【休整1】。不影响退场费用。" },
+      "final": { "timing": "你发动角色技能、确定费用时", "effect": "若费用为【休整X】，则X改为0；若为【休整自身】，则改为【休整1】。不影响退场费用。" }
+    },
+    {
+      "id": "rider_ambush",
+      "role": "伏击",
+      "name": "伏击骑士卡",
+      "call": "AMBUSH RIDE",
+      "tag": "反制",
+      "normal": { "timing": "对手的一张角色技能结算后", "effect": "若发动该技能的角色仍在其角色区，将其洗回角色牌堆。" },
+      "final": { "timing": "对手发动角色技能并支付费用后，效果结算前", "effect": "令此次角色技能失效。已支付的费用不返还。", "timingProvisional": true }
+    }
+  ]
+}

@@ -33,6 +33,7 @@ export interface CharacterSkillRuntimeContext {
   gainFromHandDiscard(instanceIds: string[]): CardInstance[];
   shuffleFromHandDiscard(instanceIds: string[]): CardInstance[];
   addModifier(modifier: Omit<TurnModifier, "id" | "ownerId">): void;
+  reducePendingDamage(amount?: number): number;
   counterCurrentHand(): boolean;
   banishCurrentHand(): boolean;
   damageOpponent(amount: number, options?: { after?: "return-self-if-target-health-at-most-3" }): number | undefined;

@@ -114,6 +114,7 @@ export interface SocketAttachment {
   playerId: string;
   isSpectator?: boolean;
   spectatorNickname?: string;
+  perfEnabled?: boolean;
 }
 
 export interface LobbyPlayerSummary {

@@ -31,6 +31,25 @@ export const defenseBodySkill: BodySkillModule = {
     return true;
   },
 
+  resolveAutomatic(context, trigger) {
+    if (trigger.kind !== "defense-reward" || context.usage("turn", "defense") >= 3) return false;
+    context.incrementUsage("turn", "defense");
+    context.logTrait();
+    context.draw(1);
+    const opponent = context.opponent();
+    const hidden = opponent?.characterSlots.flatMap((slot, index) => slot && "instanceId" in slot && slot.faceDown ? [{ slot, index }] : []) || [];
+    if (hidden.length === 1) context.setPrompt({
+      kind: "body-skill", playerId: context.player.id, title: `${context.skillName()}·观看`, message: "你观看了这张暗置角色。",
+      selectableCards: [hidden[0].slot], options: [{ value: "done", label: "完成" }], context: { action: "defense-inspect-done" },
+    });
+    else if (hidden.length > 1) context.setPrompt({
+      kind: "body-skill", playerId: context.player.id, title: context.skillName(), message: "选择观看对手1张暗置角色。",
+      options: hidden.map(({ index }) => ({ value: String(index), label: `观看角色位 ${index + 1}` })),
+      context: { action: "defense-inspect", opponentId: opponent?.id },
+    });
+    return true;
+  },
+
   openPrompt(context, trigger) {
     if (trigger.kind !== "defense-reward" || context.usage("turn", "defense") >= 3) return false;
     context.setPrompt({

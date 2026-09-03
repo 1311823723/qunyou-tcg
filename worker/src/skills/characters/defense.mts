@@ -54,8 +54,9 @@ const highPriest = immediateCharacterSkill({
   cardId: DEFENSE_CHARACTER_IDS.highPriest,
   trigger: { event: "damage_before", relation: "target_self" },
   effect(context) {
-    if (context.counterCurrentHand()) {
-      context.emitEvent("damage_prevented", { sourcePlayerId: context.player.id, targetPlayerId: context.player.id, amount: 1 });
+    const prevented = context.reducePendingDamage();
+    if (prevented > 0) {
+      context.emitEvent("damage_prevented", { sourcePlayerId: context.player.id, targetPlayerId: context.player.id, amount: prevented });
       context.draw(1);
     }
   },
@@ -85,7 +86,8 @@ const bodyguardQindi: CharacterSkillModule = {
   resolveChoice(context, prompt, payload) {
     if (context.continuation?.step !== "qindi-bodyguard-rest") return false;
     context.restOwnCharacter(Number(choiceValue(payload)));
-    if (context.counterCurrentHand()) context.emitEvent("damage_prevented", { sourcePlayerId: context.player.id, targetPlayerId: context.player.id, amount: 1 });
+    const prevented = context.reducePendingDamage();
+    if (prevented > 0) context.emitEvent("damage_prevented", { sourcePlayerId: context.player.id, targetPlayerId: context.player.id, amount: prevented });
     context.heal(1);
     context.clearPrompt(prompt.id);
     return true;
@@ -110,7 +112,8 @@ const adventurer = immediateCharacterSkill({
   trigger: { event: "damage_before", relation: "target_self" },
   canActivate: (context) => context.event?.cardDefinitionId !== HAND_IDS.strike,
   effect(context) {
-    context.addModifier({ kind: "damage-shield", count: 1, sourceDefinitionId: DEFENSE_CHARACTER_IDS.adventurer });
+    const prevented = context.reducePendingDamage(1);
+    if (prevented > 0) context.emitEvent("damage_prevented", { sourcePlayerId: context.player.id, targetPlayerId: context.player.id, amount: prevented });
   },
 });
 

@@ -263,6 +263,7 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     await testInfo.attach("auto-mobile-landscape", { body: await guestPage.screenshot(), contentType: "image/png" });
 
     const tableBeforeLog = await guestPage.locator(".auto-game").boundingBox();
+    await guestPage.locator(".auto-slot .auto-card").first().evaluate((card) => { card.setAttribute("data-e2e-stable-node", "true"); });
     await guestPage.locator("[data-auto-mobile-log-toggle]").click();
     await expect(guestPage.locator(".auto-log")).toHaveClass(/is-open/);
     await expect(guestPage.locator("[data-auto-mobile-log-toggle]")).toHaveAttribute("aria-expanded", "true");
@@ -279,6 +280,7 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     const tableAfterLog = await guestPage.locator(".auto-game").boundingBox();
     expect(tableAfterLog?.width).toBeCloseTo(tableBeforeLog?.width || 0, 1);
     expect(tableAfterLog?.height).toBeCloseTo(tableBeforeLog?.height || 0, 1);
+    await expect(guestPage.locator('.auto-slot .auto-card[data-e2e-stable-node="true"]')).toHaveCount(1);
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const hostPass = hostPage.locator('.auto-prompt.is-mine [data-prompt-value="pass"]');
@@ -290,13 +292,15 @@ test("automatic beta room starts, advances phases and protects spectator privacy
 
     const hostTurn = (await hostPage.locator(".auto-phase span").textContent())?.includes("你的回合") ?? false;
     const currentPage = hostTurn ? hostPage : guestPage;
+    await currentPage.locator(".auto-slot .auto-card").first().evaluate((card) => { card.setAttribute("data-e2e-snapshot-stable", "true"); });
     await currentPage.locator("[data-phase-advance]").click();
     await expect(currentPage.locator(".auto-phase strong")).toHaveText("摸牌阶段");
     await expect(currentPage.locator(".auto-phase-track li.is-current")).toHaveText(/2摸牌/);
     await expect(currentPage.locator(".auto-hand [data-auto-card]")).toHaveCount(7);
+    await expect(currentPage.locator('.auto-slot .auto-card[data-e2e-snapshot-stable="true"]')).toHaveCount(1);
 
     await setProfile(spectatorPage, "E2E-自动观战");
-    await spectatorPage.goto(`/play/auto/room?code=${code}&spectate=true`);
+    await spectatorPage.goto(`/play/auto/room?code=${code}&spectate=true&perf=1`);
     await expect(spectatorPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game");
     await expect(spectatorPage.locator(".auto-hand [data-auto-card]")).toHaveCount(0);
     await expect(spectatorPage.locator(".auto-hand")).toHaveCount(0);
@@ -304,6 +308,8 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     await expect(spectatorPage.getByText("玩家 A ·", { exact: false })).toBeVisible();
     await expect(spectatorPage.getByText("玩家 B ·", { exact: false })).toBeVisible();
     await expect(spectatorPage.locator("[data-phase-advance]")).toBeDisabled();
+    await expect(spectatorPage.locator(".auto-perf-panel")).toBeVisible();
+    await expect(hostPage.locator(".auto-perf-panel")).toHaveCount(0);
 
     await guestPage.setViewportSize({ width: 740, height: 360 });
     await expect.poll(async () => (await guestPage.locator(".auto-game").boundingBox())?.width || Infinity).toBeLessThanOrEqual(740);

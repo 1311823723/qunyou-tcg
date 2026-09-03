@@ -17,6 +17,13 @@ export const comboBodySkill: BodySkillModule = {
     return { kind: "combo-action", context: { causedDamage: event.metadata?.causedDamage === true } };
   },
 
+  resolveAutomatic(context, trigger) {
+    if (trigger.kind !== "combo-action" || context.player.bodyState.flipped) return false;
+    context.logTrait();
+    context.draw(1);
+    return true;
+  },
+
   openPrompt(context, trigger) {
     if (trigger.kind !== "combo-action") return false;
     if (!context.player.bodyState.flipped) {

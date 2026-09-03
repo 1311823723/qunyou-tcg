@@ -20,6 +20,13 @@ export const aggroBodySkill: BodySkillModule = {
     return player.bodyState.flipped ? 2 : 1;
   },
 
+  resolveAutomatic(context, trigger) {
+    if (trigger.kind !== "aggro-draw") return false;
+    context.logTrait();
+    context.draw(1);
+    return true;
+  },
+
   onPhaseEntered(context, phase) {
     if (phase !== "end" || !context.player.bodyState.flipped || !context.state.currentPlayerId) return;
     context.enqueueTrigger("aggro-mega-end-strike", `end:${context.state.turnNumber}`, {

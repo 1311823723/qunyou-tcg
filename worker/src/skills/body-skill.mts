@@ -54,6 +54,7 @@ export interface BodySkillModule {
   activateExtra?(context: BodySkillRuntimeContext): void;
   resolveJudgment?(context: BodySkillRuntimeContext, card: CardInstance, color: "红色" | "黑色"): boolean;
   preventDamage?(context: BodySkillRuntimeContext, amount: number): boolean;
+  resolveAutomatic?(context: BodySkillRuntimeContext, trigger: PendingBodyTrigger): boolean;
   openPrompt(context: BodySkillRuntimeContext, trigger: PendingBodyTrigger): boolean;
   resolveChoice(
     context: BodySkillRuntimeContext,

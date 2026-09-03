@@ -13,12 +13,25 @@ import {
   passResponseWindow,
   phaseCanFinishAutomatically,
   responseEventForItem,
+  resolveVirtualDodge,
   handCardLabel,
 } from "../../worker/src/auto-engine.mts";
 
 test("公开手牌标签包含花色点数，大小王保留王牌身份", () => {
   assert.equal(handCardLabel({ instanceId: "s7", definitionId: HAND_IDS.strike, kind: "hand", suit: "黑桃", rank: "7" }), "黑桃7【出刀】");
   assert.equal(handCardLabel({ instanceId: "joker", definitionId: HAND_IDS.impersonate, kind: "hand", joker: "small" }, HAND_IDS.dodge), "小王【冒名顶替】（视为【闪避】）");
+});
+
+test("虚拟闪避被猎鹰无效时保留出刀，否则正常抵消", () => {
+  const invalidated = { kind: "hand", id: "strike-a", sourcePlayerId: "p1", targetPlayerId: "p2", card: card("s1", HAND_IDS.strike), definitionId: HAND_IDS.strike };
+  assert.equal(resolveVirtualDodge(invalidated, "p2", true), "invalidated");
+  assert.equal(invalidated.wasRespondedTo, true);
+  assert.equal(invalidated.cancelled, undefined);
+
+  const dodged = { kind: "hand", id: "strike-b", sourcePlayerId: "p1", targetPlayerId: "p2", card: card("s2", HAND_IDS.strike), definitionId: HAND_IDS.strike };
+  assert.equal(resolveVirtualDodge(dodged, "p2", false), "dodged");
+  assert.equal(dodged.cancelled, true);
+  assert.equal(dodged.cancellationReason, "dodge");
 });
 
 function card(instanceId, definitionId, ownerId = "p1") {

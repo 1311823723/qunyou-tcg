@@ -161,6 +161,16 @@ export interface PendingJudgment {
   resumeResponsePlayerId?: string;
 }
 
+export interface PendingDamage {
+  id: string;
+  eventId: string;
+  targetPlayerId: string;
+  sourcePlayerId?: string;
+  amount: number;
+  cardDefinitionId?: string;
+  continuation?: Record<string, unknown>;
+}
+
 export interface BodyRuntimeState {
   progress: number;
   progressMax: number;
@@ -252,6 +262,7 @@ export interface AutoRoomState {
   recentEvents: AutoBattleEvent[];
   pendingBodyTriggers: PendingBodyTrigger[];
   pendingJudgments: PendingJudgment[];
+  pendingDamages: PendingDamage[];
   winnerId?: string;
   revision: number;
   logs: BattleLog[];

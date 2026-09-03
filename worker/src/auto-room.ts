@@ -29,6 +29,7 @@ import {
   phaseCanFinishAutomatically,
   playerById,
   responseEventForItem,
+  resolveVirtualDodge,
   validPlayDefinition,
 } from "./auto-engine.mts";
 import { bodySkillForId } from "./skills/body-registry.mts";
@@ -51,6 +52,7 @@ import type {
   CharacterSkillResolutionItem,
   HandResolutionItem,
   PendingBodyTrigger,
+  PendingDamage,
   PendingJudgment,
   ResolutionItem,
   SkillContinuation,
@@ -125,6 +127,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         this.state.recentEvents ??= [];
         this.state.pendingBodyTriggers ??= [];
         this.state.pendingJudgments ??= [];
+        this.state.pendingDamages ??= [];
         this.state.handBanished ??= [];
         this.state.processedActionIds ??= [];
         for (const player of this.state.players) player.bodyState ??= this.newBodyState(player.body?.definitionId);
@@ -161,6 +164,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       recentEvents: [],
       pendingBodyTriggers: [],
       pendingJudgments: [],
+      pendingDamages: [],
       revision: 0,
       logs: [],
       processedActionIds: [],
@@ -195,6 +199,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     const url = new URL(request.url);
     const token = cleanText(url.searchParams.get("token"), 80);
     const spectator = url.searchParams.get("spectator") === "true";
+    const perfEnabled = url.searchParams.get("perf") === "1";
     const spectatorNickname = cleanText(url.searchParams.get("nickname"), 20);
     let playerId = "";
     let isSpectator = false;
@@ -219,6 +224,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     server.serializeAttachment({
       playerId,
       isSpectator,
+      perfEnabled,
       ...(isSpectator ? { spectatorNickname } : {}),
     } satisfies AutoSocketAttachment);
     this.state.lastActivityAt = Date.now();
@@ -250,7 +256,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
       if (!Number.isInteger(message.baseRevision) || message.baseRevision !== this.state.revision) {
         throw new Error("牌桌状态已更新，请等待同步后重试。");
       }
+      const actionStartedAt = performance.now();
+      const lobbyBefore = this.lobbyFingerprint();
       const stateBeforeAction = structuredClone(this.state);
+      const applyStartedAt = performance.now();
       try {
         await this.applyAction(player, message);
         this.openNextSkillTrigger();
@@ -262,10 +271,17 @@ export class AutoBattleRoom extends DurableObject<Env> {
       this.state.processedActionIds = this.state.processedActionIds.slice(-100);
       this.state.revision += 1;
       this.state.lastActivityAt = Date.now();
-      await this.persist();
-      await this.syncLobby();
+      const applyMs = performance.now() - applyStartedAt;
+      const persistStartedAt = performance.now();
+      await this.persist(false);
+      const persistMs = performance.now() - persistStartedAt;
+      if (lobbyBefore !== this.lobbyFingerprint()) await this.syncLobby();
+      this.sendAck(ws, message.actionId, false, attachment?.perfEnabled ? {
+        applyMs,
+        persistMs,
+        totalMs: performance.now() - actionStartedAt,
+      } : undefined);
       this.broadcast();
-      this.sendAck(ws, message.actionId);
     } catch (error) {
       this.sendError(ws, error instanceof Error ? error.message : "操作失败。", message.actionId);
     }
@@ -476,17 +492,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
       ...(target ? { countersItemId: target.id } : {}),
     };
     if (response && effective === HAND_IDS.dodge && isHandResolutionItem(target) && isHandResolutionItem(item)) {
-      const striker = playerById(this.state, target.sourcePlayerId);
-      const falcon = striker?.characterSlots.find((slot) => slot && "instanceId" in slot && slot.definitionId === "char_104_player_falcon");
-      if (striker && falcon && "instanceId" in falcon) {
-        if (falcon.faceDown) falcon.faceDown = false;
-        this.restCard(striker, falcon, true, striker.id, true);
+      if (this.counterDodgeWithFalcon(target)) {
         item.cancelled = true;
-        item.cancelledByPlayerId = striker.id;
+        item.cancelledByPlayerId = target.sourcePlayerId;
         item.cancellationReason = "skill";
-        this.emitEvent("skill_used", { sourcePlayerId: striker.id, characterDefinitionId: falcon.definitionId, metadata: { costType: "休整自身", mainRole: "伏击" } });
-        this.emitEvent("skill_resolved", { sourcePlayerId: striker.id, characterDefinitionId: falcon.definitionId });
-        this.addLog(`${striker.nickname}发动【凌空绝杀】，令此次【闪避】无效`, striker.id, { zone: "resolving" });
       }
     }
     if (isHandResolutionItem(item) && effective === HAND_IDS.strike) this.attachStrikeModifiers(player, item);
@@ -525,6 +534,12 @@ export class AutoBattleRoom extends DurableObject<Env> {
       const top = this.state.stack[this.state.stack.length - 1];
       if (!isHandResolutionItem(top)) throw new Error("当前没有可响应的牌。");
       const stage = this.state.prompt.context?.responseStage === "source" ? "source" : "target";
+      const currentId = cleanText(this.state.prompt.context?.currentSkillInstanceId, 80);
+      const currentRole = this.findCharacterInstance(player, currentId);
+      const registered = currentRole ? this.registeredCharacterSkill(player, currentRole) : undefined;
+      if (currentRole && registered) {
+        this.state.usageCounters[this.characterEventUsageKey(top.id, player.id, `${currentRole.instanceId}:${registered.handlerId}`)] = 1;
+      }
       const remaining = Array.isArray(this.state.prompt.context?.remainingSkillInstanceIds)
         ? this.state.prompt.context.remainingSkillInstanceIds.map(String)
         : [];
@@ -581,6 +596,24 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (this.openResponseSkillStage(item, "source")) return;
     if (this.openResponseSkillStage(item, "target")) return;
     beginResponseWindow(this.state, item);
+  }
+
+  private counterDodgeWithFalcon(strike: HandResolutionItem) {
+    if (!this.state) return false;
+    const striker = playerById(this.state, strike.sourcePlayerId);
+    const falcon = striker?.characterSlots.find((slot) => slot && "instanceId" in slot
+      && slot.definitionId === "char_104_player_falcon");
+    if (!striker || !falcon || !("instanceId" in falcon)) return false;
+    if (falcon.faceDown) falcon.faceDown = false;
+    this.restCard(striker, falcon, true, striker.id, true);
+    this.emitEvent("skill_used", {
+      sourcePlayerId: striker.id,
+      characterDefinitionId: falcon.definitionId,
+      metadata: { costType: "休整自身", mainRole: "伏击" },
+    });
+    this.emitEvent("skill_resolved", { sourcePlayerId: striker.id, characterDefinitionId: falcon.definitionId });
+    this.addLog(`${striker.nickname}发动【凌空绝杀】，令此次【闪避】无效`, striker.id, { zone: "resolving" });
+    return true;
   }
 
   private resolveTop(): void {
@@ -1285,6 +1318,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
   private openNextSkillTrigger(): void {
     if (!this.state?.started || this.state.prompt
       || (this.state.stack.length && !this.state.pendingJudgments.length) || this.state.winnerId) return;
+    if (this.state.pendingDamages.at(-1)?.amount === 0) return this.resolvePendingDamage();
     const playersInResolutionOrder = [...this.state.players].sort((left, right) => {
       const leftIsCurrent = left.id === this.state?.currentPlayerId;
       const rightIsCurrent = right.id === this.state?.currentPlayerId;
@@ -1292,13 +1326,28 @@ export class AutoBattleRoom extends DurableObject<Env> {
     });
     for (const player of playersInResolutionOrder) {
       const pendingBody = this.state.pendingBodyTriggers.filter((trigger) => trigger.playerId === player.id);
+      const firstBodyTrigger = pendingBody[0];
+      if (firstBodyTrigger && this.resolveAutomaticBodyTrigger(player, firstBodyTrigger)) {
+        this.state.pendingBodyTriggers = this.state.pendingBodyTriggers.filter((trigger) => trigger.id !== firstBodyTrigger.id);
+        return this.openNextSkillTrigger();
+      }
       const candidates = player.characterSlots.flatMap((slot) => {
         if (!slot || !("instanceId" in slot)) return [];
         if (slot.faceDown && this.isCharacterRevealLocked(player, slot.instanceId)) return [];
         if (this.isCharacterSkillLocked(player, slot.instanceId)) return [];
         const registered = this.registeredCharacterSkill(player, slot);
         const module = registered?.module;
-        if (!module || ["play_phase", "basic_card_needed", "prediction_targeted"].includes(module.trigger.event)) return [];
+        if (!module || [
+          "play_phase",
+          "basic_card_needed",
+          "prediction_targeted",
+          "strike_used",
+          "strike_targeted",
+          "body_targeted_by_hand",
+          "action_used",
+          "hand_lost_before",
+          "damage_before_source",
+        ].includes(module.trigger.event)) return [];
         const trigger = this.skillTriggerContext(module.trigger.event, module.trigger.relation, undefined, player, false);
         if (!trigger) return [];
         const event = "type" in trigger ? trigger as AutoBattleEvent : undefined;
@@ -1337,13 +1386,51 @@ export class AutoBattleRoom extends DurableObject<Env> {
       });
       return;
     }
+    if (this.state.pendingDamages.length) return this.resolvePendingDamage();
     this.advancePendingJudgment();
+  }
+
+  private resolvePendingDamage() {
+    if (!this.state) return;
+    const pending = this.state.pendingDamages.pop();
+    if (!pending) return;
+    this.state.recentEvents = this.state.recentEvents.filter((event) => event.id !== pending.eventId);
+    const target = playerById(this.state, pending.targetPlayerId);
+    if (!target) return this.resumeDamageContinuation(pending.continuation, 0);
+    const applied = this.applyDamage(target, pending.amount, pending.sourcePlayerId, pending.cardDefinitionId, {
+      skipReplacement: true,
+      skipTargetSkills: true,
+      deferred: true,
+      continuation: pending.continuation,
+    }) || 0;
+    if (this.state.prompt?.kind === "dying") return;
+    this.resumeDamageContinuation(pending.continuation, applied);
+  }
+
+  private damageBeforeSkillCandidates(target: AutoPlayerState, event: AutoBattleEvent) {
+    if (!this.state) return [];
+    return target.characterSlots.flatMap((slot) => {
+      if (!slot || !("instanceId" in slot) || this.isCharacterSkillLocked(target, slot.instanceId)) return [];
+      if (slot.faceDown && this.isCharacterRevealLocked(target, slot.instanceId)) return [];
+      const registered = this.registeredCharacterSkill(target, slot);
+      if (!registered || registered.module.trigger.event !== "damage_before"
+        || !this.relationMatches(registered.module.trigger.relation, event.sourcePlayerId, event.targetPlayerId, target.id)) return [];
+      if (registered.module.canActivate?.(this.characterSkillContext(target, slot, event)) === false) return [];
+      const selection = this.skillCostSelection(target, slot.instanceId);
+      return selection && selection.cardInstanceIds.length < selection.min ? [] : [slot.instanceId];
+    });
   }
 
   private openBodyPrompt(player: AutoPlayerState, trigger: PendingBodyTrigger) {
     if (!this.state) return false;
     const registeredSkill = bodySkillForId(bodyId(player));
+    if (registeredSkill?.resolveAutomatic?.(this.bodySkillContext(player), trigger)) return Boolean(this.state.prompt);
     return registeredSkill?.openPrompt(this.bodySkillContext(player), trigger) || false;
+  }
+
+  private resolveAutomaticBodyTrigger(player: AutoPlayerState, trigger: PendingBodyTrigger) {
+    if (!this.state) return false;
+    return bodySkillForId(bodyId(player))?.resolveAutomatic?.(this.bodySkillContext(player), trigger) || false;
   }
 
   private takeTopHandCards(count: number) {
@@ -1744,6 +1831,13 @@ export class AutoBattleRoom extends DurableObject<Env> {
         return returned;
       },
       addModifier: (modifier) => { state.turnModifiers.push({ id: crypto.randomUUID(), ownerId: player.id, ...modifier }); },
+      reducePendingDamage: (amount = Number.POSITIVE_INFINITY) => {
+        const pending = state.pendingDamages.at(-1);
+        if (!pending || pending.targetPlayerId !== player.id || pending.amount <= 0) return 0;
+        const reduced = Math.min(pending.amount, Math.max(0, amount));
+        pending.amount -= reduced;
+        return reduced;
+      },
       counterCurrentHand: () => {
         const target = [...state.stack].reverse().find(isHandResolutionItem);
         if (!target || target.cancelled) return false;
@@ -1984,9 +2078,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
         const target = [...state.stack].reverse().find((item) => isHandResolutionItem(item)
           && effectiveDefinition(item) === HAND_IDS.strike && item.targetPlayerId === player.id);
         if (!target || !isHandResolutionItem(target) || target.cancelled || target.cannotDodge) return false;
-        target.cancelled = true;
-        target.cancelledByPlayerId = player.id;
-        target.cancellationReason = "dodge";
+        this.addLog(`${player.nickname}视为使用了【闪避】`, player.id, { zone: "resolving" });
+        resolveVirtualDodge(target, player.id, this.counterDodgeWithFalcon(target));
         return true;
       },
       currentStrikeCanBeDodged: () => Boolean([...state.stack].reverse().find((item) => isHandResolutionItem(item)
@@ -2588,6 +2681,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.state.recentEvents = [];
     this.state.pendingBodyTriggers = [];
     this.state.pendingJudgments = [];
+    this.state.pendingDamages = [];
     this.state.usageCounters = {};
     this.state.turnModifiers = [];
     for (const player of this.state.players) {
@@ -2964,7 +3058,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     amount: number,
     sourceId?: string,
     cardDefinitionId?: string,
-    options: { skipReplacement?: boolean; deferred?: boolean; continuation?: Record<string, unknown> } = {},
+    options: { skipReplacement?: boolean; skipTargetSkills?: boolean; deferred?: boolean; continuation?: Record<string, unknown> } = {},
   ): number | undefined {
     if (!this.state) return 0;
     const source = sourceId ? playerById(this.state, sourceId) : undefined;
@@ -3001,6 +3095,28 @@ export class AutoBattleRoom extends DurableObject<Env> {
         return undefined;
       }
     }
+    if (!options.skipTargetSkills && amount > 0) {
+      const event = this.emitEvent("damage_before", {
+        sourcePlayerId: sourceId,
+        targetPlayerId: target.id,
+        cardDefinitionId,
+        amount,
+      });
+      if (this.damageBeforeSkillCandidates(target, event).length) {
+        this.state.pendingDamages.push({
+          id: crypto.randomUUID(),
+          eventId: event.id,
+          targetPlayerId: target.id,
+          sourcePlayerId: sourceId,
+          amount,
+          cardDefinitionId,
+          continuation: options.continuation,
+        });
+        this.openNextSkillTrigger();
+        return undefined;
+      }
+      this.state.recentEvents = this.state.recentEvents.filter((candidate) => candidate.id !== event.id);
+    }
     let finalAmount = amount;
     const shieldIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === target.id && modifier.kind === "damage-shield" && modifier.count > 0);
     if (shieldIndex >= 0 && finalAmount > 0) {
@@ -3024,8 +3140,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
       const healthKey = `health-reduction-events:${this.state.turnNumber}:${target.id}`;
       this.state.usageCounters[healthKey] = (this.state.usageCounters[healthKey] || 0) + 1;
     }
-    this.addLog(`${target.nickname} 受到 ${applied} 点伤害，当前体力 ${target.health}`, sourceId, { zone: "player", ownerId: target.id });
-    this.emitEvent("damage_after", { sourcePlayerId: sourceId, targetPlayerId: target.id, cardDefinitionId, amount: applied });
+    if (applied > 0) {
+      this.addLog(`${target.nickname} 受到 ${applied} 点伤害，当前体力 ${target.health}`, sourceId, { zone: "player", ownerId: target.id });
+      this.emitEvent("damage_after", { sourcePlayerId: sourceId, targetPlayerId: target.id, cardDefinitionId, amount: applied });
+    }
     if (this.state.prompt?.kind === "dying" && options.deferred && options.continuation) {
       this.state.prompt.context = { ...this.state.prompt.context, damageContinuation: options.continuation, appliedDamage: applied };
     }
@@ -3159,15 +3277,6 @@ export class AutoBattleRoom extends DurableObject<Env> {
       if (!isHandResolutionItem(top)) return undefined;
       const effective = effectiveDefinition(top);
       const promptId = top.id;
-      if (event === "damage_before" && top.targetPlayerId === player.id
-        && (effective === HAND_IDS.strike || isActionCard(top.definitionId))) return {
-          id: promptId,
-          type: "damage_before",
-          turnNumber: this.state.turnNumber,
-          sourcePlayerId: top.sourcePlayerId,
-          targetPlayerId: player.id,
-          cardDefinitionId: effective,
-        } satisfies AutoBattleEvent;
       if (event === "prediction_targeted" && top.sourcePlayerId === player.id
         && [HAND_IDS.strike, HAND_IDS.crisis].includes(effective as never)) {
         return {
@@ -3189,7 +3298,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
           targetPlayerId: player.id,
           metadata: { neededDefinitionId: HAND_IDS.dodge },
         } satisfies AutoBattleEvent;
-        if (["strike_targeted", "damage_before", "body_targeted_by_hand"].includes(event) && top.targetPlayerId === player.id) return { id: promptId };
+        if (["strike_targeted", "body_targeted_by_hand"].includes(event) && top.targetPlayerId === player.id) return { id: promptId };
         if (event === "strike_used" && this.relationMatches(relation, top.sourcePlayerId, top.targetPlayerId, player.id)) {
           return {
             id: promptId,
@@ -3253,12 +3362,13 @@ export class AutoBattleRoom extends DurableObject<Env> {
   }
 
   private emitEvent(type: string, details: Omit<AutoBattleEvent, "id" | "type" | "turnNumber"> = {}) {
-    if (!this.state) return;
+    if (!this.state) throw new Error("房间状态不存在。");
     const event = { id: crypto.randomUUID(), type, turnNumber: this.state.turnNumber, ...details } satisfies AutoBattleEvent;
     this.state.recentEvents.push(event);
     this.state.recentEvents = this.state.recentEvents.slice(-12);
     this.handleCharacterModifiers(event);
     this.handleBodyEvent(event);
+    return event;
   }
 
   private handleCharacterModifiers(event: AutoBattleEvent) {
@@ -3624,13 +3734,32 @@ export class AutoBattleRoom extends DurableObject<Env> {
 
   private broadcast(disconnectedPlayerId?: string) {
     if (!this.state) return;
+    const serialized = new Map<string, string>();
     for (const socket of this.ctx.getWebSockets()) {
       const attachment = socket.deserializeAttachment() as AutoSocketAttachment | null;
       if (!attachment?.playerId) continue;
       try {
-        socket.send(JSON.stringify({ type: "snapshot", snapshot: this.snapshotFor(attachment.playerId, Boolean(attachment.isSpectator), disconnectedPlayerId) }));
+        const cacheKey = attachment.isSpectator ? "spectator" : attachment.playerId;
+        let payload = serialized.get(cacheKey);
+        if (!payload) {
+          payload = JSON.stringify({ type: "snapshot", snapshot: this.snapshotFor(attachment.playerId, Boolean(attachment.isSpectator), disconnectedPlayerId) });
+          serialized.set(cacheKey, payload);
+        }
+        socket.send(payload);
       } catch { /* closing socket */ }
     }
+  }
+
+  private lobbyFingerprint() {
+    if (!this.state) return "";
+    return JSON.stringify({
+      status: this.state.started ? "playing" : "waiting",
+      players: this.state.players.map((player) => [player.nickname, !player.disconnectedAt]),
+      playerCount: this.state.players.length,
+      joinable: !this.state.started && this.state.players.length < 2 && !this.state.players[0]?.disconnectedAt,
+      spectatorCount: this.state.spectators.length,
+      startedAt: this.state.startedAt || 0,
+    });
   }
 
   private lobbySummary(): LobbyRoomSummary {
@@ -3683,8 +3812,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.state.logs = this.state.logs.slice(-120);
   }
 
-  private sendAck(ws: WebSocket, actionId: string, duplicate = false) {
-    ws.send(JSON.stringify({ type: "actionAck", actionId, revision: this.state?.revision || 0, ...(duplicate ? { duplicate: true } : {}) }));
+  private sendAck(ws: WebSocket, actionId: string, duplicate = false, timings?: { applyMs: number; persistMs: number; totalMs: number }) {
+    ws.send(JSON.stringify({ type: "actionAck", actionId, revision: this.state?.revision || 0, ...(duplicate ? { duplicate: true } : {}), ...(timings ? { timings } : {}) }));
   }
 
   private sendError(ws: WebSocket, error: string, actionId?: string) {
@@ -3704,9 +3833,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
     return result;
   }
 
-  private async persist() {
+  private async persist(scheduleAlarm = true) {
     if (!this.state) return;
     await this.ctx.storage.put("room", this.state);
+    if (!scheduleAlarm) return;
     const alarms = [this.state.lastActivityAt + ROOM_TTL_MS];
     if (!this.state.started) for (const player of this.state.players) if (player.disconnectedAt) alarms.push(player.disconnectedAt + WAITING_DISCONNECT_GRACE_MS);
     await this.ctx.storage.setAlarm(Math.min(...alarms));
