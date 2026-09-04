@@ -1,4 +1,4 @@
-import { EXTRA_FORM_CONDITION_LABELS, EXTRA_FORM_LABELS, allBodies, allCharacters, allHandCards, resolveBodyCard } from "./cards";
+import { EXTRA_FORM_CONDITION_LABELS, EXTRA_FORM_LABELS, allBodies, allCharacters, allHandCards, allRiderCards, resolveBodyCard } from "./cards";
 import { allDecks } from "./decks";
 import { getArchetypeBlurb } from "./archetypes";
 import { getBodyArt, getCharacterArt } from "./card-art";
@@ -31,7 +31,7 @@ function getExtraFormFileSlug(type?: string) {
 export interface BattleCatalogCard {
   id: string;
   name: string;
-  kind: "body" | "character" | "hand";
+  kind: "body" | "character" | "hand" | "rider";
   subtitle: string;
   text: string;
   /** TTS 卡牌渲染图（完整卡面） */
@@ -57,7 +57,9 @@ export interface BattleCatalogCard {
   megaMax?: number;
   megaCondition?: string;
   timing?: string;
+  extraTiming?: string;
   costText?: string;
+  extraCostText?: string;
   costKind?: "rest" | "exit" | "compound" | "other";
   mainRole?: string;
   tags?: string[];
@@ -132,6 +134,27 @@ export function getBattleCatalog() {
       text: card.effectText,
       tags: card.tags,
       timing: card.timing,
+    };
+  }
+
+  for (const card of allRiderCards) {
+    const riderCostText = (energy: number) => `消耗此卡，退场己方场上1张相同主定位角色${energy ? `，并消耗${energy}点极巨能量` : ""}`;
+    cards[card.id] = {
+      id: card.id,
+      name: card.name,
+      kind: "rider",
+      subtitle: `${card.mainRole} · ${card.call}`,
+      text: card.normal.effectText,
+      timing: card.normal.timing,
+      mainRole: card.mainRole,
+      tags: [card.tag],
+      skillName: card.call,
+      extraName: `FINAL ${card.name}`,
+      extraSubtitle: `${card.mainRole} · FINAL ${card.call}`,
+      extraText: card.final.effectText,
+      extraTiming: card.final.timing,
+      costText: riderCostText(card.normal.cost.dynamaxEnergy),
+      extraCostText: riderCostText(card.final.cost.dynamaxEnergy),
     };
   }
 

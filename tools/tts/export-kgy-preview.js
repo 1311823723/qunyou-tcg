@@ -1,4 +1,4 @@
-// Rider previews remain drafts; the body text comes from the official catalog.
+// The body and Rider rules are formal data; this tool only provides an art-free Rider layout preview.
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const assert = require("node:assert/strict");
@@ -31,8 +31,7 @@ function block(text, y, size, maxLines, color = "#eee8df") {
 }
 
 function riderSvg(card, side) {
-  const pendingRedesign = card.review === "needs_redesign";
-  const mode = pendingRedesign ? { timing: "待确认", effect: "待重做。原降费方案已停用，新效果尚未确认。" } : card[side];
+  const mode = card[side];
   const final = side === "final";
   const accent = ROLE_COLORS[card.role];
   const trim = final ? "#dfc16e" : accent;
@@ -52,14 +51,14 @@ function riderSvg(card, side) {
       <text x="375" y="345" text-anchor="middle" font-size="35" fill="${accent}">${xml(card.role)}</text>
       <text x="375" y="454" text-anchor="middle" font-size="17" fill="#817d8b">原画预留</text>
       <rect x="52" y="496" width="142" height="33" rx="16" fill="${accent}" fill-opacity=".15"/>
-      <text x="123" y="519" text-anchor="middle" font-size="18" fill="${accent}">${xml(pendingRedesign ? "待重做" : card.tag)}</text>
+      <text x="123" y="519" text-anchor="middle" font-size="18" fill="${accent}">${xml(card.tag)}</text>
       <rect x="50" y="548" width="650" height="358" rx="14" fill="#ffffff" fill-opacity=".035"/>
       <text x="66" y="581" font-size="17" fill="${trim}">发动时机</text>
       ${block(mode.timing, 615, 25, 2)}
       <path d="M66 670 H682" stroke="${trim}" opacity=".25"/>
       ${block(mode.effect, 712, 29, 5)}
       ${block(costs, 938, 19, 3, "#bfb5a3")}
-      <text x="375" y="1012" text-anchor="middle" font-size="14" fill="#77717f">设计预览${mode.timingProvisional ? " · 时机暂按建议排版" : ""} / ${xml(card.id)} / ${side}</text>
+      <text x="375" y="1012" text-anchor="middle" font-size="14" fill="#77717f">无原画布局预览 / ${xml(card.id)} / ${side}</text>
     </g>
   </svg>`;
 }
@@ -79,7 +78,12 @@ async function contact(files, filename, columns, tileWidth) {
 
 async function main() {
   const draft = JSON.parse(await fs.readFile(path.join(ROOT, "docs/design-drafts/kgy-cards.json"), "utf8"));
-  assert.equal(draft.status, "design-preview-only");
+  assert.equal(draft.status, "engine-implemented-awaiting-deck");
+  const riders = JSON.parse(await fs.readFile(path.join(ROOT, "data/cards/rider_cards.json"), "utf8"));
+  draft.riders = riders.map((card) => ({ ...card, role: card.mainRole,
+    normal: { ...card.normal, effect: card.normal.effectText },
+    final: { ...card.final, effect: card.final.effectText },
+  }));
   const bodies = JSON.parse(await fs.readFile(path.join(ROOT, "data/cards/bodies.json"), "utf8"));
   draft.body = bodies.find((body) => body.id === draft.bodyId);
   assert.ok(draft.body, `Unknown body: ${draft.bodyId}`);
@@ -111,8 +115,8 @@ async function main() {
     assert.equal(info.width, 750);
     assert.equal(info.height, 1050);
   }
-  await fs.writeFile(path.join(OUT, "index.html"), `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>KGY 双面制卡预览</title><style>body{margin:24px;background:#090b13;color:#e8dfc6;font:16px system-ui}section{display:flex;flex-wrap:wrap;gap:20px}a{flex:0 1 300px}img{width:100%;border-radius:10px}p{line-height:1.7}</style><h1>KGY 双面制卡预览</h1><p>本体双面读取正式数据，已接入原画。骑士辅助卡仍为设计预览，原画待制作，部分时机待确认。尚未接入在线自动结算。点击查看完整尺寸。</p><section>${allFiles.map((file) => `<a href="${file}"><img src="${file}" alt="${file}"></a>`).join("")}</section></html>`);
-  console.log(`Verified ${allFiles.length} draft card faces (750x1050). Preview: ${OUT}/index.html`);
+  await fs.writeFile(path.join(OUT, "index.html"), `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>KGY 双面制卡预览</title><style>body{margin:24px;background:#090b13;color:#e8dfc6;font:16px system-ui}section{display:flex;flex-wrap:wrap;gap:20px}a{flex:0 1 300px}img{width:100%;border-radius:10px}p{line-height:1.7}</style><h1>KGY 双面制卡预览</h1><p>本体双面与骑士卡文本均读取当前确认数据。骑士卡原画尚未制作，因此这里只展示无原画布局；自动结算已经实现，等待巡界预组完成后开放。点击查看完整尺寸。</p><section>${allFiles.map((file) => `<a href="${file}"><img src="${file}" alt="${file}"></a>`).join("")}</section></html>`);
+  console.log(`Verified ${allFiles.length} KGY preview card faces (750x1050). Preview: ${OUT}/index.html`);
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

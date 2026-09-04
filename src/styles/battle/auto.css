@@ -42,6 +42,23 @@
 .auto-player__identity h2 { overflow: hidden; font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
 .auto-player__identity em { margin-left: auto; white-space: nowrap; }
 .auto-player__counters { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: .45rem; }
+.auto-player__counters:has(.auto-rider-zone) { display: grid; grid-template-columns: auto auto; align-content: center; }
+.auto-rider-zone { grid-column: 1/-1; display: grid; gap: 4px; min-width: 0; padding: 5px 6px; border: 1px solid rgba(208,75,160,.25); border-radius: 10px; background: rgba(28,15,38,.64); }
+.auto-rider-zone > header { display: flex; align-items: center; justify-content: space-between; color: #d9b9ee; font: 800 .48rem var(--font-mono); letter-spacing: .06em; }
+.auto-rider-zone > div { display: grid; grid-template-columns: repeat(6,minmax(2.7rem,1fr)); gap: 3px; }
+.auto-rider-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.09); border-radius: 7px; background: rgba(255,255,255,.025); }
+.auto-rider-card.is-normal { border-color: rgba(160,131,205,.38); background: linear-gradient(145deg,rgba(66,45,91,.72),rgba(20,17,31,.88)); }
+.auto-rider-card.is-final { border-color: rgba(255,101,196,.58); background: radial-gradient(circle at 50% 0,rgba(255,83,186,.22),transparent 68%),rgba(35,12,36,.9); box-shadow: inset 0 0 10px rgba(255,65,181,.12); }
+.auto-rider-card__detail { display: grid; width: 100%; min-width: 0; gap: 1px; padding: 4px 3px; border: 0; color: #eee7f5; text-align: left; background: transparent; cursor: pointer; }
+.auto-rider-card__detail span,.auto-rider-card__detail small { overflow: hidden; color: #9f96aa; font: 700 .43rem var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.auto-rider-card__detail strong { overflow: hidden; font: 900 .46rem var(--font-mono); letter-spacing: -.03em; text-overflow: ellipsis; white-space: nowrap; }
+.auto-rider-card.is-final .auto-rider-card__detail strong,.auto-rider-card.is-final .auto-rider-card__detail small { color: #ffb7e4; }
+.auto-rider-card__use { position: absolute; right: 2px; bottom: 2px; padding: 1px 3px; border: 1px solid rgba(255,211,122,.5); border-radius: 4px; color: #fff1bd; background: rgba(112,47,42,.9); font: 800 .4rem var(--font-mono); cursor: pointer; }
+.auto-rider-detail__card { min-height: 17rem; place-content: center; justify-items: center; padding: 1rem; border: 1px solid rgba(197,160,232,.42); border-radius: 12px; text-align: center; background: radial-gradient(circle at 50% 35%,rgba(154,91,195,.28),transparent 42%),linear-gradient(155deg,#302340,#0e0b16); box-shadow: inset 0 0 40px rgba(0,0,0,.36); }
+.auto-rider-detail__card.is-final { border-color: rgba(255,101,196,.62); background: radial-gradient(circle at 50% 35%,rgba(255,71,185,.34),transparent 42%),linear-gradient(155deg,#521342,#120913); }
+.auto-rider-detail__card > span { color: #d8c5e8; font-size: .7rem; letter-spacing: .18em; }
+.auto-rider-detail__card > strong { color: white; font: 900 1rem var(--font-mono); letter-spacing: .08em; }
+.auto-rider-detail__card > h3 { color: #ffe2f4; }
 .auto-health-counter, .auto-progress-counter { display: grid; min-height: 3.3rem; align-items: center; gap: .2rem .42rem; padding: .35rem .48rem; border: 1px solid rgba(255,255,255,.11); border-radius: 12px; background: linear-gradient(145deg,rgba(21,24,40,.94),rgba(8,9,18,.96)); box-shadow: inset 0 0 18px rgba(0,0,0,.22); }
 .auto-health-counter { grid-template-columns: auto minmax(7.6rem,auto) auto; }
 .auto-health-counter > span, .auto-progress-counter > span { color: var(--text-muted); font: 900 .55rem var(--font-mono); letter-spacing: .06em; white-space: nowrap; }
@@ -297,6 +314,15 @@
 .auto-battle[data-mobile-table="true"] .auto-card small { font-size: 6px; line-height: 1.05; }
 .auto-battle[data-mobile-table="true"] .auto-card__automation { top: 2px; right: 2px; padding: 1px 2px; font-size: 5px; }
 .auto-battle[data-mobile-table="true"] .auto-player__counters { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.25fr); gap: 4px; }
+.auto-battle[data-mobile-table="true"] .auto-rider-zone { gap: 2px; padding: 2px 3px; border-radius: 5px; }
+.auto-battle[data-mobile-table="true"] .auto-rider-zone > header { display: none; }
+.auto-battle[data-mobile-table="true"] .auto-rider-zone > div { gap: 2px; }
+.auto-battle[data-mobile-table="true"] .auto-rider-card { border-radius: 4px; }
+.auto-battle[data-mobile-table="true"] .auto-rider-card__detail { padding: 2px; }
+.auto-battle[data-mobile-table="true"] .auto-rider-card__detail span { font-size: 5px; }
+.auto-battle[data-mobile-table="true"] .auto-rider-card__detail strong { display: none; }
+.auto-battle[data-mobile-table="true"] .auto-rider-card__detail small { font-size: 5px; }
+.auto-battle[data-mobile-table="true"] .auto-rider-card__use { right: 1px; bottom: 1px; padding: 0 2px; font-size: 5px; }
 .auto-battle[data-mobile-table="true"] .auto-health-counter,
 .auto-battle[data-mobile-table="true"] .auto-progress-counter { min-width: 0; min-height: 42px; padding: 3px 5px; border-radius: 8px; gap: 2px 3px; }
 .auto-battle[data-mobile-table="true"] .auto-health-counter { grid-template-columns: auto minmax(0,1fr) auto; }

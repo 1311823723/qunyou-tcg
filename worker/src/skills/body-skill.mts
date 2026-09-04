@@ -51,6 +51,8 @@ export interface BodySkillModule {
   collectTrigger(context: BodySkillRuntimeContext, event: AutoBattleEvent): BodyTriggerSpec | undefined;
   extraStrikeAllowance?(player: AutoPlayerState): number;
   onPhaseEntered?(context: BodySkillRuntimeContext, phase: AutoRoomState["phase"], previousPlayer: AutoPlayerState): void;
+  onDynamaxEnter?(context: BodySkillRuntimeContext): void;
+  onDynamaxExit?(context: BodySkillRuntimeContext): void;
   canActivateExtra?(context: BodySkillRuntimeContext): boolean;
   activateExtra?(context: BodySkillRuntimeContext): void;
   resolveJudgment?(context: BodySkillRuntimeContext, card: CardInstance, color: "红色" | "黑色"): boolean;

@@ -73,6 +73,7 @@ export interface HandResolutionItem {
   desertButcherEnhanced?: boolean;
   huntRestOnDamage?: boolean;
   skillCompletion?: { activationId: string; sourcePlayerId: string; definitionId: string };
+  riderCompletionPlayerId?: string;
 }
 
 export interface CharacterSkillResolutionItem {
@@ -90,6 +91,8 @@ export interface CharacterSkillResolutionItem {
   remainingResponseSkillInstanceIds?: string[];
   dyingPromptContext?: Record<string, unknown>;
   revealedFromFaceDown?: boolean;
+  cancelledByRider?: boolean;
+  riderCompletionPlayerId?: string;
 }
 
 export type ResolutionItem = HandResolutionItem | CharacterSkillResolutionItem;
@@ -196,12 +199,17 @@ export interface BodyRuntimeState {
   dynamaxEnergy?: number;
   dynamaxHealth?: number;
   dynamaxEnding?: boolean;
+  riderCards?: Record<MainRole, RiderCardState>;
+  riderAcquiredEventIds?: Partial<Record<MainRole, string>>;
   linkHistory?: { turnNumber: number; roles: string[]; activations: Record<string, boolean> };
   ambushWindow?: {
     remaining: number;
     expiresAtTurnNumber: number;
   };
 }
+
+export type MainRole = "强攻" | "防御" | "资源" | "控制" | "支援" | "伏击";
+export type RiderCardState = "absent" | "normal" | "final";
 
 export type PendingBodyTriggerKind =
   | "link-swap"
@@ -213,7 +221,9 @@ export type PendingBodyTriggerKind =
   | "dispatch-reveal"
   | "blood-judgment"
   | "ambush-refill"
-  | "defense-reward";
+  | "defense-reward"
+  | "kgy-acquire"
+  | "kgy-ambush";
 
 export interface PendingBodyTrigger {
   id: string;

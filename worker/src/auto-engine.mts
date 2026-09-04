@@ -10,7 +10,7 @@ import type {
 } from "./auto-types";
 import { extraStrikeAllowance } from "./skills/body-registry.mts";
 
-export const AUTO_STATE_VERSION = 4;
+export const AUTO_STATE_VERSION = 5;
 export const PHASES: BattlePhase[] = ["preparation", "draw", "play", "deployment", "discard", "end"];
 
 export const HAND_IDS = {

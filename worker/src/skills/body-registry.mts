@@ -8,10 +8,12 @@ import { dispatchBodySkill } from "./bodies/dispatch.mts";
 import { mizaiBodySkill } from "./bodies/mizai.mts";
 import { transBodySkill } from "./bodies/trans.mts";
 import { linkBodySkill } from "./bodies/link.mts";
+import { roamingBodySkill } from "./bodies/roaming.mts";
 import type { BodySkillModule } from "./body-skill.mts";
 
 const modules = [
   linkBodySkill,
+  roamingBodySkill,
   aggroBodySkill,
   mizaiBodySkill,
   comboBodySkill,

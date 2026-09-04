@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import bodies from "../../data/cards/bodies.json";
 import characters from "../../data/cards/characters.json";
 import handCards from "../../data/cards/hand_cards.json";
+import riderCards from "../../data/cards/rider_cards.json";
 import characterAutomation from "../../data/cards/character_automation.json";
 import characterImplementation from "../../data/cards/character_implementation.json";
 import { allDecks } from "../../src/lib/decks";
@@ -51,11 +52,13 @@ import type {
   AutoRoomState,
   AutoSocketAttachment,
   BodyRuntimeState,
+  AutoPrompt,
   CharacterSkillResolutionItem,
   HandResolutionItem,
   PendingBodyTrigger,
   PendingDamage,
   PendingJudgment,
+  MainRole,
   ResolutionItem,
   SkillContinuation,
 } from "./auto-types";
@@ -67,6 +70,8 @@ const CUSTOM_DECK_ID = "custom";
 const deckById = new Map(allDecks.map((deck) => [deck.id, deck]));
 const bodyById = new Map(bodies.map((body) => [body.id, body]));
 const characterById = new Map(characters.map((card) => [card.id, card]));
+const riderById = new Map(riderCards.map((card) => [card.id, card]));
+const riderRoles = riderCards.map((card) => card.mainRole as MainRole);
 type CharacterAutomationEntry = {
   level: "assisted" | "full";
   trigger: { event: string; relation: string; timingText: string; targetMainRole?: string };
@@ -139,6 +144,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
           player.bodyState.dynamaxEnergy ??= 0;
           player.bodyState.dynamaxHealth ??= 0;
           player.bodyState.dynamaxEnding ??= false;
+          player.bodyState.riderCards ??= this.emptyRiderCards();
+          player.bodyState.riderAcquiredEventIds ??= {};
         }
         this.state.stateVersion = AUTO_STATE_VERSION;
         await this.syncLobby();
@@ -431,6 +438,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
         return this.submitChoice(player, payload);
       case "body:activate":
         return this.activateBodyExtra(player, payload);
+      case "rider:activate":
+        return this.activateRider(player, payload);
       case "skill:activate":
         return this.activateAssistedSkill(player, payload);
       case "assisted:action":
@@ -527,6 +536,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     }
     this.addLog(`${player.nickname}${response ? "响应使用" : "使用"}了${handCardLabel(card, effective)}`, player.id, { zone: "resolving" });
     if (effective === HAND_IDS.strike || isActionCard(card.definitionId)) {
+      if (!response && effective === HAND_IDS.strike && this.openKgyAttackWindow(player, item)) return;
       if (!response) this.openInitialResponseFlow(item);
       else beginResponseWindow(this.state, item);
     }
@@ -745,6 +755,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (item.skillCompletion && !item.damagePending && this.state.prompt?.kind !== "dying") {
       this.completeHandSkill(item.skillCompletion);
       item.skillCompletion = undefined;
+    }
+    if (item.riderCompletionPlayerId) {
+      const riderOwner = playerById(this.state, item.riderCompletionPlayerId);
+      if (riderOwner) this.finishKgyDynamax(riderOwner);
     }
     const index = this.state.resolving.findIndex((card) => card.instanceId === item.card.instanceId);
     if (index >= 0) this.state.resolving.splice(index, 1);
@@ -1184,7 +1198,323 @@ export class AutoBattleRoom extends DurableObject<Env> {
       dynamaxEnergy: 0,
       dynamaxHealth: 0,
       dynamaxEnding: false,
+      riderCards: this.emptyRiderCards(),
+      riderAcquiredEventIds: {},
     };
+  }
+
+  private emptyRiderCards() {
+    return Object.fromEntries(riderRoles.map((role) => [role, "absent"])) as Record<MainRole, "absent" | "normal" | "final">;
+  }
+
+  private riderCostCharacters(player: AutoPlayerState, role: MainRole) {
+    return player.characterSlots.flatMap((slot) => slot && "instanceId" in slot
+      && characterById.get(slot.definitionId)?.mainRole === role ? [slot] : []);
+  }
+
+  private riderVersion(player: AutoPlayerState, riderId: string) {
+    const rider = riderById.get(riderId);
+    if (!rider || bodyId(player) !== "body_roaming_001") return undefined;
+    const role = rider.mainRole as MainRole;
+    const version = player.bodyState.riderCards?.[role];
+    return version === "normal" || version === "final" ? { rider, role, version } : undefined;
+  }
+
+  private payRiderCost(player: AutoPlayerState, riderId: string, payload: Record<string, unknown>, eventId?: string) {
+    if (!this.state) throw new Error("房间状态不存在。");
+    const current = this.riderVersion(player, riderId);
+    if (!current) throw new Error("你没有这张骑士卡。");
+    if (player.bodyState.flipped !== (current.version === "final")) throw new Error("骑士卡形态与本体形态不一致。");
+    if (this.state.usageCounters[bodyUsageKey("turn", this.state.turnNumber, player.id, "rider-used")]) throw new Error("本回合已经使用过骑士卡。");
+    if (eventId && player.bodyState.riderAcquiredEventIds?.[current.role] === eventId) throw new Error("刚获得的骑士卡不能用于本次事件。");
+    const form = current.version === "final" ? current.rider.final : current.rider.normal;
+    const energyCost = Number(form.cost.dynamaxEnergy || 0);
+    if (current.version === "final" && (player.bodyState.dynamaxEnergy || 0) < energyCost) throw new Error("极巨能量不足。");
+    const rawIds = Array.isArray(payload.costCharacterIds) ? payload.costCharacterIds : Array.isArray(payload.cardInstanceIds) ? payload.cardInstanceIds : [];
+    const ids = rawIds.map((id) => cleanText(id, 80));
+    const cost = ids.length === 1 ? this.riderCostCharacters(player, current.role).find((card) => card.instanceId === ids[0]) : undefined;
+    if (!cost) throw new Error(`请选择1张己方${current.role}角色退场。`);
+    const slotIndex = player.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === cost.instanceId);
+    if (slotIndex < 0) throw new Error("用于支付费用的角色已经不在角色区。");
+    player.characterSlots[slotIndex] = null;
+    this.state.turnModifiers = this.state.turnModifiers.filter((modifier) => modifier.characterInstanceId !== cost.instanceId);
+    cost.faceDown = false;
+    player.retired.push(cost);
+    player.bodyState.riderCards![current.role] = "absent";
+    this.state.usageCounters[bodyUsageKey("turn", this.state.turnNumber, player.id, "rider-used")] = 1;
+    if (current.version === "final") {
+      player.bodyState.dynamaxEnergy = Math.max(0, (player.bodyState.dynamaxEnergy || 0) - energyCost);
+      if (player.bodyState.dynamaxEnergy === 0) player.bodyState.dynamaxEnding = true;
+    }
+    this.emitEvent("rider_used", { sourcePlayerId: player.id, metadata: { role: current.role, version: current.version } });
+    this.addLog(`${player.nickname}使用了${current.version === "final" ? "FINAL" : ""}【${current.rider.name}】并令1张${current.role}角色退场`, player.id, { zone: "body", ownerId: player.id });
+    return current;
+  }
+
+  private finishKgyDynamax(player: AutoPlayerState) {
+    if (!player.bodyState.dynamaxEnding || this.state?.prompt) return;
+    bodySkillForId(bodyId(player))?.onDynamaxExit?.(this.bodySkillContext(player));
+    player.bodyState.flipped = false;
+    player.bodyState.dynamaxHealth = 0;
+    player.bodyState.dynamaxEnding = false;
+    this.addLog(`${player.nickname}的极巨化结束，恢复正面特性`, player.id, { zone: "body", ownerId: player.id });
+  }
+
+  private activateRider(player: AutoPlayerState, payload: Record<string, unknown>) {
+    if (!this.state || this.state.prompt || this.state.stack.length) throw new Error("请先完成当前结算。");
+    this.requireTurn(player, "play");
+    const riderId = cleanText(payload.riderId, 80);
+    const preview = this.riderVersion(player, riderId);
+    if (!preview || !["资源", "控制", "支援"].includes(preview.role) && !(preview.role === "强攻" && preview.version === "final")) {
+      throw new Error("该骑士卡不能在当前阶段主动使用。");
+    }
+    const opponent = opponentOf(this.state, player.id);
+    const targetSlotIndex = Number(payload.targetSlotIndex);
+    if (preview.role === "控制") {
+      if (!Number.isInteger(payload.targetSlotIndex)) {
+        const rawIds = Array.isArray(payload.costCharacterIds) ? payload.costCharacterIds.map((id) => cleanText(id, 80)) : [];
+        if (rawIds.length !== 1 || !this.riderCostCharacters(player, "控制").some((card) => card.instanceId === rawIds[0])) throw new Error("请选择1张己方控制角色退场。");
+        const options = opponent?.characterSlots.flatMap((slot, slotIndex) => slot && "instanceId" in slot && !slot.faceDown
+          ? [{ value: String(slotIndex), label: `选择对手角色位 ${slotIndex + 1}：${characterById.get(slot.definitionId)?.name || "明置角色"}` }] : []) || [];
+        if (!options.length) throw new Error("对手没有可以选择的明置角色。");
+        this.state.prompt = createPrompt({ kind: "body-skill", playerId: player.id, title: `${preview.version === "final" ? "FINAL " : ""}${preview.rider.name}`,
+          message: "选择1张对手明置角色。", options, context: { action: "kgy-control-target", riderId, costCharacterIds: rawIds } });
+        return;
+      }
+      const target = opponent?.characterSlots[targetSlotIndex];
+      if (!target || !("instanceId" in target) || target.faceDown) throw new Error("请选择对手1张明置角色。");
+    }
+    if (preview.role === "支援" && preview.version === "normal" && !player.characterDeck.length) throw new Error("角色牌堆为空，不能使用支援骑士卡。");
+    const used = this.payRiderCost(player, riderId, payload);
+    if (used.role === "资源") {
+      this.bodySkillContext(player).draw(used.version === "final" ? 4 : 2);
+      if (used.version === "final") {
+        this.state.prompt = createPrompt({ kind: "body-skill", playerId: player.id, title: `FINAL ${used.rider.name}`,
+          message: "选择1张手牌弃置。", min: 1, max: 1, cardInstanceIds: player.hand.map((card) => card.instanceId), selectableCards: player.hand,
+          context: { action: "kgy-resource-discard" } });
+        return;
+      }
+    } else if (used.role === "控制") {
+      const target = opponent!.characterSlots[targetSlotIndex] as CardInstance;
+      if (used.version === "final") this.retireCard(opponent!, target, player.id);
+      else {
+        opponent!.characterSlots[targetSlotIndex] = null;
+        target.faceDown = true;
+        opponent!.characterDeck.unshift(target);
+      }
+      this.addLog(`${player.nickname}${used.version === "final" ? "令" : "将"}对手角色位${targetSlotIndex + 1}的明置角色${used.version === "final" ? "退场" : "置于角色牌堆底"}`, player.id, { zone: used.version === "final" ? "retired" : "characterDeck", ownerId: opponent!.id });
+    } else if (used.role === "支援") {
+      if (used.version === "normal") {
+        let count = 0;
+        while (count < 2) {
+          const deployed = deployTopCharacter(player);
+          if (!deployed) break;
+          count += 1;
+          this.recordCharacterDeployment(player.id, player.id, deployed.card.definitionId, deployed.card.instanceId);
+          this.addLog(`${player.nickname}通过【支援骑士卡】暗置上阵1张角色`, player.id, { zone: "characterSlot", ownerId: player.id, slotIndex: deployed.slotIndex });
+        }
+      } else {
+        this.state.prompt = createPrompt({ kind: "body-skill", playerId: player.id, title: `FINAL ${used.rider.name}`,
+          message: "选择退场区内1至2张角色洗回角色牌堆。", min: 1, max: Math.min(2, player.retired.length),
+          cardInstanceIds: player.retired.map((card) => card.instanceId), selectableCards: player.retired,
+          context: { action: "kgy-support-return" } });
+        return;
+      }
+    } else if (used.role === "强攻" && used.version === "final") {
+      if (!opponent) throw new Error("对手不存在。");
+      const card: CardInstance = { instanceId: crypto.randomUUID(), definitionId: HAND_IDS.strike, kind: "hand", ownerId: player.id };
+      const item: HandResolutionItem = { kind: "hand", id: crypto.randomUUID(), sourcePlayerId: player.id, targetPlayerId: opponent.id,
+        card, definitionId: HAND_IDS.strike, damageBonus: 1, virtual: true, riderCompletionPlayerId: player.id };
+      this.state.stack.push(item);
+      this.emitEvent("card_used", { sourcePlayerId: player.id, targetPlayerId: opponent.id, cardDefinitionId: HAND_IDS.strike, metadata: { actionCard: false, bodySkill: true } });
+      this.addLog(`${player.nickname}通过FINAL【强攻骑士卡】视为使用伤害+1的【出刀】`, player.id, { zone: "resolving" });
+      this.openInitialResponseFlow(item);
+      return;
+    }
+    this.finishKgyDynamax(player);
+    this.openNextSkillTrigger();
+  }
+
+  private openKgyAttackWindow(player: AutoPlayerState, item: HandResolutionItem) {
+    if (!this.state || bodyId(player) !== "body_roaming_001" || player.bodyState.flipped
+      || player.bodyState.riderCards?.["强攻"] !== "normal"
+      || this.state.usageCounters[bodyUsageKey("turn", this.state.turnNumber, player.id, "rider-used")]) return false;
+    const costs = this.riderCostCharacters(player, "强攻");
+    if (!costs.length) return false;
+    this.state.prompt = createPrompt({ kind: "body-skill", playerId: player.id, title: "强攻骑士卡",
+      message: "是否退场1张强攻角色，令此次【出刀】伤害+1？", min: 1, max: 1,
+      cardInstanceIds: costs.map((card) => card.instanceId), selectableCards: costs,
+      options: [{ value: "pass", label: "不使用骑士卡" }], context: { action: "kgy-attack", itemId: item.id } });
+    return true;
+  }
+
+  private openKgyDefenseWindow(
+    player: AutoPlayerState,
+    amount: number,
+    sourceId?: string,
+    cardDefinitionId?: string,
+    options: Record<string, unknown> = {},
+  ) {
+    if (!this.state || bodyId(player) !== "body_roaming_001" || !["normal", "final"].includes(player.bodyState.riderCards?.["防御"] || "")
+      || this.state.usageCounters[bodyUsageKey("turn", this.state.turnNumber, player.id, "rider-used")]) return false;
+    const costs = this.riderCostCharacters(player, "防御");
+    if (!costs.length) return false;
+    const version = player.bodyState.riderCards!["防御"];
+    this.state.prompt = createPrompt({ kind: "body-skill", playerId: player.id, title: `${version === "final" ? "FINAL " : ""}防御骑士卡`,
+      message: version === "final" ? `是否防止此次${amount}点伤害？` : `是否令此次${amount}点伤害-1？`, min: 1, max: 1,
+      cardInstanceIds: costs.map((card) => card.instanceId), selectableCards: costs,
+      options: [{ value: "pass", label: "不使用骑士卡" }],
+      context: { action: "kgy-defense", pendingDamage: { targetPlayerId: player.id, sourceId, amount, cardDefinitionId, options } } });
+    return true;
+  }
+
+  private openKgyAmbushWindow(player: AutoPlayerState, trigger: PendingBodyTrigger) {
+    if (!this.state || player.bodyState.flipped || player.bodyState.riderCards?.["伏击"] !== "normal"
+      || player.bodyState.riderAcquiredEventIds?.["伏击"] === trigger.eventId
+      || this.state.usageCounters[bodyUsageKey("turn", this.state.turnNumber, player.id, "rider-used")]) return false;
+    const costs = this.riderCostCharacters(player, "伏击");
+    const opponent = opponentOf(this.state, player.id);
+    const sourceInstanceId = String(trigger.context?.sourceInstanceId || "");
+    const sourceDefinitionId = String(trigger.context?.characterDefinitionId || "");
+    const source = opponent?.characterSlots.find((slot) => slot && "instanceId" in slot
+      && (sourceInstanceId ? slot.instanceId === sourceInstanceId : slot.definitionId === sourceDefinitionId));
+    if (!costs.length || !source || !("instanceId" in source)) return false;
+    this.state.prompt = createPrompt({ kind: "body-skill", playerId: player.id, title: "伏击骑士卡",
+      message: "是否退场1张伏击角色，将刚结算技能的对手角色洗回角色牌堆？", min: 1, max: 1,
+      cardInstanceIds: costs.map((card) => card.instanceId), selectableCards: costs,
+      options: [{ value: "pass", label: "不使用骑士卡" }],
+      context: { action: "kgy-ambush", eventId: trigger.eventId, sourcePlayerId: opponent?.id, sourceInstanceId: source.instanceId,
+        ...(trigger.context?.acquireRole ? { acquireRole: trigger.context.acquireRole } : {}) } });
+    return true;
+  }
+
+  private openKgyFinalAmbushWindow(item: CharacterSkillResolutionItem) {
+    if (!this.state) return false;
+    const player = opponentOf(this.state, item.sourcePlayerId);
+    if (!player || bodyId(player) !== "body_roaming_001" || !player.bodyState.flipped
+      || player.bodyState.riderCards?.["伏击"] !== "final"
+      || this.state.usageCounters[bodyUsageKey("turn", this.state.turnNumber, player.id, "rider-used")]) return false;
+    const costs = this.riderCostCharacters(player, "伏击");
+    if (!costs.length || (player.bodyState.dynamaxEnergy || 0) < 1) return false;
+    this.state.prompt = createPrompt({ kind: "body-skill", playerId: player.id, title: "FINAL 伏击骑士卡",
+      message: "对手已支付角色技能费用。是否退场1张伏击角色，令该技能失效？", min: 1, max: 1,
+      cardInstanceIds: costs.map((card) => card.instanceId), selectableCards: costs,
+      options: [{ value: "pass", label: "不使用骑士卡" }], context: { action: "kgy-final-ambush", itemId: item.id } });
+    return true;
+  }
+
+  private resolveKgyRiderChoice(player: AutoPlayerState, prompt: NonNullable<AutoRoomState["prompt"]>, payload: Record<string, unknown>) {
+    if (!this.state || prompt.playerId !== player.id) throw new Error("当前骑士卡选择不属于你。");
+    const action = String(prompt.context?.action || "");
+    const pass = payload.value === "pass";
+    const ids = Array.isArray(payload.cardInstanceIds) ? payload.cardInstanceIds.map((id) => cleanText(id, 80)) : [];
+    if (action === "kgy-resource-discard") {
+      if (ids.length !== 1 || !prompt.cardInstanceIds?.includes(ids[0])) throw new Error("请选择1张手牌弃置。");
+      const card = this.bodySkillContext(player).discardHandCard(player, ids[0]);
+      if (!card) throw new Error("所选手牌已经不在手牌区。");
+      this.addLog(`${player.nickname}因FINAL【资源骑士卡】弃置了${handCardLabel(card)}`, player.id, { zone: "handDiscard" });
+      this.state.prompt = undefined;
+      this.finishKgyDynamax(player);
+      this.openNextSkillTrigger();
+      return;
+    }
+    if (action === "kgy-control-target") {
+      const targetSlotIndex = Number(payload.value);
+      if (!prompt.options?.some((option) => option.value === String(payload.value))) throw new Error("请选择仍然有效的明置角色。");
+      const costCharacterIds = Array.isArray(prompt.context?.costCharacterIds) ? prompt.context.costCharacterIds.map(String) : [];
+      const riderId = String(prompt.context?.riderId || "");
+      this.state.prompt = undefined;
+      this.activateRider(player, { riderId, costCharacterIds, targetSlotIndex });
+      return;
+    }
+    if (action === "kgy-support-return") {
+      if (ids.length < 1 || ids.length > 2 || new Set(ids).size !== ids.length || ids.some((id) => !prompt.cardInstanceIds?.includes(id))) throw new Error("请选择退场区内1至2张角色。");
+      const returned: CardInstance[] = [];
+      for (const id of ids) {
+        const index = player.retired.findIndex((card) => card.instanceId === id);
+        if (index < 0) throw new Error("所选角色已经不在退场区。");
+        const [card] = player.retired.splice(index, 1);
+        card.faceDown = undefined;
+        returned.push(card);
+      }
+      player.characterDeck = this.shuffle([...player.characterDeck, ...returned]);
+      this.addLog(`${player.nickname}将${returned.length}张退场角色洗回角色牌堆`, player.id, { zone: "characterDeck", ownerId: player.id });
+      this.state.prompt = undefined;
+      this.finishKgyDynamax(player);
+      this.openNextSkillTrigger();
+      return;
+    }
+    if (action === "kgy-attack") {
+      const item = this.state.stack.find((entry): entry is HandResolutionItem => isHandResolutionItem(entry) && entry.id === prompt.context?.itemId);
+      if (!item) throw new Error("待强化的【出刀】已经不存在。");
+      this.state.prompt = undefined;
+      if (!pass) {
+        this.payRiderCost(player, "rider_attack", { cardInstanceIds: ids });
+        item.damageBonus = (item.damageBonus || 0) + 1;
+      }
+      this.openInitialResponseFlow(item);
+      return;
+    }
+    if (action === "kgy-defense") {
+      const pending = prompt.context?.pendingDamage as { targetPlayerId: string; sourceId?: string; amount: number; cardDefinitionId?: string; options?: Record<string, unknown> } | undefined;
+      if (!pending || pending.targetPlayerId !== player.id) throw new Error("待处理伤害已经不存在。");
+      let amount = Number(pending.amount || 0);
+      this.state.prompt = undefined;
+      if (!pass) {
+        const used = this.payRiderCost(player, "rider_defense", { cardInstanceIds: ids });
+        amount = used.version === "final" ? 0 : Math.max(0, amount - 1);
+        this.addLog(`${player.nickname}的${used.version === "final" ? "FINAL" : ""}【防御骑士卡】${used.version === "final" ? "防止了此次伤害" : "令此次伤害-1"}`, player.id, { zone: "player", ownerId: player.id });
+      }
+      if (amount === 0) {
+        this.finishKgyDynamax(player);
+        this.resumeDamageContinuation(pending.options?.continuation as Record<string, unknown> | undefined, 0);
+      } else {
+        const applied = this.applyDamage(player, amount, pending.sourceId, pending.cardDefinitionId, { ...(pending.options || {}), skipRider: true, deferred: true });
+        const currentPrompt = this.state.prompt as AutoPrompt | undefined;
+        if (applied !== undefined && currentPrompt?.kind !== "dying") this.resumeDamageContinuation(pending.options?.continuation as Record<string, unknown> | undefined, applied);
+      }
+      return;
+    }
+    if (action === "kgy-ambush") {
+      this.state.prompt = undefined;
+      if (!pass) {
+        this.payRiderCost(player, "rider_ambush", { cardInstanceIds: ids }, String(prompt.context?.eventId || ""));
+        const opponent = playerById(this.state, String(prompt.context?.sourcePlayerId || ""));
+        const index = opponent?.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === prompt.context?.sourceInstanceId) ?? -1;
+        if (opponent && index >= 0) {
+          const card = opponent.characterSlots[index] as CardInstance;
+          opponent.characterSlots[index] = null;
+          card.faceDown = undefined;
+          opponent.characterDeck = this.shuffle([...opponent.characterDeck, card]);
+          this.addLog(`${player.nickname}将刚结算技能的角色洗回了对手角色牌堆`, player.id, { zone: "characterDeck", ownerId: opponent.id });
+        }
+      }
+      const acquireRole = String(prompt.context?.acquireRole || "") as MainRole;
+      if (riderRoles.includes(acquireRole) && player.bodyState.riderCards?.[acquireRole] === "absent"
+        && !this.state.usageCounters[bodyUsageKey("turn", this.state.turnNumber, player.id, "rider-acquired")]) {
+        this.state.prompt = createPrompt({ kind: "body-skill", playerId: player.id, title: bodyById.get(bodyId(player))?.skillName || "世界的旅人",
+          message: `对手的${acquireRole}角色技能已经结算，是否获得【${acquireRole}骑士卡】？`,
+          options: [{ value: "acquire", label: `获得${acquireRole}骑士卡` }, { value: "pass", label: "暂不获得" }],
+          context: { action: "kgy-acquire", role: acquireRole, eventId: prompt.context?.eventId } });
+        return;
+      }
+      this.openNextSkillTrigger();
+      return;
+    }
+    if (action === "kgy-final-ambush") {
+      const item = this.state.stack.find((entry): entry is CharacterSkillResolutionItem => entry.kind === "character-skill" && entry.id === prompt.context?.itemId);
+      if (!item) throw new Error("待反制的角色技能已经不存在。");
+      this.state.prompt = undefined;
+      if (!pass) {
+        this.payRiderCost(player, "rider_ambush", { cardInstanceIds: ids });
+        item.cancelledByRider = true;
+        item.riderCompletionPlayerId = player.id;
+        this.addLog(`${player.nickname}令对手已支付费用的角色技能失效`, player.id, { zone: "resolving" });
+      }
+      this.resolveTop();
+      return;
+    }
+    throw new Error("骑士卡选择与当前结算不匹配。");
   }
 
   private bodySkillContext(player: AutoPlayerState): BodySkillRuntimeContext {
@@ -1472,6 +1802,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
 
   private openBodyPrompt(player: AutoPlayerState, trigger: PendingBodyTrigger) {
     if (!this.state) return false;
+    if (trigger.kind === "kgy-ambush") return this.openKgyAmbushWindow(player, trigger);
     const registeredSkill = bodySkillForId(bodyId(player));
     if (registeredSkill?.resolveAutomatic?.(this.bodySkillContext(player), trigger)) return Boolean(this.state.prompt);
     return registeredSkill?.openPrompt(this.bodySkillContext(player), trigger) || false;
@@ -1499,6 +1830,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
 
   private submitBodyChoice(player: AutoPlayerState, prompt: NonNullable<AutoRoomState["prompt"]>, payload: Record<string, unknown>) {
     if (!this.state) return;
+    const kgyAction = String(prompt.context?.action || "");
+    if (kgyAction.startsWith("kgy-") && kgyAction !== "kgy-acquire") return this.resolveKgyRiderChoice(player, prompt, payload);
     if (prompt.context?.action === "dynamax-enter") {
       if (this.state.phase !== "preparation" || this.state.currentPlayerId !== player.id || !this.dynamaxReady(player)) throw new Error("现在不能极巨化。");
       if (payload.value !== "activate" && payload.value !== "pass") throw new Error("极巨化选择无效。");
@@ -1508,6 +1841,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         player.bodyState.extraFormUsed = true;
         player.bodyState.dynamaxEnergy = 3;
         player.bodyState.dynamaxHealth = 2;
+        bodySkillForId(bodyId(player))?.onDynamaxEnter?.(this.bodySkillContext(player));
         this.addLog(`${player.nickname}进入极巨化，获得3点极巨能量和2点极巨体力`, player.id, { zone: "body", ownerId: player.id });
       }
       this.onPhaseEntered("preparation", player);
@@ -1516,12 +1850,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     }
     const registeredSkill = bodySkillForId(bodyId(player));
     if (registeredSkill?.resolveChoice(this.bodySkillContext(player), prompt, payload)) {
-      if (!this.state.prompt && player.bodyState.dynamaxEnding) {
-        player.bodyState.flipped = false;
-        player.bodyState.dynamaxHealth = 0;
-        player.bodyState.dynamaxEnding = false;
-        this.addLog(`${player.nickname}的极巨化结束，恢复正面特性`, player.id, { zone: "body", ownerId: player.id });
-      }
+      if (!this.state.prompt && player.bodyState.dynamaxEnding) this.finishKgyDynamax(player);
       if (!this.state.prompt && !this.state.stack.length && !this.state.pendingJudgments.length) this.openNextSkillTrigger();
       return;
     }
@@ -2295,12 +2624,14 @@ export class AutoBattleRoom extends DurableObject<Env> {
     const sourceName = characterById.get(role.definitionId)?.name || role.definitionId;
     const copied = handlerId !== role.definitionId ? `（复制自【${definition.name}】）` : "";
     this.addLog(`${player.nickname}发动了角色【${sourceName}】的技能【${definition.skillName}】${copied}`, player.id, { zone: "resolving" });
+    if (this.openKgyFinalAmbushWindow(item)) return;
     this.resolveTop();
   }
 
   private resolveCharacterSkillItem(item: CharacterSkillResolutionItem): void {
     if (!this.state) return;
     const player = playerById(this.state, item.sourcePlayerId);
+    if (item.cancelledByRider && player) return this.finishCharacterSkill(item, player);
     const role = player ? this.findCharacterInstance(player, item.sourceInstanceId) : undefined;
     const module = characterSkillForId(item.handlerId);
     if (!player || !role || !module) return this.continueStack();
@@ -2406,6 +2737,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
       sourcePlayerId: player.id, characterDefinitionId: item.definitionId,
       metadata: { revealedFromFaceDown: item.revealedFromFaceDown === true, characterInstanceId: item.sourceInstanceId, activationId: item.activationId },
     });
+    if (item.riderCompletionPlayerId) {
+      const riderOwner = playerById(this.state, item.riderCompletionPlayerId);
+      if (riderOwner) this.finishKgyDynamax(riderOwner);
+    }
     if (this.state.prompt?.kind === "dying") return;
     if (item.dyingPromptContext) {
       this.resumeDyingAfterCharacterSkill(player, item.dyingPromptContext);
@@ -3188,7 +3523,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     amount: number,
     sourceId?: string,
     cardDefinitionId?: string,
-    options: { skipReplacement?: boolean; skipTargetSkills?: boolean; skipMarkers?: boolean; deferred?: boolean; continuation?: Record<string, unknown> } = {},
+    options: { skipReplacement?: boolean; skipTargetSkills?: boolean; skipMarkers?: boolean; skipRider?: boolean; deferred?: boolean; continuation?: Record<string, unknown> } = {},
   ): number | undefined {
     if (!this.state) return 0;
     const source = sourceId ? playerById(this.state, sourceId) : undefined;
@@ -3230,6 +3565,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         return undefined;
       }
     }
+    if (!options.skipRider && amount > 0 && this.openKgyDefenseWindow(target, amount, sourceId, cardDefinitionId, options)) return undefined;
     if (!options.skipMarkers && !options.skipTargetSkills && amount > 0) {
       const vines = this.state.turnModifiers.filter((m) => m.kind === "extra-vine" && m.ownerId === target.id);
       if (vines.length) {
@@ -3847,6 +4183,17 @@ export class AutoBattleRoom extends DurableObject<Env> {
     for (const instanceId of legalSkillInstanceIds) actions.push({ type: "skill:activate", payload: { instanceId }, selection: this.skillCostSelection(player, instanceId) });
     if (this.canActivateBodyExtra(player)) actions.push({ type: "body:activate" });
     if (this.state.phase === "play") {
+      for (const rider of riderCards) {
+        const current = this.riderVersion(player, rider.id);
+        if (!current || this.state.usageCounters[bodyUsageKey("turn", this.state.turnNumber, player.id, "rider-used")]) continue;
+        if (!["资源", "控制", "支援"].includes(current.role) && !(current.role === "强攻" && current.version === "final")) continue;
+        if (current.version === "final" && (player.bodyState.dynamaxEnergy || 0) < 1) continue;
+        if (current.role === "控制" && !opponentOf(this.state, player.id)?.characterSlots.some((slot) => slot && "instanceId" in slot && !slot.faceDown)) continue;
+        if (current.role === "支援" && current.version === "normal" && !player.characterDeck.length) continue;
+        const costs = this.riderCostCharacters(player, current.role).map((card) => card.instanceId);
+        if (!costs.length) continue;
+        actions.push({ type: "rider:activate", payload: { riderId: rider.id }, selection: { kind: "skill-cost", cardInstanceIds: costs, min: 1, max: 1 } });
+      }
       const costIds = player.characterSlots.flatMap((slot) => slot && "instanceId" in slot ? [slot.instanceId] : []);
       for (const modifier of this.state.turnModifiers.filter((candidate) => candidate.kind === "aggro-bomb" && candidate.targetPlayerId === player.id)) {
         const marker = player.characterSlots[Number(modifier.targetSlotIndex)];
@@ -3970,6 +4317,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
           extraFormUsed: player.bodyState.extraFormUsed,
           dynamaxEnergy: player.bodyState.dynamaxEnergy || 0,
           dynamaxHealth: player.bodyState.dynamaxHealth || 0,
+          riderCards: player.bodyState.riderCards || this.emptyRiderCards(),
           trackedCharacterInstanceIds: player.id === viewerId && !spectator ? player.bodyState.trackedCharacterInstanceIds : [],
           ...(player.bodyState.ambushWindow ? { ambushWindow: player.bodyState.ambushWindow } : {}),
         },

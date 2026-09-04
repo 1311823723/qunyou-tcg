@@ -2,6 +2,7 @@ import type { AutoPlayerState } from "../auto-types";
 
 export const BODY_IDS = {
   link: "body_link_001",
+  roaming: "body_roaming_001",
   aggro: "body_aggro_001",
   mizai: "body_mizai_001",
   combo: "body_combo_001",

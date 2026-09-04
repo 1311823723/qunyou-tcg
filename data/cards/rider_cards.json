@@ -1,0 +1,116 @@
+[
+  {
+    "id": "rider_attack",
+    "bodyId": "body_roaming_001",
+    "name": "强攻骑士卡",
+    "cardType": "骑士卡",
+    "mainRole": "强攻",
+    "call": "ATTACK RIDE",
+    "tag": "强化",
+    "normal": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 0 },
+      "timing": "当你使用【出刀】时",
+      "effectText": "令此【出刀】造成的伤害+1。"
+    },
+    "final": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 1 },
+      "timing": "你的出牌阶段",
+      "effectText": "视为对对手使用1张【出刀】。此【出刀】不计入本回合使用次数，且造成的伤害+1。"
+    }
+  },
+  {
+    "id": "rider_defense",
+    "bodyId": "body_roaming_001",
+    "name": "防御骑士卡",
+    "cardType": "骑士卡",
+    "mainRole": "防御",
+    "call": "GUARD RIDE",
+    "tag": "减伤",
+    "normal": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 0 },
+      "timing": "当你将受到伤害时",
+      "effectText": "令此次伤害-1。"
+    },
+    "final": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 1 },
+      "timing": "当你将受到伤害时",
+      "effectText": "防止此次伤害。"
+    }
+  },
+  {
+    "id": "rider_resource",
+    "bodyId": "body_roaming_001",
+    "name": "资源骑士卡",
+    "cardType": "骑士卡",
+    "mainRole": "资源",
+    "call": "RESOURCE RIDE",
+    "tag": "摸牌",
+    "normal": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 0 },
+      "timing": "你的出牌阶段",
+      "effectText": "摸2张手牌。"
+    },
+    "final": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 1 },
+      "timing": "你的出牌阶段",
+      "effectText": "摸4张手牌，然后弃置1张手牌。"
+    }
+  },
+  {
+    "id": "rider_control",
+    "bodyId": "body_roaming_001",
+    "name": "控制骑士卡",
+    "cardType": "骑士卡",
+    "mainRole": "控制",
+    "call": "CONTROL RIDE",
+    "tag": "角色控制",
+    "normal": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 0 },
+      "timing": "你的出牌阶段",
+      "effectText": "将对手角色区内1张明置角色置于其角色牌堆底。"
+    },
+    "final": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 1 },
+      "timing": "你的出牌阶段",
+      "effectText": "将对手角色区内1张明置角色退场。"
+    }
+  },
+  {
+    "id": "rider_support",
+    "bodyId": "body_roaming_001",
+    "name": "支援骑士卡",
+    "cardType": "骑士卡",
+    "mainRole": "支援",
+    "call": "SUPPORT RIDE",
+    "tag": "布阵",
+    "normal": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 0 },
+      "timing": "你的出牌阶段",
+      "effectText": "从角色牌堆顶暗置上阵至多2张角色，角色区仍不能超过4张。"
+    },
+    "final": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 1 },
+      "timing": "你的出牌阶段",
+      "effectText": "选择己方退场区内1至2张角色，将其洗回角色牌堆。"
+    }
+  },
+  {
+    "id": "rider_ambush",
+    "bodyId": "body_roaming_001",
+    "name": "伏击骑士卡",
+    "cardType": "骑士卡",
+    "mainRole": "伏击",
+    "call": "AMBUSH RIDE",
+    "tag": "反制",
+    "normal": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 0 },
+      "timing": "对手的一张角色技能结算后",
+      "effectText": "若发动该技能的角色仍在其角色区，将其洗回角色牌堆。"
+    },
+    "final": {
+      "cost": { "consumeSelf": true, "retireSameRole": 1, "dynamaxEnergy": 1 },
+      "timing": "对手发动角色技能并支付费用后、该技能效果结算前",
+      "effectText": "令此次角色技能失效。已支付的费用不返还。"
+    }
+  }
+]

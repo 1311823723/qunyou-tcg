@@ -1,5 +1,5 @@
 {
-  "status": "design-preview-only",
+  "status": "engine-implemented-awaiting-deck",
   "art": {
     "front": "src/assets/card-art-source/bodies/kgy-body.png",
     "extra": "src/assets/card-art-source/bodies/kgy-body-dynamax.png"
@@ -13,7 +13,7 @@
       "call": "ATTACK RIDE",
       "tag": "强化",
       "normal": { "timing": "当你使用【出刀】时", "effect": "令此【出刀】造成的伤害+1。" },
-      "final": { "timing": "你的出牌阶段", "effect": "视为对对手使用1张【出刀】。此【出刀】不计入本回合使用次数，且造成的伤害+1。", "timingProvisional": true }
+      "final": { "timing": "你的出牌阶段", "effect": "视为对对手使用1张【出刀】。此【出刀】不计入本回合使用次数，且造成的伤害+1。" }
     },
     {
       "id": "rider_defense",
@@ -31,7 +31,7 @@
       "call": "RESOURCE RIDE",
       "tag": "摸牌",
       "normal": { "timing": "你的出牌阶段", "effect": "摸2张手牌。" },
-      "final": { "timing": "你的出牌阶段", "effect": "摸4张手牌，然后弃置1张手牌。", "timingProvisional": true }
+      "final": { "timing": "你的出牌阶段", "effect": "摸4张手牌，然后弃置1张手牌。" }
     },
     {
       "id": "rider_control",
@@ -40,17 +40,16 @@
       "call": "CONTROL RIDE",
       "tag": "角色控制",
       "normal": { "timing": "你的出牌阶段", "effect": "将对手角色区内1张明置角色置于其角色牌堆底。" },
-      "final": { "timing": "你的出牌阶段", "effect": "将对手角色区内1张明置角色退场。", "timingProvisional": true }
+      "final": { "timing": "你的出牌阶段", "effect": "将对手角色区内1张明置角色退场。" }
     },
     {
       "id": "rider_support",
-      "review": "needs_redesign",
       "role": "支援",
       "name": "支援骑士卡",
       "call": "SUPPORT RIDE",
-      "tag": "费用修正",
-      "normal": { "timing": "你发动角色技能、确定费用时", "effect": "若费用为【休整X】，则X减少1，最低为1；若为【休整自身】，则改为【休整1】。不影响退场费用。" },
-      "final": { "timing": "你发动角色技能、确定费用时", "effect": "若费用为【休整X】，则X改为0；若为【休整自身】，则改为【休整1】。不影响退场费用。" }
+      "tag": "布阵",
+      "normal": { "timing": "你的出牌阶段", "effect": "从角色牌堆顶暗置上阵至多2张角色，角色区仍不能超过4张。" },
+      "final": { "timing": "你的出牌阶段", "effect": "选择己方退场区内1至2张角色，将其洗回角色牌堆。" }
     },
     {
       "id": "rider_ambush",
@@ -59,7 +58,7 @@
       "call": "AMBUSH RIDE",
       "tag": "反制",
       "normal": { "timing": "对手的一张角色技能结算后", "effect": "若发动该技能的角色仍在其角色区，将其洗回角色牌堆。" },
-      "final": { "timing": "对手发动角色技能并支付费用后，效果结算前", "effect": "令此次角色技能失效。已支付的费用不返还。", "timingProvisional": true }
+      "final": { "timing": "对手发动角色技能并支付费用后、该技能效果结算前", "effect": "令此次角色技能失效。已支付的费用不返还。" }
     }
   ]
 }

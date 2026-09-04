@@ -1,6 +1,7 @@
 import bodies from "../../data/cards/bodies.json";
 import characters from "../../data/cards/characters.json";
 import handCards from "../../data/cards/hand_cards.json";
+import riderCards from "../../data/cards/rider_cards.json";
 import { getExtraFormProgressMax } from "./body-progress";
 
 export { getExtraFormProgressMax } from "./body-progress";
@@ -103,9 +104,28 @@ export interface HandCard {
   cards: CardEntry[];
 }
 
+export interface RiderCard {
+  id: string;
+  bodyId: string;
+  name: string;
+  cardType: "骑士卡";
+  mainRole: string;
+  call: string;
+  tag: string;
+  normal: { cost: RiderCardCost; timing: string; effectText: string };
+  final: { cost: RiderCardCost; timing: string; effectText: string };
+}
+
+export interface RiderCardCost {
+  consumeSelf: true;
+  retireSameRole: 1;
+  dynamaxEnergy: 0 | 1;
+}
+
 export const allBodies: BodyCard[] = bodies as BodyCard[];
 export const allCharacters: CharacterCard[] = characters as CharacterCard[];
 export const allHandCards: HandCard[] = handCards as HandCard[];
+export const allRiderCards: RiderCard[] = riderCards as RiderCard[];
 
 export function getBodyCount(): number {
   return allBodies.length;

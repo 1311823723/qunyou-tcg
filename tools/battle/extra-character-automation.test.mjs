@@ -12,7 +12,7 @@ const filler = "char_006_weixiaokele_ninja";
 async function settle(r) { for (let i = 0; r.state.prompt && i < 30; i++) { if (!["response", "character-trigger"].includes(r.state.prompt.kind)) return; await r.pass(); } }
 function saveAndRestore(r) { r.room.state = structuredClone(r.state); }
 
-test("120角色均有模块；自选允许8个正式预组本体，拒绝3个新本体与非法卡组", () => {
+test("120角色均有模块；自选允许9个已开放本体，拒绝3个未开放本体与非法卡组", () => {
   assert.equal(registeredCharacterSkillIds().length, 120);
   for (const card of characters) { assert.ok(characterSkillForId(card.id)); assert.equal(implementation[card.id].automation, "implemented"); }
   const deck = { bodyId: "body_combo_001", characterIds: characters.slice(0, 16).map((c) => c.id) };

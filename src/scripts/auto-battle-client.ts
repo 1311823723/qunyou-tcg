@@ -35,6 +35,7 @@ type AutoBodyState = {
   extraFormUsed: boolean;
   trackedCharacterInstanceIds: string[];
   ambushWindow?: { remaining: number; expiresAtTurnNumber: number };
+  riderCards?: Partial<Record<"强攻" | "防御" | "资源" | "控制" | "支援" | "伏击", "absent" | "normal" | "final">>;
 };
 
 type AutoPlayerView = PlayerView & { maxHealth?: number; bodyState: AutoBodyState };
@@ -121,6 +122,8 @@ let selectedPlayCardId = "";
 let selectedRoleInstanceId = "";
 let detailCardInstanceId = "";
 let detailOwnerId = "";
+let riderDetailId = "";
+let riderDetailFinal = false;
 let localSelectionAction: LocalSelectionAction | undefined;
 let localFormAction: LocalFormAction | undefined;
 let autoResponseTimer = 0;
@@ -620,6 +623,30 @@ function renderProgressCounter(player: AutoPlayerView, body?: ReturnType<typeof 
   </div>`;
 }
 
+const riderRoleOrder = ["强攻", "防御", "资源", "控制", "支援", "伏击"] as const;
+
+function riderDefinitionForRole(role: string) {
+  return Object.values(catalog.cards).find((card) => card.kind === "rider" && card.mainRole === role);
+}
+
+function renderRiderCards(player: AutoPlayerView, isMe: boolean) {
+  if (player.body?.definitionId !== "body_roaming_001") return "";
+  const legalActions = snapshot?.game.legalActions || [];
+  const cards = riderRoleOrder.map((role) => {
+    const card = riderDefinitionForRole(role);
+    const state = player.bodyState.riderCards?.[role] || "absent";
+    const legal = isMe && card && legalActions.find((action) => action.type === "rider:activate" && action.payload?.riderId === card.id);
+    const status = state === "final" ? "FINAL" : state === "normal" ? "持有" : "空缺";
+    return `<article class="auto-rider-card is-${state}" data-rider-role="${escapeHtml(role)}">
+      <button type="button" class="auto-rider-card__detail" data-rider-detail="${escapeHtml(card?.id || "")}" data-rider-final="${player.bodyState.flipped ? "true" : "false"}" ${card ? "" : "disabled"}>
+        <span>${escapeHtml(role)}</span><strong>${escapeHtml(card?.skillName || "RIDE")}</strong><small>${status}</small>
+      </button>
+      ${legal ? `<button type="button" class="auto-rider-card__use" data-rider-activate="${escapeHtml(card.id)}">使用</button>` : ""}
+    </article>`;
+  }).join("");
+  return `<section class="auto-rider-zone" aria-label="骑士卡"><header><span>骑士卡</span><small>${player.bodyState.flipped ? "FINAL" : "普通"}</small></header><div>${cards}</div></section>`;
+}
+
 function renderPlayer(player: AutoPlayerView, isMe: boolean, perspectiveLabel?: string, region?: string) {
   const game = snapshot?.game;
   const current = game?.currentPlayerId === player.id;
@@ -651,7 +678,7 @@ function renderPlayer(player: AutoPlayerView, isMe: boolean, perspectiveLabel?: 
   const healthAnimation = healthAnimations.get(player.id);
   return `<section class="auto-player ${current ? "is-current" : ""} ${isMe ? "is-self" : "is-opponent"} ${healthAnimation === "damage" ? "is-damaged" : healthAnimation === "heal" ? "is-healed" : ""}"${region ? ` data-auto-region="${region}"` : ""}>
     <header><div class="auto-player__identity"><span>${escapeHtml(perspectiveLabel || (isMe ? "己方" : "对手"))} · ${player.connected ? "在线" : "暂离"}</span><h2>${escapeHtml(player.nickname)}</h2><em>手牌 ${player.handCount ?? player.hand.length}</em></div></header>
-    <div class="auto-player__field">${player.body ? `<div class="auto-body-wrap"><div class="auto-body-card">${renderCard(player.body, player, "body", false)}</div>${bodyStatus}</div>` : ""}<div class="auto-slots">${slots}</div><div class="auto-player__counters">${renderHealthCounter(player)}${renderProgressCounter(player, bodyDefinition)}${markers ? `<div class="auto-marker-summary" aria-label="本体标记">${markers}</div>` : ""}</div></div>
+    <div class="auto-player__field">${player.body ? `<div class="auto-body-wrap"><div class="auto-body-card">${renderCard(player.body, player, "body", false)}</div>${bodyStatus}</div>` : ""}<div class="auto-slots">${slots}</div><div class="auto-player__counters">${renderHealthCounter(player)}${renderProgressCounter(player, bodyDefinition)}${renderRiderCards(player, isMe)}${markers ? `<div class="auto-marker-summary" aria-label="本体标记">${markers}</div>` : ""}</div></div>
     ${retired ? `<div class="auto-retired"><span>退场区</span><div>${retired}</div></div>` : ""}
   </section>`;
 }
@@ -763,6 +790,18 @@ function renderCardDetail() {
   const name = extra ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name;
   const text = extra ? cardDefinition.extraText || cardDefinition.text : cardDefinition.text;
   return `<div class="auto-detail" role="dialog" aria-modal="true" aria-label="卡牌详情"><button class="auto-detail__backdrop" data-detail-close aria-label="关闭详情"></button><article><button class="auto-detail__close" data-detail-close aria-label="关闭">×</button>${image ? `<img src="${image}" alt="${escapeHtml(name)}" />` : ""}${renderCardInformation(cardDefinition, name, text, extra)}</article></div>`;
+}
+
+function renderRiderDetail() {
+  if (!riderDetailId) return "";
+  const card = catalog.cards[riderDetailId];
+  if (!card || card.kind !== "rider") return "";
+  const final = riderDetailFinal;
+  const name = final ? card.extraName || `FINAL ${card.name}` : card.name;
+  const timing = final ? card.extraTiming || card.timing : card.timing;
+  const text = final ? card.extraText || card.text : card.text;
+  const cost = final ? card.extraCostText || card.costText : card.costText;
+  return `<div class="auto-detail auto-rider-detail" role="dialog" aria-modal="true" aria-label="骑士卡详情"><button class="auto-detail__backdrop" data-rider-detail-close aria-label="关闭详情"></button><article><button class="auto-detail__close" data-rider-detail-close aria-label="关闭">×</button><div class="auto-rider-detail__card is-${final ? "final" : "normal"}"><span>${escapeHtml(card.mainRole || "骑士")}</span><strong>${escapeHtml(card.skillName || "RIDE")}</strong><h3>${escapeHtml(name)}</h3></div><div class="auto-card-info"><span>骑士卡 · ${escapeHtml(card.mainRole || "")}</span><h3>${escapeHtml(name)}</h3><p><b>费用</b>${escapeHtml(cost || "")}</p><p><b>发动时机</b>${escapeHtml(timing || "")}</p><p><b>效果</b>${escapeHtml(text)}</p></div></article></div>`;
 }
 
 function renderCardInformation(cardDefinition: NonNullable<ReturnType<typeof definition>>, name: string, text: string, extra = false) {
@@ -881,7 +920,7 @@ function renderGame() {
   if (me) regions.set("hand", `<section class="auto-hand" data-auto-region="hand"><header><strong>我的手牌</strong><span>${me.hand.length} 张 · 牌堆 ${snapshot.game.handDeckCount} · 弃牌 ${snapshot.game.handDiscard.length}</span></header><div class="auto-hand__cards">${hand || "<p>没有手牌</p>"}</div>${!mobileTableActive ? selectedCardAction : ""}</section>`);
   regions.set("backdrop", `<button type="button" class="auto-mobile-log-backdrop ${mobileLogOpen ? "is-open" : ""}" data-auto-region="backdrop" data-auto-mobile-log-close aria-label="关闭日志" tabindex="-1"></button>`);
   regions.set("log", `<aside id="auto-mobile-log" class="auto-log ${mobileLogOpen ? "is-open" : ""}" data-auto-region="log" aria-label="公开日志" ${mobileTableActive ? 'role="dialog"' : ""}><header><span>公开日志</span><button type="button" class="auto-mobile-log-close" data-auto-mobile-log-close aria-label="关闭日志">×</button></header><ol>${logs}</ol></aside>`);
-  regions.set("overlay", `<div data-auto-region="overlay" style="display:contents">${promptDialog}${renderCardDetail()}</div>`);
+  regions.set("overlay", `<div data-auto-region="overlay" style="display:contents">${promptDialog}${renderCardDetail()}${renderRiderDetail()}</div>`);
   regions.set("perf", renderPerfPanel());
   const nextStructureKey = `${spectator}:${opponent?.id || ""}:${lowerPlayer?.id || ""}:${me?.id || ""}`;
   const fullRender = gameStructureKey !== nextStructureKey || !root.querySelector(".auto-game");
@@ -933,6 +972,16 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
   gameBindings = new AbortController();
   const listenerOptions = { signal: gameBindings.signal };
   bindMobileLogActions();
+  root.querySelectorAll<HTMLButtonElement>("[data-rider-detail]").forEach((button) => button.addEventListener("click", () => {
+    riderDetailId = button.dataset.riderDetail || "";
+    riderDetailFinal = button.dataset.riderFinal === "true";
+    render();
+  }, listenerOptions));
+  root.querySelectorAll<HTMLButtonElement>("[data-rider-detail-close]").forEach((button) => button.addEventListener("click", () => {
+    riderDetailId = "";
+    riderDetailFinal = false;
+    render();
+  }, listenerOptions));
   if (!me) {
     root.querySelectorAll<HTMLButtonElement>("[data-auto-card]").forEach((button) => button.addEventListener("click", () => {
       detailCardInstanceId = button.dataset.autoCard || "";
@@ -946,6 +995,17 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
   root.querySelector("[data-phase-advance]")?.addEventListener("click", () => send("phase:advance"), listenerOptions);
   root.querySelector<HTMLButtonElement>("[data-deploy]")?.addEventListener("click", () => send("character:deploy"), listenerOptions);
   root.querySelector("[data-body-activate]")?.addEventListener("click", () => send("body:activate"), listenerOptions);
+  root.querySelectorAll<HTMLButtonElement>("[data-rider-activate]").forEach((button) => button.addEventListener("click", () => {
+    const riderId = button.dataset.riderActivate || "";
+    const action = snapshot?.game.legalActions?.find((candidate) => candidate.type === "rider:activate" && candidate.payload?.riderId === riderId);
+    const card = catalog.cards[riderId];
+    if (!action?.selection || !card) return;
+    beginLocalCardSelection({
+      command: "rider:activate", payload: { riderId }, title: `使用【${card.name}】`,
+      message: `在己方角色区选择1张${card.mainRole || "相同定位"}角色退场支付费用。`, selectionKind: "cost",
+      cardInstanceIds: action.selection.cardInstanceIds, min: action.selection.min, max: action.selection.max,
+    });
+  }, listenerOptions));
   root.querySelectorAll<HTMLButtonElement>("[data-remove-bomb]").forEach((button) => button.addEventListener("click", () => {
     const action = snapshot?.game.legalActions?.find((candidate) => candidate.type === "bomb:remove" && candidate.payload?.markerId === button.dataset.removeBomb);
     if (action?.selection) return beginLocalCardSelection({
@@ -1423,6 +1483,10 @@ document.addEventListener("keydown", (event) => {
   else if (detailCardInstanceId) {
     detailCardInstanceId = "";
     detailOwnerId = "";
+    render();
+  } else if (riderDetailId) {
+    riderDetailId = "";
+    riderDetailFinal = false;
     render();
   } else if (selectedPlayCardId) {
     selectedPlayCardId = "";

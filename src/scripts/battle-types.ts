@@ -1,7 +1,7 @@
 export type CatalogCard = {
   id: string;
   name: string;
-  kind: "body" | "character" | "hand";
+  kind: "body" | "character" | "hand" | "rider";
   subtitle: string;
   text: string;
   imagePath?: string;
@@ -19,7 +19,9 @@ export type CatalogCard = {
   megaMax?: number;
   megaCondition?: string;
   timing?: string;
+  extraTiming?: string;
   costText?: string;
+  extraCostText?: string;
   costKind?: "rest" | "exit" | "compound" | "other";
   mainRole?: string;
   tags?: string[];

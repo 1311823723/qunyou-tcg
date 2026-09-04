@@ -18,6 +18,7 @@ let errors = [];
 const bodies = readJSON("cards/bodies.json");
 const characters = readJSON("cards/characters.json");
 const handCards = readJSON("cards/hand_cards.json");
+const riderCards = readJSON("cards/rider_cards.json");
 const characterAutomation = readJSON("cards/character_automation.json");
 const characterImplementation = readJSON("cards/character_implementation.json");
 const tagTaxonomy = readJSON("tag-taxonomy.json");
@@ -45,6 +46,7 @@ const formalDataSources = [
   ["cards/bodies.json", bodies],
   ["cards/characters.json", characters],
   ["cards/hand_cards.json", handCards],
+  ["cards/rider_cards.json", riderCards],
   ["archetypes.json", archetypes],
   ["tag-taxonomy.json", tagTaxonomy],
   ...allDecks.map((deck) => [`decks/${deck.id}`, deck]),
@@ -109,11 +111,27 @@ function registerIds(list, source) {
 registerIds(bodies, "bodies.json");
 registerIds(characters, "characters.json");
 registerIds(handCards, "hand_cards.json");
+registerIds(riderCards, "rider_cards.json");
 
 const bodyIds = new Set(bodies.map((b) => b.id));
 const characterIds = new Set(characters.map((c) => c.id));
 const validCostTypes = new Set(["休整", "退场", "无", "复合", "休整自身"]);
 const validMainRoles = new Set(["强攻", "防御", "资源", "控制", "支援", "伏击"]);
+
+if (riderCards.length !== validMainRoles.size) errors.push(`Rider cards total = ${riderCards.length}, expected ${validMainRoles.size}`);
+for (const card of riderCards) {
+  checkIdPattern(card.id, /^rider_[a-z]+$/, "Rider card");
+  if (card.bodyId !== "body_roaming_001") errors.push(`Rider card ${card.id} has invalid bodyId ${card.bodyId}`);
+  if (card.cardType !== "骑士卡") errors.push(`Rider card ${card.id} has invalid cardType ${card.cardType}`);
+  if (!validMainRoles.has(card.mainRole)) errors.push(`Rider card ${card.id} has invalid mainRole ${card.mainRole}`);
+  if (!card.normal?.timing || !card.normal?.effectText || !card.final?.timing || !card.final?.effectText) errors.push(`Rider card ${card.id} is missing form text`);
+  for (const [version, form, energy] of [["normal", card.normal, 0], ["final", card.final, 1]]) {
+    if (form?.cost?.consumeSelf !== true || form?.cost?.retireSameRole !== 1 || form?.cost?.dynamaxEnergy !== energy) {
+      errors.push(`Rider card ${card.id} has invalid ${version} cost`);
+    }
+  }
+}
+for (const role of validMainRoles) if (!riderCards.some((card) => card.mainRole === role)) errors.push(`Missing rider card for role ${role}`);
 const validCharacterTags = new Set(tagTaxonomy.tags);
 const validHandTypes = new Set(["基础", "行动"]);
 
