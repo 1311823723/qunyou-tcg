@@ -36,7 +36,7 @@ export interface CharacterSkillRuntimeContext {
   reducePendingDamage(amount?: number): number;
   counterCurrentHand(): boolean;
   banishCurrentHand(): boolean;
-  damageOpponent(amount: number, options?: { after?: "return-self-if-target-health-at-most-3" }): number | undefined;
+  damageOpponent(amount: number, options?: { after?: "return-self-if-target-health-at-most-3" | "draw-one" }): number | undefined;
   loseHealth(amount: number, reason?: string): number;
   loseOpponentHealth(amount: number, reason?: string): number;
   heal(amount: number): number;
@@ -46,7 +46,9 @@ export interface CharacterSkillRuntimeContext {
   drawJudgmentCandidate(): CardInstance | undefined;
   chooseJudgmentCandidate(instanceId: string): void;
   useVirtualStrike(instanceId: string, options?: { damage?: number; restTargetSlotOnDamage?: number }): void;
-  useVirtualBasic(definitionId: string, options?: { damage?: number; restTargetSlotOnDamage?: number }): void;
+  useVirtualBasic(definitionId: string, options?: { damage?: number; restTargetSlotOnDamage?: number; requiredDodges?: number }): void;
+  storeOwnHandCards(instanceIds: string[], kind: "extra-vine" | "extra-decoy"): void;
+  preventInspection(swap: boolean): void;
   deployTopCharacters(count?: number): CardInstance[];
   reviveOwnRetired(instanceId: string): CardInstance;
   gainOpponentHand(instanceId: string): CardInstance;
@@ -89,6 +91,7 @@ export interface CharacterSkillModule {
   readonly usageLimit?: { scope: "turn" | "game"; count: number };
   canActivate?(context: CharacterSkillRuntimeContext): boolean;
   activate(context: CharacterSkillRuntimeContext): void;
+  onInspectionPrevented?(context: CharacterSkillRuntimeContext, prompt: AutoPrompt): void;
   resolveChoice?(
     context: CharacterSkillRuntimeContext,
     prompt: AutoPrompt,

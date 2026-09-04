@@ -30,7 +30,8 @@ const dispatchDeck = readJSON("decks/dispatch.deck.json");
 const bloodDeck = readJSON("decks/blood.deck.json");
 const ambushDeck = readJSON("decks/ambush.deck.json");
 const defenseDeck = readJSON("decks/defense.deck.json");
-const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck, dispatchDeck, bloodDeck, ambushDeck, defenseDeck];
+const linkDeck = readJSON("decks/link.deck.json");
+const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck, dispatchDeck, bloodDeck, ambushDeck, defenseDeck, linkDeck];
 const characterSkillDir = path.join(projectDir, "worker/src/skills/characters");
 const characterSkillSource = fs.existsSync(characterSkillDir)
   ? fs.readdirSync(characterSkillDir, { recursive: true })

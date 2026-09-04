@@ -11,6 +11,21 @@ export interface DeckGuide {
 }
 
 export const deckGuides: Record<string, DeckGuide> = {
+  deck_link_001: {
+    title: "主动连携换阵路线",
+    flow: ["发动低费用角色", "接续另一定位", "摸牌或换手", "累计3次换手收益", "准备阶段极巨化"],
+    priorities: [
+      "先规划本回合不同定位的发动顺序。可以用准备阶段的观者起手，再接出牌阶段的支援、控制或强攻。",
+      "休整会让角色离场。想换手就保留至少一张场上角色，用临时替身补位或充能球降低下一次费用。",
+      "用控制清理防御，再用强化的【出刀】推进胜利；不要为触发连携而空交关键防御。",
+    ],
+    mega: "累计3次实际发动【魅影换手】后，在己方准备阶段开始时可极巨化。获得3能量和2极巨体力；双方回合的不同定位连携都可耗能，摸1张并从角色牌堆顶至多3张中精准换手。最后一次结算完毕后翻回。",
+    extraFormLabel: "极巨化节点",
+    risk: "换手不增加场上角色数量，也不奖励休整摸牌。空场只能获得摸牌收益；极巨技能不是无限连招。第一版组合强度仍需实战验证。",
+    coreCards: ["char_081_aichitun_morphling", "char_019_dong_defect-robot", "char_079_xiaoka_visionary-painter", "char_084_keke_watcher"],
+    replaceableCards: ["char_020_baizi_ironclad", "char_076_daidaishou_hackclaw"],
+    replaceSuggestions: [{ card: "char_030_miaosila_detective", reason: "需要稳定拆手牌时替换宣言控制，但休整自身会减少场上换手对象" }],
+  },
   deck_aggro_001: {
     title: "压血爆杀路线",
     flow: ["加伤/必中", "打出【出刀】", "触发怦然杀意", "追加【出刀】", "累计 5 点伤害 Mega"],

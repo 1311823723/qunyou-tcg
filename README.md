@@ -68,7 +68,7 @@ npm run dev:battle
 大厅同时提供两种互不影响的房间：经典手动对战继续使用 `/play/room` 与
 `BattleRoom`；自动对战 Beta 使用 `/play/auto/room` 与独立的
 `AutoBattleRoom`。自动版由服务端管理阶段、54 张手牌、响应、伤害、濒死与
-胜负，8 张本体的正面技能、Mega 与 Z 招式也由服务端自动结算。当前【操作组】与【上头组】共 32 张角色已完成全自动并解锁；其他预组达到 16/16 后再开放，自动模式不提供自选卡组。详细范围见
+胜负。当前 9 张本体（含 Joker 的极巨化）与全部 120 张角色已接入自动结算；可选 9 套正式预组，也可使用已实现本体和 16 张不重复角色组建自选卡组。KGY、南山五与花生壳尚未接入自动模式。详细范围见
 [`docs/auto-battle-beta.md`](docs/auto-battle-beta.md)。彻底自动结算的产品基线见
 [`docs/auto-battle-product.md`](docs/auto-battle-product.md)，技能模块和持久化结算的开发规范见
 [`docs/auto-battle-skill-engine.md`](docs/auto-battle-skill-engine.md)，角色完成度见

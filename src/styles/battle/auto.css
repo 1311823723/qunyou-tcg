@@ -68,6 +68,12 @@
 .auto-progress-counter > small { color: #e8cb7a; font: 900 .53rem var(--font-mono); white-space: nowrap; }
 .auto-progress-counter.is-used { opacity: .72; filter: saturate(.62); }
 .auto-progress-counter.is-progressing { animation: auto-progress-gain .72s ease-out; }
+.auto-dynamax-counter { border-color: rgba(220,80,168,.3); background: radial-gradient(circle at 72% 20%,rgba(216,49,161,.16),transparent 46%),linear-gradient(145deg,rgba(27,18,42,.96),rgba(8,9,18,.97)); }
+.auto-dynamax-counter > strong { color: #ff9de0; font: 900 .72rem var(--font-mono); text-shadow: 0 0 10px rgba(255,76,191,.55); }
+.auto-dynamax-counter__pips { display: flex; align-items: center; gap: 5px; }
+.auto-dynamax-counter__pips i { display: block; width: 12px; height: 12px; transform: rotate(45deg); border: 1px solid rgba(255,163,226,.36); border-radius: 3px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 5px rgba(0,0,0,.45); }
+.auto-dynamax-counter__pips i.is-lit { border-color: #ff8ed8; background: linear-gradient(135deg,#ffb6e8,#c72d9d 58%,#641267); box-shadow: 0 0 8px rgba(255,70,190,.72),inset 0 0 3px rgba(255,255,255,.75); }
+.auto-dynamax-counter.is-ready { border-color: rgba(255,198,89,.55); box-shadow: 0 0 18px rgba(255,184,67,.17),inset 0 0 18px rgba(0,0,0,.22); }
 .auto-health-counter__icon.is-pulsing, .auto-progress-counter__icon.is-pulsing { animation: auto-counter-pulse 1.15s ease-in-out infinite; }
 .auto-player__field { display: grid; grid-template-columns: minmax(5.4rem,7.4rem) minmax(28rem,1fr) auto; align-items: center; gap: .7rem; }
 .auto-body-wrap { display: grid; align-self: stretch; align-content: center; gap: .42rem; min-width: 0; }
@@ -80,6 +86,8 @@
 .auto-body-status.is-ready { border-color: rgba(216,183,92,.42); background: rgba(216,183,92,.07); box-shadow: 0 0 18px rgba(216,183,92,.07); }
 .auto-body-status.is-ready > div i { background: linear-gradient(90deg,#d8b75c,#fff0a8); }
 .auto-body-status.is-used { opacity: .7; }
+.auto-marker-summary { display: flex; flex-wrap: wrap; gap: 4px; grid-column: 1 / -1; max-height: 42px; overflow: auto; }
+.auto-marker-summary .battle-tag { font-size: 10px; padding: 3px 6px; }
 .auto-body-activate { width: 100%; min-height: 1.8rem; padding: .3rem .45rem; font-size: .58rem; }
 .auto-slots { display: grid; grid-template-columns: repeat(4,minmax(5rem,7.8rem)); justify-content: center; gap: .6rem; }
 .auto-slot { min-width: 0; min-height: 6.2rem; border: 0; border-radius: 10px; background: rgba(255,255,255,.025); }
@@ -302,6 +310,9 @@
 .auto-battle[data-mobile-table="true"] .auto-progress-counter__ring strong,
 .auto-battle[data-mobile-table="true"] .auto-progress-counter > small { font-size: 6px; }
 .auto-battle[data-mobile-table="true"] .auto-progress-counter > small { grid-column: 1/-1; }
+.auto-battle[data-mobile-table="true"] .auto-dynamax-counter { grid-template-columns: auto auto minmax(0,1fr); }
+.auto-battle[data-mobile-table="true"] .auto-dynamax-counter__pips { gap: 3px; }
+.auto-battle[data-mobile-table="true"] .auto-dynamax-counter__pips i { width: 8px; height: 8px; border-radius: 2px; }
 .auto-battle[data-mobile-table="true"] .auto-retired { display: none; }
 
 .auto-battle[data-mobile-table="true"] .auto-command-center {
@@ -413,6 +424,18 @@
 }
 .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-prompt-modal .auto-prompt.is-overlay-panel {
   width: min(358px,calc(100vw - 16px)); max-height: calc(100vh - 16px);
+}
+
+@media (pointer: coarse) {
+  #auto-deck-dialog .battle-custom-card__tip { display: none; }
+  #auto-deck-dialog .battle-custom-card__detail { opacity: 1; transform: none; }
+}
+
+@media (max-width: 600px) {
+  #auto-deck-dialog .battle-custom-picker__top { top: 0; grid-template-columns: minmax(0, 1fr) auto; min-height: 4.5rem; padding: 0.5rem 0; background: #111522; }
+  #auto-deck-dialog .battle-custom-picker__top h2 { font-size: 0.95rem; }
+  #auto-deck-dialog .battle-custom-picker__metrics > span { display: none; }
+  #auto-deck-dialog .battle-custom-picked--tray { top: 4.5rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

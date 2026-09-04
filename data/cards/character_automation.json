@@ -244,7 +244,7 @@
     ]
   },
   "char_021_xiaoapan_warlock": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -278,7 +278,7 @@
     ]
   },
   "char_024_weixiaokele_ironclad": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -303,7 +303,7 @@
     ]
   },
   "char_026_miaosila_neo": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -326,7 +326,7 @@
     ]
   },
   "char_028_arthur_undertaker": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "character_retired",
       "relation": "target_opponent",
@@ -337,7 +337,7 @@
     ]
   },
   "char_029_daidaishou_luna": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -348,7 +348,7 @@
     ]
   },
   "char_030_miaosila_detective": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -360,7 +360,7 @@
     ]
   },
   "char_031_arthur_watcher": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -620,7 +620,7 @@
     ]
   },
   "char_053_xiaoka_zaun-beast": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "damage_after",
       "relation": "target_opponent",
@@ -878,7 +878,7 @@
     ]
   },
   "char_075_baizi_weilong": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -889,7 +889,7 @@
     ]
   },
   "char_076_daidaishou_hackclaw": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -901,7 +901,7 @@
     ]
   },
   "char_077_xiaoapan_shepherd": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -912,7 +912,7 @@
     ]
   },
   "char_078_huihuan_deep-blue": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -923,7 +923,7 @@
     ]
   },
   "char_079_xiaoka_visionary-painter": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "basic_card_needed",
       "relation": "source_self",
@@ -934,7 +934,7 @@
     ]
   },
   "char_080_huihuan_visionary-painter": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",
@@ -1159,7 +1159,7 @@
     ]
   },
   "char_099_kabishou_invisible-duck": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "inspection",
       "relation": "source_opponent",
@@ -1172,7 +1172,7 @@
     ]
   },
   "char_100_miaosila_demolitionist": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "opponent_deployment",
       "relation": "source_opponent",
@@ -1195,7 +1195,7 @@
     ]
   },
   "char_102_miaosila_dodo": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "hand_discarded",
       "relation": "target_self",
@@ -1206,7 +1206,7 @@
     ]
   },
   "char_103_zongzi_snitch": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "opponent_extra_draw",
       "relation": "source_opponent",
@@ -1320,7 +1320,7 @@
     ]
   },
   "char_113_miaosila_celebrity": {
-    "level": "assisted",
+    "level": "full",
     "trigger": {
       "event": "play_phase",
       "relation": "any",

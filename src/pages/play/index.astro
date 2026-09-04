@@ -90,7 +90,7 @@ const catalog = getBattleCatalog();
       <p>房间创建后模式不可切换。自动对战仍处于 Beta，经典牌桌会继续保留。</p>
       <div class="battle-mode-options">
         <button type="button" class="battle-mode-option is-featured" data-create-mode="auto">
-          <span>推荐 · BETA</span><strong>自动对战</strong><small>自动结算阶段、手牌、本体，以及 8 套预组中的全部角色技能。</small>
+          <span>推荐 · BETA</span><strong>自动对战</strong><small>自动结算阶段、手牌、9 张已实现本体，以及全部 120 张角色技能。</small>
         </button>
         <button type="button" class="battle-mode-option" data-create-mode="classic">
           <span>CLASSIC</span><strong>经典对战</strong><small>保留现有手动牌桌，由双方自行声明和结算全部效果。</small>
@@ -104,6 +104,8 @@ const catalog = getBattleCatalog();
 </Layout>
 
 <script>
+  import { AUTO_LOADOUT_KEY, resolveAutoLoadout } from "../../scripts/auto-loadout";
+  import type { Catalog } from "../../scripts/battle-types";
   import { getBattleApiUrl } from "../../lib/battle-api";
   import {
     PENDING_KEY,
@@ -134,10 +136,7 @@ const catalog = getBattleCatalog();
 
   const API_URL = getBattleApiUrl();
   const CUSTOM_DECK_ID = "custom";
-  const catalog = JSON.parse(document.querySelector("#battle-entry-catalog")?.textContent || "{}") as {
-    cards?: Record<string, { kind?: string }>;
-    decks?: Array<{ id: string }>;
-  };
+  const catalog = JSON.parse(document.querySelector("#battle-entry-catalog")?.textContent || "{}") as Catalog;
   const profileDialog = document.querySelector<HTMLDialogElement>("#battle-profile-dialog");
   const profileForm = document.querySelector<HTMLFormElement>("#battle-profile-form");
   const roomList = document.querySelector<HTMLElement>("#battle-room-list");
@@ -176,9 +175,11 @@ const catalog = getBattleCatalog();
   }
 
   function handshakeLoadout(mode: "classic" | "auto") {
-    const deck = mode === "auto"
-      ? catalog.decks?.find((candidate) => candidate.autoReady)
-      : catalog.decks?.[0];
+    if (mode === "auto") {
+      try { return resolveAutoLoadout(catalog, JSON.parse(localStorage.getItem(AUTO_LOADOUT_KEY) || "null") || readPending()); }
+      catch { return resolveAutoLoadout(catalog, null); }
+    }
+    const deck = catalog.decks?.[0];
     return { deckId: deck?.id || "" };
   }
 

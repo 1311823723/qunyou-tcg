@@ -1,4 +1,4 @@
-import { HAND_IDS } from "../../auto-engine.mts";
+import { HAND_IDS, handIsLocked } from "../../auto-engine.mts";
 import type { CardInstance } from "../../types";
 import {
   choiceValue,
@@ -60,7 +60,7 @@ const desertButcher = immediateCharacterSkill({
   effect(context) {
     context.boostNextStrikeDamage(1);
     const hasWarwick = context.player.characterSlots.some((slot) => slot && "instanceId" in slot
-      && slot.faceDown === false && slot.definitionId === "char_064_xiaoka_warwick");
+      && slot.faceDown === false && slot.definitionId === "char_053_xiaoka_zaun-beast");
     context.addModifier({
       kind: "blood-next-strike-heal-conditional", count: hasWarwick ? 2 : 1,
       sourceDefinitionId: BLOOD_CHARACTER_IDS.desertButcher,
@@ -78,7 +78,7 @@ const beeMedic = immediateCharacterSkill({
 const vigilante: CharacterSkillModule = {
   cardId: BLOOD_CHARACTER_IDS.vigilante,
   trigger: { event: "damage_after", relation: "target_self" },
-  canActivate: (context) => context.player.hand.some(isRed),
+  canActivate: (context) => context.player.hand.some(isRed) && !handIsLocked(context.state, context.player.id, HAND_IDS.strike),
   activate(context) {
     const cards = context.player.hand.filter(isRed);
     context.setPrompt("vigilante-red", {

@@ -1,5 +1,5 @@
 import characters from "../../../../data/cards/characters.json" with { type: "json" };
-import { HAND_IDS } from "../../auto-engine.mts";
+import { HAND_IDS, handIsLocked } from "../../auto-engine.mts";
 import {
   choiceValue,
   selectedCardIds,
@@ -126,6 +126,7 @@ const embalmer: CharacterSkillModule = {
 const detective: CharacterSkillModule = {
   cardId: DISPATCH_CHARACTER_IDS.detective,
   trigger: { event: "skill_resolved", relation: "source_opponent" },
+  onInspectionPrevented(context) { context.draw(1); },
   canActivate: (context) => context.event?.metadata?.revealedFromFaceDown === true
     && Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown)),
   activate(context) {
@@ -197,7 +198,8 @@ const formationWatcher: CharacterSkillModule = {
 const sheriff: CharacterSkillModule = {
   cardId: DISPATCH_CHARACTER_IDS.sheriff,
   trigger: { event: "play_phase", relation: "source_self" },
-  canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown === false)),
+  canActivate: (context) => !handIsLocked(context.state, context.player.id, HAND_IDS.strike)
+    && Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown === false)),
   activate(context) {
     const options = context.opponent()?.characterSlots.flatMap((slot, index) => slot && "instanceId" in slot && slot.faceDown === false
       ? [{ value: String(index), label: characterById.get(slot.definitionId)?.name || `角色位 ${index + 1}` }] : []) || [];

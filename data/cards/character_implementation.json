@@ -91,8 +91,9 @@
     "review": "confirmed"
   },
   "char_021_xiaoapan_warlock": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_022_weixiaokele_goblin": {
     "automation": "implemented",
@@ -103,36 +104,42 @@
     "review": "confirmed"
   },
   "char_024_weixiaokele_ironclad": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_025_baizi_high-priest": {
     "automation": "implemented",
     "review": "confirmed"
   },
   "char_026_miaosila_neo": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_027_weixiaokele_medium": {
     "automation": "implemented",
     "review": "confirmed"
   },
   "char_028_arthur_undertaker": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_029_daidaishou_luna": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_030_miaosila_detective": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_031_arthur_watcher": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_032_weixiaokele_silent-hunter": {
     "automation": "implemented",
@@ -223,8 +230,9 @@
     "review": "confirmed"
   },
   "char_053_xiaoka_zaun-beast": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_054_xiangcai_prophet": {
     "automation": "implemented",
@@ -317,28 +325,34 @@
     "review": "confirmed"
   },
   "char_075_baizi_weilong": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_076_daidaishou_hackclaw": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_077_xiaoapan_shepherd": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_078_huihuan_deep-blue": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_079_xiaoka_visionary-painter": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_080_huihuan_visionary-painter": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_081_aichitun_morphling": {
     "automation": "implemented",
@@ -413,24 +427,28 @@
     "review": "confirmed"
   },
   "char_099_kabishou_invisible-duck": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_100_miaosila_demolitionist": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_101_pangpanghali_identity-thief": {
     "automation": "implemented",
     "review": "confirmed"
   },
   "char_102_miaosila_dodo": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_103_zongzi_snitch": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_104_player_falcon": {
     "automation": "implemented",
@@ -470,8 +488,9 @@
     "review": "confirmed"
   },
   "char_113_miaosila_celebrity": {
-    "automation": "pending",
-    "review": "confirmed"
+    "automation": "implemented",
+    "review": "needs_testing",
+    "note": "非预组角色已接入全自动结算；自选阵容组合强度待实战验证。"
   },
   "char_114_zongzi_bodyguard": {
     "automation": "implemented",

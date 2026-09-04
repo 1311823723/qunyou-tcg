@@ -1,4 +1,4 @@
-import { HAND_IDS } from "../../auto-engine.mts";
+import { HAND_IDS, handIsLocked } from "../../auto-engine.mts";
 import {
   choiceValue,
   selectedCardIds,
@@ -53,13 +53,14 @@ const darkDefect: CharacterSkillModule = {
   cardId: TRANS_CHARACTER_IDS.darkDefect,
   trigger: { event: "play_phase", relation: "source_self" },
   usageLimit: { scope: "turn", count: 1 },
+  canActivate: (context) => context.markerCount("充能球") < 3 || !handIsLocked(context.state, context.player.id, HAND_IDS.strike),
   activate(context) {
     const count = context.markerCount("充能球");
     context.setPrompt("dark-choice", {
       title: "充能球-黑暗", message: `当前充能球：${count}/3`,
       options: [
         ...(count < 3 ? [{ value: "charge", label: "放置1枚充能球" }] : []),
-        ...Array.from({ length: count }, (_, index) => ({ value: `discharge:${index + 1}`, label: `移去${index + 1}枚，视为使用伤害${index + 1}的【出刀】` })),
+        ...Array.from({ length: handIsLocked(context.state, context.player.id, HAND_IDS.strike) ? 0 : count }, (_, index) => ({ value: `discharge:${index + 1}`, label: `移去${index + 1}枚，视为使用伤害${index + 1}的【出刀】` })),
       ],
     });
   },

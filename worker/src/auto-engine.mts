@@ -10,7 +10,7 @@ import type {
 } from "./auto-types";
 import { extraStrikeAllowance } from "./skills/body-registry.mts";
 
-export const AUTO_STATE_VERSION = 3;
+export const AUTO_STATE_VERSION = 4;
 export const PHASES: BattlePhase[] = ["preparation", "draw", "play", "deployment", "discard", "end"];
 
 export const HAND_IDS = {
@@ -129,6 +129,11 @@ export function effectiveDefinition(item: HandResolutionItem) {
 export function resolveVirtualDodge(strike: HandResolutionItem, responderId: string, invalidated: boolean) {
   strike.wasRespondedTo = true;
   if (invalidated) return "invalidated" as const;
+  strike.dodgesPlayed = (strike.dodgesPlayed || 0) + 1;
+  if (strike.dodgesPlayed < (strike.requiredDodges || 1)) {
+    strike.responseWindowClosed = false;
+    return "partial" as const;
+  }
   strike.cancelled = true;
   strike.cancelledByPlayerId = responderId;
   strike.cancellationReason = "dodge";
@@ -144,10 +149,16 @@ export function isActionCard(definitionId: string) {
   return handById.get(definitionId)?.handType === "行动";
 }
 
+export function handIsLocked(state: AutoRoomState, playerId: string, definitionId: string) {
+  return state.turnModifiers.some((modifier) => modifier.kind === "extra-hand-lock"
+    && modifier.targetPlayerId === playerId && modifier.copiedDefinitionId === definitionId);
+}
+
 export function canUseInPlay(state: AutoRoomState, player: AutoPlayerState, definitionId: string, resolvedAs?: string) {
   if (!state.started || state.winnerId || state.prompt || state.stack.length) return false;
   if (state.currentPlayerId !== player.id || state.phase !== "play") return false;
   const effective = definitionId === HAND_IDS.impersonate ? resolvedAs : definitionId;
+  if (handIsLocked(state, player.id, effective || definitionId)) return false;
   if (effective === HAND_IDS.dodge) return false;
   if (effective === HAND_IDS.strike) {
     if (state.turnModifiers.some((modifier) => modifier.ownerId === player.id && modifier.kind === "mizai-strike-block")) return false;
@@ -166,6 +177,7 @@ export function legalResponseCards(state: AutoRoomState, player: AutoPlayerState
   if (!isHandResolutionItem(top)) return [];
   const effective = effectiveDefinition(top);
   return player.hand.filter((card) => {
+    if (handIsLocked(state, player.id, card.definitionId === HAND_IDS.impersonate ? HAND_IDS.dodge : card.definitionId)) return false;
     if (card.definitionId === HAND_IDS.impersonate) return effective === HAND_IDS.strike && top.targetPlayerId === player.id && !top.cannotDodge;
     if (card.definitionId === HAND_IDS.dodge) return effective === HAND_IDS.strike && top.targetPlayerId === player.id && !top.cannotDodge;
     if (card.definitionId === HAND_IDS.counter) return isActionCard(top.definitionId);
@@ -199,6 +211,17 @@ export function beginResponseWindow(state: AutoRoomState, item: HandResolutionIt
   state.prompt.message = responseNames.length
     ? `是否使用${responseNames.join("、")}响应【${handName(effectiveDefinition(item))}】？`
     : `你没有可响应【${handName(effectiveDefinition(item))}】的手牌。`;
+  if ((item.requiredDodges || 1) > 1 && effectiveDefinition(item) === HAND_IDS.strike) {
+    state.prompt.message += ` 此【出刀】还需${(item.requiredDodges || 1) - (item.dodgesPlayed || 0)}张【闪避】抵消。`;
+  }
+  if (effectiveDefinition(item) === HAND_IDS.strike && item.targetPlayerId === opponent.id && !item.cannotDodge
+    && !handIsLocked(state, opponent.id, HAND_IDS.dodge)) {
+    for (const modifier of state.turnModifiers.filter((m) => m.kind === "extra-decoy" && m.ownerId === opponent.id)) {
+      if (opponent.markers.some((m) => m.kind === "cards" && m.cards.some((c) => c.instanceId === modifier.targetCardInstanceId))) {
+        state.prompt.options!.unshift({ value: `decoy:${modifier.id}`, label: "使用【舆论替身】作为【闪避】" });
+      }
+    }
+  }
 }
 
 export function passResponseWindow(state: AutoRoomState, playerId: string) {
@@ -226,9 +249,11 @@ export function moveResolvedCardToDiscard(state: AutoRoomState, card: CardInstan
 
 export function damage(state: AutoRoomState, target: AutoPlayerState, amount: number, sourcePlayerId?: string) {
   const applied = Math.max(0, Math.trunc(amount));
-  target.health -= applied;
+  const absorbed = target.bodyState.flipped ? Math.min(applied, target.bodyState.dynamaxHealth || 0) : 0;
+  if (absorbed) target.bodyState.dynamaxHealth! -= absorbed;
+  target.health -= applied - absorbed;
   if (target.health <= 0) {
-    const aidCards = target.hand.filter((card) => card.definitionId === HAND_IDS.aid || card.definitionId === HAND_IDS.impersonate);
+    const aidCards = handIsLocked(state, target.id, HAND_IDS.aid) ? [] : target.hand.filter((card) => card.definitionId === HAND_IDS.aid || card.definitionId === HAND_IDS.impersonate);
     state.prompt = createPrompt({
       kind: "dying",
       playerId: target.id,
@@ -286,7 +311,7 @@ export function advancePhase(
     state.usageCounters = Object.fromEntries(
       Object.entries(state.usageCounters).filter(([key]) => key.startsWith("skill:game:") || key.startsWith("body:game:")),
     );
-    state.turnModifiers = state.turnModifiers.filter((modifier) => ["aggro-return-character", "aggro-bomb"].includes(modifier.kind)
+    state.turnModifiers = state.turnModifiers.filter((modifier) => ["aggro-return-character", "aggro-bomb", "extra-vine", "extra-decoy"].includes(modifier.kind)
       || (modifier.kind === "body-next-skill-cost-rest-one"
         ? !modifier.expiresAtTurnNumber || modifier.expiresAtTurnNumber > state.turnNumber
         : Boolean(modifier.expiresAtTurnNumber && modifier.expiresAtTurnNumber > state.turnNumber)));

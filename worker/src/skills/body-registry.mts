@@ -7,9 +7,11 @@ import { defenseBodySkill } from "./bodies/defense.mts";
 import { dispatchBodySkill } from "./bodies/dispatch.mts";
 import { mizaiBodySkill } from "./bodies/mizai.mts";
 import { transBodySkill } from "./bodies/trans.mts";
+import { linkBodySkill } from "./bodies/link.mts";
 import type { BodySkillModule } from "./body-skill.mts";
 
 const modules = [
+  linkBodySkill,
   aggroBodySkill,
   mizaiBodySkill,
   comboBodySkill,

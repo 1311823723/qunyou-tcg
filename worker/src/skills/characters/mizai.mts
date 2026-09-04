@@ -1,5 +1,5 @@
 import characters from "../../../../data/cards/characters.json" with { type: "json" };
-import { HAND_IDS } from "../../auto-engine.mts";
+import { HAND_IDS, handIsLocked } from "../../auto-engine.mts";
 import type { AutoPlayerState } from "../../auto-types";
 import type { CardInstance } from "../../types";
 import {
@@ -165,13 +165,18 @@ function openJudgeChoice(context: CharacterSkillRuntimeContext, neededDefinition
 const judge: CharacterSkillModule = {
   cardId: MIZAI_CHARACTER_IDS.judge,
   trigger: { event: "basic_card_needed", relation: "source_self" },
+  canActivate: (context) => {
+    const needed = String(context.event?.metadata?.neededDefinitionId || "");
+    return needed ? !handIsLocked(context.state, context.player.id, needed)
+      : context.canUseBasic(HAND_IDS.strike) || context.canUseBasic(HAND_IDS.aid);
+  },
   activate(context) {
     const needed = String(context.event?.metadata?.neededDefinitionId || "");
     if (needed) return openJudgeChoice(context, needed);
     const options: Array<{ value: string; label: string }> = context.canUseBasic(HAND_IDS.strike)
       ? [{ value: HAND_IDS.strike, label: "声明需要【出刀】" }]
       : [];
-    if (context.player.health < context.player.maxHealth) options.push({ value: HAND_IDS.aid, label: "声明需要【急救】" });
+    if (context.canUseBasic(HAND_IDS.aid)) options.push({ value: HAND_IDS.aid, label: "声明需要【急救】" });
     context.setPrompt("judge-declare", { title: "审判", message: "声明1种你需要使用的基础牌。", options });
   },
   resolveChoice(context, prompt, payload) {

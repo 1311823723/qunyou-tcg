@@ -45,6 +45,9 @@ test("current body cards expose the expected extra-form progress maxima", () => 
     body_ambush_001: 4,
     body_defense_001: 4,
     body_link_001: 3,
+    body_roaming_001: 4,
+    body_antimagic_001: 3,
+    body_crossfire_001: 4,
   });
 });
 
@@ -98,14 +101,15 @@ test("every table card has a 750px high-resolution preview", async () => {
 });
 
 test("configured body animation portraits are present and alpha-capable", async () => {
-  const expected = Object.keys(cardArt.bodies).flatMap((bodyId) => [
+  const expected = decks.flatMap(({ bodyId }) => [
     `${bodyId}_front.webp`,
     `${bodyId}_mega.webp`,
   ]).sort();
   const portraitDir = new URL("public/battle-portraits/", root);
   const files = (await readdir(portraitDir)).filter((file) => file.endsWith(".webp")).sort();
-  assert.deepEqual(files, expected);
+  for (const file of expected) assert.ok(files.includes(file), `${file} required for playable prebuilt bodies`);
   for (const file of files) {
+    assert.ok(cardArt.bodies[file.replace(/_(front|mega)\.webp$/, "")], `${file} has a registered body`);
     const metadata = await sharp(fileURLToPath(new URL(file, portraitDir))).metadata();
     assert.equal(metadata.hasAlpha, true, `${file} alpha`);
     assert.ok(metadata.height <= 1200, `${file} height should stay lightweight`);

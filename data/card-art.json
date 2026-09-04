@@ -43,6 +43,10 @@
     "body_antimagic_001": {
       "front": "nanshanwu-body",
       "extra": "nanshanwu-body-dynamax"
+    },
+    "body_crossfire_001": {
+      "front": "huashengke-body",
+      "extra": "huashengke-body-dynamax"
     }
   },
   "characters": {

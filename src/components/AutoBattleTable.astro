@@ -25,6 +25,8 @@ const { catalog } = Astro.props;
     </section>
   </main>
   <div id="auto-effect-layer" class="battle-effect-layer" aria-hidden="true"></div>
+  <dialog id="auto-deck-dialog" class="battle-dialog" aria-label="自选牌组编辑器"><div class="battle-dialog__frame"><button type="button" class="battle-dialog__close" data-auto-deck-close aria-label="关闭选牌">×</button><div id="auto-deck-dialog-content"></div></div></dialog>
+  <dialog id="auto-deck-preview" class="battle-dialog"></dialog>
   <div id="auto-toast" class="battle-toast" role="status" aria-live="polite" hidden></div>
   <script id="auto-battle-catalog" type="application/json" set:html={JSON.stringify(catalog)}></script>
 </div>

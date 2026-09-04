@@ -6,6 +6,7 @@ import dispatchDeck from "../../data/decks/dispatch.deck.json";
 import bloodDeck from "../../data/decks/blood.deck.json";
 import ambushDeck from "../../data/decks/ambush.deck.json";
 import defenseDeck from "../../data/decks/defense.deck.json";
+import linkDeck from "../../data/decks/link.deck.json";
 import { getBodyById, getCharactersByIds } from "./cards";
 import type { BodyCard, CharacterCard } from "./cards";
 
@@ -33,6 +34,7 @@ export const allDecks: DeckData[] = [
   bloodDeck as DeckData,
   ambushDeck as DeckData,
   defenseDeck as DeckData,
+  linkDeck as DeckData,
 ];
 
 export function resolveDeck(deck: DeckData): ResolvedDeck {

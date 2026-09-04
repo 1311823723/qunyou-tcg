@@ -21,7 +21,8 @@ export type AutoPromptKind =
   | "body-skill"
   | "character-skill"
   | "character-trigger"
-  | "damage-before";
+  | "damage-before"
+  | "marker-effect";
 
 export interface AutoPrompt {
   id: string;
@@ -67,6 +68,11 @@ export interface HandResolutionItem {
   banishOnResolve?: boolean;
   virtual?: boolean;
   restTargetSlotOnDamage?: number;
+  requiredDodges?: number;
+  dodgesPlayed?: number;
+  desertButcherEnhanced?: boolean;
+  huntRestOnDamage?: boolean;
+  skillCompletion?: { activationId: string; sourcePlayerId: string; definitionId: string };
 }
 
 export interface CharacterSkillResolutionItem {
@@ -76,7 +82,9 @@ export interface CharacterSkillResolutionItem {
   sourceInstanceId: string;
   definitionId: string;
   handlerId: string;
+  activationId?: string;
   eventId?: string;
+  triggerEvent?: AutoBattleEvent;
   resumeResponse?: boolean;
   responseStage?: "source" | "target";
   remainingResponseSkillInstanceIds?: string[];
@@ -88,10 +96,12 @@ export type ResolutionItem = HandResolutionItem | CharacterSkillResolutionItem;
 
 export interface SkillContinuation {
   handlerId: string;
+  activationId?: string;
   sourceDefinitionId: string;
   sourceInstanceId: string;
   step: string;
   eventId?: string;
+  triggerEvent?: AutoBattleEvent;
   data?: Record<string, unknown>;
 }
 
@@ -136,7 +146,13 @@ export interface TurnModifier {
     | "defense-protected-hand"
     | "defense-skill-lock"
     | "trans-next-skill-cost-down"
-    | "trans-revived-character";
+    | "trans-revived-character"
+    | "extra-vine"
+    | "extra-decoy"
+    | "extra-hand-lock"
+    | "extra-next-damage"
+    | "extra-hunt-strike"
+    | "extra-hunt-rest";
   count: number;
   characterInstanceId?: string;
   sourceDefinitionId?: string;
@@ -177,6 +193,10 @@ export interface BodyRuntimeState {
   flipped: boolean;
   extraFormUsed: boolean;
   trackedCharacterInstanceIds: string[];
+  dynamaxEnergy?: number;
+  dynamaxHealth?: number;
+  dynamaxEnding?: boolean;
+  linkHistory?: { turnNumber: number; roles: string[]; activations: Record<string, boolean> };
   ambushWindow?: {
     remaining: number;
     expiresAtTurnNumber: number;
@@ -184,6 +204,7 @@ export interface BodyRuntimeState {
 }
 
 export type PendingBodyTriggerKind =
+  | "link-swap"
   | "aggro-draw"
   | "aggro-mega-end-strike"
   | "mizai-inspection"
@@ -263,6 +284,7 @@ export interface AutoRoomState {
   pendingBodyTriggers: PendingBodyTrigger[];
   pendingJudgments: PendingJudgment[];
   pendingDamages: PendingDamage[];
+  pendingInspection?: { prompt: AutoPrompt; eventId: string; ownerId: string; instanceId: string; slotIndex: number; prevented?: boolean };
   winnerId?: string;
   revision: number;
   logs: BattleLog[];

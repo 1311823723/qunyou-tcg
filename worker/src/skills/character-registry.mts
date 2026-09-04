@@ -7,8 +7,9 @@ import { dispatchCharacterSkills } from "./characters/dispatch.mts";
 import { transCharacterSkills } from "./characters/trans.mts";
 import { mizaiCharacterSkills } from "./characters/mizai.mts";
 import type { CharacterSkillModule } from "./character-skill.mts";
+import { extraCharacterSkills } from "./characters/extra.mts";
 
-const modules = [...comboCharacterSkills, ...aggroCharacterSkills, ...mizaiCharacterSkills, ...bloodCharacterSkills, ...defenseCharacterSkills, ...ambushCharacterSkills, ...dispatchCharacterSkills, ...transCharacterSkills] satisfies CharacterSkillModule[];
+const modules = [...comboCharacterSkills, ...aggroCharacterSkills, ...mizaiCharacterSkills, ...bloodCharacterSkills, ...defenseCharacterSkills, ...ambushCharacterSkills, ...dispatchCharacterSkills, ...transCharacterSkills, ...extraCharacterSkills] satisfies CharacterSkillModule[];
 const registry = new Map(modules.map((module) => [module.cardId, module]));
 
 export function characterSkillForId(cardId: string) {

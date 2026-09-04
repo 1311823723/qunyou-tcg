@@ -1,0 +1,25 @@
+{
+  "id": "deck_link_001",
+  "name": "连携组",
+  "archetype": "连携流",
+  "bodyId": "body_link_001",
+  "characterIds": [
+    "char_081_aichitun_morphling",
+    "char_019_dong_defect-robot",
+    "char_026_miaosila_neo",
+    "char_041_baizi_watcher",
+    "char_042_xiaoapan_neo",
+    "char_079_xiaoka_visionary-painter",
+    "char_084_keke_watcher",
+    "char_108_tutu_birdwatcher",
+    "char_078_huihuan_deep-blue",
+    "char_076_daidaishou_hackclaw",
+    "char_015_weixiaokele_lobbyist",
+    "char_020_baizi_ironclad",
+    "char_017_huihuan_defect-robot",
+    "char_073_xiaoapan_bee-medic",
+    "char_113_miaosila_celebrity",
+    "char_066_linglong_ninja"
+  ],
+  "notes": "用不同定位的低费用角色接续发动，选择摸牌或换手，并通过补位、降费保留场上角色。极巨化后消耗能量进行精准换手。换手不增加场上角色数量，不视为休整，也不产生额外休整摸牌；不是无限连招。"
+}

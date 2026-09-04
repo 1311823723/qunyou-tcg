@@ -7,7 +7,10 @@ import {
   readPending,
   readProfile,
 } from "./battle-profile";
-import type { Catalog, CardView, PlayerView } from "./battle-types";
+import type { Catalog, CardView, PlayerView, CustomDeckConfig } from "./battle-types";
+import { mountCustomDeckEditor } from "./battle-custom-deck-editor";
+import { AUTO_CUSTOM_DECK_KEY, AUTO_LOADOUT_KEY, autoBodyCards, validAutoCustomDeck, resolveAutoLoadout } from "./auto-loadout";
+import { resolveCardDetail, renderCardDetailBody, renderCardArtPreview, renderCardArtDialog, bindHighResImage } from "./battle-card-detail";
 
 type AutoPrompt = {
   id: string;
@@ -26,6 +29,8 @@ type AutoPrompt = {
 type AutoBodyState = {
   progress: number;
   progressMax: number;
+  dynamaxEnergy?: number;
+  dynamaxHealth?: number;
   flipped: boolean;
   extraFormUsed: boolean;
   trackedCharacterInstanceIds: string[];
@@ -279,11 +284,50 @@ function setConnection(label: string, state: string) {
 }
 
 function loadout() {
-  const readyDecks = catalog.decks.filter((deck) => deck.autoReady);
-  const deckId = typeof pending.deckId === "string" && readyDecks.some((deck) => deck.id === pending.deckId)
-    ? pending.deckId
-    : readyDecks[0]?.id || "";
-  return { deckId };
+  try { return resolveAutoLoadout(catalog, JSON.parse(localStorage.getItem(AUTO_LOADOUT_KEY) || "null") || pending); }
+  catch { return resolveAutoLoadout(catalog, pending); }
+}
+
+function openAutoDeckEditor(me: AutoPlayerView) {
+  if (me.ready || snapshot?.game.started) return;
+  const dialog = document.querySelector<HTMLDialogElement>("#auto-deck-dialog")!;
+  const dialogContent = document.querySelector<HTMLElement>("#auto-deck-dialog-content")!;
+  dialog.querySelector<HTMLButtonElement>("[data-auto-deck-close]")!.onclick = () => dialog.close();
+  const fallback = catalog.decks.find((deck) => deck.autoReady && deck.id === me.deckId) || catalog.decks.find((deck) => deck.autoReady)!;
+  let deck: CustomDeckConfig = { bodyId: fallback.bodyId, characterIds: [...fallback.characterIds] };
+  try {
+    const saved = me.customDeck || JSON.parse(localStorage.getItem(AUTO_CUSTOM_DECK_KEY) || localStorage.getItem("qunyou-battle-custom-deck-v1") || "null");
+    if (validAutoCustomDeck(catalog, saved)) deck = saved;
+  } catch { /* Invalid local drafts do not alter the classic editor's saved deck. */ }
+  mountCustomDeckEditor({ dialog, dialogContent, catalog, deck,
+    bodyCatalogCards: autoBodyCards(catalog),
+    characterCatalogCards: Object.values(catalog.cards).filter((card) => card.kind === "character" && card.automationLevel === "full"),
+    openBattleDialog: () => { if (!dialog.open) dialog.showModal(); },
+    onSave: (customDeck) => {
+      if (!validAutoCustomDeck(catalog, customDeck)) return;
+      if (send("player:selectDeck", { deckId: "custom", customDeck })) {
+        localStorage.setItem(AUTO_CUSTOM_DECK_KEY, JSON.stringify(customDeck));
+        localStorage.setItem(AUTO_LOADOUT_KEY, JSON.stringify({ deckId: "custom", customDeck }));
+      }
+    },
+    onPreview: (id) => {
+      const preview = document.querySelector<HTMLDialogElement>("#auto-deck-preview")!;
+      const render = (form: "normal" | "mega" = "normal") => {
+        preview.classList.remove("battle-dialog--art");
+        const view = resolveCardDetail({ definition: catalog.cards[id] }, form);
+        preview.innerHTML = `<div class="battle-dialog__frame battle-card-menu battle-card-menu--rich"><button type="button" class="battle-small-btn" data-preview-close>返回选牌</button><div class="battle-card-detail">${renderCardArtPreview(view)}${renderCardDetailBody(view)}</div></div>`;
+        preview.querySelector("[data-preview-close]")?.addEventListener("click", () => preview.close());
+        preview.querySelector("[data-card-art-zoom]")?.addEventListener("click", () => {
+          preview.classList.add("battle-dialog--art");
+          preview.innerHTML = `<div class="battle-dialog__frame">${renderCardArtDialog(view)}</div>`;
+          bindHighResImage(preview);
+          preview.querySelector("[data-card-detail-back]")?.addEventListener("click", () => render(form));
+        });
+        preview.querySelectorAll<HTMLElement>("[data-card-form]").forEach((button) => button.addEventListener("click", () => render(button.dataset.cardForm === "mega" ? "mega" : "normal")));
+      };
+      render(); preview.showModal();
+    },
+  });
 }
 
 async function ensureSeat() {
@@ -350,7 +394,7 @@ function handleMessage(message: ServerMessage) {
       for (const player of message.snapshot.players) {
         const before = previous.players.find((candidate) => candidate.id === player.id);
         if (!before) continue;
-        if (player.health !== before.health) healthAnimations.set(player.id, Number(player.health || 0) < Number(before.health || 0) ? "damage" : "heal");
+        if (player.health !== before.health || (player.bodyState.dynamaxHealth || 0) < (before.bodyState.dynamaxHealth || 0)) healthAnimations.set(player.id, Number(player.health || 0) < Number(before.health || 0) || (player.bodyState.dynamaxHealth || 0) < (before.bodyState.dynamaxHealth || 0) ? "damage" : "heal");
         if (player.bodyState.progress > before.bodyState.progress) progressAnimations.add(player.id);
         if (!before.bodyState.flipped && player.bodyState.flipped) {
           flipAnimations.add(player.id);
@@ -358,9 +402,14 @@ function handleMessage(message: ServerMessage) {
         } else if (!before.bodyState.extraFormUsed && player.bodyState.extraFormUsed) {
           effectQueue.push({ player, kind: "activate" });
         }
+        if (before.bodyState.flipped && !player.bodyState.flipped) flipAnimations.add(player.id);
       }
     }
     snapshot = message.snapshot;
+    if (snapshot.game.started) {
+      document.querySelector<HTMLDialogElement>("#auto-deck-preview")?.close();
+      document.querySelector<HTMLDialogElement>("#auto-deck-dialog")?.close();
+    }
     if (pendingAction?.ackRevision !== undefined && snapshot.revision >= pendingAction.ackRevision) clearPendingAction();
     const me = snapshot.players.find((player) => player.id === snapshot?.you);
     if (!me?.hand.some((card) => card.instanceId === selectedPlayCardId)
@@ -411,8 +460,8 @@ function playNextBodyEffect() {
   effectPlaying = true;
   const isMega = body.extraFormType === "mega";
   const title = effect.kind === "ready"
-    ? isMega ? "Mega 进化" : "Z 招式就绪"
-    : isMega ? "Mega 特性生效" : "Z 招式发动";
+    ? body.extraFormType === "dynamax" ? "极巨化" : isMega ? "Mega 进化" : "Z 招式就绪"
+    : body.extraFormType === "dynamax" ? "极巨技能" : isMega ? "Mega 特性生效" : "Z 招式发动";
   const subtitle = effect.kind === "activate"
     ? body.extraSubtitle?.split(" · ").at(-1) || body.extraName || body.name
     : body.extraName || body.name;
@@ -536,6 +585,15 @@ function renderHealthCounter(player: AutoPlayerView) {
 }
 
 function renderProgressCounter(player: AutoPlayerView, body?: ReturnType<typeof definition>) {
+  if (body?.extraFormType === "dynamax") {
+    const active = player.bodyState.flipped;
+    const count = active ? player.bodyState.dynamaxEnergy || 0 : player.bodyState.progress;
+    const max = active ? 3 : player.bodyState.progressMax;
+    const label = active ? "极巨能量" : "极巨化";
+    const ready = !active && !player.bodyState.extraFormUsed && max > 0 && count >= max;
+    const status = active ? "极巨化中" : player.bodyState.extraFormUsed ? "已结束" : ready ? "准备阶段可变身" : "积累连携";
+    return `<div class="auto-progress-counter auto-dynamax-counter ${ready ? "is-ready" : ""}" aria-label="${label} ${count} / ${max}，${status}"><span>${label}</span><strong>${count}/${max}</strong><div class="auto-dynamax-counter__pips" aria-hidden="true">${Array.from({ length: max }, (_, i) => `<i class="${i < count ? "is-lit" : ""}"></i>`).join("")}</div><small>${status}</small></div>`;
+  }
   const progress = Math.max(0, player.bodyState.progress || 0);
   const max = Math.max(1, player.bodyState.progressMax || body?.megaMax || 1);
   const percent = Math.min(100, progress / max * 100);
@@ -582,9 +640,10 @@ function renderPlayer(player: AutoPlayerView, isMe: boolean, perspectiveLabel?: 
   const bodyReady = player.bodyState.flipped;
   const canActivateBody = Boolean(isMe && game?.legalBodyActionPlayerIds.includes(player.id));
   const bodyStatus = player.body ? `<div class="auto-body-status ${bodyReady ? "is-ready" : ""} ${player.bodyState.extraFormUsed ? "is-used" : ""}">
-    <small>${player.bodyState.extraFormUsed ? "本局已使用" : bodyReady ? (bodyDefinition?.extraFormType === "mega" ? "Mega 已生效" : "Z招式已就绪") : escapeHtml(bodyDefinition?.megaCondition || "累计核心操作解锁")}</small>
+    <small>${bodyDefinition?.extraFormType === "dynamax" ? bodyReady ? `极巨体力 ${player.bodyState.dynamaxHealth || 0}/2（独立承伤）` : player.bodyState.extraFormUsed ? "极巨化已结束，正面特性生效" : escapeHtml(bodyDefinition.megaCondition || "累计连携解锁") : player.bodyState.extraFormUsed ? "本局已使用" : bodyReady ? (bodyDefinition?.extraFormType === "mega" ? "Mega 已生效" : "Z招式已就绪") : escapeHtml(bodyDefinition?.megaCondition || "累计核心操作解锁")}</small>
     ${canActivateBody ? `<button class="btn btn--primary auto-body-activate" data-body-activate>发动 Z招式</button>` : ""}
   </div>` : "";
+  const markers = (player.markers || []).map((marker) => `<span class="battle-tag" title="${escapeHtml(marker.label)}">${escapeHtml(marker.label)} ×${marker.kind === "counter" ? marker.count : marker.cards.length}</span>`).join("");
   const retired = player.retired.map((card) => {
     const legal = Boolean(isMe && card.instanceId && game?.legalSkillInstanceIds.includes(card.instanceId));
     return renderCard(card, player, "retired", legal, legal ? "" : "当前不满足退场区发动时机");
@@ -592,7 +651,7 @@ function renderPlayer(player: AutoPlayerView, isMe: boolean, perspectiveLabel?: 
   const healthAnimation = healthAnimations.get(player.id);
   return `<section class="auto-player ${current ? "is-current" : ""} ${isMe ? "is-self" : "is-opponent"} ${healthAnimation === "damage" ? "is-damaged" : healthAnimation === "heal" ? "is-healed" : ""}"${region ? ` data-auto-region="${region}"` : ""}>
     <header><div class="auto-player__identity"><span>${escapeHtml(perspectiveLabel || (isMe ? "己方" : "对手"))} · ${player.connected ? "在线" : "暂离"}</span><h2>${escapeHtml(player.nickname)}</h2><em>手牌 ${player.handCount ?? player.hand.length}</em></div></header>
-    <div class="auto-player__field">${player.body ? `<div class="auto-body-wrap"><div class="auto-body-card">${renderCard(player.body, player, "body", false)}</div>${bodyStatus}</div>` : ""}<div class="auto-slots">${slots}</div><div class="auto-player__counters">${renderHealthCounter(player)}${renderProgressCounter(player, bodyDefinition)}</div></div>
+    <div class="auto-player__field">${player.body ? `<div class="auto-body-wrap"><div class="auto-body-card">${renderCard(player.body, player, "body", false)}</div>${bodyStatus}</div>` : ""}<div class="auto-slots">${slots}</div><div class="auto-player__counters">${renderHealthCounter(player)}${renderProgressCounter(player, bodyDefinition)}${markers ? `<div class="auto-marker-summary" aria-label="本体标记">${markers}</div>` : ""}</div></div>
     ${retired ? `<div class="auto-retired"><span>退场区</span><div>${retired}</div></div>` : ""}
   </section>`;
 }
@@ -606,9 +665,14 @@ function renderLobby() {
     <span class="battle-kicker">AUTO BATTLE BETA</span><h1>自动对战准备室</h1>
     <div class="battle-invite auto-lobby__invite"><div><span class="battle-invite__label">房间码</span><strong class="battle-room-display">${escapeHtml(snapshot.roomCode)}</strong></div><div class="battle-invite__actions"><button type="button" class="battle-small-btn" data-auto-copy-code>复制房间码</button><button type="button" class="btn btn--primary" data-auto-copy-link>复制邀请链接</button></div></div>
     <div class="auto-lobby__seats"><article><strong>${escapeHtml(me?.nickname || "你的座位")}</strong><small>${me?.ready ? "已准备" : "未准备"}</small></article><article><strong>${escapeHtml(opponent?.nickname || "等待对手")}</strong><small>${opponent?.ready ? "已准备" : opponent ? "未准备" : "邀请对手加入"}</small></article></div>
-    ${snapshot.you === "spectator" ? "" : `<label>选择预组<select id="auto-deck-select">${deckOptions}</select></label><button class="btn btn--primary" data-auto-command="ready">${me?.ready ? "取消准备" : "确认准备"}</button>`}
+    ${snapshot.you === "spectator" ? "" : `<label>选择牌组<select id="auto-deck-select" ${me?.ready ? "disabled" : ""}>${deckOptions}<option value="custom" ${me?.deckId === "custom" ? "selected" : ""}>自选卡组 · 1张本体与16张角色</option></select></label>${me?.deckId === "custom" ? `<p>${escapeHtml(catalog.cards[me.customDeck?.bodyId || ""]?.name || "自选阵容")} · ${me.customDeck?.characterIds.length || 0}/16 张角色</p>` : ""}<div class="battle-invite__actions"><button type="button" class="battle-small-btn" data-auto-custom-editor ${me?.ready ? "disabled" : ""}>${me?.deckId === "custom" ? "编辑自选卡组" : "自选卡组"}</button><button class="btn btn--primary" data-auto-command="ready">${me?.ready ? "取消准备" : "确认准备"}</button></div>`}
   </section>`;
-  root.querySelector<HTMLSelectElement>("#auto-deck-select")?.addEventListener("change", (event) => send("player:selectDeck", { deckId: (event.currentTarget as HTMLSelectElement).value }));
+  root.querySelector<HTMLSelectElement>("#auto-deck-select")?.addEventListener("change", (event) => {
+    const select = event.currentTarget as HTMLSelectElement;
+    if (select.value === "custom" && me) { select.value = me.deckId || ""; openAutoDeckEditor(me); return; }
+    if (send("player:selectDeck", { deckId: select.value })) localStorage.setItem(AUTO_LOADOUT_KEY, JSON.stringify({ deckId: select.value }));
+  });
+  root.querySelector("[data-auto-custom-editor]")?.addEventListener("click", () => me && openAutoDeckEditor(me));
   root.querySelector("[data-auto-command=ready]")?.addEventListener("click", () => send("player:ready", { ready: !me?.ready }));
   root.querySelector<HTMLButtonElement>("[data-auto-copy-code]")?.addEventListener("click", (event) => copyText(snapshot?.roomCode || roomCode, event.currentTarget as HTMLButtonElement, "已复制", "复制房间码"));
   root.querySelector<HTMLButtonElement>("[data-auto-copy-link]")?.addEventListener("click", (event) => copyText(inviteUrl(), event.currentTarget as HTMLButtonElement, "已复制", "复制邀请链接"));
@@ -668,7 +732,7 @@ function renderPrompt(prompt: AutoPrompt | undefined, me?: AutoPlayerView, dialo
   const continuation = prompt.context?.continuation as { step?: string } | undefined;
   const orderInput = mine && continuation?.step === "prophet-order"
     ? `<button class="btn btn--primary" data-submit-character-order>输入牌序</button>` : "";
-  const autoPass = mine && prompt.kind === "response" && snapshot?.game.legalHandCardIds.length === 0 && snapshot.game.legalSkillInstanceIds.length === 0
+  const autoPass = mine && prompt.kind === "response" && !prompt.options?.some((o) => o.value !== "pass") && snapshot?.game.legalHandCardIds.length === 0 && snapshot.game.legalSkillInstanceIds.length === 0
     ? `<small class="auto-prompt__auto">没有可用的牌或技能，2 秒后自动放弃响应。</small>` : "";
   const detachedChoices = Boolean(selectableCards || inspectedCard || orderInput);
   const panel = `<aside class="auto-prompt ${mine ? "is-mine" : ""} ${selectableCards || inspectedCard ? "has-card-choices" : ""} ${detachedChoices ? "is-overlay-panel" : ""}" ${dialog ? 'role="dialog" aria-modal="true"' : ""}>${responseContext(prompt)}<span>${mine ? "需要你的操作" : "等待对手"}</span><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.message)}</p>${autoPass}${inspectedCard ? `<div class="auto-prompt__inspection">${inspectedCard}</div>` : ""}${selectableCards ? `<div class="auto-prompt__cards">${selectableCards}</div>` : ""}<div class="auto-prompt__actions">${options}${cardSelection}${orderInput}${prompt.kind === "discard" && mine ? `<button class="btn btn--primary" data-submit-discard ${selectedDiscard.size === Number(prompt.min || 0) ? "" : "disabled"}>确认弃牌</button>` : ""}${prompt.kind === "assisted-skill" && mine ? `<button class="btn btn--primary" data-assisted-finish>完成技能结算</button>` : ""}</div></aside>`;
@@ -1279,6 +1343,7 @@ function scheduleAutomaticActions() {
   if (!snapshot || snapshot.you === "spectator" || snapshot.game.winnerId || pendingAction) return;
   const prompt = snapshot.game.prompt;
   if (prompt?.kind === "response" && prompt.playerId === snapshot.you
+    && !prompt.options?.some((option) => option.value !== "pass")
     && snapshot.game.legalHandCardIds.length === 0 && snapshot.game.legalSkillInstanceIds.length === 0) {
     const promptId = prompt.id;
     autoResponseTimer = window.setTimeout(() => {

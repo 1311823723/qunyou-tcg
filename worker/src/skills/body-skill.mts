@@ -36,6 +36,7 @@ export interface BodySkillRuntimeContext {
   emitEvent(type: string, details?: Omit<AutoBattleEvent, "id" | "type" | "turnNumber">): void;
   shuffle<T>(items: T[]): T[];
   deployTopCharacter(): { card: CardInstance; slotIndex: number } | undefined;
+  deployCharacterAt?(card: CardInstance, slotIndex: number): void;
   restOwnCharacter(instanceId: string): boolean;
   startJudgment(purpose: "blood-body"): void;
   discardRandom(owner: AutoPlayerState): CardInstance | undefined;

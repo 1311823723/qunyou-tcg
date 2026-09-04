@@ -60,10 +60,10 @@ function client(code, identity, spectator = false) {
 }
 
 const rejectedCustom = await post("/auto/rooms", {
-  nickname: "自选拒绝测试",
+  nickname: "未开放本体拒绝测试",
   token: `auto-custom-${crypto.randomUUID()}`,
   deckId: "custom",
-  customDeck: { bodyId: "body_combo_001", characterIds: characters.slice(0, 16).map((card) => card.id) },
+  customDeck: { bodyId: "body_roaming_001", characterIds: characters.slice(0, 16).map((card) => card.id) },
 });
 assert.equal(rejectedCustom.response.status, 400);
 
@@ -123,6 +123,7 @@ let settled = startedA;
 while (settled.snapshot.game.prompt?.kind === "character-trigger") {
   const actor = byPlayerId(settled.snapshot.game.prompt.playerId);
   const revision = settled.snapshot.revision;
+  await actor.waitFor((message) => message.type === "snapshot" && message.snapshot.revision >= revision);
   actor.send("choice:submit", { value: "pass" });
   settled = await a.waitFor((message) => message.type === "snapshot" && message.snapshot.revision > revision);
 }

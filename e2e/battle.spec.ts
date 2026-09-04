@@ -2,6 +2,28 @@ import { expect, test, type BrowserContext, type Page, type TestInfo } from "@pl
 
 const COACH_KEY = "qunyou-battle-coach-v1";
 
+function watchAutoSnapshots(page: Page) {
+  let latest: { revision: number; you: string; game: { phase: string; currentPlayerId: string; canAutoAdvancePhase: boolean; prompt?: { playerId: string } } } | undefined;
+  page.on("websocket", (socket) => socket.on("framereceived", ({ payload }) => {
+    try { const message = JSON.parse(String(payload)); if (message.type === "snapshot" && message.snapshot.mode === "auto") latest = message.snapshot; } catch { /* Non-JSON control frames. */ }
+  }));
+  return () => latest;
+}
+
+async function reachAutoPlay(host: Page, guest: Page, state: ReturnType<typeof watchAutoSnapshots>) {
+  for (let i = 0; i < 12 && state()?.game.phase !== "play"; i++) {
+    const before = state()!;
+    if (!before.game.canAutoAdvancePhase || before.game.prompt) {
+      const actorId = before.game.prompt?.playerId || before.game.currentPlayerId;
+      const actor = actorId === before.you ? host : guest;
+      if (before.game.prompt) await actor.locator('.auto-prompt.is-mine [data-prompt-value="pass"]').click();
+      else await actor.locator("[data-phase-advance]").click();
+    }
+    await expect.poll(() => state()?.revision || 0).toBeGreaterThan(before.revision);
+  }
+  await expect(host.locator(".auto-phase strong")).toHaveText("出牌阶段");
+}
+
 function observePage(page: Page, label: string, entries: string[]) {
   page.on("console", (message) => {
     if (message.type() === "error" || message.type() === "warning") {
@@ -59,6 +81,13 @@ test("two players can start, reconnect, declare, manage markers and spectate", a
     const roomCode = new URL(roomUrl).searchParams.get("code");
     expect(roomCode).toMatch(/^[A-Z0-9]{6}$/);
     await waitForRoom(hostPage, "lobby");
+    await hostPage.locator("#battle-deck-mode").selectOption("custom");
+    await hostPage.locator("[data-custom-open-editor]").click();
+    await expect(hostPage.locator("#battle-dialog [data-custom-character]")).toHaveCount(120);
+    await expect(hostPage.locator("#battle-dialog [data-custom-body-option]")).toHaveCount(12);
+    await hostPage.locator("#battle-dialog [data-dialog-cancel]").click();
+    await hostPage.locator("#battle-deck-mode").selectOption("preset");
+    await hostPage.locator("#battle-deck-select").selectOption("deck_aggro_001");
 
     await setProfile(guestPage, "E2E-对手");
     await guestPage.goto(`/play?room=${roomCode}`);
@@ -209,6 +238,7 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     const guestPage = await guestContext.newPage();
     const spectatorPage = await spectatorContext.newPage();
     observePage(hostPage, "auto-host", consoleEntries);
+    const autoState = watchAutoSnapshots(hostPage);
     observePage(guestPage, "auto-guest", consoleEntries);
     observePage(spectatorPage, "auto-spectator", consoleEntries);
 
@@ -222,9 +252,9 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     await expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "lobby");
     await hostPage.locator("#auto-deck-select").selectOption("deck_combo_001");
     await expect(hostPage.locator("#auto-deck-select")).toHaveValue("deck_combo_001");
-    await expect(hostPage.locator("#auto-deck-select option:not([disabled])")).toHaveCount(8);
+    await expect(hostPage.locator("#auto-deck-select option:not([disabled])")).toHaveCount(10);
     await expect(hostPage.locator("#auto-deck-select option[disabled]")).toHaveCount(0);
-    expect((await hostPage.locator("#auto-deck-select option").allTextContents()).join(" ")).not.toContain("自选");
+    expect((await hostPage.locator("#auto-deck-select option").allTextContents()).join(" ")).toContain("自选");
 
     await setProfile(guestPage, "E2E-自动对手");
     await guestPage.goto(`/play?room=${code}`);
@@ -242,9 +272,9 @@ test("automatic beta room starts, advances phases and protects spectator privacy
       expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game"),
       expect(guestPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game"),
     ]);
-    await expect(hostPage.locator(".auto-phase strong")).toHaveText("准备阶段");
+    await reachAutoPlay(hostPage, guestPage, autoState);
     await expect(hostPage.locator(".auto-phase-track li")).toHaveCount(6);
-    await expect(hostPage.locator(".auto-phase-track li.is-current")).toHaveText(/1准备/);
+    await expect(hostPage.locator(".auto-phase-track li.is-current")).toHaveText(/3出牌/);
     await expect(hostPage.locator(".auto-body-status")).toHaveCount(2);
     await expect(hostPage.locator('.auto-progress-counter[aria-label="Mega 0 / 6"]')).toHaveCount(1);
     await expect(hostPage.locator('.auto-progress-counter[aria-label="Mega 0 / 5"]')).toHaveCount(1);
@@ -282,22 +312,8 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     expect(tableAfterLog?.height).toBeCloseTo(tableBeforeLog?.height || 0, 1);
     await expect(guestPage.locator('.auto-slot .auto-card[data-e2e-stable-node="true"]')).toHaveCount(1);
 
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-      const hostPass = hostPage.locator('.auto-prompt.is-mine [data-prompt-value="pass"]');
-      const guestPass = guestPage.locator('.auto-prompt.is-mine [data-prompt-value="pass"]');
-      if (await hostPass.isVisible().catch(() => false)) await hostPass.click({ timeout: 1_000 }).catch(() => {});
-      else if (await guestPass.isVisible().catch(() => false)) await guestPass.click({ timeout: 1_000 }).catch(() => {});
-      else break;
-    }
-
-    const hostTurn = (await hostPage.locator(".auto-phase span").textContent())?.includes("你的回合") ?? false;
-    const currentPage = hostTurn ? hostPage : guestPage;
-    await currentPage.locator(".auto-slot .auto-card").first().evaluate((card) => { card.setAttribute("data-e2e-snapshot-stable", "true"); });
-    await currentPage.locator("[data-phase-advance]").click();
-    await expect(currentPage.locator(".auto-phase strong")).toHaveText("摸牌阶段");
-    await expect(currentPage.locator(".auto-phase-track li.is-current")).toHaveText(/2摸牌/);
+    const currentPage = autoState()?.game.currentPlayerId === autoState()?.you ? hostPage : guestPage;
     await expect(currentPage.locator(".auto-hand [data-auto-card]")).toHaveCount(7);
-    await expect(currentPage.locator('.auto-slot .auto-card[data-e2e-snapshot-stable="true"]')).toHaveCount(1);
 
     await setProfile(spectatorPage, "E2E-自动观战");
     await spectatorPage.goto(`/play/auto/room?code=${code}&spectate=true&perf=1`);
@@ -337,6 +353,93 @@ test("automatic beta room starts, advances phases and protects spectator privacy
   } finally {
     await attachConsole(testInfo, consoleEntries);
     await Promise.allSettled([hostContext.close(), guestContext.close(), spectatorContext.close()]);
+  }
+});
+
+test("automatic custom decks share the editor, cover all remaining roles and exclude unfinished bodies", async ({ browser }, testInfo) => {
+  const contexts = [await browser.newContext(), await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }), await browser.newContext()];
+  const entries: string[] = [];
+  try {
+    const [host, guest, spectator] = await Promise.all(contexts.map((context) => context.newPage()));
+    [host, guest, spectator].forEach((page, i) => observePage(page, `custom-${i}`, entries));
+    await setProfile(host, "E2E-自选房主");
+    await host.locator("#battle-create-room").click();
+    await host.locator('[data-create-mode="auto"]').click();
+    await host.waitForURL(/\/play\/auto\/room\?code=/);
+    await expect(host.locator('[data-auto-custom-editor]')).toBeVisible();
+    const code = new URL(host.url()).searchParams.get("code")!;
+    const cardPool = await host.locator("#auto-battle-catalog").evaluate((element) => {
+      const catalog = JSON.parse(element.textContent || "{}");
+      const prebuilt = new Set(catalog.decks.flatMap((deck: { characterIds: string[] }) => deck.characterIds));
+      const all = Object.values(catalog.cards).filter((card: any) => card.kind === "character").map((card: any) => card.id) as string[];
+      return { all, extra: all.filter((id) => !prebuilt.has(id)) };
+    });
+    expect(cardPool.extra).toHaveLength(14);
+    const hostIds = [...cardPool.extra, ...cardPool.all.filter((id) => !cardPool.extra.includes(id))].slice(0, 16);
+    const guestIds = [...cardPool.extra.slice(3), ...cardPool.all.filter((id) => !cardPool.extra.includes(id))].slice(0, 16);
+
+    const edit = async (page: Page, bodyId: string, ids: string[]) => {
+      await page.locator('[data-auto-custom-editor]').click();
+      const dialog = page.locator("#auto-deck-dialog");
+      await expect(dialog).toBeVisible();
+      await expect(dialog.locator("[data-custom-body-option]")).toHaveCount(9);
+      await expect(dialog.locator("[data-custom-character]")).toHaveCount(120);
+      await expect(dialog.locator('[data-custom-body-option="body_link_001"]')).toHaveCount(1);
+      for (const excluded of ["body_roaming_001", "body_antimagic_001", "body_crossfire_001"]) {
+        await expect(dialog.locator(`[data-custom-body-option="${excluded}"]`)).toHaveCount(0);
+      }
+      await dialog.locator(`[data-custom-body-option="${bodyId}"]`).click();
+      await dialog.locator("[data-custom-clear]").click();
+      await expect(dialog.locator("[data-custom-picker-done]")).toBeDisabled();
+      for (const id of ids) await dialog.locator(`[data-custom-card][data-card-id="${id}"] img`).click();
+      await expect(dialog.locator("[data-custom-picker-count]")).toHaveText("16/16");
+      await dialog.locator(`[data-custom-preview="${ids[0]}"]`).click();
+      await expect(page.locator("#auto-deck-preview .battle-card-detail__text")).toBeVisible();
+      await page.locator("#auto-deck-preview [data-card-art-zoom]").click();
+      await expect(page.locator("#auto-deck-preview [data-card-hd-image]")).toBeVisible();
+      await page.locator("#auto-deck-preview [data-card-detail-back]").click();
+      await page.locator("#auto-deck-preview [data-preview-close]").click();
+      if ((page.viewportSize()?.width || 0) <= 600) {
+        const header = await dialog.locator(".battle-custom-picker__top").boundingBox();
+        const tray = await dialog.locator("[data-custom-picker-selected]").boundingBox();
+        expect(tray!.y).toBeGreaterThanOrEqual(header!.y + header!.height - 1);
+        await expect(dialog.locator(".battle-custom-card__tip:visible")).toHaveCount(0);
+      }
+      await testInfo.attach(`custom-editor-${bodyId}`, { body: await page.screenshot({ path: testInfo.outputPath(`custom-editor-${bodyId}.png`) }), contentType: "image/png" });
+      const overflow = await dialog.evaluate((el) => el.scrollWidth - el.clientWidth);
+      expect(overflow).toBeLessThanOrEqual(1);
+      await dialog.locator("[data-custom-picker-done]").click();
+      await expect(dialog).not.toBeVisible();
+      await expect(page.locator("#auto-deck-select")).toHaveValue("custom");
+    };
+    await edit(host, "body_link_001", hostIds);
+    await host.reload();
+    await expect(host.locator("#auto-deck-select")).toHaveValue("custom");
+    expect(await host.evaluate(() => JSON.parse(localStorage.getItem("qunyou-auto-loadout-v1") || "null").customDeck.characterIds.length)).toBe(16);
+
+    await setProfile(guest, "E2E-自选对手");
+    await guest.goto(`/play?room=${code}`);
+    await guest.locator(`article[data-room-code="${code}"] [data-room-action]`).click();
+    await guest.waitForURL(/\/play\/auto\/room\?code=/);
+    await edit(guest, "body_mizai_001", guestIds);
+    await host.locator('[data-auto-command="ready"]').click();
+    await guest.locator('[data-auto-command="ready"]').click();
+    await expect(host.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game");
+    await expect(guest.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game");
+    await expect(host.locator(".auto-hand [data-auto-card]")).toHaveCount(5);
+    await expect(host.locator(".auto-player.is-self .auto-slot [data-auto-card]")).toHaveCount(2);
+    await expect(host.locator(".auto-player.is-opponent .auto-card--character-back")).toHaveCount(2);
+    await host.reload();
+    await expect(host.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game");
+    await setProfile(spectator, "E2E-自选观战");
+    await spectator.goto(`/play/auto/room?code=${code}&spectate=true`);
+    await expect(spectator.locator("#auto-battle-app")).toHaveAttribute("data-phase", "game");
+    await expect(spectator.locator(".auto-hand")).toHaveCount(0);
+    await expect(spectator.locator(".auto-card--character-back")).toHaveCount(4);
+    expect(entries.filter((entry) => entry.includes("pageerror"))).toEqual([]);
+  } finally {
+    await attachConsole(testInfo, entries);
+    await Promise.allSettled(contexts.map((context) => context.close()));
   }
 });
 
