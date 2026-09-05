@@ -115,7 +115,7 @@ async function main() {
     assert.equal(info.width, 750);
     assert.equal(info.height, 1050);
   }
-  await fs.writeFile(path.join(OUT, "index.html"), `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>KGY 双面制卡预览</title><style>body{margin:24px;background:#090b13;color:#e8dfc6;font:16px system-ui}section{display:flex;flex-wrap:wrap;gap:20px}a{flex:0 1 300px}img{width:100%;border-radius:10px}p{line-height:1.7}</style><h1>KGY 双面制卡预览</h1><p>本体双面与骑士卡文本均读取当前确认数据。骑士卡原画尚未制作，因此这里只展示无原画布局；自动结算已经实现，等待巡界预组完成后开放。点击查看完整尺寸。</p><section>${allFiles.map((file) => `<a href="${file}"><img src="${file}" alt="${file}"></a>`).join("")}</section></html>`);
+  await fs.writeFile(path.join(OUT, "index.html"), `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>KGY 双面制卡预览</title><style>body{margin:24px;background:#090b13;color:#e8dfc6;font:16px system-ui}section{display:flex;flex-wrap:wrap;gap:20px}a{flex:0 1 300px}img{width:100%;border-radius:10px}p{line-height:1.7}</style><h1>KGY 双面制卡预览</h1><p>本体双面与骑士卡文本均读取当前确认数据。骑士卡原画尚未制作，因此这里只展示无原画布局；自动结算与巡界组已经开放。点击查看完整尺寸。</p><section>${allFiles.map((file) => `<a href="${file}"><img src="${file}" alt="${file}"></a>`).join("")}</section></html>`);
   console.log(`Verified ${allFiles.length} KGY preview card faces (750x1050). Preview: ${OUT}/index.html`);
 }
 

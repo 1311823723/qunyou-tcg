@@ -134,7 +134,7 @@ test("同时触发提示可从快照恢复本体特性，且不会被旧提示�
   assert.equal(takePendingBodyTrigger(pending, promptContext, "stale-trigger", "p1"), undefined);
 });
 
-test("9\u5f20\u672c\u4f53\u5168\u90e8\u7531\u6280\u80fd\u6ce8\u518c\u8868\u7ba1\u7406", () => {
+test("10张本体全部由技能注册表管理", () => {
   assert.deepEqual(registeredBodySkillIds(), Object.values(BODY_IDS));
   for (const id of Object.values(BODY_IDS)) assert.ok(bodySkillForId(id), `${id} 应已注册`);
 });

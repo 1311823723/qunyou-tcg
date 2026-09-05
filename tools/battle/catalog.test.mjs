@@ -9,7 +9,7 @@ const bodies = JSON.parse(await readFile(new URL("data/cards/bodies.json", root)
 const handCards = JSON.parse(await readFile(new URL("data/cards/hand_cards.json", root), "utf8"));
 const cardArt = JSON.parse(await readFile(new URL("data/card-art.json", root), "utf8"));
 const workerConfig = JSON.parse(await readFile(new URL("worker/wrangler.jsonc", root), "utf8"));
-const deckFiles = ["aggro", "mizai", "combo", "trans", "dispatch", "blood", "ambush", "defense"];
+const deckFiles = ["aggro", "mizai", "combo", "trans", "dispatch", "blood", "ambush", "defense", "link", "roaming"];
 const decks = await Promise.all(deckFiles.map(async (slug) =>
   JSON.parse(await readFile(new URL(`data/decks/${slug}.deck.json`, root), "utf8")),
 ));

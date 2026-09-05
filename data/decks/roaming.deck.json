@@ -1,0 +1,25 @@
+{
+  "id": "deck_roaming_001",
+  "name": "巡界组",
+  "archetype": "巡界流",
+  "bodyId": "body_roaming_001",
+  "characterIds": [
+    "char_052_fengyaojing_desert-butcher",
+    "char_053_xiaoka_zaun-beast",
+    "char_075_baizi_weilong",
+    "char_024_weixiaokele_ironclad",
+    "char_025_baizi_high-priest",
+    "char_112_miaosila_locksmith",
+    "char_028_arthur_undertaker",
+    "char_027_weixiaokele_medium",
+    "char_029_daidaishou_luna",
+    "char_030_miaosila_detective",
+    "char_031_arthur_watcher",
+    "char_080_huihuan_visionary-painter",
+    "char_032_weixiaokele_silent-hunter",
+    "char_099_kabishou_invisible-duck",
+    "char_100_miaosila_demolitionist",
+    "char_103_zongzi_snitch"
+  ],
+  "notes": "观察对手发动角色技能的主定位，收集对应骑士卡，再用场上同定位角色作为费用换取应变效果。荒漠屠夫与祖安怒兽组成强攻连携；退场回收、补位与六定位均衡配置帮助KGY持续周转骑士卡。"
+}

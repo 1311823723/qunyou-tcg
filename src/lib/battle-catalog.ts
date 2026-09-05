@@ -15,6 +15,8 @@ const ARCHETYPE_THEME_SLUG: Record<string, string> = {
   "卖血流": "blood",
   "伏击流": "ambush",
   "防御流": "defense",
+  "连携流": "link",
+  "巡界流": "roaming",
 };
 
 const EXTRA_FORM_FILE_SLUGS: Record<string, string> = {

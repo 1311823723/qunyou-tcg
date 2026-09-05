@@ -19,7 +19,7 @@ test("auto room reuses serialized snapshots by viewer perspective", () => {
 });
 
 test("auto client serializes authoritative actions and gates diagnostics", () => {
-  assert.match(clientSource, /if \(pendingAction\) return false/);
+  assert.match(clientSource, /if \(interactionState\.pendingAction\) return false/);
   assert.match(clientSource, /params\.get\("perf"\) === "1"/);
   assert.match(clientSource, /renderPlayer\(opponent[\s\S]*"opponent"\)/);
   assert.match(clientSource, /replaceGameRegion/);

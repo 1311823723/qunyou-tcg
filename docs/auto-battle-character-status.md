@@ -5,8 +5,8 @@
 ## 总览
 
 - 角色总数：120
-- 预组角色（去重）：106
-- 非预组角色：14
+- 预组角色（去重）：117
+- 非预组角色：3
 - 自动化：未实现 0 / 实现中 0 / 已实现 120
 - 设计复核：已确认 78 / 待确认 0 / 待实测 42 / 待优化 0
 
@@ -22,6 +22,7 @@
 | 执棋组 | 调度流 | 16/16 | 已解锁 |
 | 连携组 | 连携流 | 16/16 | 已解锁 |
 | 密裁组 | 密裁 | 16/16 | 已解锁 |
+| 巡界组 | 巡界流 | 16/16 | 已解锁 |
 | 变通组 | 拟态流 | 16/16 | 已解锁 |
 
 ## 状态清单
@@ -52,8 +53,8 @@
 
 ## 卡池范围
 
-- 预组角色（去重 106 张）：在下方明细的“预组”列中标明复用关系。
-- 非预组角色（14 张）：`char_021_xiaoapan_warlock` 术士-小阿潘、`char_024_weixiaokele_ironclad` 罗莎-微笑尅乐、`char_028_arthur_undertaker` 殡葬者-Arthur、`char_029_daidaishou_luna` 露娜-呆呆兽、`char_030_miaosila_detective` 侦探-喵斯拉、`char_031_arthur_watcher` 观者-Arthur、`char_053_xiaoka_zaun-beast` 祖安怒兽-小卡、`char_075_baizi_weilong` 威龙-摆子、`char_077_xiaoapan_shepherd` 牧羊人-小阿潘、`char_080_huihuan_visionary-painter` 异画师-灰焕、`char_099_kabishou_invisible-duck` 隐形鸭-柯柯、`char_100_miaosila_demolitionist` 爆炸王-喵斯拉、`char_102_miaosila_dodo` 呆呆鸟-喵斯拉、`char_103_zongzi_snitch` 告密者-粽子。
+- 预组角色（去重 117 张）：在下方明细的“预组”列中标明复用关系。
+- 非预组角色（3 张）：`char_021_xiaoapan_warlock` 术士-小阿潘、`char_077_xiaoapan_shepherd` 牧羊人-小阿潘、`char_102_miaosila_dodo` 呆呆鸟-喵斯拉。
 
 
 ## 角色明细
@@ -83,15 +84,15 @@
 | char_021_xiaoapan_warlock | 术士-小阿潘 | 强攻 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
 | char_022_weixiaokele_goblin | 埃德加-微笑尅乐 | 强攻 | 逆命组 | 已实现 | 已确认 |  |
 | char_023_arthur_falcon | 猎鹰-Arthur | 防御 | 不落组、变通组 | 已实现 | 已确认 |  |
-| char_024_weixiaokele_ironclad | 罗莎-微笑尅乐 | 防御 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
-| char_025_baizi_high-priest | 大祭司-摆子 | 防御 | 不落组 | 已实现 | 已确认 |  |
+| char_024_weixiaokele_ironclad | 罗莎-微笑尅乐 | 防御 | 巡界组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
+| char_025_baizi_high-priest | 大祭司-摆子 | 防御 | 不落组、巡界组 | 已实现 | 已确认 |  |
 | char_026_miaosila_neo | 涅奥-喵斯拉 | 资源 | 连携组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
-| char_027_weixiaokele_medium | 通灵者-微笑尅乐 | 资源 | 变通组 | 已实现 | 已确认 |  |
-| char_028_arthur_undertaker | 殡葬者-Arthur | 资源 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
-| char_029_daidaishou_luna | 露娜-呆呆兽 | 控制 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
-| char_030_miaosila_detective | 侦探-喵斯拉 | 控制 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
-| char_031_arthur_watcher | 观者-Arthur | 控制 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
-| char_032_weixiaokele_silent-hunter | 黑鸦-微笑尅乐 | 支援 | 变通组 | 已实现 | 已确认 |  |
+| char_027_weixiaokele_medium | 通灵者-微笑尅乐 | 资源 | 巡界组、变通组 | 已实现 | 已确认 |  |
+| char_028_arthur_undertaker | 殡葬者-Arthur | 资源 | 巡界组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
+| char_029_daidaishou_luna | 露娜-呆呆兽 | 控制 | 巡界组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
+| char_030_miaosila_detective | 侦探-喵斯拉 | 控制 | 巡界组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
+| char_031_arthur_watcher | 观者-Arthur | 控制 | 巡界组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
+| char_032_weixiaokele_silent-hunter | 黑鸦-微笑尅乐 | 支援 | 巡界组、变通组 | 已实现 | 已确认 |  |
 | char_033_weixiaokele_watcher | 风姬-微笑尅乐 | 支援 | 执棋组、变通组 | 已实现 | 已确认 |  |
 | char_034_xiaoapan_avenger | 复仇者-小阿潘 | 伏击 | 幽幕组 | 已实现 | 已确认 |  |
 | char_035_xiaoapan_silent-hunter | 静默猎手-小阿潘 | 伏击 | 幽幕组、执棋组 | 已实现 | 已确认 |  |
@@ -111,8 +112,8 @@
 | char_049_xiaoapan_undertaker | 殡葬者-小阿潘 | 资源 | 密裁组 | 已实现 | 已确认 |  |
 | char_050_dong_bomber | 爆炸王-dong | 强攻 | 密裁组 | 已实现 | 待实测 | 连续弃置黑色牌的牌差上限待实战验证。 |
 | char_051_baizi_lobbyist | 说客-摆子 | 支援 | 执棋组、密裁组、变通组 | 已实现 | 已确认 |  |
-| char_052_fengyaojing_desert-butcher | 荒漠屠夫-风妖精 | 强攻 | 逆命组 | 已实现 | 已确认 |  |
-| char_053_xiaoka_zaun-beast | 祖安怒兽-小卡 | 强攻 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
+| char_052_fengyaojing_desert-butcher | 荒漠屠夫-风妖精 | 强攻 | 逆命组、巡界组 | 已实现 | 已确认 |  |
+| char_053_xiaoka_zaun-beast | 祖安怒兽-小卡 | 强攻 | 巡界组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
 | char_054_xiangcai_prophet | 预言家-香菜 | 资源 | 操作组 | 已实现 | 待实测 | 观看5张时的牌堆控制强度待实战验证。 |
 | char_055_xiaoapan_judge | 审判官-小阿潘 | 控制 | 执棋组、变通组 | 已实现 | 已确认 |  |
 | char_056_huihuan_watcher | 观者-灰焕 | 资源 | 操作组 | 已实现 | 待实测 | 看3选行动牌的检索效率待实战验证。 |
@@ -134,12 +135,12 @@
 | char_072_guamao_lover | 恋人-瓜猫 | 控制 | 幽幕组 | 已实现 | 已确认 |  |
 | char_073_xiaoapan_bee-medic | 蜂医-小阿潘 | 防御 | 逆命组、连携组 | 已实现 | 已确认 |  |
 | char_074_huihuan_nameless | 无名-灰焕 | 伏击 | 幽幕组、执棋组 | 已实现 | 已确认 |  |
-| char_075_baizi_weilong | 威龙-摆子 | 强攻 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
+| char_075_baizi_weilong | 威龙-摆子 | 强攻 | 巡界组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
 | char_076_daidaishou_hackclaw | 骇爪-呆呆兽 | 控制 | 连携组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
 | char_077_xiaoapan_shepherd | 牧羊人-小阿潘 | 控制 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
 | char_078_huihuan_deep-blue | 深蓝-灰焕 | 控制 | 连携组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
 | char_079_xiaoka_visionary-painter | 异画师-小卡 | 支援 | 连携组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
-| char_080_huihuan_visionary-painter | 异画师-灰焕 | 支援 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
+| char_080_huihuan_visionary-painter | 异画师-灰焕 | 支援 | 巡界组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
 | char_081_aichitun_morphling | 变形鸭-爱吃豚侠 | 资源 | 执棋组、连携组 | 已实现 | 已确认 |  |
 | char_082_aichitun_embalmer | 入殓师-爱吃豚侠 | 资源 | 执棋组 | 已实现 | 已确认 |  |
 | char_083_aichitun_detective | 侦探-爱吃豚侠 | 伏击 | 执棋组 | 已实现 | 已确认 |  |
@@ -158,11 +159,11 @@
 | char_096_kabishou_politician | 政治家-柯柯 | 支援 | 逆命组 | 已实现 | 已确认 |  |
 | char_097_horus-lupercal_bird-eater | 食鸟鸭-荷鲁斯-卢佩卡尔 | 伏击 | 幽幕组 | 已实现 | 已确认 |  |
 | char_098_qindi_silencer | 静音-秦帝 | 伏击 | 幽幕组 | 已实现 | 已确认 |  |
-| char_099_kabishou_invisible-duck | 隐形鸭-柯柯 | 伏击 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
-| char_100_miaosila_demolitionist | 爆炸王-喵斯拉 | 伏击 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
+| char_099_kabishou_invisible-duck | 隐形鸭-柯柯 | 伏击 | 巡界组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
+| char_100_miaosila_demolitionist | 爆炸王-喵斯拉 | 伏击 | 巡界组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
 | char_101_pangpanghali_identity-thief | 身份窃贼-胖胖哈力 | 伏击 | 幽幕组 | 已实现 | 已确认 |  |
 | char_102_miaosila_dodo | 呆呆鸟-喵斯拉 | 伏击 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
-| char_103_zongzi_snitch | 告密者-粽子 | 伏击 | 非预组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
+| char_103_zongzi_snitch | 告密者-粽子 | 伏击 | 巡界组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
 | char_104_player_falcon | 猎鹰-机器人 1 号 | 伏击 | 幽幕组 | 已实现 | 已确认 |  |
 | char_105_tutu_professional | 专业杀手-图图 | 伏击 | 幽幕组 | 已实现 | 已确认 |  |
 | char_106_qindi_vulture | 秃鹫-秦帝 | 伏击 | 幽幕组 | 已实现 | 待实测 | 一次获得全部弃牌的收益上限待实战验证。 |
@@ -171,7 +172,7 @@
 | char_109_qindi_bodyguard | 保镖-秦帝 | 防御 | 不落组 | 已实现 | 已确认 |  |
 | char_110_pangpanghali_canadian | 加拿大鹅-胖胖哈力 | 防御 | 不落组 | 已实现 | 已确认 |  |
 | char_111_horus-lupercal_adventurer | 冒险家-荷鲁斯-卢佩卡尔 | 防御 | 不落组 | 已实现 | 已确认 |  |
-| char_112_miaosila_locksmith | 锁匠-喵斯拉 | 防御 | 不落组 | 已实现 | 已确认 |  |
+| char_112_miaosila_locksmith | 锁匠-喵斯拉 | 防御 | 不落组、巡界组 | 已实现 | 已确认 |  |
 | char_113_miaosila_celebrity | 网红-喵斯拉 | 防御 | 连携组 | 已实现 | 待实测 | 非预组角色已接入全自动结算；自选阵容组合强度待实战验证。 |
 | char_114_zongzi_bodyguard | 保镖-粽子 | 防御 | 不落组 | 已实现 | 待实测 | 同等费用取消技能的交换效率待实战验证。 |
 | char_115_player_mimic | 模仿鹅-机器人 1 号 | 防御 | 不落组 | 已实现 | 已确认 |  |

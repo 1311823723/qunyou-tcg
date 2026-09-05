@@ -34,7 +34,15 @@ function observePage(page: Page, label: string, entries: string[]) {
 }
 
 async function skipCoach(context: BrowserContext) {
-  await context.addInitScript((key) => localStorage.setItem(key, "1"), COACH_KEY);
+  await context.addInitScript((key) => {
+    localStorage.setItem(key, "1");
+    // The development toolbar is not part of the shipped table and covers bottom cards.
+    document.addEventListener("DOMContentLoaded", () => {
+      const style = document.createElement("style");
+      style.textContent = "astro-dev-toolbar { display: none !important; }";
+      document.head.append(style);
+    });
+  }, COACH_KEY);
 }
 
 async function setProfile(page: Page, nickname: string) {
@@ -252,7 +260,7 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     await expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "lobby");
     await hostPage.locator("#auto-deck-select").selectOption("deck_combo_001");
     await expect(hostPage.locator("#auto-deck-select")).toHaveValue("deck_combo_001");
-    await expect(hostPage.locator("#auto-deck-select option:not([disabled])")).toHaveCount(10);
+    await expect(hostPage.locator("#auto-deck-select option:not([disabled])")).toHaveCount(11);
     await expect(hostPage.locator("#auto-deck-select option[disabled]")).toHaveCount(0);
     expect((await hostPage.locator("#auto-deck-select option").allTextContents()).join(" ")).toContain("自选");
 
@@ -333,9 +341,7 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     expect(compactLandscape?.height).toBeLessThanOrEqual(328);
 
     await guestPage.setViewportSize({ width: 390, height: 844 });
-    await guestPage.locator("[data-auto-mobile-layout]").click();
     await expect(guestPage.locator("#auto-battle-app")).toHaveAttribute("data-mobile-layout", "portrait");
-    expect(await guestPage.evaluate(() => localStorage.getItem("qunyou-auto-mobile-layout-v1"))).toBe("portrait");
     await testInfo.attach("auto-mobile-portrait", { body: await guestPage.screenshot(), contentType: "image/png" });
     const overflow = await guestPage.locator("#auto-battle-app").evaluate((element) => ({
       app: element.scrollWidth - element.clientWidth,
@@ -345,8 +351,48 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     expect(overflow.page).toBeLessThanOrEqual(1);
 
     await hostPage.setViewportSize({ width: 390, height: 844 });
-    await expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-mobile-table", "false");
-    await expect(hostPage.locator("#auto-battle-root")).toHaveClass(/is-table-fit/);
+    await expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-mobile-table", "true");
+    await expect(hostPage.locator("#auto-battle-root")).toHaveClass(/is-mobile-table/);
+
+    for (const size of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 740, height: 360 }, { width: 320, height: 640 }]) {
+      await currentPage.setViewportSize(size);
+      await expect(currentPage.locator("#auto-battle-app")).toHaveAttribute("data-mobile-layout", size.width > size.height ? "landscape" : "portrait");
+      await expect(currentPage.locator(".auto-game")).toHaveCSS("transform", "none");
+      const pageOverflow = await currentPage.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+      expect(pageOverflow).toBeLessThanOrEqual(1);
+      const hand = currentPage.locator(".auto-hand__cards");
+      await hand.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+      const legalCard = currentPage.locator('.auto-hand [data-auto-card][data-interactive="true"]').last();
+      if (await legalCard.count()) {
+        await legalCard.click();
+        await expect(currentPage.locator("[data-confirm-play]")).toBeVisible();
+        const confirm = await currentPage.locator("[data-confirm-play]").boundingBox();
+        expect(confirm!.height).toBeGreaterThanOrEqual(40);
+        expect(confirm!.x).toBeGreaterThanOrEqual(0);
+        expect(confirm!.x + confirm!.width).toBeLessThanOrEqual(size.width);
+        const scroll = await hand.evaluate((element) => element.scrollLeft);
+        await currentPage.locator("[data-cancel-play]").click();
+        expect(await hand.evaluate((element) => element.scrollLeft)).toBeCloseTo(scroll, 0);
+        await expect(currentPage.locator("[data-confirm-play]")).toHaveCount(0);
+      }
+    }
+    await currentPage.setViewportSize({ width: 390, height: 844 });
+    await currentPage.locator('[data-phase-advance]').click();
+    await expect(currentPage.locator('.auto-phase strong')).toHaveText('布阵阶段');
+    // The UI must wait for a decision, even when a deployment would be legal.
+    await currentPage.waitForTimeout(1600);
+    await expect(currentPage.locator('.auto-phase strong')).toHaveText('布阵阶段');
+    await expect(currentPage.locator('.auto-player.is-self .auto-slot [data-auto-card]')).toHaveCount(2);
+    await currentPage.locator('.auto-player.is-self .auto-slot [data-auto-card]').first().click();
+    await expect(currentPage.locator('[data-role-action="reveal"]')).toBeVisible();
+    await currentPage.locator('[data-role-action="cancel"]').click();
+    await currentPage.locator('[data-deploy]').click();
+    await expect(currentPage.locator('.auto-player.is-self .auto-slot [data-auto-card]')).toHaveCount(3);
+    await expect(currentPage.locator('.auto-phase strong')).toHaveText('布阵阶段');
+    await currentPage.screenshot({ path: '/tmp/tcg-auto-portrait.png' });
+    await currentPage.setViewportSize({ width: 844, height: 390 });
+    await currentPage.screenshot({ path: '/tmp/tcg-auto-landscape.png' });
+    expect(consoleEntries.filter((entry) => entry.includes("pageerror"))).toEqual([]);
 
     const revision = await guestPage.locator("#auto-battle-app").getAttribute("data-phase");
     expect(revision).toBe("game");
@@ -374,7 +420,7 @@ test("automatic custom decks share the editor, cover all remaining roles and exc
       const all = Object.values(catalog.cards).filter((card: any) => card.kind === "character").map((card: any) => card.id) as string[];
       return { all, extra: all.filter((id) => !prebuilt.has(id)) };
     });
-    expect(cardPool.extra).toHaveLength(14);
+    expect(cardPool.extra).toHaveLength(3);
     const hostIds = [...cardPool.extra, ...cardPool.all.filter((id) => !cardPool.extra.includes(id))].slice(0, 16);
     const guestIds = [...cardPool.extra.slice(3), ...cardPool.all.filter((id) => !cardPool.extra.includes(id))].slice(0, 16);
 
@@ -382,10 +428,10 @@ test("automatic custom decks share the editor, cover all remaining roles and exc
       await page.locator('[data-auto-custom-editor]').click();
       const dialog = page.locator("#auto-deck-dialog");
       await expect(dialog).toBeVisible();
-      await expect(dialog.locator("[data-custom-body-option]")).toHaveCount(9);
+      await expect(dialog.locator("[data-custom-body-option]")).toHaveCount(10);
       await expect(dialog.locator("[data-custom-character]")).toHaveCount(120);
       await expect(dialog.locator('[data-custom-body-option="body_link_001"]')).toHaveCount(1);
-      for (const excluded of ["body_roaming_001", "body_antimagic_001", "body_crossfire_001"]) {
+      for (const excluded of ["body_antimagic_001", "body_crossfire_001"]) {
         await expect(dialog.locator(`[data-custom-body-option="${excluded}"]`)).toHaveCount(0);
       }
       await dialog.locator(`[data-custom-body-option="${bodyId}"]`).click();

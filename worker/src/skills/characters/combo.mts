@@ -59,7 +59,7 @@ const prophet: CharacterSkillModule = {
     if (!cards.length) return;
     context.setPrompt("prophet-order", {
       title: "鱼群预演",
-      message: "输入牌堆顶与牌堆底的顺序，用 | 分隔。例如 1,3 | 2,4。",
+      message: "将卡牌分配到牌堆顶或牌堆底，并调整各自顺序。",
       cardInstanceIds: cards.map((card) => card.instanceId),
       selectableCards: cards,
     }, { cardIds: cards.map((card) => card.instanceId) });

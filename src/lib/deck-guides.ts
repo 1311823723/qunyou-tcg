@@ -11,6 +11,25 @@ export interface DeckGuide {
 }
 
 export const deckGuides: Record<string, DeckGuide> = {
+  deck_roaming_001: {
+    title: "六定位骑士巡界路线",
+    flow: ["观察对手技能定位", "获得对应骑士卡", "保留同定位费用角色", "择机使用骑士卡", "累计4次后极巨化"],
+    priorities: [
+      "骑士卡需要退场一张相同主定位角色作为费用。获得卡后先确认场上是否保留了对应定位，不要只看效果强弱。",
+      "荒漠屠夫先强化【出刀】，命中后可触发祖安怒兽获得额外【出刀】；这是预组最明确的主动压血路线。",
+      "通灵者与殡葬者负责利用或回收退场角色。支援骑士卡用于重新补场，避免连续支付费用后角色区断档。",
+      "普通伏击骑士卡适合处理仍留在场上的发动者；面对休整自身或退场自身技能，应把伏击资源留给极巨化后的 FINAL 反制。",
+    ],
+    mega: "累计使用4张普通骑士卡后，在己方准备阶段开始时可极巨化。进入时六种骑士卡全部变为FINAL并补齐缺少类型，获得3点极巨能量和2点极巨体力。每回合仍至多使用1张骑士卡；最后1点能量对应效果结算后翻回，剩余FINAL卡变回普通卡。",
+    extraFormLabel: "极巨化节点",
+    risk: "六定位覆盖提高了应变范围，但骑士卡能否发动取决于对应定位角色是否仍在场。频繁退场会迅速消耗阵容，且获得哪种骑士卡主要由对手的技能定位决定。",
+    coreCards: ["char_052_fengyaojing_desert-butcher", "char_053_xiaoka_zaun-beast", "char_028_arthur_undertaker", "char_027_weixiaokele_medium"],
+    replaceableCards: ["char_031_arthur_watcher", "char_099_kabishou_invisible-duck"],
+    replaceSuggestions: [
+      { card: "char_077_xiaoapan_shepherd", reason: "需要更直接的角色控制时，可替换观者-Arthur；但退场费用会进一步加快阵容消耗" },
+      { card: "char_102_miaosila_dodo", reason: "对手弃牌效果较多时，可替换隐形鸭-柯柯以加强手牌保护" },
+    ],
+  },
   deck_link_001: {
     title: "主动连携换阵路线",
     flow: ["发动低费用角色", "接续另一定位", "摸牌或换手", "累计3次换手收益", "准备阶段极巨化"],

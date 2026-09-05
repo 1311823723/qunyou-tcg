@@ -4225,26 +4225,111 @@ export class AutoBattleRoom extends DurableObject<Env> {
     return actions;
   }
 
+  private describeActions(player: AutoPlayerState, actions: AutoLegalAction[]) {
+    return actions.map((action): AutoLegalAction => {
+      const instanceId = String(action.payload?.instanceId || "");
+      const description: NonNullable<AutoLegalAction["interaction"]> = {};
+      if (action.type === "hand:play") {
+        const card = player.hand.find((card) => card.instanceId === instanceId);
+        description.label = handName(String(action.payload?.resolvedAs || card?.definitionId || ""));
+        description.quickPlay = Boolean(card && card.definitionId !== HAND_IDS.impersonate && !action.selection);
+        if (Number.isInteger(action.payload?.targetSlotIndex)) description.target = {
+          playerId: opponentOf(this.state!, player.id)!.id, slotIndex: Number(action.payload!.targetSlotIndex),
+        };
+      } else if (action.type === "skill:activate") {
+        const role = this.findCharacterInstance(player, instanceId);
+        const definition = role ? this.registeredCharacterSkill(player, role)?.definition || characterById.get(role.definitionId) : undefined;
+        description.label = definition?.skillName || "发动技能";
+        const previewCost = role ? this.previewSkillCost(player, role) : undefined;
+        const free = player.retired.some((card) => card.instanceId === instanceId);
+        if (free) description.cost = { kind: "none" };
+        else if (action.selection) description.cost = { kind: "rest", amount: action.selection.min };
+        else if (previewCost?.type === "退场") description.cost = { kind: "retire", fixedIds: [instanceId], amount: 1 };
+        else if (previewCost?.type === "复合" && previewCost.text === "休整自身/退场自身") description.cost = {
+          kind: "choice", fixedIds: [instanceId], options: [
+            { label: "休整自身", payload: { costMode: "rest" } },
+            { label: "退场自身", payload: { costMode: "retire" } },
+          ],
+        };
+        else description.cost = { kind: "none" };
+      } else if (action.type === "rider:activate") {
+        description.label = riderById.get(String(action.payload?.riderId))?.name || "使用骑士卡";
+        description.cost = { kind: "retire", amount: action.selection?.min || 1 };
+      } else if (action.type === "bomb:remove") {
+        description.label = "拆除炸弹";
+        description.cost = { kind: "rest", amount: action.selection?.min || 1 };
+      } else if (action.type === "body:activate") {
+        description.label = "发动本体技能";
+        description.cost = { kind: "none" };
+      }
+      return { ...action, interaction: description };
+    });
+  }
+
+  private unavailableReasons(player: AutoPlayerState, actions: AutoLegalAction[]) {
+    const reasons: Record<string, string> = {};
+    const allowed = new Set(actions.flatMap((action) => action.payload?.instanceId ? [String(action.payload.instanceId)] : []));
+    const state = this.state!;
+    for (const card of player.hand) {
+      if (allowed.has(card.instanceId) || state.prompt?.playerId === player.id && state.prompt.cardInstanceIds?.includes(card.instanceId)) continue;
+      reasons[card.instanceId] = state.winnerId ? "对局已结束" : state.prompt
+        ? state.prompt.playerId !== player.id ? "正在等待对手选择" : "这张牌不能用于当前响应或选择"
+        : state.currentPlayerId !== player.id ? "当前不是你的回合"
+        : state.phase !== "play" ? "当前不是出牌阶段"
+        : handIsLocked(state, player.id, card.definitionId) ? "这张牌受到禁用效果限制"
+        : !canUseInPlay(state, player, card.definitionId) ? "不满足使用时机或本回合使用次数已用尽"
+        : "当前没有合法目标或使用分支";
+    }
+    const timedSkills = new Set(this.legalSkillInstanceIds(player));
+    for (const card of [...player.characterSlots.flatMap((slot) => slot && "instanceId" in slot ? [slot] : []), ...player.retired]) {
+      if (actions.some((action) => action.type === "skill:activate" && action.payload?.instanceId === card.instanceId)) continue;
+      const cost = this.skillCostSelection(player, card.instanceId);
+      reasons[card.instanceId] = this.isCharacterSkillLocked(player, card.instanceId) ? "当前技能被封锁"
+        : card.faceDown && this.isCharacterRevealLocked(player, card.instanceId) ? "当前角色不能明置发动"
+        : timedSkills.has(card.instanceId) && cost && cost.cardInstanceIds.length < cost.min ? `需要 ${cost.min} 张角色支付休整费用，当前只有 ${cost.cardInstanceIds.length} 张`
+        : "当前发动时机、次数或技能条件不满足";
+    }
+    if (player.body && !actions.some((action) => action.type === "body:activate")) reasons[player.body.instanceId] = player.bodyState.extraFormUsed ? "本局主动额外形态已使用" : !player.bodyState.flipped ? "尚未满足额外形态解锁条件" : "当前没有可主动发动的本体技能";
+    return reasons;
+  }
+
+  /** Mirrors payment transformations without consuming modifiers or revealing opponent cards. */
+  private previewSkillCost(player: AutoPlayerState, role: CardInstance) {
+    const registered = this.registeredCharacterSkill(player, role);
+    const definition = registered?.definition || characterById.get(role.definitionId);
+    if (!definition || player.retired.some((card) => card.instanceId === role.instanceId)) return { type: "无", amount: 0, text: "" };
+    let type = definition.cost.type, amount = Number(definition.cost.amount || 0);
+    const text = definition.cost.text || "";
+    const body = this.state?.turnModifiers.find((modifier) => modifier.ownerId === player.id && modifier.kind === "body-next-skill-cost-rest-one" && modifier.characterInstanceId === role.instanceId);
+    if (body && type === "休整") amount = Math.max(body.sourceDefinitionId === "char_084_keke_watcher" ? 1 : 0, amount - 1);
+    else if (body?.sourceDefinitionId === "char_084_keke_watcher" && type === "休整自身") { type = "休整"; amount = 1; }
+    if (this.state?.turnModifiers.some((modifier) => modifier.ownerId === player.id && modifier.kind === "trans-next-skill-cost-down")) {
+      if (type === "休整") amount = Math.max(0, amount - 1);
+      else if (type === "休整自身") { type = "休整"; amount = 1; }
+    }
+    if (type !== "退场" && this.state?.turnModifiers.some((modifier) => modifier.ownerId === player.id && modifier.kind === "next-skill-cost-rest-one")) { type = "休整"; amount = 1; }
+    if (type === "复合" && text === "同等费用") {
+      const promptedId = this.state?.prompt?.kind === "character-trigger" ? String(this.state.prompt.context?.eventId || "") : "";
+      const module = registered?.module;
+      const response = this.state?.prompt?.kind === "response" && this.state.responsePlayerId === player.id;
+      const trigger = module ? this.skillTriggerContext(module.trigger.event, module.trigger.relation, undefined, player, response) : undefined;
+      const event = promptedId ? this.state?.recentEvents.find((event) => event.id === promptedId) : trigger && "type" in trigger ? trigger as AutoBattleEvent : undefined;
+      type = String(event?.metadata?.costType || "未满足");
+      amount = Math.max(0, Number(event?.metadata?.costAmount || 0));
+      if (!["休整", "休整自身", "退场"].includes(type) || type === "休整" && !amount) type = "未满足";
+    }
+    return { type, amount, text };
+  }
+
   private skillCostSelection(player: AutoPlayerState, instanceId: string): AutoLegalAction["selection"] | undefined {
     const role = this.findCharacterInstance(player, instanceId);
-    const definition = role ? this.registeredCharacterSkill(player, role)?.definition || characterById.get(role.definitionId) : undefined;
-    if (!role || !definition) return undefined;
-    if (definition.cost.type === "退场" || definition.cost.type === "无") return undefined;
+    if (!role) return undefined;
+    const cost = this.previewSkillCost(player, role);
+    if (cost.type === "未满足") return { kind: "skill-cost", cardInstanceIds: [], min: 1, max: 1 };
+    if (cost.type === "休整自身") return { kind: "skill-cost", cardInstanceIds: [instanceId], min: 1, max: 1 };
+    if (cost.type !== "休整" || cost.amount <= 0) return undefined;
     const available = player.characterSlots.flatMap((slot) => slot && "instanceId" in slot ? [slot.instanceId] : []);
-    const nextCostOne = this.state?.turnModifiers.some((modifier) => modifier.ownerId === player.id && modifier.kind === "next-skill-cost-rest-one");
-    const bodyModifier = this.state?.turnModifiers.find((modifier) => modifier.ownerId === player.id && modifier.kind === "body-next-skill-cost-rest-one" && modifier.characterInstanceId === instanceId);
-    const transReduction = this.state?.turnModifiers.some((modifier) => modifier.ownerId === player.id && modifier.kind === "trans-next-skill-cost-down");
-    if (definition.cost.type === "休整自身") {
-      if (!transReduction && !nextCostOne && bodyModifier?.sourceDefinitionId !== "char_084_keke_watcher") {
-        return { kind: "skill-cost", cardInstanceIds: [instanceId], min: 1, max: 1 };
-      }
-      return { kind: "skill-cost", cardInstanceIds: available, min: 1, max: 1 };
-    }
-    let amount = Number(definition.cost.amount || 0);
-    if (bodyModifier) amount = Math.max(bodyModifier.sourceDefinitionId === "char_084_keke_watcher" ? 1 : 0, amount - 1);
-    if (transReduction) amount = Math.max(0, amount - 1);
-    if (nextCostOne) amount = 1;
-    return amount > 0 ? { kind: "skill-cost", cardInstanceIds: available, min: amount, max: amount } : undefined;
+    return { kind: "skill-cost", cardInstanceIds: available, min: cost.amount, max: cost.amount };
   }
 
   private payableLegalSkillInstanceIds(player: AutoPlayerState) {
@@ -4294,7 +4379,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       && this.state.currentPlayerId === viewerId
       && Boolean(viewer && phaseCanFinishAutomatically(this.state, viewer))
       && this.state.players.every((player) => this.payableLegalSkillInstanceIds(player).length === 0);
-    const legalActions = spectator || !viewer ? [] : this.legalActionsFor(viewer, legalHandCardIds, legalSkillInstanceIds);
+    const legalActions = spectator || !viewer ? [] : this.describeActions(viewer, this.legalActionsFor(viewer, legalHandCardIds, legalSkillInstanceIds));
     return {
       mode: "auto",
       roomCode: this.state.roomCode,
@@ -4365,6 +4450,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         legalSkillInstanceIds,
         canAutoAdvancePhase,
         legalActions,
+        unavailableReasons: spectator || !viewer ? {} : this.unavailableReasons(viewer, legalActions),
         legalBodyActionPlayerIds: !spectator && viewer && this.canActivateBodyExtra(viewer) ? [viewer.id] : [],
         skillCostRestReductionByCharacterId: spectator || !viewer ? {} : Object.fromEntries(this.state.turnModifiers
           .filter((modifier) => modifier.ownerId === viewer.id && modifier.kind === "body-next-skill-cost-rest-one" && modifier.characterInstanceId)

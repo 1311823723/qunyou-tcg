@@ -12,12 +12,12 @@ const filler = "char_006_weixiaokele_ninja";
 async function settle(r) { for (let i = 0; r.state.prompt && i < 30; i++) { if (!["response", "character-trigger"].includes(r.state.prompt.kind)) return; await r.pass(); } }
 function saveAndRestore(r) { r.room.state = structuredClone(r.state); }
 
-test("120角色均有模块；自选允许9个已开放本体，拒绝3个未开放本体与非法卡组", () => {
+test("120角色均有模块；自选允许10个已开放本体，拒绝2个未开放本体与非法卡组", () => {
   assert.equal(registeredCharacterSkillIds().length, 120);
   for (const card of characters) { assert.ok(characterSkillForId(card.id)); assert.equal(implementation[card.id].automation, "implemented"); }
   const deck = { bodyId: "body_combo_001", characterIds: characters.slice(0, 16).map((c) => c.id) };
   assert.equal(validAutoLoadout("custom", deck), true);
-  for (const body of bodies) assert.equal(validAutoLoadout("custom", { ...deck, bodyId: body.id }), !["body_roaming_001", "body_antimagic_001", "body_crossfire_001"].includes(body.id), body.id);
+  for (const body of bodies) assert.equal(validAutoLoadout("custom", { ...deck, bodyId: body.id }), !["body_antimagic_001", "body_crossfire_001"].includes(body.id), body.id);
   for (const ids of [deck.characterIds.slice(0, 15), [...deck.characterIds, E.warlock], Array(16).fill(E.warlock), ["unknown", ...deck.characterIds.slice(1)]]) assert.equal(validAutoLoadout("custom", { ...deck, characterIds: ids }), false);
 });
 

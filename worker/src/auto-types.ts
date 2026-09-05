@@ -108,16 +108,7 @@ export interface SkillContinuation {
   data?: Record<string, unknown>;
 }
 
-export interface AutoLegalAction {
-  type: string;
-  payload?: Record<string, string | number | boolean | string[]>;
-  selection?: {
-    kind: "cards" | "skill-cost" | "order";
-    cardInstanceIds: string[];
-    min: number;
-    max: number;
-  };
-}
+export type { AutoLegalAction } from "../../src/lib/auto-action-types";
 
 export interface TurnModifier {
   id: string;
