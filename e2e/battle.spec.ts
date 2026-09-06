@@ -329,8 +329,8 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     await expect(spectatorPage.locator(".auto-hand [data-auto-card]")).toHaveCount(0);
     await expect(spectatorPage.locator(".auto-hand")).toHaveCount(0);
     await expect(spectatorPage.locator(".auto-player")).toHaveCount(2);
-    await expect(spectatorPage.getByText("玩家 A ·", { exact: false })).toBeVisible();
-    await expect(spectatorPage.getByText("玩家 B ·", { exact: false })).toBeVisible();
+    await expect(spectatorPage.locator(".auto-side-label").filter({ hasText: "玩家 A" })).toBeVisible();
+    await expect(spectatorPage.locator(".auto-side-label").filter({ hasText: "玩家 B" })).toBeVisible();
     await expect(spectatorPage.locator("[data-phase-advance]")).toBeDisabled();
     await expect(spectatorPage.locator(".auto-perf-panel")).toBeVisible();
     await expect(hostPage.locator(".auto-perf-panel")).toHaveCount(0);

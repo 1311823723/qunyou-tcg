@@ -110,7 +110,7 @@ async function flowTable(page: import('@playwright/test').Page) {
     await expect(page.locator('#auto-battle-app')).not.toHaveAttribute('data-action-pending', 'true');
   };
   publish(); await expect(page.locator('.auto-hand')).toBeVisible();
-  return { state, commands, errors, publish, ack };
+  return { state, commands, errors, publish, ack, reconnect: () => channel!.close() };
 }
 
 test('unified targets, costs, back navigation, desktop quick gestures and keyboard guards', async ({ page }) => {
@@ -183,6 +183,7 @@ test('unified targets, costs, back navigation, desktop quick gestures and keyboa
   await expect(page.locator('[data-confirm-play]')).toHaveCount(0);
   await page.locator('[data-auto-card="target"]').click();
   await page.locator('[data-auto-card="target-a"]').click();
+  await expect(page.locator('#auto-target-layer line')).toHaveCount(1);
   await page.screenshot({ path: '/tmp/tcg-flow-desktop.png' });
   await page.setViewportSize({ width: 1920, height: 1080 });
   await expect(page.locator('.auto-game')).toHaveCSS('transform', 'none');
@@ -259,7 +260,35 @@ test('touch response and dying choices keep context and never use quick gestures
 });
 
 test('seat identity, public event feedback, responsive regions and spectator privacy', async ({ page }) => {
-  const { state, publish, errors } = await flowTable(page);
+  const { state, publish, errors, reconnect } = await flowTable(page);
+  await page.evaluate(() => {
+    const animate = Element.prototype.animate;
+    (window as any).seatAnimations = 0;
+    Element.prototype.animate = function(...args: Parameters<typeof animate>) { (window as any).seatAnimations++; return animate.apply(this, args); };
+  });
+  state.game.recentEvents = [{id:'seat-first',type:'skill_used',sourcePlayerId:'p2'}]; state.revision++; publish();
+  await expect.poll(()=>page.evaluate(()=>(window as any).seatAnimations)).toBe(1);
+  state.revision++; publish();
+  await expect(page.locator('.auto-table-event')).toContainText('技能');
+  expect(await page.evaluate(()=>(window as any).seatAnimations)).toBe(1);
+  reconnect();
+  await expect(page.locator('#auto-connection')).toContainText('正在重连');
+  await expect(page.locator('#auto-connection')).toContainText('已连接');
+  state.revision++;publish();
+  await expect(page.locator('.auto-hand')).toBeVisible();
+  expect(await page.evaluate(()=>(window as any).seatAnimations)).toBe(1);
+  await page.locator('[data-auto-mobile-log-toggle]').click();
+  await expect(page.locator('.auto-log')).toBeHidden();
+  await page.locator('[data-auto-mobile-log-toggle]').click();
+  await expect(page.locator('.auto-log')).toBeVisible();
+  await page.setViewportSize({width:1100,height:800});
+  await page.locator('[data-auto-mobile-log-toggle]').click();
+  await expect(page.locator('.auto-log')).toHaveClass(/is-open/);
+  await page.setViewportSize({width:1366,height:768});
+  await expect(page.locator('.auto-log')).not.toHaveClass(/is-open/);
+  await page.locator('[data-auto-card="strike"]').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-confirm-play]')).toHaveCount(0);
   state.players.forEach((player: any) => player.nickname = '同名玩家');
   state.game.currentPlayerId = 'p2';
   state.game.prompt = { id: 'response-seat', kind: 'response', playerId: 'p1', title: '响应', message: '请选择响应方式', options: [{ value: 'pass', label: '放弃响应' }] };
@@ -278,6 +307,8 @@ test('seat identity, public event feedback, responsive regions and spectator pri
     await page.screenshot({path:`/tmp/tcg-seat-${width}.png`});
   }
   await page.setViewportSize({width:1366,height:768});
+  await page.addStyleTag({content: '#auto-battle-app { filter: grayscale(1); }'});
+  await page.screenshot({path:'/tmp/tcg-seat-grayscale.png'});
   await page.emulateMedia({ reducedMotion: 'reduce' });
   state.game.prompt = undefined; state.game.stack = []; state.game.responsePlayerId = undefined;
   state.game.recentEvents = [{id:'new-event', type:'skill_used', sourcePlayerId:'p2', characterDefinitionId:'hidden-definition'}];

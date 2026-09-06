@@ -645,8 +645,8 @@
 .auto-battle .auto-battle__root.is-table-fit .auto-hand { grid-row: 5; }
 .auto-battle .auto-battle__root.is-table-fit .auto-log { grid-row: 1 / 6; }
 @media (min-width:1200px) {
-  .auto-game:has(.auto-log.is-open) { grid-template-columns: minmax(0,1fr) !important; }
-  .auto-battle .auto-log.is-open { display: none; }
+  .auto-game:has(.auto-log.is-collapsed) { grid-template-columns: minmax(0,1fr) !important; }
+  .auto-battle .auto-log.is-collapsed { display: none; }
 }
 @media (max-width:1199px) {
   .auto-battle .auto-game { grid-template-columns: minmax(0,1fr) !important; }
@@ -688,3 +688,32 @@
 .auto-battle .auto-card.is-selected::after { inset: 2px auto auto 2px; width: auto; height: auto; box-shadow: none; transform: none; }
 .auto-battle .auto-player__field .auto-slots { grid-column: 2; }
 .auto-battle .auto-log header { display: flex; justify-content: space-between; align-items: center; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] [data-auto-region="lower"] { grid-row: 3; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-command-center { grid-row: 4; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-hand { grid-row: 5; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-player { display: block; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-player__field { grid-template-columns: 100px minmax(0,1fr); grid-template-rows: auto; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-slots { grid-template-columns: repeat(4,minmax(0,1fr)); }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-game { grid-template-rows: minmax(140px,1fr) 40px minmax(140px,1fr) minmax(105px,auto) minmax(110px,.8fr); }
+.auto-battle .auto-battle__root.is-table-fit .auto-player__field { grid-template-columns: minmax(200px,.65fr) minmax(0,1.35fr); }
+.auto-battle .auto-battle__root.is-table-fit .auto-slot { max-height: 118px; }
+.auto-battle .auto-battle__root.is-table-fit .auto-slot .auto-card { height: 118px; width: 76px; }
+.auto-battle .auto-battle__root.is-table-fit .auto-slots { grid-template-columns: repeat(4,76px); justify-content: start; }
+.auto-battle[data-mobile-table="true"] .auto-identity-cluster .auto-body-wrap { width: 36px; height: auto; flex-basis: 36px; }
+.auto-battle[data-mobile-table="true"] .auto-identity-cluster .auto-body-card { width: 36px; }
+.auto-battle[data-mobile-table="true"] .auto-identity-cluster .auto-player__counters { display: flex; flex-direction: column; gap: 2px; }
+.auto-battle[data-mobile-table="true"] .auto-identity-cluster .auto-health-counter,
+.auto-battle[data-mobile-table="true"] .auto-identity-cluster .auto-progress-counter { display: flex; align-items: center; justify-content: space-between; min-height: 24px; padding: 2px; gap: 2px; }
+.auto-battle[data-mobile-table="true"] .auto-identity-cluster .auto-progress-counter__ring { width: 25px; height: 25px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-player__identity { align-content: start; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-presence { display: none; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-hand { padding: 3px 8px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-hand header { height: 16px; margin: 0; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-hand__cards { height: calc(100% - 16px); padding: 2px 0; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-hand__cards .auto-card { height: 100%; width: auto; flex: 0 0 auto; aspect-ratio: 5/7; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-slot { height: 62px; aspect-ratio: auto; }
+@media (max-width:1199px) {
+  .auto-battle[data-mobile-table] .auto-log { display: none; position: fixed; inset: 45px 6px 6px auto; z-index: 85; transform: none; min-height: 0; max-height: calc(100dvh - 51px); }
+  .auto-battle[data-mobile-table] .auto-log.is-open { display: block; transform: none; }
+  .auto-battle[data-mobile-table] .auto-mobile-log-backdrop.is-open { z-index: 84; }
+}

@@ -119,6 +119,7 @@ type MobileTableLayout = "landscape" | "portrait";
 let mobileTableActive = mobileTableQuery.matches;
 let mobileTableLayout = readMobileTableLayout();
 let mobileLogOpen = false;
+let desktopLogCollapsed = false;
 const expandedRetired = new Set<string>();
 let feedbackBaseline: string | undefined;
 let feedbackReady = false;
@@ -164,7 +165,7 @@ function syncMobileTableState() {
     quickButton.textContent = quickPlay ? "快捷出牌：开" : "快捷出牌：关";
     quickButton.setAttribute("aria-pressed", String(quickPlay));
   }
-  logButton?.setAttribute("aria-expanded", mobileLogOpen ? "true" : "false");
+  logButton?.setAttribute("aria-expanded", String(innerWidth >= 1200 ? !desktopLogCollapsed : mobileLogOpen));
 }
 
 if (roomCodeElement) roomCodeElement.textContent = roomCode || "------";
@@ -940,12 +941,12 @@ function renderGame() {
       ${snapshot.game.prompt && interactionState.localSelectionAction || snapshot.game.prompt && selectedCardAction || snapshot.game.prompt && interactionState.selectedRoleInstanceId ? responseContext(snapshot.game.prompt!) : ""}
       ${interaction}
       ${renderPendingAction()}
-      ${snapshot.game.winnerId ? `<div class="auto-winner"><strong>${snapshot.game.winnerId === snapshot.you ? "你获胜了" : "对手获胜"}</strong><a href="/play" class="btn btn--primary">返回大厅</a></div>` : ""}
+      ${snapshot.game.winnerId ? `<div class="auto-winner"><strong>${escapeHtml(sideName(snapshot.game.winnerId))}获胜</strong><a href="/play" class="btn btn--primary">返回大厅</a></div>` : ""}
     </section>`);
   regions.set("lower", lowerPlayer ? renderPlayer(lowerPlayer, !spectator, spectator ? "玩家 B" : undefined, "lower") : "");
   if (me) regions.set("hand", `<section class="auto-hand" data-auto-region="hand"><header><strong>我的手牌</strong><span>${me.hand.length} 张 · 牌堆 ${snapshot.game.handDeckCount} · 弃牌 ${snapshot.game.handDiscard.length}</span></header><div class="auto-hand__cards">${hand || "<p>没有手牌</p>"}</div></section>`);
   regions.set("backdrop", `<button type="button" class="auto-mobile-log-backdrop ${mobileLogOpen ? "is-open" : ""}" data-auto-region="backdrop" data-auto-mobile-log-close aria-label="关闭日志" tabindex="-1"></button>`);
-  regions.set("log", `<aside id="auto-mobile-log" class="auto-log ${mobileLogOpen ? "is-open" : ""}" data-auto-region="log" aria-label="公开日志" ${mobileTableActive ? 'role="dialog"' : ""}><header><span>公开日志</span><button type="button" class="auto-mobile-log-close" data-auto-mobile-log-close aria-label="关闭日志">×</button></header><ol>${logs}</ol></aside>`);
+  regions.set("log", `<aside id="auto-mobile-log" class="auto-log ${mobileLogOpen ? "is-open" : ""} ${desktopLogCollapsed ? "is-collapsed" : ""}" data-auto-region="log" aria-label="公开日志" ${mobileTableActive ? 'role="dialog"' : ""}><header><span>公开日志</span><button type="button" class="auto-mobile-log-close" data-auto-mobile-log-close aria-label="关闭日志">×</button></header><ol>${logs}</ol></aside>`);
   regions.set("overlay", `<div data-auto-region="overlay" style="display:contents">${promptDialog}${renderCardDetail()}${renderRiderDetail()}</div>`);
   regions.set("perf", renderPerfPanel());
   const nextStructureKey = `${spectator}:${opponent?.id || ""}:${lowerPlayer?.id || ""}:${me?.id || ""}`;
@@ -962,9 +963,9 @@ function renderGame() {
     for (const [name, html] of regions) if (html) replaceGameRegion(name, html, updated);
   }
   lastUpdatedRegions = updated;
-  root.querySelectorAll<HTMLDetailsElement>("[data-retired-owner]").forEach(el => el.addEventListener("toggle", () => {
+  root.querySelectorAll<HTMLDetailsElement>("[data-retired-owner]").forEach(el => { el.ontoggle = () => {
     if (el.open) expandedRetired.add(el.dataset.retiredOwner!); else expandedRetired.delete(el.dataset.retiredOwner!);
-  }));
+  }; });
   root.querySelector<HTMLElement>(".auto-game")?.classList.toggle("has-local-choice", Boolean(interactionState.localSelectionAction));
   bindGameActions(me, opponent);
   fitDesktopTable();
@@ -1161,13 +1162,15 @@ function bindMobileLogActions() {
 function openMobileLog(trigger: HTMLElement) {
   if (!snapshot?.game.started) return;
   mobileLogReturnFocus = trigger;
-  mobileLogOpen = !mobileLogOpen;
+  if (innerWidth >= 1200) desktopLogCollapsed = !desktopLogCollapsed;
+  else mobileLogOpen = !mobileLogOpen;
   syncMobileTableState();
   render();
-  window.requestAnimationFrame(() => root?.querySelector<HTMLButtonElement>(".auto-mobile-log-close")?.focus());
+  if (innerWidth < 1200 && mobileLogOpen) window.requestAnimationFrame(() => root?.querySelector<HTMLButtonElement>(".auto-mobile-log-close")?.focus());
 }
 
 function closeMobileLog() {
+  if (innerWidth >= 1200) { desktopLogCollapsed = true; syncMobileTableState(); render(); mobileLogReturnFocus?.focus(); return; }
   if (!mobileLogOpen) return;
   mobileLogOpen = false;
   syncMobileTableState();
@@ -1676,14 +1679,14 @@ mobileTableQuery.addEventListener("change", (event) => {
   render();
 });
 window.addEventListener("resize", () => {
-  const nextLayout = readMobileTableLayout();
-  if (nextLayout !== mobileTableLayout) {
-    mobileTableLayout = nextLayout;
-    syncMobileTableState();
-  }
+  mobileTableLayout = readMobileTableLayout();
+  const closeDrawer = innerWidth >= 1200 && mobileLogOpen;
+  if (closeDrawer) mobileLogOpen = false;
+  syncMobileTableState();
+  if (closeDrawer) render();
   fitDesktopTable();
-  updateTableFeedback();
 });
+
 document.addEventListener("fullscreenchange", syncMobileTableState);
 syncMobileTableState();
 connect();
