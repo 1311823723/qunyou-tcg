@@ -324,3 +324,49 @@ test('seat identity, public event feedback, responsive regions and spectator pri
   await expect(page.locator('.auto-slot').first()).not.toContainText('刺客');
   expect(errors).toEqual([]);
 });
+
+test('original health, Mega and Z artwork stays visible with its animations', async ({ page }) => {
+  const { state, publish } = await flowTable(page);
+  const zBody = await page.evaluate(() => Object.values(JSON.parse(document.querySelector('#auto-battle-catalog')!.textContent!).cards).find((card: any) => card.kind === 'body' && card.extraFormType === 'z-move') as any);
+  expect(zBody).toBeTruthy();
+  state.players[1].body.definitionId = zBody.id;
+  state.players[1].bodyState.progressMax = 5;
+  state.revision++; publish();
+  for (const [width,height] of [[1366,768],[390,844],[320,640],[844,390]]) {
+    await page.setViewportSize({width,height});
+    for (const icons of ['.auto-health-counter__icons','.auto-progress-counter__icons']) {
+      for (const row of await page.locator(icons).all()) {
+        await expect(row).toBeVisible();
+        expect(await row.locator('img').evaluateAll(imgs => imgs.every(i => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth > 0))).toBe(true);
+      }
+    }
+    if (width < height) {
+      const seats = await page.locator('.auto-player').evaluateAll(els => els.map(el => ({height:el.getBoundingClientRect().height, content:el.querySelector('.auto-player__field')!.getBoundingClientRect().bottom - el.getBoundingClientRect().top})));
+      for(const seat of seats) expect(seat.height-seat.content).toBeLessThan(18);
+    }
+    await page.screenshot({path:`/tmp/tcg-crystals-${width}.png`});
+  }
+  await page.setViewportSize({width:390,height:844});
+  state.players[0].health = 1;
+  state.players[0].bodyState.progress = 4;
+  state.revision++;publish();
+  await expect(page.locator('.is-self .auto-health-counter')).toHaveClass(/is-damage/);
+  await expect(page.locator('.is-self .auto-progress-counter')).toHaveClass(/is-progressing/);
+  await expect(page.locator('.is-self .auto-health-counter__icon.is-pulsing')).toHaveCSS('animation-name','auto-counter-pulse');
+  await page.screenshot({path:'/tmp/tcg-crystals-low-health.png'});
+  state.players[0].health = 4;
+  state.revision++;publish();
+  await expect(page.locator('.is-self .auto-health-counter')).toHaveClass(/is-heal/);
+  state.players[0].bodyState.flipped = true;
+  state.revision++;publish();
+  await expect(page.locator('.auto-body-cinematic')).toContainText('Mega 进化');
+  await expect(page.locator('.auto-body-cinematic')).toHaveCount(0);
+  state.players[1].bodyState.flipped = true;
+  state.revision++;publish();
+  await expect(page.locator('.auto-body-cinematic')).toContainText('Z 招式就绪');
+  await expect(page.locator('.is-opponent .auto-progress-counter__icon.is-ready')).toHaveCount(5);
+  await expect(page.locator('.auto-body-cinematic')).toHaveCount(0);
+  state.players[1].bodyState.extraFormUsed = true;
+  state.revision++;publish();
+  await expect(page.locator('.auto-body-cinematic')).toContainText('Z 招式发动');
+});

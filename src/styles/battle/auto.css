@@ -666,7 +666,6 @@
 .auto-battle[data-mobile-table="true"] .auto-identity-cluster { gap: 3px; }
 .auto-battle[data-mobile-table="true"] .auto-body-wrap { flex-basis: 36px; width: 36px; }
 .auto-battle[data-mobile-table="true"] .auto-player__counters { grid-column: auto; grid-row: auto; position: static; width: auto; flex: 1; }
-.auto-battle[data-mobile-table="true"] .auto-health-counter__icons { display: none; }
 .auto-battle[data-mobile-table="true"] .auto-body-status { display: none; }
 .auto-battle[data-mobile-table="true"] .auto-slots { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 3px; }
 .auto-battle[data-mobile-table="true"] .auto-slot { width: auto; min-width: 0; }
@@ -676,7 +675,6 @@
 .auto-battle[data-mobile-table="true"] .auto-battle__root.is-mobile-table .auto-game-stage { overflow-y: auto; display: block; }
 .auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-game { min-height: 550px; }
 .auto-battle .auto-health-counter { grid-template-columns: auto auto; min-height: 26px; }
-.auto-battle .auto-health-counter__icons, .auto-battle .auto-progress-counter__icons { display: none; }
 .auto-battle .auto-progress-counter { grid-template-columns: auto auto; min-height: 28px; }
 .auto-battle .auto-progress-counter__ring { width: 28px; height: 28px; }
 .auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-game { min-height: 0; grid-template-rows: minmax(66px,1fr) 28px minmax(66px,1fr) 72px minmax(66px,1fr); }
@@ -716,4 +714,56 @@
   .auto-battle[data-mobile-table] .auto-log { display: none; position: fixed; inset: 45px 6px 6px auto; z-index: 85; transform: none; min-height: 0; max-height: calc(100dvh - 51px); }
   .auto-battle[data-mobile-table] .auto-log.is-open { display: block; transform: none; }
   .auto-battle[data-mobile-table] .auto-mobile-log-backdrop.is-open { z-index: 84; }
+}
+
+/* Preserve the original crystal artwork and animated counters at every size. */
+.auto-battle .auto-identity-cluster .auto-health-counter { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 5px; }
+.auto-battle .auto-identity-cluster .auto-progress-counter { display: grid; grid-template-columns: auto 30px minmax(0,1fr); gap: 5px; }
+.auto-battle .auto-identity-cluster .auto-health-counter__icons,
+.auto-battle .auto-identity-cluster .auto-progress-counter__icons { display: flex; flex-wrap: wrap; gap: 2px; }
+.auto-battle .auto-identity-cluster .auto-progress-counter > small { grid-column: 1 / -1; }
+.auto-battle .auto-battle__root.is-table-fit .auto-player__field { grid-template-columns: minmax(340px,1fr) minmax(320px,1.3fr); }
+.auto-battle .auto-identity-cluster .auto-health-counter__icon { width: 15px; height: 15px; }
+.auto-battle .auto-identity-cluster .auto-progress-counter__icon { width: 14px; height: 14px; }
+.auto-battle .auto-identity-cluster .auto-player__counters { flex: 1; }
+.auto-battle .auto-identity-cluster .auto-progress-counter.auto-dynamax-counter { grid-template-columns: auto auto minmax(0,1fr); }
+
+/* Portrait uses content-sized seats: avatar and meters above four full-width slots. */
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-game {
+  grid-template-rows: max-content 32px max-content minmax(80px,max-content) minmax(120px,1fr);
+  align-content: start; gap: 5px; min-height: 0;
+}
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-player { padding: 6px 8px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-player__field { grid-template-columns: minmax(0,1fr); gap: 6px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-identity-cluster { gap: 10px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-identity-cluster .auto-body-wrap { width: 50px; flex-basis: 50px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-identity-cluster .auto-body-card { width: 50px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-identity-cluster .auto-body-card .auto-card { height: 74px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-identity-cluster .auto-health-counter,
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-identity-cluster .auto-progress-counter { display: grid; min-height: 30px; padding: 3px 6px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-player__field .auto-slots { grid-column: 1; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-slot { height: 110px; aspect-ratio: auto; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-slot .auto-card { height: 110px; width: 100%; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-hand__cards { align-items: end; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-hand__cards .auto-card { flex: 0 0 76px; height: 106px; max-height: none; }
+.auto-battle[data-mobile-table="true"] .auto-identity-cluster .auto-body-card .auto-card small { display: none; }
+.auto-battle[data-mobile-table="true"] .auto-identity-cluster .auto-body-card .auto-card strong { font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-player__field { grid-template-columns: minmax(190px,.8fr) minmax(0,1fr); }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-identity-cluster .auto-health-counter,
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-identity-cluster .auto-progress-counter { display: grid; gap: 3px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-identity-cluster .auto-health-counter__icon,
+.auto-battle[data-mobile-table="true"][data-mobile-layout="landscape"] .auto-identity-cluster .auto-progress-counter__icon { width: 10px; height: 10px; }
+@media (max-height:700px) and (orientation:portrait) {
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-game { grid-template-rows: max-content 28px max-content minmax(72px,max-content) minmax(100px,1fr); }
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-slot,
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-slot .auto-card { height: 78px; }
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-identity-cluster .auto-body-card .auto-card { height: 62px; }
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-player__field { gap: 4px; }
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-hand__cards .auto-card { height: 86px; flex-basis: 62px; }
+}
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-hand__cards { min-height: 0; padding: 8px 2px 2px; }
+.auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-hand__cards .auto-card { flex: 0 0 auto; width: auto; height: 100%; max-height: 150px; min-width: 48px; aspect-ratio: 5/7; }
+@media (max-width:420px) {
+  .auto-battle[data-mobile-table="true"] .auto-battle__topbar:has(.auto-quick-play-btn:not([hidden])) { grid-template-columns: max-content max-content repeat(5,max-content); gap: 4px; }
+  .auto-battle[data-mobile-table="true"] .auto-battle__topbar > div > span { display: none; }
 }

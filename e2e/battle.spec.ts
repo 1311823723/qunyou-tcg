@@ -365,15 +365,17 @@ test("automatic beta room starts, advances phases and protects spectator privacy
       const legalCard = currentPage.locator('.auto-hand [data-auto-card][data-interactive="true"]').last();
       if (await legalCard.count()) {
         await legalCard.click();
-        await expect(currentPage.locator("[data-confirm-play]")).toBeVisible();
-        const confirm = await currentPage.locator("[data-confirm-play]").boundingBox();
+        // A shuffled target card enters target selection directly; both flows must remain reachable.
+        const confirmation = currentPage.locator("[data-confirm-play], [data-local-selection-confirm]");
+        await expect(confirmation).toBeVisible();
+        const confirm = await confirmation.boundingBox();
         expect(confirm!.height).toBeGreaterThanOrEqual(40);
         expect(confirm!.x).toBeGreaterThanOrEqual(0);
         expect(confirm!.x + confirm!.width).toBeLessThanOrEqual(size.width);
         const scroll = await hand.evaluate((element) => element.scrollLeft);
-        await currentPage.locator("[data-cancel-play]").click();
+        await currentPage.locator("[data-cancel-play], [data-local-selection-exit]").click();
         expect(await hand.evaluate((element) => element.scrollLeft)).toBeCloseTo(scroll, 0);
-        await expect(currentPage.locator("[data-confirm-play]")).toHaveCount(0);
+        await expect(confirmation).toHaveCount(0);
       }
     }
     await currentPage.setViewportSize({ width: 390, height: 844 });
