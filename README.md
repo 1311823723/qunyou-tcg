@@ -6,8 +6,12 @@
 
 - **版本:** v0.2.0 Demo
 - **模式:** 1v1 对战
-- **预组:** 上头组 / 密裁组 / 操作组 / 变通组 / 执棋组 / 逆命组 / 幽幕组 / 不落组
+- **预组:** 上头组 / 密裁组 / 操作组 / 变通组 / 执棋组 / 逆命组 / 幽幕组 / 不落组 / 连携组 / 巡界组
 - **站点:** https://qunyou-tcg.pages.dev
+
+## 项目文档
+
+从[文档导航](docs/README.md)进入；查看[当前状态与验收](docs/project-status.md)、[待办与路线图](docs/backlog.md)、[重要决策](docs/decisions.md)。当前仓库能力与线上部署状态分别记录，不以本地构建成功推断已上线。
 
 ## 设计方向
 
@@ -94,7 +98,7 @@ Actions 会自动部署对战 Worker；Cloudflare Pages 继续使用现有 GitHu
 
 ```text
 data/           # 卡牌 JSON 数据 + JSON Schema
-docs/           # 规则、关键词、设计原则、style guide
+docs/           # 文档导航、项目状态、待办、决策及规则／开发专题
 playtest/       # 测试记录、平衡笔记
 tools/          # 校验脚本、打印脚本
 src/            # Astro UI 源码
