@@ -34,7 +34,8 @@ const defenseDeck = readJSON("decks/defense.deck.json");
 const linkDeck = readJSON("decks/link.deck.json");
 const roamingDeck = readJSON("decks/roaming.deck.json");
 const antimagicDeck = readJSON("decks/antimagic.deck.json");
-const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck, dispatchDeck, bloodDeck, ambushDeck, defenseDeck, linkDeck, roamingDeck, antimagicDeck];
+const crossfireDeck = readJSON("decks/crossfire.deck.json");
+const allDecks = [aggroDeck, mizaiDeck, comboDeck, transDeck, dispatchDeck, bloodDeck, ambushDeck, defenseDeck, linkDeck, roamingDeck, antimagicDeck, crossfireDeck];
 const characterSkillDir = path.join(projectDir, "worker/src/skills/characters");
 const characterSkillSource = fs.existsSync(characterSkillDir)
   ? fs.readdirSync(characterSkillDir, { recursive: true })

@@ -9,6 +9,7 @@ import defenseDeck from "../../data/decks/defense.deck.json";
 import linkDeck from "../../data/decks/link.deck.json";
 import roamingDeck from "../../data/decks/roaming.deck.json";
 import antimagicDeck from "../../data/decks/antimagic.deck.json";
+import crossfireDeck from "../../data/decks/crossfire.deck.json";
 import { getBodyById, getCharactersByIds } from "./cards";
 import type { BodyCard, CharacterCard } from "./cards";
 
@@ -39,6 +40,7 @@ export const allDecks: DeckData[] = [
   linkDeck as DeckData,
   roamingDeck as DeckData,
   antimagicDeck as DeckData,
+  crossfireDeck as DeckData,
 ];
 
 export function resolveDeck(deck: DeckData): ResolvedDeck {

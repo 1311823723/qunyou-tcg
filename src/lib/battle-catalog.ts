@@ -18,6 +18,7 @@ const ARCHETYPE_THEME_SLUG: Record<string, string> = {
   "连携流": "link",
   "骑士流": "roaming",
   "反制流": "antimagic",
+  "交叉流": "crossfire",
 };
 
 // These bodies have formal card data but are not yet registered in the automatic rules engine.

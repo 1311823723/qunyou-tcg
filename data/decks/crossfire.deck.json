@@ -1,0 +1,25 @@
+{
+  "id": "deck_crossfire_001",
+  "name": "交叉组",
+  "archetype": "交叉流",
+  "bodyId": "body_crossfire_001",
+  "characterIds": [
+    "char_015_weixiaokele_lobbyist",
+    "char_052_fengyaojing_desert-butcher",
+    "char_053_xiaoka_zaun-beast",
+    "char_038_keke_avenger",
+    "char_075_baizi_weilong",
+    "char_054_xiangcai_prophet",
+    "char_056_huihuan_watcher",
+    "char_090_miaosila_medium",
+    "char_002_weixiaokele_assassin",
+    "char_076_daidaishou_hackclaw",
+    "char_031_arthur_watcher",
+    "char_033_weixiaokele_watcher",
+    "char_080_huihuan_visionary-painter",
+    "char_016_baizi_gravy",
+    "char_111_horus-lupercal_adventurer",
+    "char_006_weixiaokele_ninja"
+  ],
+  "notes": "交替发动角色技能与【出刀】建立交叉火力。荒漠屠夫与祖安怒兽负责连续出刀，说客、风姬与异画师强化下一步行为，资源和控制角色保证交叉节奏不断档。"
+}

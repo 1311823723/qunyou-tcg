@@ -63,6 +63,25 @@ export const deckGuides: Record<string, DeckGuide> = {
       { card: "char_075_baizi_weilong", reason: "需要视为使用【出刀】的补充窗口时，可替换一个控制位" },
     ],
   },
+  deck_crossfire_001: {
+    title: "交替连击路线",
+    flow: ["发动角色技能", "使用【出刀】", "触发交叉火力", "接续下一种行为", "极巨化转换收益"],
+    priorities: [
+      "每回合先决定起点：资源或控制角色通常适合先发动，强化角色则适合放在【出刀】前；不要为了凑交替而浪费关键技能。",
+      "荒漠屠夫强化【出刀】后，祖安怒兽可以提供额外【出刀】窗口，是本组最明确的连续火力路线。",
+      "预言家、观者和灵媒负责保证手牌与牌堆质量；刺客、骇爪和观者-Arthur负责让下一次出刀更容易命中或找到目标。",
+      "肉汁和冒险家用于保护交叉链，忍者则在对手准备响应时提供不能被【闪避】的收尾窗口。",
+    ],
+    mega: "累计4次触发【交叉火力】后，在准备阶段开始时可进入极巨化。极巨化期间，角色技能或【出刀】结算完成后，只要此前执行过另一种行为，就可消耗1点极巨能量进行判定，将收益转化为摸牌、获得手牌、观看并明置角色或补位。",
+    extraFormLabel: "极巨化节点",
+    risk: "这不是单纯堆强攻角色的牌组。若连续两次都使用同一种行为，不能触发交叉火力；极巨化判定收益也共用每回合一次的限制，需要把资源和攻击窗口错开安排。",
+    coreCards: ["char_052_fengyaojing_desert-butcher", "char_053_xiaoka_zaun-beast", "char_015_weixiaokele_lobbyist", "char_033_weixiaokele_watcher"],
+    replaceableCards: ["char_090_miaosila_medium", "char_111_horus-lupercal_adventurer"],
+    replaceSuggestions: [
+      { card: "char_038_keke_avenger", reason: "需要更强的额外【出刀】收尾时，可替换一个资源位，但会增加退场压力" },
+      { card: "char_079_xiaoka_visionary-painter", reason: "需要更多基础牌转化与灵活响应时，可替换防御位" },
+    ],
+  },
   deck_aggro_001: {
     title: "压血爆杀路线",
     flow: ["加伤/必中", "打出【出刀】", "触发怦然杀意", "追加【出刀】", "累计 5 点伤害 Mega"],
