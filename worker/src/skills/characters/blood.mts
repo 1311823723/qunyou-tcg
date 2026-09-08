@@ -71,7 +71,7 @@ const desertButcher = immediateCharacterSkill({
 const beeMedic = immediateCharacterSkill({
   cardId: BLOOD_CHARACTER_IDS.beeMedic,
   trigger: { event: "play_phase", relation: "source_self" },
-  canActivate: (context) => context.player.health < context.player.maxHealth,
+  blockedMessage: "体力已满", blockedCode: "condition", canActivate: (context) => context.player.health < context.player.maxHealth,
   effect: (context) => { context.heal(1); },
 });
 
@@ -99,7 +99,7 @@ const vigilante: CharacterSkillModule = {
 const serialKiller = immediateCharacterSkill({
   cardId: BLOOD_CHARACTER_IDS.serialKiller,
   trigger: { event: "health_lost_after", relation: "target_self" },
-  canActivate: (context) => (context.state.usageCounters[`health-reduction-events:${context.state.turnNumber}:${context.player.id}`] || 0) === 2,
+  blockedMessage: "本回合尚不处于第二次体力减少的条件", blockedCode: "condition", canActivate: (context) => (context.state.usageCounters[`health-reduction-events:${context.state.turnNumber}:${context.player.id}`] || 0) === 2,
   effect(context) {
     context.loseOpponentHealth(1, "【终局名单】");
     context.heal(1);
@@ -109,7 +109,7 @@ const serialKiller = immediateCharacterSkill({
 const canadian: CharacterSkillModule = {
   cardId: BLOOD_CHARACTER_IDS.canadian,
   trigger: { event: "judgment_resolved", relation: "any" },
-  canActivate: (context) => Boolean(context.currentJudgmentCard()),
+  blockedMessage: "当前没有可替换的判定牌", blockedCode: "condition", canActivate: (context) => Boolean(context.currentJudgmentCard()),
   activate(context) {
     const card = context.currentJudgmentCard();
     if (!card) return;

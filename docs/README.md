@@ -20,7 +20,7 @@
 - **资产与制卡：**[制卡导出流程](card-export-workflow.md)、[资产存储](asset-storage.md)、[原画待办](card-art-source-backlog.md)。原画待办继续在专题文件维护。
 - **实战与平衡：**[实战记录入口](../playtest/README.md)、[对局记录](../playtest/match-records.md)、[平衡笔记](../playtest/balance-notes.md)、[定位目标](../playtest/role-targets.md)、[卡牌及历史变更](../playtest/changelog.md)。
 - **发布：**[发布检查清单](release-checklist.md)。检查通过不等于完成部署。
-- **专题设计：**[KGY 骑士卡](kgy-rider-card-design.md)、[南山五破魔流](nanshanwu-antimagic-design.md)。设计稿存在不代表已开放或已上线。
+- **专题设计：**[KGY 骑士卡](kgy-rider-card-design.md)、[南山五反制流](nanshanwu-antimagic-design.md)。设计稿存在不代表已开放或已上线。
 
 ## 怎么维护
 
@@ -38,3 +38,5 @@
 需求确认由项目负责人决定，实施者随变更维护记录；真机／实战由实际执行者记录结果。不要虚构负责人、完成日期或发布结果。未确认的建议标明“建议”，发现旧记录失实时标明原因并修正当前摘要，历史验收记录保留当时的范围。
 
 这里的状态和待办只描述事实与安排，不授权提交、推送或部署，也不设置自动定时维护。
+
+- [对战可理解性实现与覆盖记录](auto-battle-explanations.md)：事件原因、确认预览、阻塞条件及未细分项。

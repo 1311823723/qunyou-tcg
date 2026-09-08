@@ -116,7 +116,7 @@ const silentHunterRecycle: CharacterSkillModule = {
   cardId: COMBO_CHARACTER_IDS.silentHunterRecycle,
   trigger: { event: "play_phase", relation: "source_self" },
   usageLimit: { scope: "turn", count: 1 },
-  canActivate: (context) => context.state.handDiscard.some((card) => context.isActionCard(card.definitionId)),
+  blockedMessage: "弃牌区没有可选的行动牌", blockedCode: "target", canActivate: (context) => context.state.handDiscard.some((card) => context.isActionCard(card.definitionId)),
   activate(context) {
     const cards = context.state.handDiscard.filter((card) => context.isActionCard(card.definitionId));
     context.setPrompt("gain-discard-action", { title: "静默回收", message: "选择1张行动牌加入手牌。", min: 1, max: 1, cardInstanceIds: cards.map((card) => card.instanceId), selectableCards: cards });
@@ -142,7 +142,7 @@ const politician = immediateCharacterSkill({
 const justice: CharacterSkillModule = {
   cardId: COMBO_CHARACTER_IDS.justice,
   trigger: { event: "action_resolved", relation: "source_self" },
-  canActivate: (context) => context.event?.metadata?.causedDamage !== true,
+  blockedMessage: "此次效果已造成伤害，不满足发动条件", blockedCode: "condition", canActivate: (context) => context.event?.metadata?.causedDamage !== true,
   activate(context) {
     const cards = context.takeTopHandCards(1);
     if (!cards.length) return;
@@ -164,7 +164,7 @@ const defect: CharacterSkillModule = {
   cardId: COMBO_CHARACTER_IDS.defect,
   trigger: { event: "play_phase", relation: "source_self" },
   usageLimit: { scope: "turn", count: 1 },
-  canActivate: (context) => context.markerCount("充能球") < 3 || context.markerCount("充能球") > 0,
+  blockedMessage: "当前充能球条件不满足", blockedCode: "condition", canActivate: (context) => context.markerCount("充能球") < 3 || context.markerCount("充能球") > 0,
   activate(context) {
     const count = context.markerCount("充能球");
     const options = [];
@@ -267,14 +267,14 @@ const pelican: CharacterSkillModule = {
 const highPriest = immediateCharacterSkill({
   cardId: COMBO_CHARACTER_IDS.highPriest,
   trigger: { event: "action_resolved", relation: "target_self" },
-  canActivate: (context) => context.event?.metadata?.causedDamage !== true,
+  blockedMessage: "此次效果已造成伤害，不满足发动条件", blockedCode: "condition", canActivate: (context) => context.event?.metadata?.causedDamage !== true,
   effect: (context) => { context.heal(1); },
 });
 
 const ninja = immediateCharacterSkill({
   cardId: COMBO_CHARACTER_IDS.ninja,
   trigger: { event: "card_responded", relation: "source_opponent" },
-  canActivate: (context) => context.state.phase === "play" && context.state.currentPlayerId === context.player.id,
+  blockedMessage: "只能在自己的出牌阶段发动", blockedCode: "condition", canActivate: (context) => context.state.phase === "play" && context.state.currentPlayerId === context.player.id,
   effect(context) {
     context.addModifier({ kind: "extra-strike", count: 1, sourceDefinitionId: COMBO_CHARACTER_IDS.ninja });
   },
@@ -283,7 +283,7 @@ const ninja = immediateCharacterSkill({
 const neo: CharacterSkillModule = {
   cardId: COMBO_CHARACTER_IDS.neo,
   trigger: { event: "play_phase", relation: "source_self" },
-  canActivate: (context) => context.player.hand.some((card) => context.isActionCard(card.definitionId)),
+  blockedMessage: "手牌中没有可选的行动牌", blockedCode: "target", canActivate: (context) => context.player.hand.some((card) => context.isActionCard(card.definitionId)),
   activate(context) {
     const cards = context.player.hand.filter((card) => context.isActionCard(card.definitionId));
     context.setPrompt("neo-reveal", { title: "行动展示", message: "选择1张行动牌展示，然后摸1张牌。", min: 1, max: 1, cardInstanceIds: cards.map((card) => card.instanceId), selectableCards: cards });
@@ -303,7 +303,7 @@ const neo: CharacterSkillModule = {
 const birdEater: CharacterSkillModule = {
   cardId: COMBO_CHARACTER_IDS.birdEater,
   trigger: { event: "play_phase", relation: "source_self" },
-  canActivate: (context) => context.state.handDiscard.some((card) => context.isActionCard(card.definitionId)),
+  blockedMessage: "弃牌区没有可选的行动牌", blockedCode: "target", canActivate: (context) => context.state.handDiscard.some((card) => context.isActionCard(card.definitionId)),
   activate(context) {
     const cards = context.state.handDiscard.filter((card) => context.isActionCard(card.definitionId));
     context.setPrompt("bird-eater-shuffle", { title: "弃牌再编", message: "选择至多2张行动牌洗回牌堆，然后摸等量牌。", min: 0, max: Math.min(2, cards.length), cardInstanceIds: cards.map((card) => card.instanceId), selectableCards: cards, options: [{ value: "none", label: "不选择牌" }] });

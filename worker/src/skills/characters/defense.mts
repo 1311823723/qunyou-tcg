@@ -65,7 +65,7 @@ const highPriest = immediateCharacterSkill({
 const bodyguardAichitun = immediateCharacterSkill({
   cardId: DEFENSE_CHARACTER_IDS.bodyguardAichitun,
   trigger: { event: "character_leave_before", relation: "target_self" },
-  canActivate: (context) => context.event?.metadata?.characterInstanceId !== context.role.instanceId,
+  blockedMessage: "不能以发动者自身作为此次对象", blockedCode: "condition", canActivate: (context) => context.event?.metadata?.characterInstanceId !== context.role.instanceId,
   effect(context) {
     const restored = context.restorePreventedCharacter();
     if (!restored) return;
@@ -77,7 +77,7 @@ const bodyguardAichitun = immediateCharacterSkill({
 const bodyguardQindi: CharacterSkillModule = {
   cardId: DEFENSE_CHARACTER_IDS.bodyguardQindi,
   trigger: { event: "damage_before", relation: "target_self" },
-  canActivate: (context) => context.player.characterSlots.some((slot) => slot && "instanceId" in slot && slot.instanceId !== context.role.instanceId),
+  blockedMessage: "己方没有其他可选角色", blockedCode: "target", canActivate: (context) => context.player.characterSlots.some((slot) => slot && "instanceId" in slot && slot.instanceId !== context.role.instanceId),
   activate(context) {
     const options = context.player.characterSlots.flatMap((slot, index) => slot && "instanceId" in slot && slot.instanceId !== context.role.instanceId
       ? [{ value: String(index), label: `休整角色位 ${index + 1}` }] : []);
@@ -110,7 +110,7 @@ const canadian = immediateCharacterSkill({
 const adventurer = immediateCharacterSkill({
   cardId: DEFENSE_CHARACTER_IDS.adventurer,
   trigger: { event: "damage_before", relation: "target_self" },
-  canActivate: (context) => context.event?.cardDefinitionId !== HAND_IDS.strike,
+  blockedMessage: "此技能不能响应【出刀】", blockedCode: "condition", canActivate: (context) => context.event?.cardDefinitionId !== HAND_IDS.strike,
   effect(context) {
     const prevented = context.reducePendingDamage(1);
     if (prevented > 0) context.emitEvent("damage_prevented", { sourcePlayerId: context.player.id, targetPlayerId: context.player.id, amount: prevented });
@@ -120,7 +120,7 @@ const adventurer = immediateCharacterSkill({
 const locksmith: CharacterSkillModule = {
   cardId: DEFENSE_CHARACTER_IDS.locksmith,
   trigger: { event: "hand_lost_before", relation: "target_self" },
-  canActivate: (context) => context.player.hand.length > 0,
+  blockedMessage: "需要至少 1 张手牌", blockedCode: "condition", canActivate: (context) => context.player.hand.length > 0,
   activate(context) {
     context.setPrompt("locksmith-protect", {
       title: "私人物证", message: "选择并展示1张手牌，该牌不能因此失去。",
@@ -172,7 +172,7 @@ const mimic: CharacterSkillModule = {
 const vigilanteTutu: CharacterSkillModule = {
   cardId: DEFENSE_CHARACTER_IDS.vigilanteTutu,
   trigger: { event: "damage_prevented", relation: "source_self" },
-  canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown === false)),
+  blockedMessage: "对手没有可选的明置角色", blockedCode: "target", canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown === false)),
   activate(context) {
     const options = context.opponent()?.characterSlots.flatMap((slot, index) => slot && "instanceId" in slot && slot.faceDown === false
       ? [{ value: String(index), label: characterById.get(slot.definitionId)?.name || `角色位 ${index + 1}` }] : []) || [];

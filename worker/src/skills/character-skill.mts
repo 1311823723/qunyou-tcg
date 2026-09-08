@@ -89,6 +89,8 @@ export interface CharacterSkillModule {
     relation: CharacterTriggerRelation;
   };
   readonly usageLimit?: { scope: "turn" | "game"; count: number };
+  readonly blockedMessage?: string;
+  readonly blockedCode?: "target" | "condition";
   canActivate?(context: CharacterSkillRuntimeContext): boolean;
   activate(context: CharacterSkillRuntimeContext): void;
   onInspectionPrevented?(context: CharacterSkillRuntimeContext, prompt: AutoPrompt): void;
@@ -104,6 +106,8 @@ export function immediateCharacterSkill(input: {
   trigger: CharacterSkillModule["trigger"];
   usageLimit?: CharacterSkillModule["usageLimit"];
   canActivate?: CharacterSkillModule["canActivate"];
+  blockedMessage?: string;
+  blockedCode?: "target" | "condition";
   effect(context: CharacterSkillRuntimeContext): void;
 }): CharacterSkillModule {
   return {
@@ -111,6 +115,8 @@ export function immediateCharacterSkill(input: {
     trigger: input.trigger,
     ...(input.usageLimit ? { usageLimit: input.usageLimit } : {}),
     ...(input.canActivate ? { canActivate: input.canActivate } : {}),
+    blockedMessage: input.blockedMessage,
+    blockedCode: input.blockedCode,
     activate: input.effect,
   };
 }

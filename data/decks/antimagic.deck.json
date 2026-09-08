@@ -1,0 +1,25 @@
+{
+  "id": "deck_antimagic_001",
+  "name": "破魔组",
+  "archetype": "反制流",
+  "bodyId": "body_antimagic_001",
+  "characterIds": [
+    "char_015_weixiaokele_lobbyist",
+    "char_020_baizi_ironclad",
+    "char_021_xiaoapan_warlock",
+    "char_016_baizi_gravy",
+    "char_025_baizi_high-priest",
+    "char_111_horus-lupercal_adventurer",
+    "char_056_huihuan_watcher",
+    "char_089_kabishou_canadian",
+    "char_039_keke_judge",
+    "char_077_xiaoapan_shepherd",
+    "char_116_tutu_vigilante",
+    "char_032_weixiaokele_silent-hunter",
+    "char_033_weixiaokele_watcher",
+    "char_034_xiaoapan_avenger",
+    "char_098_qindi_silencer",
+    "char_102_miaosila_dodo"
+  ],
+  "notes": "对手发动角色技能时积累反魔，随后用强化【出刀】反击。黑鸦与风姬提供进攻与支援，防御和控制角色帮助南山五活到关键反制窗口；本组先作为经典预组开放，自动模式待本体技能模块完成。"
+}

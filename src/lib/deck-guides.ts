@@ -12,7 +12,7 @@ export interface DeckGuide {
 
 export const deckGuides: Record<string, DeckGuide> = {
   deck_roaming_001: {
-    title: "六定位骑士巡界路线",
+    title: "六定位骑士应变路线",
     flow: ["观察对手技能定位", "获得对应骑士卡", "保留同定位费用角色", "择机使用骑士卡", "累计4次后极巨化"],
     priorities: [
       "骑士卡需要退场一张相同主定位角色作为费用。获得卡后先确认场上是否保留了对应定位，不要只看效果强弱。",
@@ -44,6 +44,24 @@ export const deckGuides: Record<string, DeckGuide> = {
     coreCards: ["char_081_aichitun_morphling", "char_019_dong_defect-robot", "char_079_xiaoka_visionary-painter", "char_084_keke_watcher"],
     replaceableCards: ["char_020_baizi_ironclad", "char_076_daidaishou_hackclaw"],
     replaceSuggestions: [{ card: "char_030_miaosila_detective", reason: "需要稳定拆手牌时替换宣言控制，但休整自身会减少场上换手对象" }],
+  },
+  deck_antimagic_001: {
+    title: "反制重斩路线",
+    flow: ["等待角色技能", "获得反魔标记", "用强化出刀反击", "控制关键角色", "极巨化封锁能力"],
+    priorities: [
+      "反魔标记每回合最多获得1枚且不能囤积，看到对手发动角色技能后先判断本回合是否有稳定的【出刀】窗口。",
+      "黑鸦、风姬和观者提供进攻与支援，肉汁、大祭司和冒险家负责保护血线；不要为了触发反魔而主动交出不必要的角色技能。",
+      "控制角色优先处理会阻止出刀或会连续触发防御的明置角色，保留至少一个强攻角色作为反魔费用和后续收尾。",
+    ],
+    mega: "累计3次通过【反魔法】移去标记强化【出刀】后，在准备阶段开始时可进入极巨化。黑色分割强化下一张出刀并在其结算前压制对手角色技能；反魔领域则暂时封锁一张明置角色。",
+    extraFormLabel: "极巨化节点",
+    risk: "这是反应型强攻，不是无条件加伤。对手不发动角色技能时，南山五无法积累反魔；强化出刀仍可被手牌【闪避】响应，极巨化的两个分支也共用每回合限一次。",
+    coreCards: ["char_015_weixiaokele_lobbyist", "char_032_weixiaokele_silent-hunter", "char_033_weixiaokele_watcher", "char_016_baizi_gravy"],
+    replaceableCards: ["char_056_huihuan_watcher", "char_102_miaosila_dodo"],
+    replaceSuggestions: [
+      { card: "char_052_fengyaojing_desert-butcher", reason: "需要更稳定的强化出刀时，可替换资源位并增加主动压血能力" },
+      { card: "char_075_baizi_weilong", reason: "需要视为使用【出刀】的补充窗口时，可替换一个控制位" },
+    ],
   },
   deck_aggro_001: {
     title: "压血爆杀路线",

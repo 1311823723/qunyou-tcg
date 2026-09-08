@@ -137,7 +137,7 @@ const seer: CharacterSkillModule = {
 const avenger = immediateCharacterSkill({
   cardId: MIZAI_CHARACTER_IDS.avenger,
   trigger: { event: "damage_after", relation: "source_self" },
-  canActivate: (context) => (context.state.usageCounters[`damage-events-dealt:${context.state.turnNumber}:${context.player.id}`] || 0) === 2,
+  blockedMessage: "本回合尚不处于第二次造成伤害的条件", blockedCode: "condition", canActivate: (context) => (context.state.usageCounters[`damage-events-dealt:${context.state.turnNumber}:${context.player.id}`] || 0) === 2,
   effect(context) {
     context.addModifier({ kind: "extra-strike", count: 1, sourceDefinitionId: MIZAI_CHARACTER_IDS.avenger });
   },
@@ -240,7 +240,7 @@ function openDetectiveReward(context: CharacterSkillRuntimeContext) {
 const detective: CharacterSkillModule = {
   cardId: MIZAI_CHARACTER_IDS.detective,
   trigger: { event: "play_phase", relation: "source_self" },
-  canActivate: (context) => context.player.hand.length > 0,
+  blockedMessage: "需要至少 1 张手牌", blockedCode: "condition", canActivate: (context) => context.player.hand.length > 0,
   activate(context) {
     context.setPrompt("pindian-own", {
       title: "谜案对决",
@@ -405,7 +405,7 @@ const neo: CharacterSkillModule = {
 const falcon: CharacterSkillModule = {
   cardId: MIZAI_CHARACTER_IDS.falcon,
   trigger: { event: "strike_dodged", relation: "source_self" },
-  canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown)),
+  blockedMessage: "对手没有可选的暗置角色", blockedCode: "target", canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown)),
   activate(context) {
     const options = context.opponent()?.characterSlots.flatMap((slot, slotIndex) => slot && "instanceId" in slot && slot.faceDown
       ? [{ value: String(slotIndex), label: `对手角色位 ${slotIndex + 1}` }]
@@ -491,7 +491,7 @@ const sheriff: CharacterSkillModule = {
 const assassin: CharacterSkillModule = {
   cardId: MIZAI_CHARACTER_IDS.assassin,
   trigger: { event: "strike_used", relation: "source_opponent" },
-  canActivate: (context) => Boolean(context.opponent()?.hand.length),
+  blockedMessage: "对手没有可选手牌", blockedCode: "target", canActivate: (context) => Boolean(context.opponent()?.hand.length),
   activate(context) {
     const opponent = context.opponent();
     inspect(context, "opponentHand");
@@ -588,7 +588,7 @@ const fengyaojingWatcher: CharacterSkillModule = {
 const ironclad: CharacterSkillModule = {
   cardId: MIZAI_CHARACTER_IDS.ironclad,
   trigger: { event: "play_phase", relation: "source_self" },
-  canActivate: (context) => context.player.hand.length > 0,
+  blockedMessage: "需要至少 1 张手牌", blockedCode: "condition", canActivate: (context) => context.player.hand.length > 0,
   activate(context) {
     context.setPrompt("ironclad-discard", {
       title: "蓄力一击",

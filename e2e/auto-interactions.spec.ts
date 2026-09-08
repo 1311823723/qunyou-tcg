@@ -130,7 +130,7 @@ test('unified targets, costs, back navigation, desktop quick gestures and keyboa
   await page.locator('[data-auto-card="role-a"]').click();
   await page.locator('[data-role-action="skill"]').click();
   await page.locator('[data-auto-card="role-b"]').click();
-  await expect(page.locator('.auto-local-selection')).toContainText('休整：我方的刺客-微笑尅乐');
+  await expect(page.locator('.auto-local-selection')).toContainText('休整 1 张角色：我方的刺客-微笑尅乐');
   await page.locator('[data-local-selection-cancel]').click();
   await expect(page.locator('[data-role-action="skill"]')).toBeVisible();
   await page.locator('[data-role-action="skill"]').click();
@@ -369,4 +369,79 @@ test('original health, Mega and Z artwork stays visible with its animations', as
   state.players[1].bodyState.extraFormUsed = true;
   state.revision++;publish();
   await expect(page.locator('.auto-body-cinematic')).toContainText('Z 招式发动');
+});
+
+test('explanations preserve drafts, show ownership and yield to new decisions', async ({ page }) => {
+  const { state, commands, errors, publish } = await flowTable(page);
+  state.game.legalActions.find((a: any) => a.type === 'skill:activate').interaction.targetTiming = 'resolution';
+  state.game.legalActions.find((a: any) => a.type === 'skill:activate').interaction.effectText = '正式效果长文本。'.repeat(120) + '效果结束。';
+  state.game.skillBlockers = { 'role-b': { code: 'usage', message: '本回合发动次数已用尽' } };
+  state.game.recentEvents = [{ id: 'explain-1', type: 'cards_drawn', sourcePlayerId: 'p1', targetPlayerId: 'p1', amount: 1, cause: { kind: 'rest-reward', sourcePlayerId: 'p1' } }];
+  state.revision++; publish();
+  await expect(page.locator('.auto-table-event')).toContainText('我方摸 1 张牌 · 休整发动者的收益');
+  await expect(page.locator('[data-auto-card="role-b"]')).toContainText('次数已用尽');
+  await expect(page.locator('.is-opponent .auto-card__availability')).toHaveCount(0);
+  await page.locator('[data-auto-card="role-a"]').click();
+  await page.locator('[data-role-action="skill"]').click();
+  await page.locator('[data-auto-card="role-b"]').click();
+  await expect(page.locator('.auto-confirmation-preview')).toContainText('我方的刺客-柯柯');
+  await expect(page.locator('.auto-confirmation-preview')).toContainText('我方的刺客-微笑尅乐');
+  await page.locator('[data-explain="preview"]').click();
+  await expect(page.getByRole('dialog', { name: '提交详情', exact: true })).toBeVisible();
+  await expect(page.locator('.auto-explanation')).toContainText('效果结束。');
+  expect(await page.locator('.auto-explanation article').evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+  await page.keyboard.press('Enter');
+  expect(commands).toHaveLength(0);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-explain="preview"]')).toBeFocused();
+  await expect(page.locator('[data-auto-card="role-b"]')).toHaveClass(/is-selected/);
+  for (const [width, height] of [[1920,1080],[1366,768],[900,700],[390,844],[844,390],[320,640],[740,360]]) {
+    await page.setViewportSize({ width, height });
+    await page.locator('[data-explain="event"]').click();
+    await expect(page.getByRole('dialog', { name: '近期事件详情', exact: true })).toContainText('休整发动者的收益');
+    const box = await page.locator('.auto-explanation article').boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0); expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(width + 1);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(height + 1);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-local-selection-confirm]')).toBeEnabled();
+    const confirm = await page.locator('[data-local-selection-confirm]').boundingBox();
+    const command = await page.locator('.auto-command-center').boundingBox();
+    const hand = await page.locator('.auto-hand').boundingBox();
+    expect(confirm!.y).toBeGreaterThanOrEqual(command!.y);
+    expect(confirm!.y + confirm!.height).toBeLessThanOrEqual(Math.min(command!.y + command!.height, hand!.y) + 1);
+    expect(hand!.y + hand!.height).toBeLessThanOrEqual(height + 1);
+    const summary = await page.locator('.auto-confirmation-preview > span').boundingBox();
+    expect(summary!.y + summary!.height).toBeLessThanOrEqual(command!.y + command!.height + 1);
+    if (width <= 844) {
+      const card = await page.locator('.auto-hand__cards .auto-card').first().boundingBox();
+      expect(card!.height).toBeGreaterThanOrEqual(44);
+      expect(card!.y + card!.height).toBeLessThanOrEqual(height + 1);
+    }
+    await page.screenshot({ path: `/tmp/tcg-explanations-${width}.png` });
+  }
+  const skill = state.game.legalActions.find((a: any) => a.type === 'skill:activate');
+  skill.selection.min = skill.selection.max = 2;
+  skill.interaction.cost.amount = 2;
+  state.revision++; publish();
+  await expect(page.locator('.auto-confirmation-preview')).toContainText('还需选择 1 个费用承担者');
+  await expect(page.locator('[data-local-selection-confirm]')).toBeDisabled();
+  skill.selection.min = skill.selection.max = 0;
+  skill.interaction.cost = { kind: 'none' };
+  state.revision++; publish();
+  await expect(page.locator('.auto-confirmation-preview')).toContainText('无额外费用');
+  await expect(page.locator('[data-auto-card="role-b"]')).not.toHaveClass(/is-selected/);
+  await page.locator('[data-explain="preview"]').click();
+  state.game.legalActions = state.game.legalActions.filter((a: any) => a.type !== 'skill:activate');
+  state.game.legalSkillInstanceIds = [];
+  state.revision++; publish();
+  await expect(page.locator('.auto-explanation')).toHaveCount(0);
+  await expect(page.locator('[data-local-selection-confirm]')).toHaveCount(0);
+  await page.locator('[data-explain="event"]').click();
+  state.revision++;
+  state.game.prompt = { id: 'new-response', kind: 'response', playerId: 'p1', title: '响应出刀', message: '请选择响应', options: [{ value: 'pass', label: '放弃响应' }] };
+  state.game.responsePlayerId = 'p1'; publish();
+  await expect(page.locator('.auto-explanation')).toHaveCount(0);
+  await expect(page.locator('.auto-table-event')).toContainText('响应出刀');
+  expect(commands).toHaveLength(0); expect(errors).toEqual([]);
 });

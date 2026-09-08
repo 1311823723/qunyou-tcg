@@ -1,3 +1,4 @@
+import type { AutoBlocker, AutoEventCause } from "../../src/lib/auto-action-types";
 import { DurableObject } from "cloudflare:workers";
 import bodies from "../../data/cards/bodies.json";
 import characters from "../../data/cards/characters.json";
@@ -83,7 +84,7 @@ const unlockedAutoDeckIds = new Set(allDecks
   .filter((deck) => deck.characterIds.every((id) => {
     const status = characterImplementation[id as keyof typeof characterImplementation];
     return status?.automation === "implemented" && status.review !== "needs_confirmation";
-  }))
+  }) && Boolean(bodySkillForId(deck.bodyId)))
   .map((deck) => deck.id));
 
 function json(data: unknown, init: ResponseInit = {}) {
@@ -910,6 +911,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     }
     if (prompt.kind === "damage-before") {
       const pending = prompt.context?.pendingDamage as {
+        cause?: AutoEventCause;
         targetPlayerId?: string;
         sourcePlayerId?: string;
         amount?: number;
@@ -924,6 +926,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       if (value === "pass") {
         applied = this.applyDamage(target, Number(pending.amount || 0), source.id, pending.cardDefinitionId, {
           skipReplacement: true,
+          cause: pending.cause,
           deferred: true,
           continuation: pending.continuation,
         }) || 0;
@@ -1118,7 +1121,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         const target = opponentOf(this.state, item.sourcePlayerId);
         if (target && target.health <= 3 && source) this.shuffleRetiredCharacter(source, item.sourceInstanceId);
       }
-      if (source && continuation.after === "draw-one" && !this.state.winnerId) this.drawForEffect(source, 1);
+      if (source && continuation.after === "draw-one" && !this.state.winnerId) this.drawForEffect(source, 1, { kind: "skill", sourcePlayerId: source.id });
       if (source) this.finishCharacterSkill(item, source);
       return;
     }
@@ -1544,7 +1547,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       draw: (count) => {
         const amount = drawCards(state, player, count, (items) => this.shuffle(items));
         this.addLog(`${player.nickname}摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: player.id });
-        if (amount) this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: state.phase !== "draw" } });
+        if (amount) this.emitEvent("cards_drawn", { cause: { kind: "effect", sourcePlayerId: player.id }, sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: state.phase !== "draw" } });
         return amount;
       },
       takeTopHandCards: (count) => this.takeTopHandCards(count),
@@ -1599,7 +1602,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       discardRandom: (owner) => this.discardRandom(owner, player.id),
       heal: (count) => {
         const recovered = heal(player, count);
-        if (recovered) this.emitEvent("health_recovered", { sourcePlayerId: player.id, targetPlayerId: player.id, amount: recovered });
+        if (recovered) this.emitEvent("health_recovered", { cause: { kind: "effect", sourcePlayerId: player.id }, sourcePlayerId: player.id, targetPlayerId: player.id, amount: recovered });
         return recovered;
       },
       legalStrikeCards: () => player.hand.filter((card) => card.definitionId === HAND_IDS.strike || card.definitionId === HAND_IDS.impersonate),
@@ -1778,6 +1781,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!target) return this.resumeDamageContinuation(pending.continuation, 0);
     const applied = this.applyDamage(target, pending.amount, pending.sourcePlayerId, pending.cardDefinitionId, {
       skipReplacement: true,
+      cause: pending.cause,
       skipTargetSkills: true,
       deferred: true,
       continuation: pending.continuation,
@@ -2131,6 +2135,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
   ): CharacterSkillRuntimeContext {
     if (!this.state) throw new Error("房间状态不存在。");
     const state = this.state;
+    const cause: AutoEventCause = continuation?.cause || { kind: "skill", sourcePlayerId: player.id };
     const setContinuationPrompt: CharacterSkillRuntimeContext["setPrompt"] = (step, prompt, data = {}, decisionPlayerId = player.id) => {
       const handlerId = resolutionItem?.handlerId || continuation?.handlerId || role.definitionId;
       state.prompt = createPrompt({
@@ -2140,6 +2145,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         context: {
           continuation: {
             handlerId,
+            cause,
             activationId: resolutionItem?.activationId || continuation?.activationId,
             sourceDefinitionId: role.definitionId,
             sourceInstanceId: role.instanceId,
@@ -2172,7 +2178,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         const amount = drawCards(state, player, count, (items) => this.shuffle(items));
         if (amount) {
           this.addLog(`${player.nickname}摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: player.id });
-          this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: state.phase !== "draw" } });
+          this.emitEvent("cards_drawn", { cause, sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: state.phase !== "draw" } });
         }
         return amount;
       },
@@ -2182,7 +2188,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         const amount = drawCards(state, target, count, (items) => this.shuffle(items));
         if (amount) {
           this.addLog(`${target.nickname}摸了 ${amount} 张手牌`, player.id, { zone: "hand", ownerId: target.id });
-          this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: target.id, amount, metadata: { outsideDrawPhase: state.phase !== "draw" } });
+          this.emitEvent("cards_drawn", { cause, sourcePlayerId: player.id, targetPlayerId: target.id, amount, metadata: { outsideDrawPhase: state.phase !== "draw" } });
         }
         return amount;
       },
@@ -2283,6 +2289,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         const target = opponentOf(state, player.id);
         if (!target) return 0;
         const applied = this.applyDamage(target, amount, player.id, undefined, {
+          cause,
           continuation: {
             kind: "character-skill",
             item: resolutionItem || {
@@ -2302,7 +2309,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         if (applied !== undefined && applied > 0 && options?.after === "return-self-if-target-health-at-most-3" && target.health <= 3) {
           this.shuffleRetiredCharacter(player, role.instanceId);
         }
-        if (applied !== undefined && options?.after === "draw-one" && !state.winnerId) this.drawForEffect(player, 1);
+        if (applied !== undefined && options?.after === "draw-one" && !state.winnerId) this.drawForEffect(player, 1, cause);
         return applied;
       },
       loseHealth: (amount, reason = "角色技能") => this.loseHealth(player, amount, reason),
@@ -2312,7 +2319,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       },
       heal: (amount) => {
         const recovered = heal(player, amount);
-        if (recovered) this.emitEvent("health_recovered", { sourcePlayerId: player.id, targetPlayerId: player.id, amount: recovered });
+        if (recovered) this.emitEvent("health_recovered", { cause, sourcePlayerId: player.id, targetPlayerId: player.id, amount: recovered });
         return recovered;
       },
       startJudgment: (purpose = "generic") => this.startJudgment(player, purpose, resolutionItem?.resumeResponse ? player.id : undefined),
@@ -2402,7 +2409,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         });
         this.emitEvent("hand_lost", { sourcePlayerId: player.id, targetPlayerId: target.id, amount: 1 });
       },
-      restOwnCharacter: (slotIndex) => this.restCharacter(player, slotIndex, player.id),
+      restOwnCharacter: (slotIndex) => this.restCharacter(player, slotIndex, player.id, cause),
       protectOwnHandCard: (instanceId) => {
         if (!player.hand.some((card) => card.instanceId === instanceId)) throw new Error("要保护的手牌已不存在。");
         state.turnModifiers.push({
@@ -2461,7 +2468,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       restOpponentCharacter: (slotIndex) => {
         const target = opponentOf(state, player.id);
         if (!target) throw new Error("对手不存在。");
-        this.restCharacter(target, slotIndex, player.id);
+        this.restCharacter(target, slotIndex, player.id, cause);
       },
       revealOpponentCharacter: (slotIndex) => {
         const target = opponentOf(state, player.id);
@@ -3007,14 +3014,14 @@ export class AutoBattleRoom extends DurableObject<Env> {
     }
     if (type === "复合" && cost.text?.includes("休整自身/退场自身")) {
       const mode = cleanText(payload.costMode, 20);
-      if (mode === "retire") return this.retireCard(player, role, player.id);
+      if (mode === "retire") return this.retireCard(player, role, player.id, { kind: "skill-cost", sourcePlayerId: player.id });
       if (mode === "rest") return this.restCard(player, role, true, player.id, true);
       throw new Error("请选择休整自身或退场自身支付费用。");
     }
     if (type === "复合" && cost.text === "同等费用") {
       const matchedType = cleanText(triggerContext?.metadata?.costType, 20);
       const matchedAmount = Math.max(0, Number(triggerContext?.metadata?.costAmount || 0));
-      if (matchedType === "退场") return this.retireCard(player, role, player.id);
+      if (matchedType === "退场") return this.retireCard(player, role, player.id, { kind: "skill-cost", sourcePlayerId: player.id });
       if (matchedType === "休整自身") return this.restCard(player, role, true, player.id, true);
       if (matchedType === "休整" && matchedAmount > 0) {
         type = "休整";
@@ -3022,7 +3029,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       } else throw new Error("当前事件中没有可对应的技能费用。");
     }
     if (type === "休整自身") return this.restCard(player, role, true, player.id, true);
-    if (type === "退场") return this.retireCard(player, role, player.id);
+    if (type === "退场") return this.retireCard(player, role, player.id, { kind: "skill-cost", sourcePlayerId: player.id });
     if (type !== "休整" || amount <= 0) return;
     const ids = Array.isArray(payload.costCharacterIds) ? payload.costCharacterIds.map((id) => cleanText(id, 80)) : [];
     if (ids.length !== amount || new Set(ids).size !== ids.length) throw new Error(`请选择 ${amount} 张角色支付休整费用。`);
@@ -3523,7 +3530,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     amount: number,
     sourceId?: string,
     cardDefinitionId?: string,
-    options: { skipReplacement?: boolean; skipTargetSkills?: boolean; skipMarkers?: boolean; skipRider?: boolean; deferred?: boolean; continuation?: Record<string, unknown> } = {},
+    options: { cause?: AutoEventCause; skipReplacement?: boolean; skipTargetSkills?: boolean; skipMarkers?: boolean; skipRider?: boolean; deferred?: boolean; continuation?: Record<string, unknown> } = {},
   ): number | undefined {
     if (!this.state) return 0;
     const source = sourceId ? playerById(this.state, sourceId) : undefined;
@@ -3559,6 +3566,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
               amount,
               cardDefinitionId,
               continuation: options.continuation,
+              cause: options.cause,
             },
           },
         });
@@ -3591,6 +3599,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
           amount,
           cardDefinitionId,
           continuation: options.continuation,
+          cause: options.cause,
         });
         this.openNextSkillTrigger();
         return undefined;
@@ -3626,7 +3635,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (applied > 0) {
       const absorbed = previousDynamaxHealth - (target.bodyState.dynamaxHealth || 0);
       this.addLog(`${target.nickname} 受到 ${applied} 点伤害${absorbed ? `（极巨体力承受${absorbed}点）` : ""}，当前体力 ${target.health}`, sourceId, { zone: "player", ownerId: target.id });
-      this.emitEvent("damage_after", { sourcePlayerId: sourceId, targetPlayerId: target.id, cardDefinitionId, amount: applied,
+      this.emitEvent("damage_after", { cause: options.cause || (cardDefinitionId ? { kind: "card", sourcePlayerId: sourceId } : undefined), sourcePlayerId: sourceId, targetPlayerId: target.id, cardDefinitionId, amount: applied,
         metadata: { desertButcherEnhanced: options.continuation?.desertButcherEnhanced === true, healthLost } });
       if (options.continuation?.huntRestOnDamage === true && target.characterSlots.some((s) => s && "instanceId" in s)) {
         this.state.turnModifiers.push({ id: crypto.randomUUID(), kind: "extra-hunt-rest", count: 1, ownerId: target.id, targetPlayerId: sourceId });
@@ -3638,12 +3647,12 @@ export class AutoBattleRoom extends DurableObject<Env> {
     return applied;
   }
 
-  private drawForEffect(player: AutoPlayerState, count: number) {
+  private drawForEffect(player: AutoPlayerState, count: number, cause?: AutoEventCause) {
     if (!this.state) return;
     const amount = drawCards(this.state, player, count, (cards) => this.shuffle(cards));
     if (amount) {
       this.addLog(`${player.nickname}摸了${amount}张手牌`, player.id, { zone: "hand", ownerId: player.id });
-      this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
+      this.emitEvent("cards_drawn", { cause, sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
     }
   }
 
@@ -3789,13 +3798,13 @@ export class AutoBattleRoom extends DurableObject<Env> {
     return card;
   }
 
-  private restCharacter(player: AutoPlayerState, slotIndex: number, sourcePlayerId?: string) {
+  private restCharacter(player: AutoPlayerState, slotIndex: number, sourcePlayerId?: string, cause?: AutoEventCause) {
     const card = player.characterSlots[slotIndex];
     if (!card || !("instanceId" in card)) throw new Error("目标角色已不在角色区。");
-    this.restCard(player, card, false, sourcePlayerId);
+    this.restCard(player, card, false, sourcePlayerId, false, cause);
   }
 
-  private restCard(player: AutoPlayerState, card: CardInstance, drawForSelf = true, sourcePlayerId = player.id, skillCost = false) {
+  private restCard(player: AutoPlayerState, card: CardInstance, drawForSelf = true, sourcePlayerId = player.id, skillCost = false, cause?: AutoEventCause) {
     if (!this.state) return;
     const index = player.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === card.instanceId);
     if (index < 0) throw new Error("要休整的角色不在角色区。");
@@ -3814,7 +3823,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId,
       metadata: { characterInstanceId: card.instanceId, slotIndex: index, leaveKind: "rest", wasFaceDown },
     });
-    this.emitEvent("character_rested", { sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId, metadata: { skillCost } });
+    this.emitEvent("character_rested", { cause: skillCost ? { kind: "skill-cost", sourcePlayerId } : cause, sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId, metadata: { skillCost } });
     if (drawForSelf) this.drawForRestingSkillSource(player);
   }
 
@@ -3823,12 +3832,12 @@ export class AutoBattleRoom extends DurableObject<Env> {
     const amount = drawCards(this.state, player, 1, (items) => this.shuffle(items));
     if (amount > 0) {
       this.addLog(`${player.nickname}因休整发动技能的角色摸1张牌`, player.id, { zone: "hand", ownerId: player.id });
-      this.emitEvent("cards_drawn", { sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
+      this.emitEvent("cards_drawn", { cause: { kind: "rest-reward", sourcePlayerId: player.id }, sourcePlayerId: player.id, targetPlayerId: player.id, amount, metadata: { outsideDrawPhase: this.state.phase !== "draw" } });
     }
     return amount;
   }
 
-  private retireCard(player: AutoPlayerState, card: CardInstance, sourcePlayerId = player.id) {
+  private retireCard(player: AutoPlayerState, card: CardInstance, sourcePlayerId = player.id, cause?: AutoEventCause) {
     if (!this.state) return;
     const index = player.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === card.instanceId);
     if (index < 0) throw new Error("要退场的角色不在角色区。");
@@ -3841,7 +3850,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId,
       metadata: { characterInstanceId: card.instanceId, slotIndex: index, leaveKind: "retire", wasFaceDown },
     });
-    this.emitEvent("character_retired", { sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId });
+    this.emitEvent("character_retired", { cause, sourcePlayerId, targetPlayerId: player.id, characterDefinitionId: card.definitionId });
   }
 
   private newPlayer(id: string, token: string, nickname: string, deckId: string, customDeck?: CustomDeckConfig): AutoPlayerState {
@@ -4061,13 +4070,19 @@ export class AutoBattleRoom extends DurableObject<Env> {
     });
   }
 
-  private legalSkillInstanceIds(player: AutoPlayerState) {
-    if (!this.state || this.state.winnerId) return [];
+  private legalSkillInstanceIds(player: AutoPlayerState, blockers?: Record<string, AutoBlocker>) {
+    const blocked = (id: string, code: AutoBlocker["code"], message: string): string[] => { if (blockers) blockers[id] = { code, message }; return []; };
+    const unavailable = (message: string) => {
+      for (const role of [...player.characterSlots.flatMap(slot => slot && "instanceId" in slot ? [slot] : []), ...player.retired]) blocked(role.instanceId, "timing", message);
+      return [];
+    };
+    if (!this.state) return [];
+    if (this.state.winnerId) return unavailable("对局已结束");
     const responseActivation = this.state.prompt?.kind === "response" && this.state.responsePlayerId === player.id && this.state.stack.length > 0;
-    if (responseActivation && this.state.prompt?.context?.responseSkillsComplete === true) return [];
+    if (responseActivation && this.state.prompt?.context?.responseSkillsComplete === true) return unavailable("此次响应的技能窗口已结束");
     const triggerPrompt = this.state.prompt?.kind === "character-trigger" && this.state.prompt.playerId === player.id;
     const dyingActivation = this.state.prompt?.kind === "dying" && this.state.prompt.playerId === player.id;
-    if ((this.state.prompt || this.state.stack.length) && !responseActivation && !triggerPrompt && !dyingActivation) return [];
+    if ((this.state.prompt || this.state.stack.length) && !responseActivation && !triggerPrompt && !dyingActivation) return unavailable("请先完成当前结算或等待对方选择");
     const responsePromptedId = responseActivation && this.state.prompt?.context?.skillOnly === true
       ? cleanText(this.state.prompt.context.currentSkillInstanceId, 80)
       : "";
@@ -4076,36 +4091,37 @@ export class AutoBattleRoom extends DurableObject<Env> {
       : undefined;
     const field = player.characterSlots.flatMap((slot) => {
       if (!slot || !("instanceId" in slot)) return [];
-      if (slot.faceDown && this.isCharacterRevealLocked(player, slot.instanceId)) return [];
-      if (this.isCharacterSkillLocked(player, slot.instanceId)) return [];
+      if (slot.faceDown && this.isCharacterRevealLocked(player, slot.instanceId)) return blocked(slot.instanceId, "reveal", "当前角色受到明置限制");
+      if (this.isCharacterSkillLocked(player, slot.instanceId)) return blocked(slot.instanceId, "locked", "当前技能被封锁");
       const skill = this.registeredCharacterSkill(player, slot);
       const registered = skill?.module;
       if (registered && skill) {
         if (responsePromptedId && slot.instanceId !== responsePromptedId) return [];
         if (promptedIds) return promptedIds.has(slot.instanceId) ? [slot.instanceId] : [];
         const trigger = this.skillTriggerContext(registered.trigger.event, registered.trigger.relation, undefined, player, responseActivation);
-        if (!trigger) return [];
+        if (!trigger) return blocked(slot.instanceId, "timing", "尚未到此技能的发动时机");
         const event = "type" in trigger ? trigger as AutoBattleEvent : undefined;
         const eventId = event?.id || trigger.id;
         if (!["play_phase", "basic_card_needed"].includes(registered.trigger.event)
-          && (this.state!.usageCounters[this.characterEventUsageKey(eventId, player.id, `${slot.instanceId}:${skill.handlerId}`)] || 0) > 0) return [];
+          && (this.state!.usageCounters[this.characterEventUsageKey(eventId, player.id, `${slot.instanceId}:${skill.handlerId}`)] || 0) > 0) return blocked(slot.instanceId, "usage", "此次事件的发动次数已用尽");
         if (registered.usageLimit) {
           const key = this.characterUsageKey(player, `${slot.instanceId}:${skill.handlerId}`, eventId, registered.usageLimit.scope);
-          if ((this.state!.usageCounters[key] || 0) >= registered.usageLimit.count) return [];
+          if ((this.state!.usageCounters[key] || 0) >= registered.usageLimit.count) return blocked(slot.instanceId, "usage", registered.usageLimit.scope === "game" ? "本局发动次数已用尽" : "本回合发动次数已用尽");
         }
-        return !registered.canActivate || registered.canActivate(this.characterSkillContext(player, slot, event)) ? [slot.instanceId] : [];
+        const context = this.characterSkillContext(player, slot, event);
+        return !registered.canActivate || registered.canActivate(context) ? [slot.instanceId] : blocked(slot.instanceId, registered.blockedCode || "condition", registered.blockedMessage || "技能专属条件未满足，请查看正式效果");
       }
       const automation = automationById.get(slot.definitionId);
       if (!automation) return [];
       const trigger = this.skillTriggerContext(automation.trigger.event, automation.trigger.relation, automation.trigger.targetMainRole, player, responseActivation);
-      if (!trigger) return [];
+      if (!trigger) return blocked(slot.instanceId, "timing", "尚未到此技能的发动时机");
       if (automation.usageLimit) {
         const key = automation.usageLimit.scope === "game"
           ? `skill:game:${player.id}:${slot.definitionId}`
           : automation.usageLimit.scope === "event"
             ? `skill:event:${trigger.id}:${player.id}:${slot.definitionId}`
             : `skill:turn:${this.state!.turnNumber}:${player.id}:${slot.definitionId}`;
-        if ((this.state!.usageCounters[key] || 0) >= automation.usageLimit.count) return [];
+        if ((this.state!.usageCounters[key] || 0) >= automation.usageLimit.count) return blocked(slot.instanceId, "usage", "当前计次范围的发动次数已用尽");
       }
       return [slot.instanceId];
     });
@@ -4240,10 +4256,15 @@ export class AutoBattleRoom extends DurableObject<Env> {
         const role = this.findCharacterInstance(player, instanceId);
         const definition = role ? this.registeredCharacterSkill(player, role)?.definition || characterById.get(role.definitionId) : undefined;
         description.label = definition?.skillName || "发动技能";
+        description.effectText = definition?.effectText;
+        description.targetTiming = "resolution";
         const previewCost = role ? this.previewSkillCost(player, role) : undefined;
+        if (definition && previewCost && (definition.cost.type !== previewCost.type || Number(definition.cost.amount || 0) !== Number(previewCost.amount || 0))) {
+          description.costModifiers = ["已应用当前费用修正；以下显示实际支付费用"];
+        }
         const free = player.retired.some((card) => card.instanceId === instanceId);
         if (free) description.cost = { kind: "none" };
-        else if (action.selection) description.cost = { kind: "rest", amount: action.selection.min };
+        else if (action.selection) description.cost = action.selection.min === 0 ? { kind: "none" } : { kind: "rest", amount: action.selection.min };
         else if (previewCost?.type === "退场") description.cost = { kind: "retire", fixedIds: [instanceId], amount: 1 };
         else if (previewCost?.type === "复合" && previewCost.text === "休整自身/退场自身") description.cost = {
           kind: "choice", fixedIds: [instanceId], options: [
@@ -4280,17 +4301,31 @@ export class AutoBattleRoom extends DurableObject<Env> {
         : !canUseInPlay(state, player, card.definitionId) ? "不满足使用时机或本回合使用次数已用尽"
         : "当前没有合法目标或使用分支";
     }
-    const timedSkills = new Set(this.legalSkillInstanceIds(player));
+    const blockers: Record<string, AutoBlocker> = {};
+    const timedSkills = new Set(this.legalSkillInstanceIds(player, blockers));
     for (const card of [...player.characterSlots.flatMap((slot) => slot && "instanceId" in slot ? [slot] : []), ...player.retired]) {
       if (actions.some((action) => action.type === "skill:activate" && action.payload?.instanceId === card.instanceId)) continue;
       const cost = this.skillCostSelection(player, card.instanceId);
-      reasons[card.instanceId] = this.isCharacterSkillLocked(player, card.instanceId) ? "当前技能被封锁"
-        : card.faceDown && this.isCharacterRevealLocked(player, card.instanceId) ? "当前角色不能明置发动"
-        : timedSkills.has(card.instanceId) && cost && cost.cardInstanceIds.length < cost.min ? `需要 ${cost.min} 张角色支付休整费用，当前只有 ${cost.cardInstanceIds.length} 张`
-        : "当前发动时机、次数或技能条件不满足";
+      reasons[card.instanceId] = blockers[card.instanceId]?.message || (timedSkills.has(card.instanceId) && cost && cost.cardInstanceIds.length < cost.min ? `需要 ${cost.min} 张角色支付休整费用，当前只有 ${cost.cardInstanceIds.length} 张`
+        : "当前不在此技能的决策窗口");
     }
     if (player.body && !actions.some((action) => action.type === "body:activate")) reasons[player.body.instanceId] = player.bodyState.extraFormUsed ? "本局主动额外形态已使用" : !player.bodyState.flipped ? "尚未满足额外形态解锁条件" : "当前没有可主动发动的本体技能";
     return reasons;
+  }
+
+  private skillBlockers(player: AutoPlayerState, actions: AutoLegalAction[]) {
+    const result: Record<string, AutoBlocker> = {};
+    const timed = new Set(this.legalSkillInstanceIds(player, result));
+    const reasons = this.unavailableReasons(player, actions);
+    for (const role of [...player.characterSlots.flatMap(slot => slot && "instanceId" in slot ? [slot] : []), ...player.retired]) {
+      if (!reasons[role.instanceId]) { delete result[role.instanceId]; continue; }
+      const cost = this.skillCostSelection(player, role.instanceId);
+      if (!result[role.instanceId]) result[role.instanceId] = {
+        code: timed.has(role.instanceId) && cost && cost.cardInstanceIds.length < cost.min ? "cost" : "timing",
+        message: reasons[role.instanceId],
+      };
+    }
+    return result;
   }
 
   /** Mirrors payment transformations without consuming modifiers or revealing opponent cards. */
@@ -4443,14 +4478,15 @@ export class AutoBattleRoom extends DurableObject<Env> {
           type: event.type,
           sourcePlayerId: event.sourcePlayerId,
           targetPlayerId: event.targetPlayerId,
-          characterDefinitionId: event.characterDefinitionId,
-          cardDefinitionId: event.cardDefinitionId,
+          amount: ["damage_after", "health_recovered", "cards_drawn"].includes(event.type) ? event.amount : undefined,
+          cause: event.cause ? { kind: event.cause.kind, sourcePlayerId: event.cause.sourcePlayerId } : undefined,
         })),
         legalHandCardIds,
         legalSkillInstanceIds,
         canAutoAdvancePhase,
         legalActions,
         unavailableReasons: spectator || !viewer ? {} : this.unavailableReasons(viewer, legalActions),
+        skillBlockers: spectator || !viewer ? {} : this.skillBlockers(viewer, legalActions),
         legalBodyActionPlayerIds: !spectator && viewer && this.canActivateBodyExtra(viewer) ? [viewer.id] : [],
         skillCostRestReductionByCharacterId: spectator || !viewer ? {} : Object.fromEntries(this.state.turnModifiers
           .filter((modifier) => modifier.ownerId === viewer.id && modifier.kind === "body-next-skill-cost-rest-one" && modifier.characterInstanceId)

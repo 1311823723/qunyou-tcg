@@ -56,7 +56,7 @@ const kekeAssassin: CharacterSkillModule = {
 const weixiaokeleAssassin: CharacterSkillModule = {
   cardId: AGGRO_CHARACTER_IDS.weixiaokeleAssassin,
   trigger: { event: "play_phase", relation: "source_self" },
-  canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown)),
+  blockedMessage: "对手没有可选的暗置角色", blockedCode: "target", canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown)),
   activate(context) {
     context.setPrompt("declare-main-role", {
       title: "身份识破",
@@ -90,7 +90,7 @@ const weixiaokeleAssassin: CharacterSkillModule = {
 const sheriff = immediateCharacterSkill({
   cardId: AGGRO_CHARACTER_IDS.sheriff,
   trigger: { event: "opponent_preparation", relation: "source_opponent" },
-  canActivate: (context) => context.role.faceDown === false,
+  blockedMessage: "此技能要求发动者已明置", blockedCode: "condition", canActivate: (context) => context.role.faceDown === false,
   effect(context) {
     context.addModifier({
       kind: "aggro-sheriff-recoil",
@@ -107,7 +107,7 @@ const sheriff = immediateCharacterSkill({
 const pelican: CharacterSkillModule = {
   cardId: AGGRO_CHARACTER_IDS.pelican,
   trigger: { event: "play_phase", relation: "source_self" },
-  canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot)),
+  blockedMessage: "对手没有可选角色", blockedCode: "target", canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot)),
   activate(context) {
     const options = context.opponent()?.characterSlots.flatMap((slot, index) => slot && "instanceId" in slot
       ? [{ value: String(index), label: `对手角色位 ${index + 1}` }]
@@ -145,7 +145,7 @@ const weixiaokeleNinja = immediateCharacterSkill({
 const baiziNinja: CharacterSkillModule = {
   cardId: AGGRO_CHARACTER_IDS.baiziNinja,
   trigger: { event: "play_phase", relation: "source_self" },
-  canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown)),
+  blockedMessage: "对手没有可选的暗置角色", blockedCode: "target", canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown)),
   activate(context) {
     const options = context.opponent()?.characterSlots.flatMap((slot, index) => slot && "instanceId" in slot && slot.faceDown
       ? [{ value: String(index), label: `对手角色位 ${index + 1}` }]
@@ -179,7 +179,7 @@ const weixiaokeleHitman: CharacterSkillModule = {
 const weixiaokeleBomber: CharacterSkillModule = {
   cardId: AGGRO_CHARACTER_IDS.weixiaokeleBomber,
   trigger: { event: "play_phase", relation: "source_self" },
-  canActivate: (context) => Boolean(context.opponent()?.characterSlots.includes(null)),
+  blockedMessage: "对手没有空角色位", blockedCode: "condition", canActivate: (context) => Boolean(context.opponent()?.characterSlots.includes(null)),
   activate(context) {
     const options = context.opponent()?.characterSlots.flatMap((slot, index) => slot === null
       ? [{ value: String(index), label: `对手角色位 ${index + 1}` }]
@@ -249,7 +249,7 @@ const morphling: CharacterSkillModule = {
   cardId: AGGRO_CHARACTER_IDS.morphling,
   trigger: { event: "play_phase", relation: "source_self" },
   usageLimit: { scope: "turn", count: 1 },
-  canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown === false)),
+  blockedMessage: "对手没有可选的明置角色", blockedCode: "target", canActivate: (context) => Boolean(context.opponent()?.characterSlots.some((slot) => slot && "instanceId" in slot && slot.faceDown === false)),
   activate(context) {
     const options = context.opponent()?.characterSlots.flatMap((slot, index) => slot && "instanceId" in slot && slot.faceDown === false
       ? [{ value: String(index), label: characterById.get(slot.definitionId)?.name || `对手角色位 ${index + 1}` }]

@@ -1,4 +1,4 @@
-import type { AutoLegalAction, AutoUnavailableReasons } from "../lib/auto-action-types";
+import type { AutoLegalAction, AutoUnavailableReasons, AutoBlocker, AutoPublicEvent } from "../lib/auto-action-types";
 import { AutoInteraction, type LocalSelectionAction, type LocalFormAction, type PendingAction } from "./auto-interaction";
 import { getBattleApiUrl } from "../lib/battle-api";
 import { escapeHtml, handCardIdentityLabel, handCardImagePath } from "./battle-format";
@@ -62,7 +62,8 @@ type AutoSnapshot = {
     responsePlayerId?: string;
     winnerId?: string;
     deployedThisPhase: number;
-    recentEvents: Array<{ id: string; type: string; sourcePlayerId?: string; targetPlayerId?: string; characterDefinitionId?: string; cardDefinitionId?: string }>;
+    recentEvents: AutoPublicEvent[];
+    skillBlockers?: Record<string, AutoBlocker>;
     legalHandCardIds: string[];
     legalSkillInstanceIds: string[];
     canAutoAdvancePhase: boolean;
@@ -102,6 +103,9 @@ let reconnectTimer = 0;
 let toastTimer = 0;
 let shouldReconnect = true;
 let exitingToLobby = false;
+let explanation: "event" | "preview" | undefined;
+let explanationEvent: AutoPublicEvent | undefined;
+let explanationReturnSelector = "";
 let detailCardInstanceId = "";
 let detailOwnerId = "";
 let riderDetailId = "";
@@ -382,6 +386,9 @@ function handleMessage(message: ServerMessage) {
       }
     }
     snapshot = message.snapshot;
+    if (explanation && (previous?.game.prompt?.id !== snapshot.game.prompt?.id || previous?.game.responsePlayerId !== snapshot.game.responsePlayerId)) {
+      explanation = undefined; explanationEvent = undefined;
+    }
     if (snapshot.game.started) {
       document.querySelector<HTMLDialogElement>("#auto-deck-preview")?.close();
       document.querySelector<HTMLDialogElement>("#auto-deck-dialog")?.close();
@@ -406,6 +413,7 @@ function handleMessage(message: ServerMessage) {
       for (const id of interactionState.selectedDiscard) if (!snapshot.game.prompt?.cardInstanceIds?.includes(id)) interactionState.selectedDiscard.delete(id);
     }
     reconcileLocalDraft();
+    if (explanation === "preview" && !interactionState.localSelectionAction && !interactionState.selectedPlayCardId && !interactionState.selectedRoleInstanceId) explanation = undefined;
     render();
     playNextBodyEffect();
     scheduleAutomaticActions();
@@ -546,7 +554,7 @@ function renderCard(card: CardView, owner: AutoPlayerView, zone: string, interac
     || Boolean(card.instanceId && interactionState.selectedDiscard.has(card.instanceId));
   const animated = cardDefinition.kind === "body" && flipAnimations.has(owner.id) ? "is-form-flipped" : "";
   return `<button type="button" class="auto-card auto-card--${cardDefinition.kind} ${interactive || selectable ? "is-legal" : ""} ${selectable ? "is-table-selectable" : ""} ${selected ? "is-selected" : ""} ${opponentFaceDownCharacter ? "is-face-down" : ownFaceDownCharacter ? "is-own-face-down" : ""} ${animated}" draggable="${mouseQuery.matches && quickPlay && zone === "hand" && !snapshot?.game.prompt && interactive ? "true" : "false"}" data-auto-card="${card.instanceId || ""}" data-owner="${owner.id}" data-zone="${zone}" data-interactive="${interactive || selectable ? "true" : "false"}" title="${escapeHtml(opponentFaceDownCharacter ? "暗置角色" : title)}">
-    ${image ? `<img src="${image}" alt="" draggable="false" />` : ""}${!opponentFaceDownCharacter && cardDefinition.kind === "character" && cardDefinition.automationLevel ? `<span class="auto-card__automation">${cardDefinition.automationLevel === "full" ? "自动" : "辅助"}</span>` : ""}${opponentFaceDownCharacter ? `<span class="sr-only">暗置角色</span>` : `<strong>${escapeHtml(cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name)}</strong><small>${escapeHtml(identity || (cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraSubtitle || cardDefinition.subtitle : cardDefinition.subtitle))}</small>`}
+    ${image ? `<img src="${image}" alt="" draggable="false" />` : ""}${!opponentFaceDownCharacter && cardDefinition.kind === "character" && owner.id === snapshot?.you && zone.startsWith("slot:") ? `<span class="auto-card__availability">${snapshot.game.legalSkillInstanceIds.includes(card.instanceId || "") ? "◇ 可发动" : snapshot.game.skillBlockers?.[card.instanceId || ""]?.code === "usage" ? "次数已用尽" : "受限制"}</span>` : ""}${!opponentFaceDownCharacter && cardDefinition.kind === "character" && cardDefinition.automationLevel ? `<span class="auto-card__automation">${cardDefinition.automationLevel === "full" ? "自动" : "辅助"}</span>` : ""}${opponentFaceDownCharacter ? `<span class="sr-only">暗置角色</span>` : `<strong>${escapeHtml(cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name)}</strong><small>${escapeHtml(identity || (cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraSubtitle || cardDefinition.subtitle : cardDefinition.subtitle))}</small>`}
   </button>`;
 }
 
@@ -832,10 +840,8 @@ function renderLocalSelection() {
   const selected = interactionState.selectedPromptCards.size;
   const min = draft.min || 0, max = draft.max || 0;
   const disabled = Boolean(draft.cardInstanceIds && (selected < min || selected > max));
-  const names = [...interactionState.selectedPromptCards].map((id) => (findCard(id).owner ? sideName(findCard(id).owner!.id) + "的" : "") + (definition(findCard(id).card)?.name || (id.startsWith("slot:") ? `对手暗置角色位 ${Number(id.split(":").at(-1)) + 1}` : "已选角色")));
-  const summary = names.length ? `${draft.selectionKind === "cost" ? draft.costKind === "retire" ? "退场" : "休整" : "目标"}：${names.join("、")}` : "";
   const options = (draft.options || []).map((option, index) => `<button class="btn btn--secondary" data-local-option="${index}">${escapeHtml(option.label)}</button>`).join("");
-  return `<aside class="auto-prompt auto-local-selection is-mine"><span>提交前选择</span><h3>${escapeHtml(draft.title)}</h3><p>${escapeHtml(draft.message)}${summary ? `<br><b>${escapeHtml(summary)}</b>` : ""}</p><div class="auto-prompt__actions">${options}${!draft.options ? `<button class="btn btn--primary" data-local-selection-confirm ${disabled ? "disabled" : ""}>确认${draft.cardInstanceIds ? ` ${selected}/${min === max ? min : `${min}-${max}`}` : ""}</button>` : ""}<button class="btn btn--secondary" data-local-selection-cancel>上一步</button><button class="btn btn--secondary" data-local-selection-exit>取消操作</button></div></aside>`;
+  return `<aside class="auto-prompt auto-local-selection is-mine"><h3>${escapeHtml(draft.title)}</h3>${renderConfirmationPreview()}<div class="auto-prompt__actions">${options}${!draft.options ? `<button class="btn btn--primary" data-local-selection-confirm ${disabled ? "disabled" : ""}>确认${draft.cardInstanceIds ? ` ${selected}/${min === max ? min : `${min}-${max}`}` : ""}</button>` : ""}<button class="btn btn--secondary" data-local-selection-cancel>上一步</button><button class="btn btn--secondary" data-local-selection-exit>取消操作</button></div></aside>`;
 }
 
 function renderLocalForm(me?: AutoPlayerView, opponent?: AutoPlayerView) {
@@ -861,11 +867,11 @@ function renderRoleAction(me?: AutoPlayerView) {
   const slotIndex = me.characterSlots.findIndex((slot) => slot && "instanceId" in slot && slot.instanceId === interactionState.selectedRoleInstanceId);
   const canReveal = snapshot.game.legalActions?.some((action) => action.type === "character:reveal" && action.payload?.slotIndex === slotIndex);
   const canUseSkill = snapshot.game.legalSkillInstanceIds.includes(interactionState.selectedRoleInstanceId);
-  return `<div class="auto-role-confirm"><div><span>已选择角色</span><strong>【${escapeHtml(cardDefinition.name)}】</strong><small>${canUseSkill || canReveal ? "选择要执行的操作" : "当前只能查看卡牌详情"}</small></div><button class="btn btn--secondary" data-role-action="view">查看详情</button>${canReveal ? `<button class="btn btn--secondary" data-role-action="reveal">明置角色</button>` : ""}${canUseSkill ? `<button class="btn btn--primary" data-role-action="skill">发动技能</button>` : ""}<button class="btn btn--secondary" data-role-action="cancel">取消</button></div>`;
+  return `<div class="auto-role-confirm"><div><span>已选择角色</span><strong>【${escapeHtml(cardDefinition.name)}】</strong><small>${canUseSkill || canReveal ? "选择要执行的操作" : (snapshot.game.unavailableReasons?.[card.instanceId || ""] || "当前只能查看卡牌详情")}</small></div><button class="btn btn--secondary" data-role-action="view">查看详情</button>${canReveal ? `<button class="btn btn--secondary" data-role-action="reveal">明置角色</button>` : ""}${canUseSkill ? `<button class="btn btn--primary" data-role-action="skill">发动技能</button>` : ""}<button class="btn btn--secondary" data-role-action="cancel">取消</button></div>`;
 }
 
 function renderSelectedCardAction(cardDefinition: NonNullable<ReturnType<typeof definition>>) {
-  return `<div class="auto-play-confirm"><div><span>已选择</span><strong>【${escapeHtml(cardDefinition.name)}】</strong><small>${escapeHtml(cardDefinition.text)}</small></div><button class="btn btn--secondary" data-view-selected>查看牌面</button><button class="btn btn--secondary" data-cancel-play>取消</button><button class="btn btn--primary" data-confirm-play>${snapshot?.game.prompt?.kind === "response" ? "确认响应" : snapshot?.game.prompt?.kind === "dying" ? "确认急救" : "确认打出"}</button></div>`;
+  return `<div class="auto-play-confirm"><div><span>已选择</span><strong>【${escapeHtml(cardDefinition.name)}】</strong>${renderConfirmationPreview()}</div><button class="btn btn--secondary" data-view-selected>查看牌面</button><button class="btn btn--secondary" data-cancel-play>取消</button><button class="btn btn--primary" data-confirm-play>${snapshot?.game.prompt?.kind === "response" ? "确认响应" : snapshot?.game.prompt?.kind === "dying" ? "确认急救" : "确认打出"}</button></div>`;
 }
 
 function renderPerfPanel() {
@@ -947,7 +953,7 @@ function renderGame() {
   if (me) regions.set("hand", `<section class="auto-hand" data-auto-region="hand"><header><strong>我的手牌</strong><span>${me.hand.length} 张 · 牌堆 ${snapshot.game.handDeckCount} · 弃牌 ${snapshot.game.handDiscard.length}</span></header><div class="auto-hand__cards">${hand || "<p>没有手牌</p>"}</div></section>`);
   regions.set("backdrop", `<button type="button" class="auto-mobile-log-backdrop ${mobileLogOpen ? "is-open" : ""}" data-auto-region="backdrop" data-auto-mobile-log-close aria-label="关闭日志" tabindex="-1"></button>`);
   regions.set("log", `<aside id="auto-mobile-log" class="auto-log ${mobileLogOpen ? "is-open" : ""} ${desktopLogCollapsed ? "is-collapsed" : ""}" data-auto-region="log" aria-label="公开日志" ${mobileTableActive ? 'role="dialog"' : ""}><header><span>公开日志</span><button type="button" class="auto-mobile-log-close" data-auto-mobile-log-close aria-label="关闭日志">×</button></header><ol>${logs}</ol></aside>`);
-  regions.set("overlay", `<div data-auto-region="overlay" style="display:contents">${promptDialog}${renderCardDetail()}${renderRiderDetail()}</div>`);
+  regions.set("overlay", `<div data-auto-region="overlay" style="display:contents">${promptDialog}${renderCardDetail()}${renderRiderDetail()}${renderExplanation()}</div>`);
   regions.set("perf", renderPerfPanel());
   const nextStructureKey = `${spectator}:${opponent?.id || ""}:${lowerPlayer?.id || ""}:${me?.id || ""}`;
   const fullRender = gameStructureKey !== nextStructureKey || !root.querySelector(".auto-game");
@@ -986,15 +992,72 @@ function tablePresentation() {
   const target = item?.targetPlayerId || (!item ? event?.targetPlayerId : undefined);
   // Stack cards have already been revealed. Never resolve a name from private event metadata.
   const name = item ? catalog.cards[item.resolvedAs || item.definitionId]?.name : undefined;
-  const summary = `${sideName(source)}${target ? ` → ${sideName(target)}` : ""} · ${name ? `【${name}】` : event ? eventLabel(event.type) : "等待行动"}`;
+  const summary = !item && !game.prompt && !game.responsePlayerId && event ? eventSentence(event) : `${sideName(source)}${target ? ` → ${sideName(target)}` : ""} · ${name ? `【${name}】` : game.prompt ? game.prompt.title : event ? eventLabel(event.type) : "等待行动"}`;
   const decision = game.prompt?.playerId || game.responsePlayerId;
   const status = game.winnerId ? `${sideName(game.winnerId)}获胜` : decision ? `等待${decision === snapshot!.you ? "你" : sideName(decision)}${game.prompt?.kind === "response" ? "响应" : "选择"}` : game.stack.length ? "正在结算" : `${sideName(game.currentPlayerId)} · ${phaseLabels[game.phase]}`;
   return { summary, status, source, target, event };
 }
 
+function causeLabel(event: AutoPublicEvent) {
+  return event.cause ? ({ "skill": "角色技能效果", "skill-cost": "支付技能费用", "rest-reward": "休整发动者的收益", "card": "使用牌的效果", "effect": "公开效果" })[event.cause.kind] || "" : "";
+}
+function eventSentence(event: AutoPublicEvent) {
+  const quantity = typeof event.amount === "number" ? event.amount : undefined;
+  const change = event.type === "cards_drawn" ? `摸${quantity === undefined ? "牌" : ` ${quantity} 张牌`}`
+    : event.type === "damage_after" ? `受到${quantity === undefined ? "伤害" : ` ${quantity} 点伤害`}`
+    : event.type === "health_recovered" ? `回复${quantity === undefined ? "体力" : ` ${quantity} 点体力`}`
+    : event.type === "character_rested" ? "角色休整，进入角色牌堆"
+    : event.type === "character_retired" ? "角色退场" : eventLabel(event.type);
+  const source = event.cause?.sourcePlayerId || event.sourcePlayerId;
+  return `${source && event.targetPlayerId && source !== event.targetPlayerId ? `${sideName(source)} → ` : ""}${sideName(event.targetPlayerId || source)}${change}${causeLabel(event) ? ` · ${causeLabel(event)}` : ""}`;
+}
+function ownedCardName(id: string) {
+  const { card, owner } = findCard(id);
+  if (card && owner) return `${sideName(owner.id)}的${definition(card)?.name || "暗置角色"}`;
+  if (id.startsWith("slot:")) return `对手的暗置角色位 ${Number(id.split(":").at(-1)) + 1}`;
+  return "已选对象";
+}
+function confirmationPreview() {
+  const draft = interactionState.localSelectionAction;
+  const sourceId = draft?.sourceId || interactionState.selectedPlayCardId || interactionState.selectedRoleInstanceId;
+  const actions = snapshot?.game.legalActions || [];
+  const action = actions.find(a => (!draft || a.type === draft.command && Object.entries(draft.payload).every(([key, value]) => a.payload?.[key] === undefined || a.payload[key] === value)) && (sourceId ? a.payload?.instanceId === sourceId : draft && Object.entries(draft.payload).every(([key, value]) => a.payload?.[key] === value)));
+  const cost = action?.interaction?.cost;
+  const selected = [...interactionState.selectedPromptCards];
+  const payers = cost?.fixedIds || (draft?.selectionKind === "cost" ? selected : []);
+  const missing = draft?.cardInstanceIds ? Math.max(0, (draft.min || 0) - selected.length) : 0;
+  const costText = !cost || cost.kind === "none" ? "无额外费用" : cost.kind === "choice" ? "还需选择费用方式"
+    : `${cost.kind === "rest" ? "休整" : "退场"} ${cost.amount ?? draft?.min ?? 1} 张角色${payers.length ? `：${payers.map(ownedCardName).join("、")}` : "（待选承担者）"}`;
+  const targets = draft?.selectionKind === "target-slot" ? selected.map(ownedCardName).join("、") || "待选目标"
+    : action?.interaction?.target ? `${sideName(action.interaction.target.playerId)}${action.interaction.target.slotIndex === undefined ? "" : `的角色位 ${action.interaction.target.slotIndex + 1}`}`
+    : action?.interaction?.targetTiming === "resolution" ? "结算中选择（若效果需要）" : "按牌面结算";
+  return { summary: `${sourceId ? ownedCardName(sourceId) : action?.interaction?.label || draft?.title || "当前操作"} → ${costText} → ${targets}`,
+    missing: missing ? `还需选择 ${missing} 个${draft?.selectionKind === "cost" ? "费用承担者" : "目标"}` : draft?.options ? "还需选择一个分支" : "当前选择已齐，确认后开始结算",
+    effect: action?.interaction?.effectText || definition(findCard(sourceId || "").card)?.text || "",
+    modifiers: action?.interaction?.costModifiers || [],
+    branch: draft?.payload.resolvedAs ? catalog.cards[String(draft.payload.resolvedAs)]?.name : undefined };
+}
+function renderConfirmationPreview() {
+  const view = confirmationPreview();
+  return `<div class="auto-confirmation-preview"><span>${escapeHtml(view.summary)}</span><small>${escapeHtml(view.missing)}</small><button type="button" class="auto-explanation-link" data-explain="preview">提交详情</button></div>`;
+}
+function renderExplanation() {
+  if (!explanation) return "";
+  const view = confirmationPreview();
+  const event = explanationEvent;
+  const content = explanation === "event" && event
+    ? `<h3>近期已发生事件</h3><p>${escapeHtml(eventSentence(event))}</p><dl><dt>公开来源</dt><dd>${escapeHtml(sideName(event.cause?.sourcePlayerId || event.sourcePlayerId))}</dd><dt>对象</dt><dd>${escapeHtml(sideName(event.targetPlayerId))}</dd>${event.amount !== undefined ? `<dt>数量</dt><dd>${event.amount}</dd>` : ""}<dt>直接原因</dt><dd>${escapeHtml(causeLabel(event) || "未提供可靠原因，仅展示已确认结果")}</dd></dl>`
+    : `<h3>本次提交预览</h3><p>${escapeHtml(view.summary)}</p><p>${escapeHtml(view.missing)}</p>${view.modifiers.map(text => `<p>${escapeHtml(text)}</p>`).join("")}${view.branch ? `<p>转化分支：${escapeHtml(view.branch)}</p>` : ""}<h4>正式效果</h4><p>${escapeHtml(view.effect || "按当前操作提示继续")}</p><p>仅预览当前提交；后续选择与响应按规则继续。</p>`;
+  return `<div class="auto-detail auto-explanation" role="dialog" aria-modal="true" aria-label="${explanation === "event" ? "近期事件详情" : "提交详情"}"><button class="auto-detail__backdrop" data-explanation-close aria-label="关闭详情"></button><article><button class="auto-detail__close" data-explanation-close aria-label="关闭">×</button><div><small>${escapeHtml(tablePresentation().status)}</small>${content}</div></article></div>`;
+}
+function closeExplanation() {
+  explanation = undefined; explanationEvent = undefined; render();
+  root?.querySelector<HTMLElement>(explanationReturnSelector || "[data-explain]")?.focus({ preventScroll: true });
+}
+
 function renderTableEvent() {
   const view = tablePresentation();
-  return `<section class="auto-table-event" data-auto-region="event" aria-label="当前事件"><span>${escapeHtml(view.summary)}</span><strong role="status">${escapeHtml(view.status)}</strong></section>`;
+  return `<section class="auto-table-event" data-auto-region="event" aria-label="当前事件"><span>${escapeHtml(view.summary)}</span><strong role="status">${escapeHtml(view.status)}</strong>${view.event ? `<button type="button" class="auto-explanation-link" data-explain="event" aria-label="近期事件详情">详情</button>` : ""}</section>`;
 }
 
 function updateTableFeedback() {
@@ -1039,7 +1102,7 @@ root?.addEventListener("scroll", drawTargetLine, true);
 window.addEventListener("resize", drawTargetLine);
 
 function eventLabel(type: string) {
-  return ({ card_used: "牌已使用", card_responded: "牌已响应", card_resolved: "牌已结算", damage_after: "伤害结算后", health_recovered: "体力回复后", character_deployed: "角色上阵后", character_revealed: "角色明置后", character_rested: "角色休整后", character_retired: "角色退场后", hand_discarded: "手牌弃置后", hand_lost: "手牌失去后", inspection: "观看后", judgment_revealed: "判定展示", judgment_resolved: "判定结算后", skill_used: "技能发动后", strike_dodged: "出刀被闪避" } as Record<string, string>)[type] || "事件待结算";
+  return ({ cards_drawn: "摸牌", card_used: "牌已使用", card_responded: "牌已响应", card_resolved: "牌已结算", damage_after: "伤害结算后", health_recovered: "体力回复后", character_deployed: "角色上阵后", character_revealed: "角色明置后", character_rested: "角色休整后", character_retired: "角色退场后", hand_discarded: "手牌弃置后", hand_lost: "手牌失去后", inspection: "观看后", judgment_revealed: "判定展示", judgment_resolved: "判定结算后", skill_used: "技能发动后", strike_dodged: "出刀被闪避" } as Record<string, string>)[type] || "公开事件已处理";
 }
 
 function handLegality(card: CardView) {
@@ -1070,6 +1133,14 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
   gameBindings = new AbortController();
   const listenerOptions = { signal: gameBindings.signal };
   bindMobileLogActions();
+  root.querySelectorAll<HTMLElement>("[data-explain]").forEach(button => button.addEventListener("click", () => {
+    explanation = button.dataset.explain as "event" | "preview";
+    explanationReturnSelector = `[data-explain="${explanation}"]`;
+    explanationEvent = snapshot?.game.recentEvents.at(-1);
+    render();
+    root.querySelector<HTMLElement>(".auto-explanation .auto-detail__close")?.focus();
+  }, listenerOptions));
+  root.querySelectorAll("[data-explanation-close]").forEach(button => button.addEventListener("click", closeExplanation, listenerOptions));
   root.querySelectorAll<HTMLButtonElement>("[data-rider-detail]").forEach((button) => button.addEventListener("click", () => {
     riderDetailId = button.dataset.riderDetail || "";
     riderDetailFinal = button.dataset.riderFinal === "true";
@@ -1228,12 +1299,14 @@ function reconcileLocalDraft() {
   else if (draft.selectionKind === "cost") {
     const selection = candidates[0].selection;
     if (!selection) { interactionState.clearDraft(); showToast("费用已变化，请重新选择技能。"); return; }
+    if (draft.min !== selection.min || draft.max !== selection.max) showToast("实际费用已变化，请核对更新后的预览。");
     ids = selection.cardInstanceIds; draft.min = selection.min; draft.max = selection.max;
   }
   if (ids) {
     draft.cardInstanceIds = ids;
     let invalid = false;
     for (const id of interactionState.selectedPromptCards) if (!ids.includes(id)) { interactionState.selectedPromptCards.delete(id); invalid = true; }
+    if (draft.max !== undefined) for (const id of [...interactionState.selectedPromptCards].slice(draft.max)) { interactionState.selectedPromptCards.delete(id); invalid = true; }
     if (invalid) showToast("部分选择已失效，请重新选择。");
   }
 }
@@ -1575,12 +1648,16 @@ function inputIsEditing(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest("input, textarea, select, [contenteditable=true], a")) || Boolean(window.getSelection()?.toString());
 }
 function cancelCurrentStep() {
-  if (mobileLogOpen) closeMobileLog();
+  if (explanation) closeExplanation();
+  else if (mobileLogOpen) closeMobileLog();
   else if (detailCardInstanceId) { detailCardInstanceId = ""; detailOwnerId = ""; render(); }
   else if (riderDetailId) { riderDetailId = ""; render(); }
   else returnLocalStep();
 }
 document.addEventListener("keydown", (event) => {
+  if (explanation && event.key === "Tab") {
+    event.preventDefault(); root?.querySelector<HTMLElement>(".auto-explanation .auto-detail__close")?.focus(); return;
+  }
   if (inputIsEditing(event.target)) return;
   if (document.querySelector("dialog[open]")) return;
   if (event.key === "Escape") { event.preventDefault(); cancelCurrentStep(); return; }
@@ -1588,7 +1665,7 @@ document.addEventListener("keydown", (event) => {
   event.preventDefault();
   if (event.repeat || enterHeld) return;
   enterHeld = true;
-  if (interactionState.pendingAction || detailCardInstanceId || riderDetailId || mobileLogOpen) return;
+  if (interactionState.pendingAction || explanation || detailCardInstanceId || riderDetailId || mobileLogOpen) return;
   const buttons = [...root?.querySelectorAll<HTMLButtonElement>("[data-confirm-play], [data-local-selection-confirm], [data-submit-discard], [data-submit-prompt-selection], [data-submit-order], [data-local-form-submit]") || []]
     .filter((button) => !button.disabled && button.getClientRects().length > 0);
   if (buttons.length === 1) buttons[0].click();

@@ -1,3 +1,4 @@
+import type { AutoEventCause } from "../../src/lib/auto-action-types";
 import type {
   BattleLog,
   BodyMarker,
@@ -98,6 +99,7 @@ export interface CharacterSkillResolutionItem {
 export type ResolutionItem = HandResolutionItem | CharacterSkillResolutionItem;
 
 export interface SkillContinuation {
+  cause?: AutoEventCause;
   handlerId: string;
   activationId?: string;
   sourceDefinitionId: string;
@@ -172,6 +174,7 @@ export interface PendingJudgment {
 }
 
 export interface PendingDamage {
+  cause?: AutoEventCause;
   id: string;
   eventId: string;
   targetPlayerId: string;
@@ -225,6 +228,7 @@ export interface PendingBodyTrigger {
 }
 
 export interface AutoBattleEvent {
+  cause?: AutoEventCause;
   id: string;
   type: string;
   turnNumber: number;

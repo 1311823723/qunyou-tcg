@@ -1,7 +1,7 @@
 {
   "id": "deck_roaming_001",
   "name": "巡界组",
-  "archetype": "巡界流",
+  "archetype": "骑士流",
   "bodyId": "body_roaming_001",
   "characterIds": [
     "char_052_fengyaojing_desert-butcher",

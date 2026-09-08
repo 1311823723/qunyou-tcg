@@ -16,8 +16,12 @@ const ARCHETYPE_THEME_SLUG: Record<string, string> = {
   "伏击流": "ambush",
   "防御流": "defense",
   "连携流": "link",
-  "巡界流": "roaming",
+  "骑士流": "roaming",
+  "反制流": "antimagic",
 };
+
+// These bodies have formal card data but are not yet registered in the automatic rules engine.
+const AUTO_UNSUPPORTED_BODY_IDS = new Set(["body_antimagic_001", "body_crossfire_001"]);
 
 const EXTRA_FORM_FILE_SLUGS: Record<string, string> = {
   mega: "mega",
@@ -196,7 +200,7 @@ export function getBattleCatalog() {
         tagDistribution,
         autoImplemented,
         autoTotal: deck.characterIds.length,
-        autoReady: autoImplemented === deck.characterIds.length && !autoBlocked,
+        autoReady: autoImplemented === deck.characterIds.length && !autoBlocked && !AUTO_UNSUPPORTED_BODY_IDS.has(deck.bodyId),
       };
     }),
   };

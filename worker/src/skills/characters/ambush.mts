@@ -126,7 +126,7 @@ const loverGuamao: CharacterSkillModule = {
 const identityThief = immediateCharacterSkill({
   cardId: AMBUSH_CHARACTER_IDS.identityThief,
   trigger: { event: "skill_resolved", relation: "source_opponent" },
-  canActivate: (context) => context.event?.metadata?.revealedFromFaceDown === true,
+  blockedMessage: "此次技能并非由暗置明置发动", blockedCode: "condition", canActivate: (context) => context.event?.metadata?.revealedFromFaceDown === true,
   effect(context) {
     const target = context.opponent();
     const instanceId = String(context.event?.metadata?.characterInstanceId || "");

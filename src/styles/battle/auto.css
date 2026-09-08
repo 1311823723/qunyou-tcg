@@ -767,3 +767,60 @@
   .auto-battle[data-mobile-table="true"] .auto-battle__topbar:has(.auto-quick-play-btn:not([hidden])) { grid-template-columns: max-content max-content repeat(5,max-content); gap: 4px; }
   .auto-battle[data-mobile-table="true"] .auto-battle__topbar > div > span { display: none; }
 }
+
+/* Explanation stays in the command flow; original crystal and form layers remain intact. */
+.auto-explanation-link { color: #b5dedb; background: transparent; border: 1px solid #54716f; border-radius: 5px; font: inherit; font-size: 11px; padding: 5px 8px; flex-shrink: 0; cursor: pointer; }
+.auto-explanation-link:focus-visible { outline: 2px solid #c5f9f3; outline-offset: 2px; }
+.auto-confirmation-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; font-size: 12px; line-height: 1.5; min-width: 0; }
+.auto-confirmation-preview > span { flex: 1 1 240px; }
+.auto-confirmation-preview > small { color: #b1c4d0; }
+.auto-card__availability { position: absolute; top: 4px; left: 4px; padding: 2px 4px; border-radius: 3px; background: #101b25ee; color: #d6f3ef; font-size: 10px; z-index: 2; }
+.auto-explanation article { display: block; width: min(540px, calc(100vw - 24px)); max-height: calc(100dvh - 30px); overflow: auto; padding: 24px; }
+.auto-explanation article p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
+.auto-explanation dl { display: grid; grid-template-columns: 5em 1fr; gap: 8px; }
+.auto-explanation dd { margin: 0; }
+@media (max-width: 600px) { .auto-confirmation-preview { font-size: 11px; } .auto-explanation-link { min-height: 32px; } .auto-table-event { gap: 5px; } }
+
+.auto-command-center > .auto-local-selection,
+.auto-battle[data-mobile-table="true"] .auto-command-center > .auto-local-selection {
+  display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px 12px; align-items: center;
+}
+.auto-command-center > .auto-local-selection h3 { grid-column: 1; margin: 0; font-size: 12px; }
+.auto-command-center > .auto-local-selection .auto-confirmation-preview { grid-column: 1; }
+.auto-command-center > .auto-local-selection .auto-prompt__actions { grid-column: 2; grid-row: 1 / 3; }
+@media (max-width: 600px) {
+  .auto-battle[data-mobile-table="true"] .auto-command-center > .auto-local-selection { grid-template-columns: minmax(0,1fr); gap: 4px; }
+  .auto-battle[data-mobile-table="true"] .auto-command-center > .auto-local-selection .auto-prompt__actions { grid-column: 1; grid-row: auto; }
+  .auto-confirmation-preview > span { flex-basis: 100%; }
+}
+
+.auto-table-event > span { min-width: 0; flex: 1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.auto-command-center.has-interaction-overlay:has(> .auto-local-selection) { justify-content: flex-start; }
+@media (orientation: portrait) and (max-width: 600px) {
+  .auto-battle[data-mobile-table="true"] .auto-local-selection .auto-confirmation-preview { display: grid; grid-template-columns: minmax(0,1fr) auto; }
+  .auto-battle[data-mobile-table="true"] .auto-local-selection .auto-confirmation-preview > span { grid-column: 1 / -1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .auto-battle[data-mobile-table="true"] .auto-local-selection .auto-confirmation-preview > small { font-size: 10px; }
+}
+@media (max-height: 700px) and (orientation: portrait) {
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-game:has(.auto-local-selection) { grid-template-rows: max-content 36px max-content 128px minmax(80px,1fr); }
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-game:has(.auto-local-selection) .auto-identity-cluster .auto-health-counter,
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-game:has(.auto-local-selection) .auto-identity-cluster .auto-progress-counter { min-height: 26px; }
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-game:has(.auto-local-selection) .auto-identity-cluster .auto-body-card .auto-card { height: 54px; }
+  .auto-battle[data-mobile-table="true"] .auto-command-center > .auto-local-selection h3 { display: none; }
+  .auto-battle[data-mobile-table="true"] .auto-command-center > .auto-local-selection { padding: 5px; }
+}
+@media (max-height: 700px) and (orientation: portrait) {
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-game:has(.auto-local-selection) .auto-slot,
+  .auto-battle[data-mobile-table="true"][data-mobile-layout="portrait"] .auto-game:has(.auto-local-selection) .auto-slot .auto-card { height: 70px; }
+}
+.auto-local-selection .auto-confirmation-preview > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+@media (max-height: 700px) {
+  .auto-battle[data-mobile-table="true"][data-mobile-layout] .auto-hand { display: grid; grid-template-rows: auto minmax(44px,1fr); }
+  .auto-battle[data-mobile-table="true"][data-mobile-layout] .auto-hand__cards { height: auto; min-height: 44px; padding: 0 2px; }
+  .auto-battle[data-mobile-table="true"][data-mobile-layout] .auto-hand__cards .auto-card { min-height: 44px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .auto-battle[data-mobile-table="true"] .auto-command-center > .auto-local-selection h3 { display: none; }
+  .auto-battle[data-mobile-table="true"] .auto-command-center > .auto-local-selection .auto-confirmation-preview,
+  .auto-battle[data-mobile-table="true"] .auto-command-center > .auto-local-selection .auto-prompt__actions { grid-row: 1; }
+}

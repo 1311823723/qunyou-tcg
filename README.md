@@ -6,7 +6,7 @@
 
 - **版本:** v0.2.0 Demo
 - **模式:** 1v1 对战
-- **预组:** 上头组 / 密裁组 / 操作组 / 变通组 / 执棋组 / 逆命组 / 幽幕组 / 不落组 / 连携组 / 巡界组
+- **预组:** 上头组 / 密裁组 / 操作组 / 变通组 / 执棋组 / 逆命组 / 幽幕组 / 不落组 / 连携组 / 巡界组 / 破魔组
 - **站点:** https://qunyou-tcg.pages.dev
 
 ## 项目文档
@@ -72,7 +72,7 @@ npm run dev:battle
 大厅同时提供两种互不影响的房间：经典手动对战继续使用 `/play/room` 与
 `BattleRoom`；自动对战 Beta 使用 `/play/auto/room` 与独立的
 `AutoBattleRoom`。自动版由服务端管理阶段、54 张手牌、响应、伤害、濒死与
-胜负。当前 10 张已开放本体（含 Joker 与 KGY 的极巨化）与全部 120 张角色已接入自动结算；可选 10 套正式预组，也可使用已开放本体和 16 张不重复角色组建自选卡组。KGY 随巡界组开放；南山五与花生壳尚未接入自动模式。详细范围见
+胜负。当前 10 张已开放本体（含 Joker 与 KGY 的极巨化）与全部 120 张角色已接入自动结算；可选 10 套正式自动预组，也可使用已开放本体和 16 张不重复角色组建自选卡组。经典收藏与预组页另有破魔组，南山五尚未接入自动模式。详细范围见
 [`docs/auto-battle-beta.md`](docs/auto-battle-beta.md)。彻底自动结算的产品基线见
 [`docs/auto-battle-product.md`](docs/auto-battle-product.md)，技能模块和持久化结算的开发规范见
 [`docs/auto-battle-skill-engine.md`](docs/auto-battle-skill-engine.md)，角色完成度见

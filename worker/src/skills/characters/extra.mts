@@ -35,7 +35,7 @@ function viewAndTake(context: Context, step: string, title: string) {
 }
 const warlock: CharacterSkillModule = {
   cardId: EXTRA_CHARACTER_IDS.warlock, trigger: play,
-  canActivate: (c) => c.player.hand.length >= 2,
+  blockedMessage: "需要至少 2 张手牌", blockedCode: "condition", canActivate: (c) => c.player.hand.length >= 2,
   activate: (c) => select(c, "contract", "暗影契约", "弃置2张手牌；其中有【出刀】则造成2点伤害，否则造成1点。", c.player.hand, 2),
   resolveChoice(c, p, value) {
     if (c.continuation?.step !== "contract") return false;
@@ -59,7 +59,7 @@ const rosa: CharacterSkillModule = {
 };
 const neo: CharacterSkillModule = {
   cardId: EXTRA_CHARACTER_IDS.neo, trigger: play,
-  canActivate: (c) => c.player.hand.some((a) => c.state.handDiscard.some((b) => b.definitionId === a.definitionId)),
+  blockedMessage: "手牌与弃牌区没有同名可选牌", blockedCode: "condition", canActivate: (c) => c.player.hand.some((a) => c.state.handDiscard.some((b) => b.definitionId === a.definitionId)),
   activate(c) { select(c, "backup-show", "全息备份", "展示1张手牌，回收弃牌区中的同名牌。", c.player.hand.filter((a) => c.state.handDiscard.some((b) => b.definitionId === a.definitionId))); },
   resolveChoice(c, p, value) {
     if (c.continuation?.step === "backup-show") {
@@ -74,7 +74,7 @@ const neo: CharacterSkillModule = {
 };
 const undertaker: CharacterSkillModule = {
   cardId: EXTRA_CHARACTER_IDS.undertaker, trigger: { event: "character_retired", relation: "target_opponent" },
-  canActivate: (c) => c.player.retired.length > 0,
+  blockedMessage: "退场区没有可选角色", blockedCode: "target", canActivate: (c) => c.player.retired.length > 0,
   activate: (c) => select(c, "bury", "陪葬登记", "选择己方1张退场角色洗回角色牌堆。", c.player.retired),
   resolveChoice(c, p, value) {
     if (c.continuation?.step !== "bury") return false;
@@ -83,7 +83,7 @@ const undertaker: CharacterSkillModule = {
   },
 };
 const luna: CharacterSkillModule = {
-  cardId: EXTRA_CHARACTER_IDS.luna, trigger: play, canActivate: (c) => Boolean(c.opponent()?.hand.length),
+  cardId: EXTRA_CHARACTER_IDS.luna, trigger: play, blockedMessage: "对手没有可选手牌", blockedCode: "target", canActivate: (c) => Boolean(c.opponent()?.hand.length),
   activate(c) {
     const card = c.randomOpponentHand(); if (!card) return;
     c.addLog(`${c.opponent()!.nickname}展示了${c.handLabel(card)}`, c.player.id);
@@ -91,7 +91,7 @@ const luna: CharacterSkillModule = {
   },
 };
 const detective: CharacterSkillModule = {
-  cardId: EXTRA_CHARACTER_IDS.detective, trigger: play, canActivate: (c) => Boolean(c.opponent()?.hand.length),
+  cardId: EXTRA_CHARACTER_IDS.detective, trigger: play, blockedMessage: "对手没有可选手牌", blockedCode: "target", canActivate: (c) => Boolean(c.opponent()?.hand.length),
   activate(c) { inspectHand(c); select(c, "evidence", "证物搜查", "观看对手所有手牌，选择其中1张令其弃置。", c.opponent()!.hand); },
   resolveChoice(c, p, value) {
     if (c.continuation?.step !== "evidence") return false;
@@ -100,7 +100,7 @@ const detective: CharacterSkillModule = {
   },
 };
 const watcher: CharacterSkillModule = {
-  cardId: EXTRA_CHARACTER_IDS.watcher, trigger: play, canActivate: (c) => Boolean(c.opponent()?.characterDeck.length),
+  cardId: EXTRA_CHARACTER_IDS.watcher, trigger: play, blockedMessage: "对手角色牌堆没有可选牌", blockedCode: "target", canActivate: (c) => Boolean(c.opponent()?.characterDeck.length),
   activate(c) { select(c, "formation-bottom", "窥阵", "观看对手角色牌堆顶至多2张牌，选择1张置底。", c.opponent()!.characterDeck.slice(-2).reverse()); },
   resolveChoice(c, p, value) {
     if (c.continuation?.step !== "formation-bottom") return false;
@@ -112,7 +112,7 @@ const watcher: CharacterSkillModule = {
 };
 const beast: CharacterSkillModule = {
   cardId: EXTRA_CHARACTER_IDS.beast, trigger: { event: "damage_after", relation: "target_opponent" },
-  canActivate: (c) => Number(c.event?.amount) > 0,
+  blockedMessage: "此次事件没有可处理的数量", blockedCode: "condition", canActivate: (c) => Number(c.event?.amount) > 0,
   activate(c) {
     c.addModifier({ kind: "extra-strike", count: 1, sourceDefinitionId: EXTRA_CHARACTER_IDS.beast });
     if (c.event?.metadata?.desertButcherEnhanced) c.addModifier({ kind: "extra-hunt-strike", count: 1,
@@ -121,11 +121,11 @@ const beast: CharacterSkillModule = {
 };
 const weilong: CharacterSkillModule = {
   cardId: EXTRA_CHARACTER_IDS.weilong, trigger: play,
-  canActivate: (c) => !handIsLocked(c.state, c.player.id, HAND_IDS.strike),
+  blockedMessage: "【出刀】当前被禁用", blockedCode: "condition", canActivate: (c) => !handIsLocked(c.state, c.player.id, HAND_IDS.strike),
   activate: (c) => c.useVirtualBasic(HAND_IDS.strike, { requiredDodges: 2 }),
 };
 const hackclaw: CharacterSkillModule = {
-  cardId: EXTRA_CHARACTER_IDS.hackclaw, trigger: play, canActivate: (c) => Boolean(c.opponent()?.hand.length),
+  cardId: EXTRA_CHARACTER_IDS.hackclaw, trigger: play, blockedMessage: "对手没有可选手牌", blockedCode: "target", canActivate: (c) => Boolean(c.opponent()?.hand.length),
   activate(c) { c.setPrompt("declare-action", { title: "信号破译", message: "宣言一种行动牌。", options: Object.values(HAND_IDS).filter((id) => c.isActionCard(id)).map((id) => ({ value: id, label: c.handName(id) })) }); },
   resolveChoice(c, p, value) {
     if (c.continuation?.step === "declare-action") {
@@ -143,7 +143,7 @@ const hackclaw: CharacterSkillModule = {
 };
 const shepherd: CharacterSkillModule = {
   cardId: EXTRA_CHARACTER_IDS.shepherd, trigger: play,
-  canActivate: (c) => Boolean(c.opponent()?.characterSlots.some((s) => s && "instanceId" in s)),
+  blockedMessage: "对手没有可选角色", blockedCode: "target", canActivate: (c) => Boolean(c.opponent()?.characterSlots.some((s) => s && "instanceId" in s)),
   activate(c) { c.setPrompt("sonic-rest", { title: "声波震慑", message: "选择对手1张上阵角色休整。", options: c.opponent()!.characterSlots.flatMap((s, i) => s && "instanceId" in s ? [{ value: String(i), label: `对手角色位 ${i + 1}` }] : []) }); },
   resolveChoice(c, p, value) {
     if (c.continuation?.step !== "sonic-rest") return false;
@@ -152,7 +152,7 @@ const shepherd: CharacterSkillModule = {
   },
 };
 const deepBlue: CharacterSkillModule = {
-  cardId: EXTRA_CHARACTER_IDS.deepBlue, trigger: play, canActivate: (c) => Boolean(c.opponent()?.hand.length),
+  cardId: EXTRA_CHARACTER_IDS.deepBlue, trigger: play, blockedMessage: "对手没有可选手牌", blockedCode: "target", canActivate: (c) => Boolean(c.opponent()?.hand.length),
   activate(c) { const target = c.opponent()!; c.setPrompt("net-choice", { title: "铁网封锁", message: "选择弃置2张手牌，或展示全部手牌并交出1张。", options: [...(target.hand.length >= 2 ? [{ value: "discard", label: "弃置2张手牌" }] : []), { value: "show", label: "展示全部手牌" }] }, {}, target.id); },
   resolveChoice(c, p, value) {
     if (c.continuation?.step === "net-choice") {
@@ -205,7 +205,7 @@ const colors: CharacterSkillModule = {
 };
 const invisible: CharacterSkillModule = {
   cardId: EXTRA_CHARACTER_IDS.invisible, trigger: { event: "inspection_before", relation: "target_self" },
-  canActivate: (c) => Boolean(c.state.pendingInspection && !c.state.pendingInspection.prevented),
+  blockedMessage: "当前没有可阻止的观看", blockedCode: "condition", canActivate: (c) => Boolean(c.state.pendingInspection && !c.state.pendingInspection.prevented),
   activate(c) { c.setPrompt("swap-hidden", { title: "无影调包", message: "防止此次观看，是否将被观看角色置底并替换？", options: [{ value: "swap", label: "防止并调包" }, { value: "keep", label: "只防止观看" }] }); },
   resolveChoice(c, p, value) {
     if (c.continuation?.step !== "swap-hidden") return false;
@@ -230,7 +230,7 @@ const dodo: CharacterSkillModule = {
 };
 const snitch: CharacterSkillModule = {
   cardId: EXTRA_CHARACTER_IDS.snitch, trigger: { event: "opponent_extra_draw", relation: "target_opponent" },
-  canActivate: (c) => Boolean(c.opponent()?.hand.length),
+  blockedMessage: "对手没有可选手牌", blockedCode: "target", canActivate: (c) => Boolean(c.opponent()?.hand.length),
   activate: (c) => select(c, "return-loot", "赃物退回", "选择1张手牌置于共用手牌牌堆底。", c.opponent()!.hand, 1, 1, c.opponent()!.id),
   resolveChoice(c, p, value) {
     if (c.continuation?.step !== "return-loot") return false;
@@ -241,7 +241,7 @@ const snitch: CharacterSkillModule = {
 };
 const celebrity: CharacterSkillModule = {
   cardId: EXTRA_CHARACTER_IDS.celebrity, trigger: play,
-  canActivate: (c) => c.player.hand.some((card) => card.definitionId !== HAND_IDS.dodge),
+  blockedMessage: "没有可用于此技能的手牌（需要非【闪避】牌）", blockedCode: "condition", canActivate: (c) => c.player.hand.some((card) => card.definitionId !== HAND_IDS.dodge),
   activate: (c) => select(c, "store-decoy", "舆论替身", "将1张非【闪避】手牌暗置于本体旁，作为备用【闪避】。", c.player.hand.filter((card) => card.definitionId !== HAND_IDS.dodge)),
   resolveChoice(c, p, value) { if (c.continuation?.step !== "store-decoy") return false; c.storeOwnHandCards(ids(p, value), "extra-decoy"); c.clearPrompt(p.id); return true; },
 };
