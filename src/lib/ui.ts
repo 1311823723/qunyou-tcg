@@ -28,6 +28,10 @@ const ARCHETYPE_THEME: Record<string, string> = {
   "卖血流": "blood",
   "伏击流": "ambush",
   "防御流": "defense",
+  "连携流": "link",
+  "骑士流": "roaming",
+  "反制流": "antimagic",
+  "交叉流": "crossfire",
 };
 
 export function archetypeThemeClass(archetype: string): string {
