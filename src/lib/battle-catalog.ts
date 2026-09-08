@@ -21,9 +21,6 @@ const ARCHETYPE_THEME_SLUG: Record<string, string> = {
   "交叉流": "crossfire",
 };
 
-// These bodies have formal card data but are not yet registered in the automatic rules engine.
-const AUTO_UNSUPPORTED_BODY_IDS = new Set(["body_antimagic_001", "body_crossfire_001"]);
-
 const EXTRA_FORM_FILE_SLUGS: Record<string, string> = {
   mega: "mega",
   "z-move": "z_move",
@@ -201,7 +198,7 @@ export function getBattleCatalog() {
         tagDistribution,
         autoImplemented,
         autoTotal: deck.characterIds.length,
-        autoReady: autoImplemented === deck.characterIds.length && !autoBlocked && !AUTO_UNSUPPORTED_BODY_IDS.has(deck.bodyId),
+        autoReady: autoImplemented === deck.characterIds.length && !autoBlocked,
       };
     }),
   };

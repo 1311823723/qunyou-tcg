@@ -9,6 +9,8 @@ import { mizaiBodySkill } from "./bodies/mizai.mts";
 import { transBodySkill } from "./bodies/trans.mts";
 import { linkBodySkill } from "./bodies/link.mts";
 import { roamingBodySkill } from "./bodies/roaming.mts";
+import { antimagicBodySkill } from "./bodies/antimagic.mts";
+import { crossfireBodySkill } from "./bodies/crossfire.mts";
 import type { BodySkillModule } from "./body-skill.mts";
 
 const modules = [
@@ -22,6 +24,8 @@ const modules = [
   bloodBodySkill,
   ambushBodySkill,
   defenseBodySkill,
+  antimagicBodySkill,
+  crossfireBodySkill,
 ] satisfies BodySkillModule[];
 const registry = new Map(modules.map((module) => [module.bodyId, module]));
 

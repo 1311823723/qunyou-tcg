@@ -1290,11 +1290,11 @@ strong { color: var(--text-gold); font-weight: 800; }
   --deck-glow: rgba(224, 90, 214, 0.22);
 }
 .deck-theme--roaming {
-  --deck-accent: #69c55a;
-  --deck-accent-2: #c2e36c;
-  --deck-soft: #c9f0a5;
-  --deck-deep: rgba(19, 49, 29, 0.92);
-  --deck-glow: rgba(105, 197, 90, 0.2);
+  --deck-accent: #c2185b;
+  --deck-accent-2: #e83e8c;
+  --deck-soft: #f4b1cc;
+  --deck-deep: rgba(36, 19, 38, 0.94);
+  --deck-glow: rgba(226, 45, 112, 0.24);
 }
 .deck-theme--antimagic {
   --deck-accent: #a5b4c8;

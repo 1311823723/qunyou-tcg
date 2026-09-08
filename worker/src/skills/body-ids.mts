@@ -11,6 +11,8 @@ export const BODY_IDS = {
   blood: "body_blood_001",
   ambush: "body_ambush_001",
   defense: "body_defense_001",
+  antimagic: "body_antimagic_001",
+  crossfire: "body_crossfire_001",
 } as const;
 
 export function bodyId(player: AutoPlayerState) {

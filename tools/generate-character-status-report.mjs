@@ -22,11 +22,6 @@ const REVIEW_LABELS = {
   needs_optimization: "待优化",
 };
 
-// Character completion is independent from body automation. These decks are
-// valid formal/classic decks but must stay out of the automatic room until a
-// body skill module is registered.
-const AUTO_UNSUPPORTED_BODY_IDS = new Set(["body_antimagic_001", "body_crossfire_001"]);
-
 const deckNamesByCharacter = new Map();
 for (const deck of decks) {
   for (const id of deck.characterIds) {
@@ -66,8 +61,7 @@ function report() {
     const implemented = deck.characterIds.filter((id) => implementation[id]?.automation === "implemented").length;
     const blocked = deck.characterIds.some((id) => implementation[id]?.review === "needs_confirmation");
     const ready = implemented === deck.characterIds.length && !blocked;
-    const autoReady = ready && !AUTO_UNSUPPORTED_BODY_IDS.has(deck.bodyId);
-    const status = !ready ? (blocked ? "待确认" : "未解锁") : autoReady ? "已解锁" : "经典可用，自动待本体";
+    const status = !ready ? (blocked ? "待确认" : "未解锁") : "已解锁";
     lines.push(`| ${deck.name} | ${deck.archetype} | ${implemented}/${deck.characterIds.length} | ${status} |`);
   }
   lines.push("", "## 状态清单", "");

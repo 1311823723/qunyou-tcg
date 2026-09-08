@@ -38,7 +38,7 @@ export interface BodySkillRuntimeContext {
   deployTopCharacter(): { card: CardInstance; slotIndex: number } | undefined;
   deployCharacterAt?(card: CardInstance, slotIndex: number): void;
   restOwnCharacter(instanceId: string): boolean;
-  startJudgment(purpose: "blood-body"): void;
+  startJudgment(purpose: "blood-body" | "crossfire-body"): void;
   discardRandom(owner: AutoPlayerState): CardInstance | undefined;
   heal(count: number): number;
   legalStrikeCards(): CardInstance[];

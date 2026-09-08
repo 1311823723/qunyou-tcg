@@ -60,6 +60,7 @@ export interface HandResolutionItem {
   cannotDodge?: boolean;
   returnCharacterOnDamageInstanceId?: string;
   damageBonus?: number;
+  antimagicSkillLock?: boolean;
   bodyEffect?: "aggro-mega-strike";
   drawSourceOnDodge?: boolean;
   healSourceOnDamageAtLeast?: number;
@@ -130,6 +131,7 @@ export interface TurnModifier {
     | "aggro-reveal-lock"
     | "aggro-bomb"
     | "aggro-next-strike-damage"
+    | "antimagic-next-strike"
     | "aggro-copy-character-skill"
     | "mizai-strike-block"
     | "mizai-next-strike-undodgeable"
@@ -167,7 +169,7 @@ export interface TurnModifier {
 export interface PendingJudgment {
   id: string;
   playerId: string;
-  purpose: "blood-body" | "blood-prophet" | "defense-birdwatcher" | "generic";
+  purpose: "blood-body" | "blood-prophet" | "defense-birdwatcher" | "crossfire-body" | "generic";
   stage: "revealed" | "resolved";
   cardInstanceId: string;
   resumeResponsePlayerId?: string;
@@ -200,6 +202,15 @@ export interface BodyRuntimeState {
     remaining: number;
     expiresAtTurnNumber: number;
   };
+  antiMagicMark?: boolean;
+  crossfireHistory?: {
+    turnNumber: number;
+    lastAction?: "strike" | "skill";
+    usedStrike?: boolean;
+    usedSkill?: boolean;
+    eligibleSkillActivations: string[];
+    eligibleStrikeEvents: string[];
+  };
 }
 
 export type MainRole = "强攻" | "防御" | "资源" | "控制" | "支援" | "伏击";
@@ -217,7 +228,11 @@ export type PendingBodyTriggerKind =
   | "ambush-refill"
   | "defense-reward"
   | "kgy-acquire"
-  | "kgy-ambush";
+  | "kgy-ambush"
+  | "antimagic-acquire"
+  | "crossfire-skill-draw"
+  | "crossfire-strike-inspect"
+  | "crossfire-mega";
 
 export interface PendingBodyTrigger {
   id: string;

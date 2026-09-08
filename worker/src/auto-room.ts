@@ -1203,6 +1203,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       dynamaxEnding: false,
       riderCards: this.emptyRiderCards(),
       riderAcquiredEventIds: {},
+      antiMagicMark: false,
     };
   }
 
@@ -1939,6 +1940,13 @@ export class AutoBattleRoom extends DurableObject<Env> {
       }
       if (judgment.resumeResponsePlayerId) this.restoreResponseAfterSkill(judgment.resumeResponsePlayerId);
       else this.openNextSkillTrigger();
+      return;
+    }
+    if (judgment.purpose === "crossfire-body") {
+      const skill = bodySkillForId(bodyId(player));
+      const handled = skill?.resolveJudgment?.(this.bodySkillContext(player), card, red ? "红色" : "黑色") || false;
+      this.state.pendingJudgments = this.state.pendingJudgments.filter((candidate) => candidate.id !== judgment.id);
+      if (!handled || !this.state.prompt) this.openNextSkillTrigger();
       return;
     }
     if (judgment.purpose !== "blood-body") return this.openNextSkillTrigger();
@@ -3299,6 +3307,18 @@ export class AutoBattleRoom extends DurableObject<Env> {
       item.damageBonus = Number(item.damageBonus || 0) + amount;
       this.addLog(`${source.nickname}强化了本次【出刀】，伤害+${amount}`, source.id, { zone: "resolving" });
     }
+    if (bodyId(source) === "body_antimagic_001" && source.bodyState.antiMagicMark) {
+      source.bodyState.antiMagicMark = false;
+      item.damageBonus = Number(item.damageBonus || 0) + 1;
+      this.emitEvent("antimagic_strike", { sourcePlayerId: source.id, targetPlayerId: item.targetPlayerId, cardDefinitionId: HAND_IDS.strike });
+      this.addLog(`${source.nickname}消耗【反魔】强化了本次【出刀】，伤害+1`, source.id, { zone: "body", ownerId: source.id });
+    }
+    const antimagicModifier = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === source.id && modifier.kind === "antimagic-next-strike");
+    if (antimagicModifier >= 0) {
+      this.state.turnModifiers.splice(antimagicModifier, 1);
+      item.damageBonus = Number(item.damageBonus || 0) + 1;
+      item.antimagicSkillLock = true;
+    }
     const undodgeableIndex = this.state.turnModifiers.findIndex((modifier) => modifier.ownerId === source.id && modifier.kind === "mizai-next-strike-undodgeable");
     if (undodgeableIndex >= 0) {
       this.state.turnModifiers.splice(undodgeableIndex, 1);
@@ -4079,6 +4099,10 @@ export class AutoBattleRoom extends DurableObject<Env> {
     if (!this.state) return [];
     if (this.state.winnerId) return unavailable("对局已结束");
     const responseActivation = this.state.prompt?.kind === "response" && this.state.responsePlayerId === player.id && this.state.stack.length > 0;
+    const responseTop = responseActivation ? this.state.stack.at(-1) : undefined;
+    if (responseActivation && isHandResolutionItem(responseTop) && responseTop.antimagicSkillLock && responseTop.sourcePlayerId !== player.id) {
+      return unavailable("本次【出刀】结算期间对手角色技能被反魔法封锁");
+    }
     if (responseActivation && this.state.prompt?.context?.responseSkillsComplete === true) return unavailable("此次响应的技能窗口已结束");
     const triggerPrompt = this.state.prompt?.kind === "character-trigger" && this.state.prompt.playerId === player.id;
     const dyingActivation = this.state.prompt?.kind === "dying" && this.state.prompt.playerId === player.id;
@@ -4438,6 +4462,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
           dynamaxEnergy: player.bodyState.dynamaxEnergy || 0,
           dynamaxHealth: player.bodyState.dynamaxHealth || 0,
           riderCards: player.bodyState.riderCards || this.emptyRiderCards(),
+          antiMagicMark: Boolean(player.bodyState.antiMagicMark),
           trackedCharacterInstanceIds: player.id === viewerId && !spectator ? player.bodyState.trackedCharacterInstanceIds : [],
           ...(player.bodyState.ambushWindow ? { ambushWindow: player.bodyState.ambushWindow } : {}),
         },

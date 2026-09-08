@@ -134,7 +134,7 @@ test("同时触发提示可从快照恢复本体特性，且不会被旧提示�
   assert.equal(takePendingBodyTrigger(pending, promptContext, "stale-trigger", "p1"), undefined);
 });
 
-test("10张本体全部由技能注册表管理", () => {
+test("12张本体全部由技能注册表管理", () => {
   assert.deepEqual(registeredBodySkillIds(), Object.values(BODY_IDS));
   for (const id of Object.values(BODY_IDS)) assert.ok(bodySkillForId(id), `${id} 应已注册`);
 });
@@ -305,4 +305,33 @@ test("防御Z招式会自动防止致命伤害并回复2点体力", () => {
   assert.equal(owner.health, 3);
   assert.equal(owner.bodyState.extraFormUsed, true);
   assert.equal(run.getEvents()[0].type, "damage_prevented");
+});
+
+test("反制流自动收集反魔并在出刀时消耗", () => {
+  const owner = player(BODY_IDS.antimagic);
+  const skill = bodySkillForId(BODY_IDS.antimagic);
+  const run = runtime(owner);
+  const resolved = event("skill_resolved", { id: "skill-1", sourcePlayerId: "p2" });
+  assert.equal(skill.collectTrigger(run.context, resolved).kind, "antimagic-acquire");
+  assert.equal(skill.openPrompt(run.context, { id: "t", kind: "antimagic-acquire", playerId: owner.id, eventId: resolved.id }), true);
+  skill.resolveChoice(run.context, run.getPrompt(), { value: "gain" });
+  assert.equal(owner.bodyState.antiMagicMark, true);
+  const item = { kind: "hand", id: "strike", sourcePlayerId: owner.id, targetPlayerId: "p2" };
+  owner.bodyState.antiMagicMark = false;
+  assert.equal(skill.progressDelta(owner, event("antimagic_strike", { sourcePlayerId: owner.id })), 1);
+  assert.equal(item.targetPlayerId, "p2");
+});
+
+test("交叉流记录出刀与角色技能的交替触发", () => {
+  const owner = player(BODY_IDS.crossfire);
+  const skill = bodySkillForId(BODY_IDS.crossfire);
+  const run = runtime(owner);
+  skill.collectTrigger(run.context, event("card_used", { id: "strike-1", sourcePlayerId: owner.id, cardDefinitionId: "hand_basic_001" }));
+  const trigger = skill.collectTrigger(run.context, event("skill_used", { id: "skill-1", sourcePlayerId: owner.id }));
+  assert.equal(trigger, undefined);
+  const resolved = skill.collectTrigger(run.context, event("skill_resolved", { id: "resolved-1", sourcePlayerId: owner.id, metadata: { activationId: "skill-1" } }));
+  assert.equal(resolved.kind, "crossfire-skill-draw");
+  assert.equal(skill.openPrompt(run.context, { id: "t", ...resolved, playerId: owner.id, eventId: "resolved-1" }), true);
+  skill.resolveChoice(run.context, run.getPrompt(), { value: "draw" });
+  assert.equal(run.getDrawn(), 1);
 });
