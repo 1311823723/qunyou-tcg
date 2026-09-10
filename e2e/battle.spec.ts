@@ -260,7 +260,7 @@ test("automatic beta room starts, advances phases and protects spectator privacy
     await expect(hostPage.locator("#auto-battle-app")).toHaveAttribute("data-phase", "lobby");
     await hostPage.locator("#auto-deck-select").selectOption("deck_combo_001");
     await expect(hostPage.locator("#auto-deck-select")).toHaveValue("deck_combo_001");
-    await expect(hostPage.locator("#auto-deck-select option:not([disabled])")).toHaveCount(11);
+    await expect(hostPage.locator("#auto-deck-select option:not([disabled])")).toHaveCount(13);
     await expect(hostPage.locator("#auto-deck-select option[disabled]")).toHaveCount(0);
     expect((await hostPage.locator("#auto-deck-select option").allTextContents()).join(" ")).toContain("自选");
 
@@ -404,7 +404,7 @@ test("automatic beta room starts, advances phases and protects spectator privacy
   }
 });
 
-test("automatic custom decks share the editor, cover all remaining roles and exclude unfinished bodies", async ({ browser }, testInfo) => {
+test("automatic custom decks share the editor and cover all supported roles and bodies", async ({ browser }, testInfo) => {
   const contexts = [await browser.newContext(), await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }), await browser.newContext()];
   const entries: string[] = [];
   try {
@@ -422,7 +422,7 @@ test("automatic custom decks share the editor, cover all remaining roles and exc
       const all = Object.values(catalog.cards).filter((card: any) => card.kind === "character").map((card: any) => card.id) as string[];
       return { all, extra: all.filter((id) => !prebuilt.has(id)) };
     });
-    expect(cardPool.extra).toHaveLength(3);
+    expect(cardPool.all).toHaveLength(120);
     const hostIds = [...cardPool.extra, ...cardPool.all.filter((id) => !cardPool.extra.includes(id))].slice(0, 16);
     const guestIds = [...cardPool.extra.slice(3), ...cardPool.all.filter((id) => !cardPool.extra.includes(id))].slice(0, 16);
 
@@ -430,11 +430,11 @@ test("automatic custom decks share the editor, cover all remaining roles and exc
       await page.locator('[data-auto-custom-editor]').click();
       const dialog = page.locator("#auto-deck-dialog");
       await expect(dialog).toBeVisible();
-      await expect(dialog.locator("[data-custom-body-option]")).toHaveCount(10);
+      await expect(dialog.locator("[data-custom-body-option]")).toHaveCount(12);
       await expect(dialog.locator("[data-custom-character]")).toHaveCount(120);
       await expect(dialog.locator('[data-custom-body-option="body_link_001"]')).toHaveCount(1);
-      for (const excluded of ["body_antimagic_001", "body_crossfire_001"]) {
-        await expect(dialog.locator(`[data-custom-body-option="${excluded}"]`)).toHaveCount(0);
+      for (const supported of ["body_antimagic_001", "body_crossfire_001"]) {
+        await expect(dialog.locator(`[data-custom-body-option="${supported}"]`)).toHaveCount(1);
       }
       await dialog.locator(`[data-custom-body-option="${bodyId}"]`).click();
       await dialog.locator("[data-custom-clear]").click();

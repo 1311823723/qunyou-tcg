@@ -30,3 +30,9 @@ export interface AutoPublicEvent {
   amount?: number; cause?: AutoEventCause;
   characterDefinitionId?: string; cardDefinitionId?: string;
 }
+
+export interface AutoRematchRequest {
+  id: string;
+  requestedBy: string;
+  mode: "same-decks" | "change-decks";
+}

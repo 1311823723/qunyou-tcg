@@ -824,3 +824,24 @@
   .auto-battle[data-mobile-table="true"] .auto-command-center > .auto-local-selection .auto-confirmation-preview,
   .auto-battle[data-mobile-table="true"] .auto-command-center > .auto-local-selection .auto-prompt__actions { grid-row: 1; }
 }
+
+/* Match results are a dismissible sheet; the finished table remains inspectable. */
+.auto-result { z-index: 90; }
+.auto-result article { display: block; width: min(560px,calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 24px; background: linear-gradient(145deg,#1c2034,#111920); border: 1px solid #617779; }
+.auto-result__eyebrow { color: #b9c6d3; font-size: 12px; }
+.auto-result h2 { margin: 8px 0 20px; color: #f2dfae; font-size: 28px; }
+.auto-result__players { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.auto-result__player { display: grid; gap: 5px; min-width: 0; padding: 12px; border: 1px solid #414e5b; border-radius: 10px; }
+.auto-result__player.is-winner { border-color: #72bcb1; }
+.auto-result__player > span,.auto-result__player > small { font-size: 12px; color: #bdcbd4; }
+.auto-result__player > strong { overflow-wrap: anywhere; }
+.auto-battle .auto-result .auto-health-counter { margin: 4px 0 0; min-width: 0; grid-template-columns: 1fr auto; gap: 4px; }
+.auto-result .auto-health-counter__icons { grid-row: 2; grid-column: 1 / -1; flex-wrap: wrap; }
+.auto-result .auto-health-counter > strong { grid-row: 1; grid-column: 2; }
+.auto-result__actions,.auto-result footer { display: flex; flex-wrap: wrap; gap: 8px; }
+.auto-result p { margin: 16px 0; font-size: 13px; line-height: 1.6; }
+.auto-result footer { margin-top: 16px; justify-content: space-between; }
+.auto-result button,.auto-result a { min-height: 44px; }
+.auto-result .auto-health-counter__icon { width: 12px; height: 12px; }
+@media (max-width: 420px) { .auto-result article { padding: 16px; } .auto-result__players { gap: 6px; } .auto-result__player { padding: 8px; } .auto-result__actions > button { flex: 1; } }
+@media (max-height: 450px) { .auto-result article { padding: 14px 20px; } .auto-result h2 { margin: 4px 0 10px; font-size: 22px; } .auto-result p,.auto-result footer { margin-top: 10px; margin-bottom: 10px; } }

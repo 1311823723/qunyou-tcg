@@ -318,7 +318,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
       });
       if (!hasOther) {
         const player = this.state.players.find((item) => item.id === attachment.playerId);
-        if (player) player.disconnectedAt = Date.now();
+        if (player) { player.disconnectedAt = Date.now(); this.state.rematch = undefined; }
       }
     }
     this.state.lastActivityAt = Date.now();
@@ -356,6 +356,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
   private async applyAction(player: AutoPlayerState, message: AutoClientMessage) {
     if (!this.state) throw new Error("房间状态不存在。");
     const payload = message.payload || {};
+    if (message.type.startsWith("room:rematch")) return this.handleRematch(player, message.type, payload);
+    if (this.state.winnerId) throw new Error("本局已结束，请选择再战或返回大厅。");
     switch (message.type) {
       case "player:selectDeck": {
         if (this.state.started || player.ready) throw new Error("当前不能更换预组。");
@@ -3140,6 +3142,61 @@ export class AutoBattleRoom extends DurableObject<Env> {
     this.addLog(`${player.nickname} 执行了辅助结算：${action} ${amount}`, player.id, { zone: "resolving" });
   }
 
+  private rematchActions(player: AutoPlayerState): AutoLegalAction[] {
+    if (!this.state?.winnerId) return [];
+    const request = this.state.rematch;
+    if (request) return request.requestedBy === player.id
+      ? [{ type: "room:rematchCancel", payload: { requestId: request.id } }]
+      : [true, false].map(accept => ({ type: "room:rematchRespond", payload: { requestId: request.id, accept } }));
+    if (!this.bothPlayersConnected()) return [];
+    return ["same-decks", "change-decks"].map(mode => ({ type: "room:rematchRequest", payload: { mode } }));
+  }
+
+  private bothPlayersConnected() {
+    const connected = new Set(this.ctx.getWebSockets().flatMap(socket => {
+      const attachment = socket.deserializeAttachment() as AutoSocketAttachment | null;
+      return attachment && !attachment.isSpectator ? [attachment.playerId] : [];
+    }));
+    return this.state?.players.length === 2 && this.state.players.every(player => connected.has(player.id) && !player.disconnectedAt);
+  }
+
+  private handleRematch(player: AutoPlayerState, command: string, payload: Record<string, unknown>) {
+    const state = this.state!;
+    if (!state.started || !state.winnerId) throw new Error("只有本局结束后才能邀请再战。");
+    const request = state.rematch;
+    if (command === "room:rematchRequest") {
+      if (request) throw new Error("已有再战邀请，请先回应或取消。");
+      if (!this.bothPlayersConnected()) throw new Error("请等待双方在线后邀请再战。");
+      if (payload.mode !== "same-decks" && payload.mode !== "change-decks") throw new Error("再战方式无效。");
+      state.rematch = { id: crypto.randomUUID(), requestedBy: player.id, mode: payload.mode };
+      this.addLog(`${player.nickname}邀请${payload.mode === "same-decks" ? "沿用预组再战" : "返回准备室换组"}`, player.id);
+      return;
+    }
+    if (!request || request.id !== payload.requestId) throw new Error("这份再战邀请已失效。");
+    if (command === "room:rematchCancel") {
+      if (request.requestedBy !== player.id) throw new Error("只能取消自己发出的邀请。");
+      state.rematch = undefined; return;
+    }
+    if (command !== "room:rematchRespond" || request.requestedBy === player.id || typeof payload.accept !== "boolean") throw new Error("请由对手回应再战邀请。");
+    if (!payload.accept) { state.rematch = undefined; this.addLog(`${player.nickname}暂不再战`, player.id); return; }
+    if (!this.bothPlayersConnected()) throw new Error("对手暂离，请等待重连后再战。");
+    const mode = request.mode;
+    // Rebuild match state, retaining only room identity, seats, connectivity and command deduplication.
+    this.state = {
+      stateVersion: state.stateVersion, mode: "auto", roomCode: state.roomCode,
+      createdAt: state.createdAt, lastActivityAt: state.lastActivityAt,
+      started: false,
+      players: state.players.map(previous => ({ ...this.newPlayer(previous.id, previous.token, previous.nickname, previous.deckId || "", previous.customDeck),
+        ...(previous.disconnectedAt ? { disconnectedAt: previous.disconnectedAt } : {}), ready: mode === "same-decks" })),
+      spectators: state.spectators, handDeck: [], handDiscard: [], handBanished: [], resolving: [],
+      turnNumber: 0, phase: "preparation", stack: [], consecutivePasses: 0, usageCounters: {}, turnModifiers: [],
+      deployedThisPhase: 0, recentEvents: [], pendingBodyTriggers: [], pendingJudgments: [], pendingDamages: [],
+      revision: state.revision, logs: [], processedActionIds: state.processedActionIds,
+    };
+    if (mode === "same-decks") this.startGame();
+    else this.addLog("双方同意返回准备室，可更换预组后重新准备。", undefined, { zone: "lobby" });
+  }
+
   private startGame() {
     if (!this.state) return;
     this.state.handDeck = this.shuffle(handCards.flatMap((definition) => definition.cards.map((entry) => ({
@@ -4169,7 +4226,8 @@ export class AutoBattleRoom extends DurableObject<Env> {
   }
 
   private legalActionsFor(player: AutoPlayerState, legalHandCardIds: string[], legalSkillInstanceIds: string[]): AutoLegalAction[] {
-    if (!this.state || this.state.winnerId) return [];
+    if (!this.state) return [];
+    if (this.state.winnerId) return this.rematchActions(player);
     const actions: AutoLegalAction[] = [];
     const prompt = this.state.prompt;
     if (prompt) {
@@ -4497,6 +4555,7 @@ export class AutoBattleRoom extends DurableObject<Env> {
         prompt: visiblePrompt,
         responsePlayerId: this.state.responsePlayerId,
         winnerId: this.state.winnerId,
+        rematch: this.state.rematch,
         deployedThisPhase: this.state.deployedThisPhase,
         recentEvents: this.state.recentEvents.slice(-4).map((event) => ({
           id: event.id,

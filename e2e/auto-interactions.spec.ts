@@ -445,3 +445,65 @@ test('explanations preserve drafts, show ownership and yield to new decisions', 
   await expect(page.locator('.auto-table-event')).toContainText('响应出刀');
   expect(commands).toHaveLength(0); expect(errors).toEqual([]);
 });
+
+test('match results support consent, cancellation, table inspection and changing decks across viewports', async ({ page }) => {
+  const { state, commands, errors, publish, ack } = await flowTable(page);
+  state.revision++; state.game.winnerId = 'p1'; state.game.turnNumber = 8;
+  state.game.legalActions = ['same-decks','change-decks'].map(mode => ({ type: 'room:rematchRequest', payload: { mode } }));
+  publish();
+  const dialog = page.getByRole('dialog', { name: '对局结果', exact: true });
+  await expect(dialog).toContainText('你获胜了');
+  await expect(page.locator('[data-result-title]')).toBeFocused();
+  await page.keyboard.press('Enter'); expect(commands).toHaveLength(0);
+  for (const [width,height] of [[1920,1080],[1366,768],[900,700],[390,844],[844,390],[320,640],[740,360]]) {
+    await page.setViewportSize({ width,height });
+    const sheet = await page.locator('.auto-result article').boundingBox();
+    expect(sheet!.x).toBeGreaterThanOrEqual(0); expect(sheet!.y).toBeGreaterThanOrEqual(0);
+    expect(sheet!.x+sheet!.width).toBeLessThanOrEqual(width+1);
+    expect(sheet!.y+sheet!.height).toBeLessThanOrEqual(height+1);
+    await expect(dialog.getByRole('button', { name: '再来一局', exact: true })).toBeVisible();
+    for (const counter of await dialog.locator('.auto-health-counter').all()) {
+      const icons = await counter.locator('.auto-health-counter__icons').boundingBox();
+      const value = await counter.locator(':scope > strong').boundingBox();
+      expect(icons!.y).toBeGreaterThanOrEqual(value!.y + value!.height - 1);
+      expect(await counter.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+    }
+    await page.screenshot({ path: `/tmp/tcg-result-${width}.png` });
+  }
+  await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
+  state.revision++; publish(); await expect(dialog).toHaveCount(0);
+  await expect(page.locator('[data-result-open]')).toBeFocused();
+  await page.locator('[data-result-open]').click(); await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: '再来一局', exact: true }).click();
+  await dialog.getByRole('button', { name: '再来一局', exact: true }).dispatchEvent('click');
+  expect(commands).toHaveLength(1);
+  expect(commands[0]).toMatchObject({ type: 'room:rematchRequest', payload: { mode: 'same-decks' } });
+  state.game.rematch = { id: 'request-1', requestedBy: 'p1', mode: 'same-decks' };
+  state.game.legalActions = [{ type: 'room:rematchCancel', payload: { requestId: 'request-1' } }];
+  await ack(); await expect(dialog).toContainText('等待对手同意');
+  await dialog.getByRole('button', { name: '取消邀请', exact: true }).click();
+  delete state.game.rematch; state.game.legalActions = []; await ack();
+  await page.keyboard.press('Escape');
+  state.game.rematch = { id: 'request-2', requestedBy: 'p2', mode: 'change-decks' };
+  state.game.legalActions = [true,false].map(accept => ({ type: 'room:rematchRespond', payload: { requestId: 'request-2', accept } }));
+  state.revision++; publish(); await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: '同意返回准备室换组', exact: true }).click();
+  expect(commands.at(-1)).toMatchObject({ type: 'room:rematchRespond', payload: { requestId: 'request-2', accept: true } });
+  state.game.started = false; delete state.game.winnerId; delete state.game.rematch;
+  state.players.forEach((p: any) => { p.ready = false; p.deckId = 'deck_aggro_001'; });
+  state.game.legalActions = []; await ack();
+  await expect(page.locator('.auto-lobby')).toContainText('自动对战准备室');
+  await expect(page.locator('#auto-deck-select')).toBeEnabled();
+  await expect(dialog).toHaveCount(0); expect(errors).toEqual([]);
+});
+
+test('spectator result uses stable seats and offers no rematch controls', async ({ page }) => {
+  const { state, commands, errors, publish } = await flowTable(page);
+  state.you = 'spectator'; state.revision++; state.game.winnerId = 'p2';
+  state.game.legalActions = []; publish();
+  const dialog = page.getByRole('dialog', { name: '对局结果', exact: true });
+  await expect(dialog).toContainText('玩家 B获胜');
+  await expect(dialog).not.toContainText('我方');
+  await expect(dialog.locator('[data-rematch-action]')).toHaveCount(0);
+  expect(commands).toHaveLength(0); expect(errors).toEqual([]);
+});

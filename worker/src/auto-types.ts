@@ -1,4 +1,4 @@
-import type { AutoEventCause } from "../../src/lib/auto-action-types";
+import type { AutoEventCause, AutoRematchRequest } from "../../src/lib/auto-action-types";
 import type {
   BattleLog,
   BodyMarker,
@@ -276,6 +276,7 @@ export interface AutoPlayerState {
 }
 
 export interface AutoRoomState {
+  rematch?: AutoRematchRequest;
   stateVersion: number;
   mode: "auto";
   roomCode: string;

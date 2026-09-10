@@ -1,4 +1,4 @@
-import type { AutoLegalAction, AutoUnavailableReasons, AutoBlocker, AutoPublicEvent } from "../lib/auto-action-types";
+import type { AutoLegalAction, AutoUnavailableReasons, AutoBlocker, AutoPublicEvent, AutoRematchRequest } from "../lib/auto-action-types";
 import { AutoInteraction, type LocalSelectionAction, type LocalFormAction, type PendingAction } from "./auto-interaction";
 import { getBattleApiUrl } from "../lib/battle-api";
 import { escapeHtml, handCardIdentityLabel, handCardImagePath } from "./battle-format";
@@ -61,6 +61,7 @@ type AutoSnapshot = {
     prompt?: AutoPrompt;
     responsePlayerId?: string;
     winnerId?: string;
+    rematch?: AutoRematchRequest;
     deployedThisPhase: number;
     recentEvents: AutoPublicEvent[];
     skillBlockers?: Record<string, AutoBlocker>;
@@ -103,6 +104,8 @@ let reconnectTimer = 0;
 let toastTimer = 0;
 let shouldReconnect = true;
 let exitingToLobby = false;
+let resultDismissed = false;
+let focusResult = false;
 let explanation: "event" | "preview" | undefined;
 let explanationEvent: AutoPublicEvent | undefined;
 let explanationReturnSelector = "";
@@ -386,6 +389,16 @@ function handleMessage(message: ServerMessage) {
       }
     }
     snapshot = message.snapshot;
+    if (!snapshot.game.winnerId) resultDismissed = false;
+    if (snapshot.game.winnerId && (!previous?.game.winnerId || snapshot.game.rematch?.id !== previous?.game.rematch?.id && snapshot.game.rematch)) {
+      resultDismissed = false; focusResult = true;
+      interactionState.resetDecision(); explanation = undefined; detailCardInstanceId = ""; riderDetailId = "";
+    }
+    if (previous?.game.winnerId && !snapshot.game.winnerId) {
+      interactionState.resetDecision(); explanation = undefined; detailCardInstanceId = ""; riderDetailId = "";
+      effectQueue.length = 0; clearTimeout(effectTimer); effectPlaying = false; effectLayer?.classList.remove("is-playing"); effectLayer?.replaceChildren(); healthAnimations.clear(); progressAnimations.clear(); flipAnimations.clear();
+      feedbackReady = false;
+    }
     if (explanation && (previous?.game.prompt?.id !== snapshot.game.prompt?.id || previous?.game.responsePlayerId !== snapshot.game.responsePlayerId)) {
       explanation = undefined; explanationEvent = undefined;
     }
@@ -923,12 +936,12 @@ function renderGame() {
   const selectedDefinition = definition(selectedCard);
   const selectedCardAction = selectedCard && selectedDefinition ? renderSelectedCardAction(selectedDefinition) : "";
   const canDeployCharacter = Boolean(snapshot.game.legalActions?.some((action) => action.type === "character:deploy"));
-  const promptDialog = !interactionState.localFormAction && !interactionState.localSelectionAction && !interactionState.selectedRoleInstanceId
+  const promptDialog = !snapshot.game.winnerId && !interactionState.localFormAction && !interactionState.localSelectionAction && !interactionState.selectedRoleInstanceId
     && promptNeedsDialog(snapshot.game.prompt, me)
     ? renderPrompt(snapshot.game.prompt, me, true)
     : "";
   const hasInteractionOverlay = Boolean(snapshot.game.prompt || interactionState.selectedRoleInstanceId || interactionState.localSelectionAction || interactionState.localFormAction || selectedCardAction);
-  const interaction = interactionState.localFormAction ? renderLocalForm(me, opponent)
+  const interaction = snapshot.game.winnerId ? "" : interactionState.localFormAction ? renderLocalForm(me, opponent)
     : interactionState.localSelectionAction ? renderLocalSelection()
       : interactionState.selectedRoleInstanceId ? renderRoleAction(me)
         : selectedCardAction ? selectedCardAction
@@ -947,13 +960,13 @@ function renderGame() {
       ${snapshot.game.prompt && interactionState.localSelectionAction || snapshot.game.prompt && selectedCardAction || snapshot.game.prompt && interactionState.selectedRoleInstanceId ? responseContext(snapshot.game.prompt!) : ""}
       ${interaction}
       ${renderPendingAction()}
-      ${snapshot.game.winnerId ? `<div class="auto-winner"><strong>${escapeHtml(sideName(snapshot.game.winnerId))}获胜</strong><a href="/play" class="btn btn--primary">返回大厅</a></div>` : ""}
+      ${snapshot.game.winnerId ? `<div class="auto-winner"><strong>${escapeHtml(sideName(snapshot.game.winnerId))}获胜</strong><button type="button" class="btn btn--primary" data-result-open>查看结果与再战</button></div>` : ""}
     </section>`);
   regions.set("lower", lowerPlayer ? renderPlayer(lowerPlayer, !spectator, spectator ? "玩家 B" : undefined, "lower") : "");
   if (me) regions.set("hand", `<section class="auto-hand" data-auto-region="hand"><header><strong>我的手牌</strong><span>${me.hand.length} 张 · 牌堆 ${snapshot.game.handDeckCount} · 弃牌 ${snapshot.game.handDiscard.length}</span></header><div class="auto-hand__cards">${hand || "<p>没有手牌</p>"}</div></section>`);
   regions.set("backdrop", `<button type="button" class="auto-mobile-log-backdrop ${mobileLogOpen ? "is-open" : ""}" data-auto-region="backdrop" data-auto-mobile-log-close aria-label="关闭日志" tabindex="-1"></button>`);
   regions.set("log", `<aside id="auto-mobile-log" class="auto-log ${mobileLogOpen ? "is-open" : ""} ${desktopLogCollapsed ? "is-collapsed" : ""}" data-auto-region="log" aria-label="公开日志" ${mobileTableActive ? 'role="dialog"' : ""}><header><span>公开日志</span><button type="button" class="auto-mobile-log-close" data-auto-mobile-log-close aria-label="关闭日志">×</button></header><ol>${logs}</ol></aside>`);
-  regions.set("overlay", `<div data-auto-region="overlay" style="display:contents">${promptDialog}${renderCardDetail()}${renderRiderDetail()}${renderExplanation()}</div>`);
+  regions.set("overlay", `<div data-auto-region="overlay" style="display:contents">${promptDialog}${renderCardDetail()}${renderRiderDetail()}${renderExplanation()}${renderResult()}</div>`);
   regions.set("perf", renderPerfPanel());
   const nextStructureKey = `${spectator}:${opponent?.id || ""}:${lowerPlayer?.id || ""}:${me?.id || ""}`;
   const fullRender = gameStructureKey !== nextStructureKey || !root.querySelector(".auto-game");
@@ -974,6 +987,7 @@ function renderGame() {
   }; });
   root.querySelector<HTMLElement>(".auto-game")?.classList.toggle("has-local-choice", Boolean(interactionState.localSelectionAction));
   bindGameActions(me, opponent);
+  if (focusResult) { root.querySelector<HTMLElement>("[data-result-title]")?.focus({ preventScroll: true }); focusResult = false; }
   fitDesktopTable();
   updateTableFeedback();
 }
@@ -997,6 +1011,30 @@ function tablePresentation() {
   const status = game.winnerId ? `${sideName(game.winnerId)}获胜` : decision ? `等待${decision === snapshot!.you ? "你" : sideName(decision)}${game.prompt?.kind === "response" ? "响应" : "选择"}` : game.stack.length ? "正在结算" : `${sideName(game.currentPlayerId)} · ${phaseLabels[game.phase]}`;
   return { summary, status, source, target, event };
 }
+
+function renderResult() {
+  if (!snapshot?.game.winnerId || resultDismissed) return "";
+  const game = snapshot.game, spectator = snapshot.you === "spectator";
+  const title = spectator ? `${sideName(game.winnerId)}获胜` : game.winnerId === snapshot.you ? "你获胜了" : "本局落败";
+  const request = game.rematch;
+  const actions = spectator ? [] : (game.legalActions || []).filter(action => action.type.startsWith("room:rematch"));
+  const modeLabel = request?.mode === "change-decks" ? "返回准备室换组" : "沿用预组再战";
+  const context = request ? `${sideName(request.requestedBy)}邀请${modeLabel}${request.requestedBy === snapshot.you ? "，等待对手同意" : ""}`
+    : spectator ? "观战已结束，可等待双方再战。" : snapshot.players.some(player => !player.connected) ? "对手暂离，双方在线后可以邀请再战。" : "再战需要双方同意，新局会重新洗牌和发牌。";
+  const controls = actions.map((action, index) => {
+    const label = action.type === "room:rematchRequest" ? action.payload?.mode === "change-decks" ? "换组再战" : "再来一局"
+      : action.type === "room:rematchCancel" ? "取消邀请" : action.payload?.accept ? `同意${modeLabel}` : "暂不再战";
+    const primary = action.type === "room:rematchRequest" && action.payload?.mode === "same-decks" || action.payload?.accept === true;
+    return `<button type="button" class="btn ${primary ? "btn--primary" : "btn--secondary"}" data-rematch-action="${index}" ${interactionState.pendingAction ? "disabled" : ""}>${escapeHtml(label)}</button>`;
+  }).join("");
+  return `<div class="auto-detail auto-result" role="dialog" aria-modal="true" aria-label="对局结果"><button class="auto-detail__backdrop" data-result-close aria-label="查看牌桌"></button><article>
+    <span class="auto-result__eyebrow">本局结束 · 第 ${game.turnNumber} 回合</span><h2 data-result-title tabindex="-1">${escapeHtml(title)}</h2>
+    <div class="auto-result__players">${snapshot.players.map(player => `<section class="auto-result__player ${player.id === game.winnerId ? "is-winner" : ""}"><span>${escapeHtml(sideName(player.id))}${player.id === game.winnerId ? " · 胜方" : ""}</span><strong>${escapeHtml(player.nickname)}</strong><small>${escapeHtml(definition(player.body)?.name || "本体")}</small>${renderHealthCounter(player)}</section>`).join("")}</div>
+    <p role="status">${escapeHtml(context)}</p><div class="auto-result__actions">${controls}</div>
+    <footer><button type="button" class="auto-explanation-link" data-result-close>查看牌桌与日志</button><a class="auto-explanation-link" href="/play">返回大厅</a></footer>
+  </article></div>`;
+}
+function closeResult() { resultDismissed = true; render(); root?.querySelector<HTMLElement>("[data-result-open]")?.focus(); }
 
 function causeLabel(event: AutoPublicEvent) {
   return event.cause ? ({ "skill": "角色技能效果", "skill-cost": "支付技能费用", "rest-reward": "休整发动者的收益", "card": "使用牌的效果", "effect": "公开效果" })[event.cause.kind] || "" : "";
@@ -1132,6 +1170,13 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
   gameBindings?.abort();
   gameBindings = new AbortController();
   const listenerOptions = { signal: gameBindings.signal };
+  root.querySelectorAll("[data-result-close]").forEach(button => button.addEventListener("click", closeResult, listenerOptions));
+  root.querySelector("[data-result-open]")?.addEventListener("click", () => { resultDismissed = false; focusResult = true; render(); }, listenerOptions);
+  root.querySelectorAll<HTMLElement>("[data-rematch-action]").forEach(button => button.addEventListener("click", () => {
+    const actions = (snapshot?.game.legalActions || []).filter(action => action.type.startsWith("room:rematch"));
+    const action = actions[Number(button.dataset.rematchAction)];
+    if (action && !interactionState.pendingAction) send(action.type, action.payload);
+  }, listenerOptions));
   bindMobileLogActions();
   root.querySelectorAll<HTMLElement>("[data-explain]").forEach(button => button.addEventListener("click", () => {
     explanation = button.dataset.explain as "event" | "preview";
@@ -1648,13 +1693,27 @@ function inputIsEditing(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest("input, textarea, select, [contenteditable=true], a")) || Boolean(window.getSelection()?.toString());
 }
 function cancelCurrentStep() {
-  if (explanation) closeExplanation();
+  if (snapshot?.game.winnerId && !resultDismissed) closeResult();
+  else if (explanation) closeExplanation();
   else if (mobileLogOpen) closeMobileLog();
   else if (detailCardInstanceId) { detailCardInstanceId = ""; detailOwnerId = ""; render(); }
   else if (riderDetailId) { riderDetailId = ""; render(); }
   else returnLocalStep();
 }
 document.addEventListener("keydown", (event) => {
+  if (snapshot?.game.winnerId && !resultDismissed) {
+    if (event.key === "Escape") { event.preventDefault(); closeResult(); return; }
+    if (event.key === "Enter") {
+      if (event.repeat || !(event.target instanceof Element && event.target.closest(".auto-result article button, .auto-result article a"))) event.preventDefault();
+      return;
+    }
+    if (event.key === "Tab") {
+      const buttons = [...root?.querySelectorAll<HTMLElement>(".auto-result article button:not(:disabled), .auto-result article a") || []];
+      const index = buttons.indexOf(document.activeElement as HTMLElement);
+      if (index < 0 || event.shiftKey && index === 0 || !event.shiftKey && index === buttons.length - 1) { event.preventDefault(); buttons[event.shiftKey ? buttons.length - 1 : 0]?.focus(); }
+      return;
+    }
+  }
   if (explanation && event.key === "Tab") {
     event.preventDefault(); root?.querySelector<HTMLElement>(".auto-explanation .auto-detail__close")?.focus(); return;
   }
