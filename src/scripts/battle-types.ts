@@ -3,6 +3,7 @@ export type CatalogCard = {
   name: string;
   kind: "body" | "character" | "hand" | "rider";
   subtitle: string;
+  handType?: string;
   text: string;
   imagePath?: string;
   highResImagePath?: string;

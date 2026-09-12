@@ -104,6 +104,16 @@ let reconnectTimer = 0;
 let toastTimer = 0;
 let shouldReconnect = true;
 let exitingToLobby = false;
+let handOrder: string[] = [];
+let arrangingHand = false;
+let arrangedCard = "";
+function orderedHand(cards: CardView[]) {
+  const ids = cards.map(card => card.instanceId || "");
+  handOrder = handOrder.filter(id => ids.includes(id));
+  handOrder.push(...ids.filter(id => !handOrder.includes(id)));
+  if (!ids.includes(arrangedCard)) arrangedCard = "";
+  return handOrder.map(id => cards.find(card => card.instanceId === id)!);
+}
 let resultDismissed = false;
 let focusResult = false;
 let explanation: "event" | "preview" | undefined;
@@ -562,12 +572,16 @@ function renderCard(card: CardView, owner: AutoPlayerView, zone: string, interac
   const identity = handCardIdentityLabel(card.suit, card.rank, card.joker);
   const title = disabledReason ? `${cardDefinition.text}\n当前不可用：${disabledReason}` : cardDefinition.text;
   const selectable = isServerPromptSelectable(card.instanceId) || isLocalSelectionCard(card.instanceId);
-  const selected = card.instanceId === interactionState.selectedPlayCardId || card.instanceId === interactionState.selectedRoleInstanceId
+  const selected = (arrangingHand && zone === "hand" && card.instanceId === arrangedCard) || card.instanceId === interactionState.selectedPlayCardId || card.instanceId === interactionState.selectedRoleInstanceId
     || Boolean(card.instanceId && interactionState.selectedPromptCards.has(card.instanceId))
     || Boolean(card.instanceId && interactionState.selectedDiscard.has(card.instanceId));
+  const draft = interactionState.localSelectionAction;
+  const fixedCost = snapshot?.game.legalActions?.find(action => draft && action.type === draft.command && Object.entries(action.payload || {}).every(([key,value]) => draft.payload[key] === value))?.interaction?.cost;
+  const costCandidate = owner.id === snapshot?.you && draft && (fixedCost?.kind === "rest" || fixedCost?.kind === "retire") && ((draft.selectionKind === "cost" && draft.cardInstanceIds?.includes(card.instanceId || "")) || fixedCost?.fixedIds?.includes(card.instanceId || ""));
+  const costBadge = costCandidate ? `<span class="auto-card__cost" title="${fixedCost?.kind === "retire" ? "退场费用：进入退场区" : "休整费用：进入角色牌堆"}">${fixedCost?.kind === "retire" ? "退场费用" : "休整费用"}<br>${fixedCost?.kind === "retire" ? "进退场区" : "回牌堆"}</span>` : "";
   const animated = cardDefinition.kind === "body" && flipAnimations.has(owner.id) ? "is-form-flipped" : "";
-  return `<button type="button" class="auto-card auto-card--${cardDefinition.kind} ${interactive || selectable ? "is-legal" : ""} ${selectable ? "is-table-selectable" : ""} ${selected ? "is-selected" : ""} ${opponentFaceDownCharacter ? "is-face-down" : ownFaceDownCharacter ? "is-own-face-down" : ""} ${animated}" draggable="${mouseQuery.matches && quickPlay && zone === "hand" && !snapshot?.game.prompt && interactive ? "true" : "false"}" data-auto-card="${card.instanceId || ""}" data-owner="${owner.id}" data-zone="${zone}" data-interactive="${interactive || selectable ? "true" : "false"}" title="${escapeHtml(opponentFaceDownCharacter ? "暗置角色" : title)}">
-    ${image ? `<img src="${image}" alt="" draggable="false" />` : ""}${!opponentFaceDownCharacter && cardDefinition.kind === "character" && owner.id === snapshot?.you && zone.startsWith("slot:") ? `<span class="auto-card__availability">${snapshot.game.legalSkillInstanceIds.includes(card.instanceId || "") ? "◇ 可发动" : snapshot.game.skillBlockers?.[card.instanceId || ""]?.code === "usage" ? "次数已用尽" : "受限制"}</span>` : ""}${!opponentFaceDownCharacter && cardDefinition.kind === "character" && cardDefinition.automationLevel ? `<span class="auto-card__automation">${cardDefinition.automationLevel === "full" ? "自动" : "辅助"}</span>` : ""}${opponentFaceDownCharacter ? `<span class="sr-only">暗置角色</span>` : `<strong>${escapeHtml(cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name)}</strong><small>${escapeHtml(identity || (cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraSubtitle || cardDefinition.subtitle : cardDefinition.subtitle))}</small>`}
+  return `<button type="button" class="auto-card auto-card--${cardDefinition.kind} ${interactive || selectable ? "is-legal" : ""} ${selectable ? "is-table-selectable" : ""} ${selected ? "is-selected" : ""} ${opponentFaceDownCharacter ? "is-face-down" : ownFaceDownCharacter ? "is-own-face-down" : ""} ${animated}" draggable="${!arrangingHand && mouseQuery.matches && quickPlay && zone === "hand" && !snapshot?.game.prompt && interactive ? "true" : "false"}" data-auto-card="${card.instanceId || ""}" data-owner="${owner.id}" data-zone="${zone}" data-interactive="${interactive || selectable ? "true" : "false"}" title="${escapeHtml(opponentFaceDownCharacter ? "暗置角色" : title)}">
+    ${costBadge}${image ? `<img src="${image}" alt="" draggable="false" />` : ""}${!opponentFaceDownCharacter && cardDefinition.kind === "character" && owner.id === snapshot?.you && zone.startsWith("slot:") ? `<span class="auto-card__availability">${snapshot.game.legalSkillInstanceIds.includes(card.instanceId || "") ? "◇ 可发动" : snapshot.game.skillBlockers?.[card.instanceId || ""]?.code === "usage" ? "次数已用尽" : "受限制"}</span>` : ""}${!opponentFaceDownCharacter && cardDefinition.kind === "character" && cardDefinition.automationLevel ? `<span class="auto-card__automation">${cardDefinition.automationLevel === "full" ? "自动" : "辅助"}</span>` : ""}${opponentFaceDownCharacter ? `<span class="sr-only">暗置角色</span>` : `<strong>${escapeHtml(cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraName || cardDefinition.name : cardDefinition.name)}</strong><small>${escapeHtml(identity || (cardDefinition.kind === "body" && owner.bodyState.flipped ? cardDefinition.extraSubtitle || cardDefinition.subtitle : cardDefinition.subtitle))}</small>`}
   </button>`;
 }
 
@@ -900,6 +914,10 @@ function replaceGameRegion(name: string, html: string, updated: string[]) {
   const scroll = [...current.querySelectorAll<HTMLElement>(".auto-hand__cards, .auto-prompt__cards, .auto-prompt, .auto-log")];
   if (current.matches(".auto-log")) scroll.push(current as HTMLElement);
   const positions = scroll.map((element) => ({ selector: `.${[...element.classList].find((name) => name.startsWith("auto-"))}`, left: element.scrollLeft, top: element.scrollTop }));
+  const handStrip = current.querySelector<HTMLElement>(".auto-hand__cards");
+  const nextIds = new Set(handOrder);
+  const anchor = handStrip && [...handStrip.querySelectorAll<HTMLElement>("[data-auto-card]")].find(card => nextIds.has(card.dataset.autoCard || "") && card.getBoundingClientRect().right > handStrip.getBoundingClientRect().left);
+  const anchorOffset = anchor && handStrip ? anchor.getBoundingClientRect().left - handStrip.getBoundingClientRect().left : 0;
   const focused = current.contains(document.activeElement) ? document.activeElement as HTMLElement : null;
   const identity = focused && [...focused.attributes].find((attribute) => attribute.name.startsWith("data-"));
   current.outerHTML = html;
@@ -907,6 +925,11 @@ function replaceGameRegion(name: string, html: string, updated: string[]) {
   for (const position of positions) {
     const element = replacement?.matches(position.selector) ? replacement : replacement?.querySelector<HTMLElement>(position.selector);
     if (element) { element.scrollLeft = position.left; element.scrollTop = position.top; }
+  }
+  if (anchor && !arrangingHand) {
+    const strip = replacement?.querySelector<HTMLElement>(".auto-hand__cards");
+    const card = strip?.querySelector<HTMLElement>(`[data-auto-card="${CSS.escape(anchor.dataset.autoCard || "")}"]`);
+    if (strip && card) strip.scrollLeft += card.getBoundingClientRect().left - strip.getBoundingClientRect().left - anchorOffset;
   }
   if (identity) replacement?.querySelector<HTMLElement>(`[${identity.name}="${CSS.escape(identity.value)}"]`)?.focus({ preventScroll: true });
   gameRegionCache.set(name, html);
@@ -921,9 +944,10 @@ function renderGame() {
   const lowerPlayer = spectator ? snapshot.players[1] : me;
   const isMyTurn = snapshot.game.currentPlayerId === snapshot.you;
   const canAdvance = isMyTurn && !snapshot.game.prompt && snapshot.game.stack.length === 0 && !snapshot.game.winnerId && !interactionState.pendingAction && !interactionState.selectedPlayCardId && !interactionState.selectedRoleInstanceId && !interactionState.localSelectionAction && !interactionState.localFormAction;
-  const hand = me?.hand.map((card) => {
+  if (snapshot.game.prompt || interactionState.pendingAction || interactionState.localSelectionAction || interactionState.selectedRoleInstanceId || snapshot.game.winnerId) arrangingHand = false;
+  const hand = (me ? orderedHand(me.hand) : []).map((card) => {
     const legality = handLegality(card);
-    return renderCard(card, me, "hand", legality.allowed, legality.reason);
+    return renderCard(card, me!, "hand", legality.allowed, legality.reason);
   }).join("") || "";
   const stack = snapshot.game.stack.map((item) => {
     const source = snapshot?.players.find((player) => player.id === item.sourcePlayerId);
@@ -963,7 +987,7 @@ function renderGame() {
       ${snapshot.game.winnerId ? `<div class="auto-winner"><strong>${escapeHtml(sideName(snapshot.game.winnerId))}获胜</strong><button type="button" class="btn btn--primary" data-result-open>查看结果与再战</button></div>` : ""}
     </section>`);
   regions.set("lower", lowerPlayer ? renderPlayer(lowerPlayer, !spectator, spectator ? "玩家 B" : undefined, "lower") : "");
-  if (me) regions.set("hand", `<section class="auto-hand" data-auto-region="hand"><header><strong>我的手牌</strong><span>${me.hand.length} 张 · 牌堆 ${snapshot.game.handDeckCount} · 弃牌 ${snapshot.game.handDiscard.length}</span></header><div class="auto-hand__cards">${hand || "<p>没有手牌</p>"}</div></section>`);
+  if (me) regions.set("hand", `<section class="auto-hand" data-auto-region="hand"><header><strong>我的手牌</strong><span>${me.hand.length} 张 · 牌堆 ${snapshot.game.handDeckCount} · 弃牌 ${snapshot.game.handDiscard.length}</span><div class="auto-hand-tools"><button type="button" data-hand-arrange ${snapshot.game.prompt || interactionState.pendingAction || interactionState.localSelectionAction || interactionState.selectedRoleInstanceId || snapshot.game.winnerId ? "disabled" : ""}>${arrangingHand ? "完成整理" : "整理"}</button>${arrangingHand ? `<button type="button" data-hand-sort>按牌种</button><button type="button" data-hand-shift="-1" ${handOrder.indexOf(arrangedCard) <= 0 ? "disabled" : ""}>前移</button><button type="button" data-hand-shift="1" ${!arrangedCard || handOrder.indexOf(arrangedCard) >= handOrder.length - 1 ? "disabled" : ""}>后移</button>` : ""}</div></header><div class="auto-hand__cards">${hand || "<p>没有手牌</p>"}</div></section>`);
   regions.set("backdrop", `<button type="button" class="auto-mobile-log-backdrop ${mobileLogOpen ? "is-open" : ""}" data-auto-region="backdrop" data-auto-mobile-log-close aria-label="关闭日志" tabindex="-1"></button>`);
   regions.set("log", `<aside id="auto-mobile-log" class="auto-log ${mobileLogOpen ? "is-open" : ""} ${desktopLogCollapsed ? "is-collapsed" : ""}" data-auto-region="log" aria-label="公开日志" ${mobileTableActive ? 'role="dialog"' : ""}><header><span>公开日志</span><button type="button" class="auto-mobile-log-close" data-auto-mobile-log-close aria-label="关闭日志">×</button></header><ol>${logs}</ol></aside>`);
   regions.set("overlay", `<div data-auto-region="overlay" style="display:contents">${promptDialog}${renderCardDetail()}${renderRiderDetail()}${renderExplanation()}${renderResult()}</div>`);
@@ -1065,7 +1089,7 @@ function confirmationPreview() {
   const payers = cost?.fixedIds || (draft?.selectionKind === "cost" ? selected : []);
   const missing = draft?.cardInstanceIds ? Math.max(0, (draft.min || 0) - selected.length) : 0;
   const costText = !cost || cost.kind === "none" ? "无额外费用" : cost.kind === "choice" ? "还需选择费用方式"
-    : `${cost.kind === "rest" ? "休整" : "退场"} ${cost.amount ?? draft?.min ?? 1} 张角色${payers.length ? `：${payers.map(ownedCardName).join("、")}` : "（待选承担者）"}`;
+    : `${cost.kind === "rest" ? "休整" : "退场"} ${cost.amount ?? draft?.min ?? 1} 张角色（${cost.kind === "rest" ? "进入角色牌堆" : "进入退场区"}）${payers.length ? `：${payers.map(ownedCardName).join("、")}` : "（待选承担者）"}`;
   const targets = draft?.selectionKind === "target-slot" ? selected.map(ownedCardName).join("、") || "待选目标"
     : action?.interaction?.target ? `${sideName(action.interaction.target.playerId)}${action.interaction.target.slotIndex === undefined ? "" : `的角色位 ${action.interaction.target.slotIndex + 1}`}`
     : action?.interaction?.targetTiming === "resolution" ? "结算中选择（若效果需要）" : "按牌面结算";
@@ -1176,6 +1200,21 @@ function bindGameActions(me?: AutoPlayerView, opponent?: AutoPlayerView) {
     const actions = (snapshot?.game.legalActions || []).filter(action => action.type.startsWith("room:rematch"));
     const action = actions[Number(button.dataset.rematchAction)];
     if (action && !interactionState.pendingAction) send(action.type, action.payload);
+  }, listenerOptions));
+  root.querySelector("[data-hand-arrange]")?.addEventListener("click", () => {
+    arrangingHand = !arrangingHand; arrangedCard = ""; lastQuickClick = undefined; clearDrag();
+    if (arrangingHand) interactionState.clearDraft(); render();
+  }, listenerOptions);
+  root.querySelector("[data-hand-sort]")?.addEventListener("click", () => {
+    handOrder.sort((a,b) => {
+      const left = definition(findCard(a).card), right = definition(findCard(b).card);
+      return (left?.handType || "").localeCompare(right?.handType || "", "zh") || (left?.name || "").localeCompare(right?.name || "", "zh");
+    }); render();
+  }, listenerOptions);
+  root.querySelectorAll<HTMLElement>("[data-hand-shift]").forEach(button => button.addEventListener("click", () => {
+    const from = handOrder.indexOf(arrangedCard), to = from + Number(button.dataset.handShift);
+    if (from < 0 || to < 0 || to >= handOrder.length) return;
+    [handOrder[from],handOrder[to]] = [handOrder[to],handOrder[from]]; render();
   }, listenerOptions));
   bindMobileLogActions();
   root.querySelectorAll<HTMLElement>("[data-explain]").forEach(button => button.addEventListener("click", () => {
@@ -1693,6 +1732,7 @@ function inputIsEditing(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest("input, textarea, select, [contenteditable=true], a")) || Boolean(window.getSelection()?.toString());
 }
 function cancelCurrentStep() {
+  if (arrangingHand) { arrangingHand = false; arrangedCard = ""; render(); return; }
   if (snapshot?.game.winnerId && !resultDismissed) closeResult();
   else if (explanation) closeExplanation();
   else if (mobileLogOpen) closeMobileLog();
@@ -1748,7 +1788,13 @@ function quickActions(id: string) {
     && action.interaction?.quickPlay === true && !action.payload.resolvedAs && !action.selection);
 }
 root?.addEventListener("click", (event) => {
-  if (!(event.target instanceof Element) || event.detail === 0) return;
+  if (!(event.target instanceof Element)) return;
+  if (arrangingHand && event.target.closest('[data-zone="hand"][data-auto-card]')) {
+    event.preventDefault(); event.stopImmediatePropagation();
+    const id = event.target.closest<HTMLElement>('[data-auto-card]')!.dataset.autoCard || "";
+    arrangedCard = arrangedCard === id ? "" : id; render(); return;
+  }
+  if (event.detail === 0) return;
   const card = event.target.closest<HTMLElement>('[data-zone="hand"][data-auto-card]');
   if (!card) { lastQuickClick = undefined; return; }
   if (performance.now() < suppressClickUntil) { event.preventDefault(); event.stopImmediatePropagation(); return; }
@@ -1770,7 +1816,7 @@ root?.addEventListener("dragstart", (event) => {
   const orderCard = event.target.closest<HTMLElement>("[data-order-id]");
   const card = event.target.closest<HTMLElement>('[data-zone="hand"][data-auto-card]');
   const id = orderCard?.dataset.orderId || card?.dataset.autoCard || "";
-  if (!id || interactionState.pendingAction || !mouseQuery.matches || (!orderCard && !quickActions(id).some((action) => action.interaction?.target))) { event.preventDefault(); return; }
+  if (arrangingHand || !id || interactionState.pendingAction || !mouseQuery.matches || (!orderCard && !quickActions(id).some((action) => action.interaction?.target))) { event.preventDefault(); return; }
   dragGesture = { id, revision: snapshot!.revision, order: Boolean(orderCard) };
   event.dataTransfer?.setData("text/plain", id);
   if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";

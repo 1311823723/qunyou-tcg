@@ -37,6 +37,7 @@ export interface BattleCatalogCard {
   name: string;
   kind: "body" | "character" | "hand" | "rider";
   subtitle: string;
+  handType?: string;
   text: string;
   /** TTS 卡牌渲染图（完整卡面） */
   imagePath?: string;
@@ -134,6 +135,7 @@ export function getBattleCatalog() {
       id: card.id,
       name: card.name,
       kind: "hand",
+      handType: card.handType,
       subtitle: `${card.handType} · ${card.timing}`,
       text: card.effectText,
       tags: card.tags,

@@ -130,7 +130,7 @@ test('unified targets, costs, back navigation, desktop quick gestures and keyboa
   await page.locator('[data-auto-card="role-a"]').click();
   await page.locator('[data-role-action="skill"]').click();
   await page.locator('[data-auto-card="role-b"]').click();
-  await expect(page.locator('.auto-local-selection')).toContainText('休整 1 张角色：我方的刺客-微笑尅乐');
+  await expect(page.locator('.auto-local-selection')).toContainText('休整 1 张角色（进入角色牌堆）：我方的刺客-微笑尅乐');
   await page.locator('[data-local-selection-cancel]').click();
   await expect(page.locator('[data-role-action="skill"]')).toBeVisible();
   await page.locator('[data-role-action="skill"]').click();
@@ -506,4 +506,72 @@ test('spectator result uses stable seats and offers no rematch controls', async 
   await expect(dialog).not.toContainText('我方');
   await expect(dialog.locator('[data-rematch-action]')).toHaveCount(0);
   expect(commands).toHaveLength(0); expect(errors).toEqual([]);
+});
+
+test('hand organization remains local, stable after draw and removal, and costs show destinations', async ({ page }) => {
+  const { state, commands, errors, publish } = await flowTable(page);
+  const ids = () => page.locator('.auto-hand__cards [data-auto-card]').evaluateAll(els => els.map(el => el.getAttribute('data-auto-card')));
+  await page.locator('[data-hand-arrange]').click();
+  await page.locator('[data-auto-card="strike"]').click();
+  await page.locator('[data-hand-shift="1"]').click();
+  expect(await ids()).toEqual(['target','strike','joker']);
+  await page.keyboard.press('Enter'); expect(commands).toHaveLength(0);
+  state.players[0].hand.unshift({ instanceId: 'new', definitionId: 'hand_basic_003', suit: '红桃', rank: '4' });
+  state.revision++; publish();
+  await expect.poll(ids).toEqual(['target','strike','joker','new']);
+  state.players[0].hand = state.players[0].hand.filter((c: any) => c.instanceId !== 'strike');
+  state.revision++; publish();
+  await expect.poll(ids).toEqual(['target','joker','new']);
+  await page.locator('[data-hand-sort]').click();
+  for (const [width,height] of [[1366,768],[390,844],[740,360],[320,640]]) {
+    await page.setViewportSize({width,height});
+    await expect(page.locator('[data-hand-arrange]')).toBeVisible();
+    expect(await page.locator('.auto-hand').evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+    const card = await page.locator('.auto-hand__cards .auto-card').first().boundingBox();
+    expect(card!.height).toBeGreaterThanOrEqual(44);
+    expect(card!.y + card!.height).toBeLessThanOrEqual(height + 1);
+    await page.screenshot({path:`/tmp/tcg-hand-${width}.png`});
+  }
+  await page.keyboard.press('Escape');
+  await page.locator('[data-auto-card="role-a"]').click();
+  await page.locator('[data-role-action="skill"]').click();
+  await expect(page.locator('[data-auto-card="role-b"] .auto-card__cost')).toHaveAttribute('title', '休整费用：进入角色牌堆');
+  await page.locator('[data-auto-card="role-b"]').click();
+  await expect(page.locator('.auto-confirmation-preview')).toContainText('进入角色牌堆');
+  await expect(page.locator('.auto-confirmation-preview')).toContainText('我方的刺客-微笑尅乐');
+  await page.screenshot({path:'/tmp/tcg-cost-destination.png'});
+  expect(commands).toHaveLength(0); expect(errors).toEqual([]);
+});
+
+test.describe('touch hand organization', () => {
+  test.use({ hasTouch: true, isMobile: true });
+  test('touch controls and scroll anchor survive card removal without submitting', async ({ page }) => {
+    const { state, publish, commands, errors } = await flowTable(page);
+    await page.setViewportSize({width:390,height:844});
+    state.players[0].hand = Array.from({length:15}, (_,i) => ({instanceId:`scroll-${i}`,definitionId:'hand_basic_001',suit:'黑桃',rank:'3'}));
+    state.revision++; publish();
+    const strip = page.locator('.auto-hand__cards');
+    await expect(strip.locator('[data-auto-card]')).toHaveCount(15);
+    await strip.evaluate(el => {el.scrollLeft = 300;});
+    const anchor = await strip.evaluate(el => {
+      const card = [...el.querySelectorAll<HTMLElement>('[data-auto-card]')].find(c => c.getBoundingClientRect().right > el.getBoundingClientRect().left)!;
+      return {id:card.dataset.autoCard, x:card.getBoundingClientRect().left};
+    });
+    state.players[0].hand.shift(); state.revision++; publish();
+    await expect(strip.locator('[data-auto-card]')).toHaveCount(14);
+    expect(Math.abs((await strip.locator(`[data-auto-card="${anchor.id}"]`).boundingBox())!.x - anchor.x)).toBeLessThanOrEqual(1);
+    await page.locator('[data-hand-arrange]').tap();
+    await strip.locator('[data-auto-card]').nth(4).tap();
+    await page.locator('[data-hand-shift="1"]').tap();
+    for (const [width,height] of [[390,844],[740,360]]) {
+      await page.setViewportSize({width,height});
+      const button = await page.locator('[data-hand-arrange]').boundingBox();
+      expect(button!.height).toBeGreaterThanOrEqual(44);
+      const card = await strip.locator('[data-auto-card]').first().boundingBox();
+      expect(card!.height).toBeGreaterThanOrEqual(44);
+      expect(card!.y+card!.height).toBeLessThanOrEqual(height+1);
+      await page.screenshot({path:`/tmp/tcg-hand-touch-${width}.png`});
+    }
+    expect(commands).toHaveLength(0); expect(errors).toEqual([]);
+  });
 });
