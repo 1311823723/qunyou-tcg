@@ -137,3 +137,24 @@ test('home exhibit opens the formal body and the matching configured deck',()=>{
  home.deck({currentTarget:{dataset:{id:home.data.spotlight.id}}});assert.equal(calls.at(-1).url,'/pages/deck-detail/index?id='+home.data.spotlight.id);
  for(const name of ['showcase-body.jpg','showcase-back.jpg','collector-library.jpg'])assert.ok(fs.existsSync(path.join(root,'miniprogram/build/assets',name)));
 });
+
+test('detail copies only the current face and text-only cards retain readable sections',()=>{
+ const copied=[];const notices=[];global.wx={getStorageSync:()=>({}),setStorageSync:()=>{},showToast:o=>notices.push(o.title),setNavigationBarTitle:()=>{},setClipboardData:o=>copied.push(o)};
+ const detail=page('detail');detail.onLoad({id:'body_aggro_001'});detail.face(1);detail.copyEffect();
+ const card=findCard('body_aggro_001');assert.ok(copied[0].data.includes(card.faces[1].sections.at(-1).text));assert.ok(!copied[0].data.includes(card.faces[0].sections[2].text));
+ copied[0].fail();assert.ok(notices.at(-1).includes('复制失败'));
+ detail.face(0);assert.equal(detail.data.faceLabel,'正面');assert.equal(detail.data.imageReady,false);detail.imageLoaded();assert.equal(detail.data.imageReady,true);detail.retry();assert.equal(detail.data.imageReady,false);
+ const rider=page('detail');rider.onLoad({id:catalog.cards.find(c=>c.kind==='骑士卡').id});rider.copyEffect();assert.equal(rider.data.faceLabel,'完整效果');assert.ok(copied.at(-1).data.includes(rider.data.sections[0].text));
+});
+test('deck role counts cover the original roster and filters can be reversed',()=>{
+ global.wx={getStorageSync:()=>({}),setStorageSync:()=>{},setNavigationBarTitle:()=>{},showToast:()=>{}};
+ for(const deck of catalog.decks){const view=page('deck-detail');view.onLoad({id:deck.id});assert.equal(view.data.members.length,16);assert.equal(view.data.roles.reduce((n,r)=>n+r.count,0),16);const role=view.data.roles[0];view.filter({currentTarget:{dataset:{role:role.name}}});assert.equal(view.data.visibleMembers.length,role.count);assert.ok(view.data.visibleMembers.every(c=>c.role===role.name));view.filter({currentTarget:{dataset:{role:role.name}}});assert.equal(view.data.visibleMembers.length,16);}
+});
+test('rule reader reaches every formal chapter without crossing bounds or losing content',()=>{
+ global.wx={getStorageSync:()=>({}),setStorageSync:()=>{},showToast:()=>{},pageScrollTo:()=>{}};
+ const rules=page('rules');rules.chapter({currentTarget:{dataset:{anchor:rules.data.sections[0].anchor}}});rules.previous();assert.equal(rules.data.chapterIndex,0);
+ for(let i=0;i<rules.data.sections.length;i++){assert.deepEqual(rules.data.currentChapter,rules.data.sections[i]);rules.next();}
+ assert.equal(rules.data.chapterIndex,rules.data.sections.length-1);rules.contents();assert.equal(rules.data.currentChapter,null);
+ rules.chapter({currentTarget:{dataset:{anchor:'missing'}}});assert.equal(rules.data.currentChapter,null);
+ rules.search({detail:{value:'unlikely-no-match-12345'}});assert.equal(rules.data.keywords.length,0);rules.clearSearch();assert.equal(rules.data.keywords.length,catalog.articles[1].sections.length);
+});
