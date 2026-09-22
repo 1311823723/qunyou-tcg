@@ -1,0 +1,1 @@
+import {findCard,tile} from '../../services/catalog';import {library} from '../../services/storage';import {openCard} from '../../services/navigation';Page({data:{cards:[] as ReturnType<typeof tile>[]},onShow(){this.setData({cards:library().recent.map(id=>tile(findCard(id)!))});},open(e:WechatMiniprogram.CustomEvent){openCard(e.detail.id);}});

@@ -40,3 +40,11 @@
 这里的状态和待办只描述事实与安排，不授权提交、推送或部署，也不设置自动定时维护。
 
 - [对战可理解性实现与覆盖记录](auto-battle-explanations.md)：事件原因、确认预览、阻塞条件及未细分项。
+
+## 微信图鉴小程序
+
+- [架构与阶段计划](miniprogram-architecture.md)
+- [WorkBuddy 接手清单](miniprogram-handoff.md)
+- [本地运行说明](../miniprogram/README.md)
+
+微信图鉴：[产品规格](miniprogram-product.md) · [验收记录](miniprogram-verification.md)（工程／浏览器／微信／真机分别记录）。

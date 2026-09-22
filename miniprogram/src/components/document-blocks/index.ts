@@ -1,0 +1,1 @@
+Component({properties:{blocks:{type:Array,value:[]}}});

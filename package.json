@@ -32,7 +32,13 @@
     "export:tts": "node tools/tts/export-tts.js",
     "export:cards": "node tools/tts/export-tts.js --cards-only",
     "cards:web": "node tools/generate-web-cards.js",
-    "cards:sync": "npm run export:cards && npm run cards:web"
+    "cards:sync": "npm run export:cards && npm run cards:web",
+    "mini:data": "node tools/miniprogram/catalog.mjs",
+    "mini:data:check": "node tools/miniprogram/catalog.mjs --check",
+    "mini:typecheck": "npm run mini:data && tsc --noEmit -p miniprogram/tsconfig.json",
+    "mini:build": "node tools/miniprogram/build.mjs",
+    "mini:test": "npm run mini:build && node --test tools/miniprogram/*.test.mjs",
+    "mini:review": "npm run mini:build && node tools/miniprogram/visual-review.mjs"
   },
   "overrides": {
     "vite": "^7"
@@ -42,6 +48,7 @@
     "@tailwindcss/vite": "^4.1.7",
     "@types/node": "^25.0.1",
     "astro": "^5.16.5",
+    "miniprogram-api-typings": "^5.2.3",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.1.7",
     "typescript": "^5.9.3",

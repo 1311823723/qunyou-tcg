@@ -1,0 +1,1 @@
+.block{font-size:16px;line-height:1.8;color:#e4e4df;margin:12px 0;white-space:pre-wrap;overflow-wrap:anywhere}.strong{font-weight:700;color:#f5eddc}.quote{border-left:2px solid #8c8068;padding-left:12px;color:#b9c2cc}.marker{color:#bdac88}.row{display:flex;flex-wrap:wrap;border-bottom:1px solid #34404d}.cell{flex:1;min-width:80px;padding:8px;box-sizing:border-box}

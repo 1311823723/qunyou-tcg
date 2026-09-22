@@ -1,0 +1,53 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/cards/index",
+    "pages/collection/index",
+    "pages/detail/index",
+    "pages/decks/index",
+    "pages/deck-detail/index",
+    "pages/rules/index",
+    "pages/history/index",
+    "pages/website/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "宝旅团图鉴",
+    "navigationBarBackgroundColor": "#111416",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#111416",
+    "pageOrientation": "auto"
+  },
+  "tabBar": {
+    "color": "#9b948a",
+    "selectedColor": "#8cd6ca",
+    "backgroundColor": "#111416",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页",
+        "iconPath": "assets/icons/home.png",
+        "selectedIconPath": "assets/icons/home-selected.png"
+      },
+      {
+        "pagePath": "pages/cards/index",
+        "text": "图鉴",
+        "iconPath": "assets/icons/cards.png",
+        "selectedIconPath": "assets/icons/cards-selected.png"
+      },
+      {
+        "pagePath": "pages/decks/index",
+        "text": "预组",
+        "iconPath": "assets/icons/stack-2.png",
+        "selectedIconPath": "assets/icons/stack-2-selected.png"
+      },
+      {
+        "pagePath": "pages/rules/index",
+        "text": "指南",
+        "iconPath": "assets/icons/book-2.png",
+        "selectedIconPath": "assets/icons/book-2-selected.png"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json"
+}

@@ -1,0 +1,6 @@
+<view class="tile" bindtap="open" role="button" aria-label="{{card.name}}">
+<view class="cover-wrap">
+<block wx:if="{{failed}}"><view class="cover fallback"><text>{{card.name}}</text><text class="hint">图片暂不可用 · 点击读文字</text><button catchtap="retry">重试图片</button></view></block>
+<block wx:else><block wx:if="{{card.image}}"><image class="cover" src="{{card.image}}" mode="widthFix" lazy-load bindload="load" binderror="error"/><view wx:if="{{!ready}}" class="cover placeholder"><text class="ph-name">{{card.name}}</text><text class="hint">卡面载入中…</text></view></block><view wx:else class="cover fallback"><text>{{card.name}}</text><text class="hint">暂无正式卡面 · 查看文字</text></view></block>
+</view>
+<view class="name">{{card.name}}</view><view class="hint">{{card.kind}}<text wx:if="{{card.role}}"> / {{card.role}}</text></view></view>

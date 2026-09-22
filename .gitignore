@@ -11,3 +11,11 @@ archive/
 exports/
 playwright-report/
 test-results/
+
+# WeChat local output and developer-specific settings
+miniprogram/build/
+miniprogram/project.private.config.json
+miniprogram/src/generated/catalog.js
+
+# Local browser layout approximations (not native WeChat builds)
+miniprogram/review/

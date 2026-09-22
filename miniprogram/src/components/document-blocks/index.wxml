@@ -1,0 +1,5 @@
+<!-- 禁止在带 wx:for 的 <text> 上加 user-select：微信会把该 text 变成块级，
+     后果是项目符号独自占一行、多段 run（加粗+正文混排）被逐行拆开。
+     实测 205 个正文块中 101 个受影响（92 个列表 + 9 个多 run 段落）。
+     对照实验见 docs/miniprogram-verification.md。 -->
+<view wx:for="{{blocks}}" wx:key="key" class="block {{item.type}}"><view wx:if="{{item.type === 'table'}}" class="row"><view wx:for="{{item.cells}}" wx:for-item="cell" wx:key="key" class="cell"><text wx:for="{{cell.runs}}" wx:for-item="run" wx:key="key" class="{{run.strong ? 'strong' : ''}}">{{run.text}}</text></view></view><view wx:else><text class="marker" wx:if="{{item.marker}}">{{item.marker}} </text><text wx:for="{{item.runs}}" wx:for-item="run" wx:key="key" class="{{run.strong ? 'strong' : ''}}">{{run.text}}</text></view></view>

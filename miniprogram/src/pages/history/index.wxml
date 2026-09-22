@@ -1,0 +1,1 @@
+<view class="screen"><view class="heading">最近浏览</view><view class="quiet">仅保留本机最近查看的 30 张卡牌。</view><view class="grid"><card-tile wx:for="{{cards}}" wx:key="id" card="{{item}}" bindopen="open"/></view><view wx:if="{{!cards.length}}" class="empty">还没有浏览记录，去图鉴逛逛吧。</view></view>

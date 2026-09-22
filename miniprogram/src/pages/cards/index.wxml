@@ -1,0 +1,10 @@
+<view class="screen {{reduceMotion ? 'reduced' : 'fade'}}">
+<view class="eyebrow">CARD COLLECTION</view><view class="heading">{{kind === '全部' ? '卡牌图鉴' : title}}</view>
+<input class="search" value="{{query}}" bindinput="onSearch" placeholder="搜索卡名、技能、效果" confirm-type="search" maxlength="120" aria-label="搜索卡牌"/>
+<block wx:if="{{subs.length}}"><scroll-view scroll-x class="filter-scroll"><view class="chips"><button class="chip {{sub === '全部' ? 'chip-on' : ''}}" data-sub="全部" bindtap="onSub">全部</button><button class="chip {{sub === item ? 'chip-on' : ''}}" wx:for="{{subs}}" wx:key="*this" data-sub="{{item}}" bindtap="onSub">{{item}}</button></view></scroll-view></block>
+<view class="row filter-toolbar"><button class="{{!onlyFavorites ? 'active' : ''}}" data-mode="all" bindtap="mode">全部</button><button class="{{onlyFavorites ? 'active' : ''}}" data-mode="favorites" bindtap="mode">已收藏</button><block><button class="link" bindtap="filters">{{filtersOpen ? '收起筛选' : '筛选 ＋'}}</button></block></view>
+<block wx:if="{{filtersOpen}}"><view class="row section"><picker range="{{roles}}" value="{{roleIndex}}" bindchange="onRole"><button>定位 · {{role}}</button></picker><picker range="{{decks}}" value="{{deckIndex}}" range-key="name" bindchange="onDeck"><button>预组 · {{deckName}}</button></picker><button class="link" bindtap="reset">清空条件</button></view></block>
+<view class="quiet result-count">{{cards.length}} 张<text wx:if="{{onlyFavorites}}"> · 收藏仅表示感兴趣，保存在本机</text></view>
+<view class="grid"><card-tile wx:for="{{cards}}" wx:key="id" card="{{item}}" bindopen="open"/></view>
+<view class="empty" wx:if="{{!cards.length}}">{{onlyFavorites ? '暂无符合条件的收藏。可在卡牌详情中收藏。' : '没有找到卡牌，试试其他关键词或清空条件。'}}</view>
+<view class="version">随包文字版本 {{version}}</view></view>

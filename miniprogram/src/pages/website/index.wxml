@@ -1,0 +1,2 @@
+<web-view wx:if="{{opening}}" src="{{url}}" binderror="error" />
+<view wx:else class="screen"><view class="eyebrow">BAOLVTUAN TCG</view><view class="heading">宝旅团官网</view><view class="prose">{{failed ? '暂时无法在微信内打开官网。可复制网址，在浏览器继续访问。' : '可复制下方网址，在浏览器打开官网。'}}</view><view class="section"><text class="prose" user-select>{{url}}</text></view><button class="primary" bindtap="copy">复制官网网址</button><view class="quiet" style="margin-top:16px">返回小程序后，可继续查看卡牌和收藏。</view></view>
