@@ -22,25 +22,30 @@ Catalog schemaVersion 为 2：
 
 ## 图源与包体
 
-统一 `imageUrl` 适配：`/assets/` 为包内精选原画；`/cards/` 和 `/cards-hd/` 由 `src/config.ts` 的 HTTPS 基址提供。卡册加载普通缩略图，详情只加载当前卡面高清图，点击预览使用原生图片预览。
+统一 `imageUrl` 适配现在只接受包内绝对路径。`/assets/card-thumbs/` 放 198 张卡册图；`/cardpack-01/` 至 `/cardpack-08/` 按卡牌分配全部高清面。同一张卡的正背面或手牌花色都在同一分包。卡册打开无需下载高清包，进入单卡详情时由路由加载对应分包；旧 `/pages/detail/index?id=` 链接会转到新路径。分享链接保留主包兼容入口：分包可用时跳转高清详情，下载失败时在主包显示对应缩略图、完整文字及重试入口。普通入口加载分包失败时也回退到该主包页面，不自动重试请求。
 
-构建读取 `data/card-art.json` 中本体正面原画对应的已有 Web 原画，使用 sharp 缩至 600px、JPEG 质量 76，输出 12 张包内原画。不修改 manifest、原画或正式成卡。包内原画让首页和预组在离线时仍可展示，全部卡面和高清图不入包；构建内部预算 1.5 MiB，当前约 1.14 MiB，以日志为准。
+构建从 `public/cards-hd/` 的正式成卡图重编码，不修改原图或 manifest：本体缩略图 240px／WebP 质量 60，角色 150px／质量 60，手牌 120px／质量 48；本体与角色高清图保留 750px／质量 70，手牌高清图降至 650px／质量 58。12 张本地本体原画为 320px／JPEG 质量 60。图片配置随目录版本一起进入 `contentVersion`。构建逐项检查主包和每个分包低于 2,000,000 字节、总包低于 20,000,000 字节，不再使用旧 1.5 MiB 主包内部预算。
 
-当前卡图域名仅为开发默认值。生产 AppID、图源可达性、域名配置、版本固定资源方案及图文一致性均未验收。上线前必须将普通／高清卡面绑定同一内容发布版本，检查全量资源；不能靠添加查询参数或内容摘要宣称远端版本已锁定。
+详情页脚本由同一源码复制到 8 个分包，只调整相对共享服务导入；WXML／WXSS／JSON 同步复制，避免分包版与旧深链版行为分叉。微信原生 `wx.previewImage` 在本轮工具中对包内路径停留加载画面，高清查看改为详情页内的全屏 `movable-view` 缩放，仍显示同一张本地图。真机双指操作尚未验收。
+
+本轮正式本地构建约 1.83 MB 主包、最大 1.67 MB 分包、总计 13.91 MB；精确字节数和实际覆盖见[第十轮验收记录](miniprogram-verification.md)。正式上传包大小及 iOS／安卓真机画质、缩放性能仍待验，不能把本地文件尺寸等同于已过上线审核。
 
 ## 页面与服务
 
-四个 tab：home、cards、decks、rules；栈页：collection、detail、deck-detail、history、website。
+四个 tab：home、cards、decks、rules；栈页：collection、detail、deck-detail、history、website、about。tabBar 文案为 首页／图鉴／预组／指南。
 
-- **home 是启动台**：品牌区 + 全量搜索入口 + 三个 portal（规则 / 卡牌 / 预组）+ 本机收藏与最近浏览。三个 portal 分别 `switchTab` 到 rules、cards、decks。
-- **cards 是图鉴入口**：本体牌 / 角色牌 / 手牌三个分类 portal，`navigateTo` 到 collection。卡片数由 `catalog` 计算，不手写。
-- **collection 是分类列表页**（非 tabBar）：`kind` 只接受 本体／角色／手牌／全部，非法值回落「全部卡牌」；手牌把基础牌、行动牌与骑士卡合在一起并提供子筛选，角色额外提供定位与预组筛选。搜索与收藏筛选都在这一页。
-- **decks 承接原首页内容**：精选预组 swiper、六步入门入口、全部预组网格、收藏与最近浏览。
-- tabBar 文案为 首页／卡牌／预组／规则，与三个 portal 的命名一致。
-- tabBar 页面之间只能 `switchTab`，`navigateTo` 会报 `can not navigate to a tabBar page`；collection 因此必须是非 tabBar 页面。
-- **`navigateTo` 的中文查询参数到达页面时仍是百分号编码**，onLoad 必须自行 `decodeURIComponent`（安全包装，失败时不抛）。已在开发者工具内实测：未解码时 `?kind=本体` 会一路落到「全部卡牌」。
+- **home 是收藏室场景**：包内暖色场景底 + 品牌与官网入口 + 全量搜索；中部是**本体精选卡架**（两侧卡背衬托中间正式完整成卡图，点击进详情，旁给预组入口）；下方是图鉴／入门入口、精选预组横向卡册，以及按需出现的收藏与最近浏览。名称、流派、数量都从 `catalog` 与 `presentation` 读取，页面不写死卡牌文字。
+- **cards 就是图鉴列表**（tabBar，直接显示卡面网格，不再只是入口）：`GROUPS` 决定牌种，`kind` 只接受 本体／角色／手牌／全部，非法值回落「全部卡牌」。**「手牌」= 基础牌 + 行动牌**。骑士卡不从正式数据导出到图鉴目录；查找、收藏、历史清理由同一目录判定，正式骑士卡数据与规则保持不变。搜索常驻，牌种切换常用可见，定位与预组筛选折叠在「筛选 ＋」内，另有「全部／已收藏」与清空条件。
+- **collection 是旧深链兼容页**（非 tabBar）：与 `cards` 共用同一套 `GROUPS`/`SUBS`/筛选逻辑，供 `?kind=`/`?q=`/`?fav=1` 直达使用。**两处筛选口径必须同步维护并回归**，改动任一侧都要跑 `mini:test`。
+- **decks 承接原首页内容**：精选预组主视觉、六步入门入口、全部 12 套预组网格、收藏与最近浏览。
+- **deck-detail**：本体摘要 + 玩法简介 + 核心操作，下方 16 张角色可按定位筛选并显示各定位数量，再次点击同一项复位为全部。
+- **detail**：视觉列（卡面、形态切换／picker、高清预览、重新加载）+ 阅读列（「卡牌事实」与「完整效果」两段、一键复制当前卡面文字）。
+- **rules**：章节目录 → 单章阅读两级，显示 n/34，上一篇／下一篇首末自动禁用越界，可返回目录。
+- **about（关于与隐私）**：从首页底部进入，只读页面，无 tabBar 入口。承载隐私说明（不登录、记录只在本机、只写剪贴板、卡图随包、无统计与广告）、功能范围、备案号、随包内容版本与包内图源说明。备案号来自 `src/config.ts` 的 `ICP_FILING_NUMBER`，为空时不渲染该行；文案与数组都写在页面自身，不进 `presentation.json`。
+- tabBar 页面之间只能 `switchTab`，`navigateTo` 会报 `can not navigate to a tabBar page`。
+- **`navigateTo` 的中文查询参数到达页面时仍是百分号编码**，`cards` 与 `collection` 的 `onLoad` 都必须自行 `decodeURIComponent`（安全包装，失败时不抛）。已在开发者工具内实测：未解码时 `?kind=本体` 会一路落到「全部卡牌」。
 - catalog 服务集中查询和归属映射，列表只下发缩略字段。
-- navigation 服务集中所有跳转与返回：`browse`（全量搜索／仅收藏）、`openCollection`、`openCard`、`openDeck`、`openGuide`。普通返回不会重置筛选。页内滚动交给原生页面保留，原生验收需复核。
+- navigation 服务集中所有跳转与返回：`browse`（全量搜索／仅收藏，走 collection 栈页以保留返回路径）、`openCollection`、`openCard`、`openDeck`、`openAbout`、`openGuide`。普通返回不会重置筛选。页内滚动交给原生页面保留，原生验收需复核。
 - storage 服务使用 `baolvtuan-library-v1` 本机键，校验、去重、剔除无效 ID，历史最多 30。同步读写均捕获错误并提示；失败后会话内继续工作，不自动承诺保存成功。减少动态效果偏好也在本机。
 - card-tile 组件提供卡面／缺图占位与重试、统一详情事件。document-blocks 组件以原生文字呈现正式规则。
 - 图片失败不会删卡或隐藏文字；非法路由有返回入口。微信分享路径只使用稳定卡牌 ID。
@@ -60,3 +65,9 @@ Catalog schemaVersion 为 2：
 `presentation.homeExhibit` 保存精选预组 ID 和介绍插画路径；导出校验正式预组引用。首页名称和流派从目录读取，构建根据预组本体的正式 `hdImage` 生成首页本地卡图，避免页面写死卡牌文字。`branding/collector-library-v2.png` 是场景，`collector-character-v2.png` 是透明介绍角色；早期 `collector-hero-v2.png` 仅保留设计素材，不进入运行包。构建压缩本地展示图及正式牌背，仍遵守 1.5 MiB 内部预算。普通查询图源与高清预览适配不变。
 
 `branding/icons` 保存 Tabler SVG 与 MIT 许可证，构建生成默认／选中 PNG，无运行时图标依赖。`mini:review` 同时读取 app 与对应页面 WXSS，输出仅为浏览器布局近似验证。cards 直接使用完整筛选页面行为，collection 保留兼容入口，两处需同步维护并回归。
+
+### 首页卡架轮播
+
+`home` 以 `homeExhibit.deckId` 为首项，随后引用其余正式预组；原生 swiper 与显式上一组／下一组共用选择状态。只有 touch 来源的 swiper 变化更新选择，避免延迟的程序回调覆盖新选择。卡面、正式效果、名称与详情路由由同一预组和 face 索引派生。换组恢复正面；异步图片错误按索引与版本过滤。图源继续复用 imageUrl，首项正面沿用随包卡图，不增加全部本体的包体开销。
+
+浏览器近似渲染为 swiper-item 补齐原生默认宽高；此适配仅影响布局检查，不替代微信手势验证。

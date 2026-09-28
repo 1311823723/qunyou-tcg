@@ -45,6 +45,7 @@
 
 - [架构与阶段计划](miniprogram-architecture.md)
 - [WorkBuddy 接手清单](miniprogram-handoff.md)
+- [上线检查清单](miniprogram-release-checklist.md)（账号、备案、域名、隐私指引、审核与发布）
 - [本地运行说明](../miniprogram/README.md)
 
 微信图鉴：[产品规格](miniprogram-product.md) · [验收记录](miniprogram-verification.md)（工程／浏览器／微信／真机分别记录）。

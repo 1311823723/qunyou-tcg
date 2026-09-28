@@ -2,7 +2,7 @@ import { catalog,tile } from '../../services/catalog';
 import { library } from '../../services/storage';
 import { openCard } from '../../services/navigation';
 const GROUPS:{[key:string]:string[]}={'本体':['本体'],'角色':['角色'],'手牌':['基础牌','行动牌'],'全部':[]};
-const SUBS:{[key:string]:string[]}={'手牌':['基础牌','行动牌'],'全部':['本体','角色','基础牌','行动牌','骑士卡']};
+const SUBS:{[key:string]:string[]}={'手牌':['基础牌','行动牌'],'全部':['本体','角色','基础牌','行动牌']};
 const TITLES:{[key:string]:string}={'本体':'本体牌','角色':'角色牌','手牌':'手牌','全部':'全部卡牌'};
 // navigateTo 传来的中文参数在真机/模拟器里仍是百分号编码（%E6%9C%AC%E4%BD%93），
 // 不会自动解码；不处理就会一路落到默认分类。已在开发者工具内实测确认。

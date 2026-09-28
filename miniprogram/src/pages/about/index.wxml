@@ -1,0 +1,27 @@
+<view class="screen {{reduceMotion ? 'reduced' : 'fade'}}">
+<view class="eyebrow">ABOUT THIS MINI PROGRAM</view>
+<view class="heading">关于与隐私</view>
+<view class="prose intro">宝旅团 TCG 图鉴是一个随身的查卡工具：卡牌 {{counts.cards}} 条、预组 {{counts.decks}} 套，文字随安装包携带，离线也能读。</view>
+
+<view class="subheading">隐私</view>
+<view class="about-list">
+<view class="about-item" wx:for="{{privacy}}" wx:key="title"><view class="section-title">{{item.title}}</view><text class="prose" user-select>{{item.text}}</text></view>
+</view>
+<view class="quiet">微信官方要求的《用户隐私保护指引》以小程序「更多资料」中的正式声明为准，本页只做同一份承诺的白话说明。</view>
+
+<view class="subheading">范围</view>
+<view class="about-list">
+<view class="about-item" wx:for="{{scope}}" wx:key="title"><view class="section-title">{{item.title}}</view><text class="prose" user-select>{{item.text}}</text></view>
+</view>
+
+<view class="subheading">备案与版本</view>
+<view class="about-card">
+<view wx:if="{{filing}}" class="filing-row"><view class="fact-label">小程序备案号</view><text class="fact-value" user-select>{{filing}}</text></view>
+<view wx:else class="quiet">备案完成后，备案号会显示在这里。</view>
+<view class="fact-row"><view class="fact-label">随包内容版本</view><text class="fact-value" user-select>{{version}}</text></view>
+<view class="fact-row"><view class="fact-label">卡图图源</view><text class="fact-value" user-select>{{assetHost}}</text></view>
+<view class="fact-row"><view class="fact-label">官网</view><text class="fact-value" user-select>{{website}}</text></view>
+</view>
+<view class="about-actions"><button class="link" bindtap="openWebsite">打开官网 ↗</button></view>
+<view class="quiet footer-note">卡牌与规则版权归原作者所有；本工具仅作查阅用途。</view>
+</view>

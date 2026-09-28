@@ -4,6 +4,8 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { blocks } from './markdown.mjs';
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+export const CARD_PACK_COUNT = 8;
+export const IMAGE_PROFILE = 'local-cardpack-b240q60-c150q60-h120q48-hd750q70-hand650q58-p320q60-v1';
 const read = file => fs.readFileSync(path.join(root,file),'utf8');
 const json = file => JSON.parse(read(file));
 const section = (title,text) => ({title,text:String(text || '')});
@@ -31,7 +33,20 @@ export function makeCatalog() {
  }
  const handFiles=fs.readdirSync(path.join(root,'public/cards/hand_cards')).sort();
  for(const c of json('data/cards/hand_cards.json')) cards.push({id:c.id,name:c.name,kind:c.handType+'牌',role:'',tags:c.tags||[],faces:faces(handFiles.filter(f=>f.startsWith(c.id+'_')).map((f,i)=>[f.slice(c.id.length+1,-5).replace(/spade[s]?/,'黑桃').replace(/heart[s]?/,'红桃').replace(/diamond[s]?/,'方块').replace(/club[s]?/,'梅花').replace(/small_joker/,'小王').replace(/big_joker/,'大王').replace(/_/g,' ').toUpperCase(),`hand_cards/${f}`])),sections:[section('发动时机',c.timing),section('效果',c.effectText),section('花色与点数',c.cards.map(e=>e.joker==='small'?'小王':e.joker==='big'?'大王':e.suit+e.rank).join('、'))]});
- for(const c of json('data/cards/rider_cards.json')) cards.push({id:c.id,name:c.name,kind:'骑士卡',role:c.mainRole,tags:[c.tag].filter(Boolean),faces:[],sections:['normal','final'].flatMap(key=>{const mode=c[key],pay=mode.cost;return[section(key==='normal'?'普通模式':'FINAL模式',mode.timing),section(key==='normal'?'普通费用':'FINAL费用',`${pay.consumeSelf?'消耗此骑士卡；':''}退场 ${pay.retireSameRole} 张同定位角色；消耗 ${pay.dynamaxEnergy} 点极巨能量`),section(key==='normal'?'普通效果':'FINAL效果',mode.effectText)];})});
+ // Keep every face of one card in the same subpackage so flipping never needs another download.
+ // Source sizes are used only for deterministic balancing; build.mjs checks actual encoded bytes.
+ const packBytes=Array(CARD_PACK_COUNT).fill(0);
+ const byWeight=cards.map(card=>({card,bytes:card.faces.reduce((sum,face)=>sum+(face.hdImage?fs.statSync(path.join(root,'public',face.hdImage)).size:0),0)}))
+  .sort((a,b)=>b.bytes-a.bytes||a.card.id.localeCompare(b.card.id));
+ for(const entry of byWeight){
+  const index=packBytes.indexOf(Math.min(...packBytes));
+  const pack=`cardpack-${String(index+1).padStart(2,'0')}`;
+  entry.card.pack=pack;packBytes[index]+=entry.bytes;
+  for(const face of entry.card.faces){
+   if(face.image)face.image='/assets/card-thumbs'+face.image.slice('/cards'.length);
+   if(face.hdImage)face.hdImage=`/${pack}/hd`+face.hdImage.slice('/cards-hd'.length);
+  }
+ }
  const decks=fs.readdirSync(path.join(root,'data/decks')).filter(f=>f.endsWith('.deck.json')).sort().map(f=>json('data/decks/'+f));
  for(const d of decks){const intro=presentation.deckIntros[d.id];if(!intro)throw Error('Missing deck introduction: '+d.id);Object.assign(d,intro,{portrait:'/assets/'+d.bodyId+'.jpg',bodyName:cards.find(c=>c.id===d.bodyId)?.name});}
  const articles=[article('rules','规则摘要',read('docs/rules.md')),article('keywords','关键词',read('docs/keywords.md'))];
@@ -42,7 +57,7 @@ export function makeCatalog() {
  for(const id of Object.keys(presentation.deckIntros))if(!decks.some(d=>d.id===id))throw Error('Invalid editorial deck '+id);
  for(const step of presentation.quickStart){if(!ids.has(step.cardId))throw Error('Invalid tutorial card '+step.cardId);for(const heading of step.ruleHeadings)if(!articles[0].sections.some(s=>s.title===heading))throw Error('Invalid tutorial rule '+heading);}
  const portraits=decks.map(d=>{const file='src/assets/card-art-web/'+art.bodies[d.bodyId].front+'.webp';return{id:d.bodyId,file,hash:crypto.createHash('sha256').update(fs.readFileSync(path.join(root,file))).digest('hex')};});
- const contentVersion=crypto.createHash('sha256').update(JSON.stringify({cards,decks,articles,presentation,portraits})).digest('hex').slice(0,12);
+ const contentVersion=crypto.createHash('sha256').update(JSON.stringify({cards,decks,articles,presentation,portraits,imageProfile:IMAGE_PROFILE})).digest('hex').slice(0,12);
  return{schemaVersion:2,contentVersion,cards,decks,articles,presentation,portraits};
 }
 if (process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {

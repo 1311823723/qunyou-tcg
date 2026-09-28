@@ -2,10 +2,9 @@
 // 引入 .json 会在运行时报 "module 'generated/catalog.json.js' is not defined"。
 // 生成物是 CommonJS 模块，类型由同目录手写的 catalog.d.ts 提供。
 import raw from "../generated/catalog";
-import { ASSET_BASE_URL } from "../config";
 import type { Catalog, Card } from "./types";
 export const catalog: Catalog = raw;
-export function imageUrl(path: string) { return path.startsWith("/assets/") ? path : path ? ASSET_BASE_URL.replace(/\/$/, "") + path : ""; }
+export function imageUrl(path: string) { return path.startsWith("/") ? path : ""; }
 export function findCard(id: string) { return catalog.cards.find(card => card.id === id); }
 export function searchCards(query: string, kind = "全部", role = "全部", deckId = "全部") {
  const words = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);

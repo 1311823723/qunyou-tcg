@@ -8,7 +8,8 @@
     "pages/deck-detail/index",
     "pages/rules/index",
     "pages/history/index",
-    "pages/website/index"
+    "pages/website/index",
+    "pages/about/index"
   ],
   "window": {
     "navigationBarTitleText": "宝旅团图鉴",
@@ -49,5 +50,15 @@
       }
     ]
   },
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "subPackages": [
+    {"root":"cardpack-01","pages":["pages/detail/index"]},
+    {"root":"cardpack-02","pages":["pages/detail/index"]},
+    {"root":"cardpack-03","pages":["pages/detail/index"]},
+    {"root":"cardpack-04","pages":["pages/detail/index"]},
+    {"root":"cardpack-05","pages":["pages/detail/index"]},
+    {"root":"cardpack-06","pages":["pages/detail/index"]},
+    {"root":"cardpack-07","pages":["pages/detail/index"]},
+    {"root":"cardpack-08","pages":["pages/detail/index"]}
+  ]
 }

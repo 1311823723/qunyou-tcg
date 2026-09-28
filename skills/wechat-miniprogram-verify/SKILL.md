@@ -11,7 +11,7 @@ description: Verify the 宝旅团 TCG WeChat mini program (miniprogram/) inside 
 
 - 工具：`~/Applications/wechatwebdevtools.app`（`/Applications` 会被系统拒绝，用 `ditto --noextattr` 绕过 `com.apple.provenance`）。
 - 服务端口必须由用户手动开启：设置 → 安全设置 → 服务端口。命令行无法代替这一步。开启后 `Default/.cli` 写入端口号（本轮为 `3799`）。
-- 项目 AppID 在 `miniprogram/project.config.json`；测试号可编译、可跑模拟器，但不能配置服务器域名、不能上传发布。
+- 项目 AppID 在 `miniprogram/project.config.json`，当前值 `APP_ID` 是**正式注册的个人主体账号**（不是测试号）：可编译、可跑模拟器，也可配服务器域名与上传；但**未完成小程序备案时后台不允许上传／提审／发版**。
 
 ## 三条命令线
 
@@ -63,7 +63,7 @@ APP=~/Applications/wechatwebdevtools.app/Contents/Resources/app.asar.unpacked/no
 
 1. 在无空格路径建极简工程：`app.js` 必须是 `App({})`（写成 `Page({})` 会让页面 `data` 为空，极难察觉）。
 2. 把待考察的写法并排放进同一页（每变体一个标签），一次编译就能横向对比。
-3. `project.config.json` 里关掉 `minified` / `minifyWXSS` / `minifyWXML`，`urlCheck: false`，AppID 沿用测试号。
+3. `project.config.json` 里关掉 `minified` / `minifyWXSS` / `minifyWXML`，`urlCheck: false`，AppID 沿用项目里那个（临时工程用游客 AppID 也可以，不要为此申请新号）。
 4. 用完即删。
 
 ## 已确证且违反会导致白屏/错版的平台约束
@@ -77,13 +77,16 @@ APP=~/Applications/wechatwebdevtools.app/Contents/Resources/app.asar.unpacked/no
 | `navigateTo` **不能跳 tabBar 页面** | `can not navigate to a tabBar page`；tab 之间只能 `switchTab` | 目录结构审查 |
 | `navigateTo` 的**中文查询参数不自动解码** | `onLoad` 拿到 `%E6%9C%AC%E4%BD%93`，匹配失败后走到默认分支且不报错 | 页面测试写 `onLoad({kind: encodeURIComponent('本体')})` 断言 |
 | `mini:review` 的近似渲染器**不能解析裸 `&`** | `xmlParseEntityRef: no name` → 整个 `mini:review` 崩掉（WXML 本身合法，只有这个 XML 解析器不接受） | 解析前把裸 `&` 转义 |
+| `mini:review` 的近似渲染器**不能解析属性值里的裸 `<`**（如 `{{a < b}}`） | `Unescaped '<' not allowed in attributes values`；同理整个 `mini:review` 崩掉 | 解析前把 `{{ }}` 内的 `<` 转义（XML 解析器会解回原字符，不影响求值） |
+| 组件新增 data 字段 | `mini:review` 报 `xxx is not defined`——近似渲染器给组件模板的 props 只有硬编码默认值 | 在 `visual-review.mjs` 的 `props={failed:false,ready:true}` 里补上 |
 
-## 资源域名（生产级阻断）
+## 网络图注意事项（当前卡图已改包内）
 
 - `<image src>` 加载网络图**同样**受 `downloadFile 合法域名` 管控。开发者工具模拟器用自身网络栈渲染，**画面正常，看不出问题**；真机不配置就整片白图。
 - `wx.downloadFile` / `wx.getImageInfo` 在工具里就会明确报 `url not in domain list`，可用它们做前置探测。
 - 域名须已 ICP 备案，`pages.dev` 无法备案。
-- 体积上限：主包 2 MB、单个分包 2 MB、所有分包合计 20 MB。高清卡图 22.4 MB 已超限，**只能远程托管**。
+- 保守体积预算按十进制计算：主包 2 MB、单个分包 2 MB、全部合计 20 MB。原始高清图 22.4 MiB 不能直接入包；第九轮先用重编码临时项目验算，随后第十轮接入正式构建。
+- 第十轮已把包内图接入正式构建，卡图不再请求 `pages.dev`；`wx.previewImage` 在工具中无法打开包内路径，现用本页全屏缩放查看。实际上传包、真机首次下载分包与双指操作仍待验，见验收记录第十轮。
 
 ## 记录要求
 

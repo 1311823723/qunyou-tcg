@@ -1,0 +1,14 @@
+.intro{color:#e6e2da;margin-bottom:4px}
+.about-list{border-top:1px solid #aa927a33}
+.about-item{padding:14px 0;border-bottom:1px solid #aa927a24}
+.about-item .section-title{margin-bottom:4px}
+.about-card{border:1px solid #aa927a33;border-radius:8px;background:#171a1e;padding:14px 16px}
+.fact-row,.filing-row{padding:10px 0;border-bottom:1px solid #aa927a24}
+.fact-row:last-child,.filing-row:last-child{border-bottom:0}
+.fact-label{color:#b3a68e;font-size:12px;letter-spacing:.5px;margin-bottom:4px}
+.fact-value{font-size:14px;line-height:1.8;color:#eee6d7;display:block;word-break:break-all}
+.filing-row .fact-value{font-size:16px;color:#f2e3c6;letter-spacing:.5px}
+.about-actions{display:flex;align-items:center;gap:8px;margin-top:16px}
+.about-actions button{flex:1;font-size:14px;min-height:44px}
+.about-actions .link{flex:none;color:#bfa77f}
+.footer-note{margin-top:18px;font-size:12px}
