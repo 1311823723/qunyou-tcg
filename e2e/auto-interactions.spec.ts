@@ -67,7 +67,7 @@ test("automatic decisions survive presence updates and out-of-order acknowledgem
   await expect(page.locator('[data-confirm-play]')).toHaveCount(0);
   await page.locator('.auto-detail__close').click();
   await page.locator('[data-auto-card="hand-0"]').click();
-  await expect(page.locator('[data-confirm-play]')).toHaveText('确认响应');
+  await expect(page.locator('[data-confirm-play]')).toHaveText('使用【闪避】响应');
   await expect.poll(() => page.locator('[data-auto-card="hand-0"] img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
   await page.screenshot({ path: '/tmp/tcg-auto-response.png' });
   await page.locator('[data-confirm-play]').click();
@@ -110,8 +110,62 @@ async function flowTable(page: import('@playwright/test').Page) {
     await expect(page.locator('#auto-battle-app')).not.toHaveAttribute('data-action-pending', 'true');
   };
   publish(); await expect(page.locator('.auto-hand')).toBeVisible();
-  return { state, commands, errors, publish, ack, reconnect: () => channel!.close() };
+  return { state, commands, errors, publish, ack, emit: (message: unknown) => channel!.send(JSON.stringify(message)), reconnect: () => channel!.close() };
 }
+
+test('single selections replace in place and submissions survive ack ordering and recoverable errors', async ({ page }) => {
+  const { state, commands, publish, emit, ack, errors } = await flowTable(page);
+  const card = page.locator('[data-auto-card="target"]');
+  const identity = await card.elementHandle();
+  const image = await card.locator('img').elementHandle();
+  await card.click();
+  await page.locator('[data-auto-card="target-a"]').click();
+  await page.locator('[data-auto-card="target-b"]').click();
+  await expect(page.locator('[data-auto-card="target-a"]')).not.toHaveClass(/is-selected/);
+  await expect(page.locator('[data-auto-card="target-b"]')).toHaveClass(/is-selected/);
+  expect(await card.evaluate((node, original) => node === original, identity)).toBe(true);
+  expect(await card.locator('img').evaluate((node, original) => node === original, image)).toBe(true);
+  await page.locator('[data-local-selection-confirm]').click();
+  await expect.poll(() => commands.length).toBe(1);
+  expect(commands[0].payload.targetSlotIndex).toBe(1);
+  await expect(page.locator('.auto-submitted')).toContainText('已提交');
+  await expect(card).toHaveClass(/is-selected/);
+  await expect(page.locator('[data-auto-card="target-b"]')).toHaveClass(/is-selected/);
+  await page.keyboard.press('Enter');
+  expect(commands).toHaveLength(1);
+  emit({ type: 'error', actionId: commands[0].actionId, error: '测试可重试错误' });
+  await expect(page.locator('[data-local-selection-confirm]')).toBeEnabled();
+  await expect(page.locator('[data-auto-card="target-b"]')).toHaveClass(/is-selected/);
+  await page.locator('[data-local-selection-confirm]').click();
+  await expect.poll(() => commands.length).toBe(2);
+  emit({ type: 'actionAck', actionId: commands[1].actionId, revision: state.revision + 1 });
+  await expect(page.locator('#auto-battle-app')).toHaveAttribute('data-action-pending', 'true');
+  state.revision++; publish();
+  await expect(page.locator('.auto-submitted')).toHaveCount(0);
+  // Stale packets cannot restore a previous turn or replay feedback.
+  emit({ type: 'snapshot', snapshot: { ...state, revision: state.revision - 1, game: { ...state.game, phase: 'end' } } });
+  await expect(page.locator('.auto-phase-track [aria-current="step"]')).toContainText('出牌');
+  await page.locator('[data-auto-card="role-a"]').click();
+  await page.locator('[data-role-action="skill"]').click();
+  await page.locator('[data-auto-card="role-a"]').click();
+  await page.locator('[data-auto-card="role-b"]').click();
+  await expect(page.locator('.auto-local-selection')).toContainText('刺客-微笑尅乐');
+  await page.locator('[data-local-selection-confirm]').click();
+  await expect.poll(() => commands.length).toBe(3);
+  expect(commands[2].payload.costCharacterIds).toEqual(['role-b']);
+  await ack();
+  const skill = state.game.legalActions.find((action: any) => action.type === 'skill:activate');
+  delete skill.selection;
+  skill.interaction.cost = { kind: 'rest', amount: 1, fixedIds: ['role-a'] };
+  state.revision++; publish();
+  await page.locator('[data-auto-card="role-a"]').click();
+  await expect(page.locator('.auto-role-confirm')).toContainText('进入角色牌堆');
+  await page.locator('[data-role-action="skill"]').click();
+  await expect.poll(() => commands.length).toBe(4);
+  await expect(page.locator('[data-local-selection-confirm]')).toHaveCount(0);
+  await ack();
+  expect(errors).toEqual([]);
+});
 
 test('unified targets, costs, back navigation, desktop quick gestures and keyboard guards', async ({ page }) => {
   const { state, commands, errors, publish, ack } = await flowTable(page);
@@ -192,6 +246,83 @@ test('unified targets, costs, back navigation, desktop quick gestures and keyboa
   expect(errors).toEqual([]);
 });
 
+test('touch decisions keep table geometry, reject swipe clicks and restore detail focus', async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  try {
+    const { commands, errors, ack } = await flowTable(page);
+    for (const [width, height] of [[390,844],[844,390],[740,360]]) {
+      await page.setViewportSize({ width, height });
+      const geometry = () => page.locator('[data-auto-region="opponent"], [data-auto-region="lower"], .auto-hand').evaluateAll(elements => elements.map(element => {
+        const box = element.getBoundingClientRect(); return [box.x, box.y, box.width, box.height];
+      }));
+      const before = await geometry();
+      await page.locator('[data-auto-card="target"]').tap();
+      await page.locator('[data-auto-card="target-a"]').tap();
+      await page.locator('[data-auto-card="target-b"]').tap();
+      await expect(page.locator('[data-auto-card="target-b"]')).toHaveClass(/is-selected/);
+      expect(await geometry()).toEqual(before);
+      const command = await page.locator('.auto-command-center').boundingBox();
+      const heading = await page.locator('.auto-local-selection h3').boundingBox();
+      const summary = await page.locator('.auto-confirmation-preview > span').boundingBox();
+      expect(heading!.y).toBeGreaterThanOrEqual(command!.y);
+      expect(heading!.y + heading!.height).toBeLessThanOrEqual(summary!.y + 1);
+      for (const selector of ['[data-local-selection-confirm]', '[data-local-selection-cancel]', '[data-local-selection-exit]']) {
+        const box = await page.locator(selector).boundingBox();
+        expect(box!.height).toBeGreaterThanOrEqual(44);
+        expect(box!.y).toBeGreaterThanOrEqual(command!.y);
+        expect(box!.y + box!.height).toBeLessThanOrEqual(command!.y + command!.height + 1);
+      }
+      await page.screenshot({ path: `/tmp/tcg-feel-${width}.png` });
+      await page.locator('[data-local-selection-confirm]').tap();
+      await expect(page.locator('.auto-submitted')).toBeVisible();
+      expect(await geometry()).toEqual(before);
+      const submitted = await page.locator('.auto-submitted .btn--primary').boundingBox();
+      expect(submitted!.y + submitted!.height).toBeLessThanOrEqual(command!.y + command!.height + 1);
+      await ack();
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    const strike = page.locator('[data-auto-card="strike"]');
+    // A browser-generated click after a moving touch must not become a card selection.
+    await strike.dispatchEvent('pointerdown', { pointerId: 42, pointerType: 'touch', clientX: 100, clientY: 600 });
+    await strike.dispatchEvent('pointermove', { pointerId: 42, pointerType: 'touch', clientX: 150, clientY: 600 });
+    await strike.dispatchEvent('pointerup', { pointerId: 42, pointerType: 'touch', clientX: 150, clientY: 600 });
+    await strike.dispatchEvent('click');
+    await expect(page.locator('[data-confirm-play]')).toHaveCount(0);
+    await page.waitForTimeout(450);
+    await strike.tap();
+    const scroll = await page.locator('.auto-hand__cards').evaluate(element => element.scrollLeft);
+    await page.locator('[data-view-selected]').tap();
+    await expect(page.getByRole('dialog', { name: '卡牌详情' })).toBeVisible();
+    await page.locator('.auto-detail__close').tap();
+    await expect(strike).toHaveClass(/is-selected/);
+    await expect(page.locator('[data-view-selected]')).toBeFocused();
+    expect(await page.locator('.auto-hand__cards').evaluate(element => element.scrollLeft)).toBe(scroll);
+    expect(commands).toHaveLength(3);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('a disconnected submission is not resent and recovery uses the new snapshot', async ({ page }) => {
+  const { state, commands, publish, reconnect, errors } = await flowTable(page);
+  await page.clock.install();
+  await page.locator('[data-auto-card="strike"]').click();
+  await page.locator('[data-confirm-play]').click();
+  await expect.poll(() => commands.length).toBe(1);
+  reconnect();
+  await expect(page.locator('.auto-submitted')).toHaveCount(0);
+  await page.clock.runFor(1300);
+  await expect(page.locator('#auto-connection')).toContainText('已连接');
+  state.revision++;
+  state.players[0].hand = state.players[0].hand.filter((card: any) => card.instanceId !== 'strike');
+  state.game.legalHandCardIds = ['target', 'joker'];
+  publish();
+  await expect(page.locator('[data-auto-card="strike"]')).toHaveCount(0);
+  await expect(page.locator('[data-confirm-play]')).toHaveCount(0);
+  expect(commands).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
+
 test('visual order editing preserves private choices, serializes order and guards text input', async ({ page }) => {
   const { state, commands, errors, publish } = await flowTable(page);
   state.revision++;
@@ -236,7 +367,7 @@ test('touch response and dying choices keep context and never use quick gestures
     await page.locator('[data-auto-card="joker"]').click();
     await expect(page.locator('.auto-response-context')).toContainText('对手');
     await expect(page.locator('.auto-response-context')).toContainText('出刀');
-    await expect(page.locator('[data-confirm-play]')).toHaveText('确认响应');
+    await expect(page.locator('[data-confirm-play]')).toHaveText('作为【闪避】响应');
     await page.locator('[data-cancel-play]').click();
     await expect(page.locator('[data-prompt-value="pass"]')).toBeVisible();
     expect(commands).toHaveLength(0);
